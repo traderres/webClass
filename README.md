@@ -1,3 +1,6 @@
-# webClass
+# Welcome to webClass
 
-# this is atest
+Click on the wiki page to view the sylabus
+
+Click on the code page to view the files
+
