@@ -1,0 +1,213 @@
+How to run Completion Service to kick-off threads and wait for any one to finish
+--------------------------------------------------------------------------------
+
+
+
+Part 1: Setup a class called RealMulti that kicks-off worker threads
+--------------------------------------------------------------------
+package multi1;
+
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import utils.DateUtilities;
+import utils.MathUtilities;
+
+
+public class RealMulti1
+{
+    private final static Logger logger = LoggerFactory.getLogger(RealMulti1.class);
+    
+    
+    /**************************************************************
+     * main() 
+     **************************************************************/
+    public static void main(String[] args)
+    {
+        logger.debug("main() has started.");
+        
+        RealMulti1 realMulti1 = new RealMulti1();
+        realMulti1.processRecords();
+        
+        logger.debug("main() has finished");
+    }
+
+    
+
+    
+    
+    /**************************************************************
+     * processRecords()
+     *  1) Kick-off the threads
+     *  2) Wait for any thread to finish
+     *     -- When a thread finishes, display the returned message
+     **************************************************************/
+    public void processRecords() 
+    {
+        logger.debug("processRecords() has started");
+        
+        final int THREAD_COUNT = 5;
+        
+        // Setup a thread pool
+        ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT);
+        
+        // Setup the completion service (which will return a result that is a String)
+        ExecutorCompletionService<String> completionService = new ExecutorCompletionService<String>(executor);
+        
+        // Kick off threads
+        for (int iThreadNumber=1; iThreadNumber <= THREAD_COUNT; iThreadNumber++)
+        {
+            Worker myWorker = new Worker(iThreadNumber);
+            
+            // K I C K      O F F     T H R E A D S 
+            completionService.submit(myWorker);
+        }
+        
+        
+        // Wait for each of the threads to finish
+        for (int iThreadNumber=1; iThreadNumber <= THREAD_COUNT; iThreadNumber++)
+        {
+            
+            try 
+            {
+                // W A I T      F O R      O N E      T H R E A D     T O     F I N I S H 
+                // Block and Wait for one of the threads to finish
+                Future<String> f = completionService.take();
+                
+                // One of the threads has completed 
+                String sResults = f.get();
+                
+                logger.debug("One Thread Finished:  {}", sResults);
+            } 
+            catch (InterruptedException ex)
+            {
+                logger.debug("The worker class raised an InterruptedException", ex);
+            }
+            catch (Exception ex)
+            {
+                logger.debug("The worker class raised an exception!", ex);
+            }
+            
+        }
+    
+        
+        
+        // At this point all of the threads are finished so shutdown the executor
+        executor.shutdown();
+
+        
+        logger.debug("processRecords() has finished");
+    }
+    
+    
+    
+ 
+ 
+ 
+Part 2: Define the Worker class
+-------------------------------
+public class Worker implements Callable<String>
+{
+    private int threadNumber;
+    
+    /**************************************************************
+     * Worker() Constructor
+     * 
+     **************************************************************/
+    public Worker(int aiThreadNumber)
+    {
+        this.threadNumber = aiThreadNumber;
+    }
+    
+    
+    /**************************************************************
+     * call()
+     *  1) Generate a random number betweeen 2 and 20 secs
+     *  2) Sleep for that amount of time
+     *  3) Return a String with a message
+     **************************************************************/
+    @Override
+    public String call() throws Exception
+    {
+        logger.debug("  In Thread #{} call() started as of {}", this.threadNumber, DateUtilities.getCurrentDateTime("MM/dd/yyyy HH:mm:ss"));
+        int iSleepTime = MathUtilities.getRandomIntegerBetween(2,20);
+        
+        // Sleep for awhile
+        logger.debug("  In Thread #{} sleeping for {} seconds....", this.threadNumber, iSleepTime);
+        Thread.sleep(iSleepTime * 1000);
+        
+        if (iSleepTime > 16)
+        {
+            // Simulate an exception
+            throw new RuntimeException("For Thread #" + this.threadNumber + " Sleep Time exceeds 15 seconds!!");
+        }
+        
+        // Construct the message to send back
+        String sMessage = "Thread #" + this.threadNumber + " sleep time was " + iSleepTime + " secs and finished as of " + DateUtilities.getCurrentDateTime("MM/dd/yyyy HH:mm:ss");
+        
+        logger.debug("  In Thread #{} call() finished as of {}", this.threadNumber, DateUtilities.getCurrentDateTime("MM/dd/yyyy HH:mm:ss"));
+        
+        // Return the message back to the executor
+        return sMessage;
+    }
+    
+}
+
+
+
+
+
+Part 3: Define DateUtilities
+----------------------------
+package utils;
+
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
+public class DateUtilities
+{
+    
+    /**************************************************************
+     * getCurrentDateTime()
+     **************************************************************/
+    public static String getCurrentDateTime(String aFormat)
+    {
+        DateFormat df = new SimpleDateFormat(aFormat);
+        String sDateTime = df.format(new Date());
+        return(sDateTime);
+    }
+
+    
+}
+
+ 
+ 
+Part 4: Define MathUtilities
+----------------------------
+package utils;
+
+import java.util.Random;
+
+public class MathUtilities
+{
+    /**************************************************************
+     * getRandomIntegerBetween()
+     **************************************************************/
+    public static int getRandomIntegerBetween(int aMinNumber, int aMaxNumber)
+    {
+        Random random = new Random();
+        
+        int randomNumber = random.nextInt(aMaxNumber - aMinNumber) + aMinNumber;
+        
+        return(randomNumber);
+    }
+    
+
+}
