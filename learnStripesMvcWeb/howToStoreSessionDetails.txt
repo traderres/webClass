@@ -1,0 +1,129 @@
+How to Store Session Details in Stripes MVC
+-------------------------------------------
+
+In the Stripes Framework, you need a few components:
+ 1) You need to create a MyActionBeanContext class (in the ext. package)
+ 2) All Controllers can access the ActionBeanContext using this code
+       MyActionBeanContext ctx = (MyActionBeanContext) getContext();
+       UserProfile up = new UserProfile();
+       up.setIsAdminisrator(true);
+       up.setUsername("Ben");
+       ctx.setUserProfile(up);
+     
+ 3) Similarly, all web pages can access it using ${actionBean.context.userProfile}
+ 
+ 
+ 
+ 
+UserProfile Class
+-----------------
+package com.mycompany.myproject.model;
+
+public class UserProfile
+{
+    private String username;
+    private boolean isAdministrator;
+    
+    
+    public String getUsername() { return this.username; }
+    public void setUsername(String aUsername) { this.username = aUsername; }
+    
+    public boolean getIsAdministrator() { return this.isAdministrator; }
+    public void setIsAdminisrator(boolean isAdmin) { this.isAdministrator = isAdmin; }
+
+}
+
+
+
+
+MyActionBeanContext Class
+-------------------------
+package com.mycompany.myproject.ext;
+
+import javax.servlet.http.HttpServletRequest;
+import com.mycompany.myproject.model.UserProfile;
+import net.sourceforge.stripes.action.ActionBeanContext;
+
+/************************************************************************************
+ * Assumption:  You have told Stripes that this package holds your Extension packages
+ *              by setting in your web.xml
+ *   <filter>
+ *     <filter-name>StripesFilter</filter-name>
+ *     <filter-class>net.sourceforge.stripes.controller.StripesFilter</filter-class>
+ *     . . .
+ *    <init-param>
+ *       <param-name>Extension.Packages</param-name>
+ *       <param-value>com.mycompany.myproject.ext</param-value>
+ *     </init-param>
+ *   </filter>
+ *    
+ *************************************************************************************/
+
+public class MyActionBeanContext extends ActionBeanContext 
+{
+
+    private static final String USER_PROFILE_KEY = "up";    // It does not matter what this string is as long as it's unique
+    
+    /*************************************************************************
+     * getUserProfile()
+     * Retrieve the UserDetails object from this user's session
+     * NOTE:  Returns null if nothing is found
+     *************************************************************************/
+    public UserProfile getUserProfile()
+    {
+        return getDataFromSession(USER_PROFILE_KEY, null);
+    }
+
+    
+    
+    /*************************************************************************
+     * setUserProfile()
+     * Store a UserProfile object in this user's session
+     *************************************************************************/
+    public void setUserProfile(UserProfile aUserProfile)
+    {
+        setDataInSession(USER_PROFILE_KEY, aUserProfile);
+    }
+
+    
+    
+    
+    /*************************************************************************
+     * setDataInSession()
+     * 
+     * Story any object into the session object
+     * NOTE:  Tomcat will by default try to store this in a cookie
+     *        But, if Tomcat cannot use cookies, it will use rewrite urls
+     *        with a sessionid
+     *************************************************************************/
+    private void setDataInSession( String aKey, Object aValue)
+    {
+        // Get a pointer to the request object
+        HttpServletRequest request = getRequest();
+        
+        // Store the key/object in the session
+        request.getSession().setAttribute( aKey,  aValue );
+    }
+    
+    
+    /*************************************************************************
+     * getDataFromSession()
+     * 
+     * Retrieve any object from the session
+     * NOTE:  If the object is not found, then return the aDefaultValue 
+     *************************************************************************/
+    private <T> T getDataFromSession( String aKey, T aDefaultValue )
+    {
+        // Get a pointer to the request object
+        HttpServletRequest request = getRequest();
+        
+        T value = (T) request.getSession().getAttribute( aKey );
+        if (value==null)
+        {
+            // This item was not found in the session -- so use the default value
+            value = aDefaultValue;
+        }
+        
+        return value;
+    }
+}
