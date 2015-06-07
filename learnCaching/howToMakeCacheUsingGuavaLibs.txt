@@ -1,0 +1,152 @@
+How to Make a Cache Using Gauva Libraries
+-----------------------------------------
+
+Assumptions:
+ A) You want your java app to cache something (that might take awhile to load or calculate)
+ B) You have added this dependency to your java app
+        <dependency>    
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>18.0</version>
+         </dependency>
+    
+ 
+What are the Guave libraries? 
+-----------------------------
+The Guava project contains several of Google’s core libraries that we rely on in our Java-based projects: collections, caching, primitives support, concurrency libraries, common annotations, string processing, I/O, and so forth.
+ 
+
+The Guava LoadingCache class caches data in a key-object map, 
+ + lets you define a cache refreshing mechanism, all done in a thread safe manner.
+
+ 
+ 
+ 
+Procedures
+----------
+1) Create a class called UnitedStatesCache
+
+        package app1.utilities;
+
+        import java.util.concurrent.TimeUnit;
+        import org.springframework.jdbc.core.JdbcTemplate;
+        import org.springframework.jdbc.support.rowset.SqlRowSet;
+        import com.google.common.cache.CacheBuilder;
+        import com.google.common.cache.CacheLoader;
+        import com.google.common.cache.LoadingCache;
+
+        public class UnitedStatesCache 
+        {
+
+            // The cache holds key=<State abbreviation>   value=<Full State Name>
+            private final LoadingCache<String, String> cache;
+                 
+            
+            public UnitedStatesCache()
+            {
+                  cache = CacheBuilder.newBuilder()
+                       .expireAfterWrite(1, TimeUnit.DAYS)         // Expire item after 1 day
+                       .refreshAfterWrite(60, TimeUnit.MINUTES)    // Refresh item after 60 minutes
+                       .build( new CacheLoader<String, String>()
+                       {
+                             
+                           public String load( String aStateAbbreviation ) throws Exception 
+                           {
+                                 return queryDatabaseForOneValue(aStateAbbreviation);
+                           }
+                           
+                       }
+                 );
+             }
+            
+            
+            
+
+            public String getFullName( String aStateAbbreviation ) 
+            {
+                  String sStateFullName =  cache.getUnchecked( aStateAbbreviation );
+                  return(sStateFullName);
+             }
+            
+            
+            public void initializeCache() throws Exception
+            {
+                JdbcTemplate jt = new JdbcTemplate(DaoUtilities.getDataSource());
+                String sSql = "select abbreviation, name from usa_states";
+                
+                SqlRowSet rs = jt.queryForRowSet(sSql);
+                while (rs.next() )
+                {
+                    String sAbbreviatedName = rs.getString(1);
+                    String sFullName = rs.getString(2);
+                    
+                    cache.put(sAbbreviatedName, sFullName);
+                }
+            }
+            
+
+            
+            private String queryDatabaseForOneValue(String aStateAbbreviation) throws Exception
+            {
+                // Return the full name
+                JdbcTemplate jt = new JdbcTemplate(DaoUtilities.getDataSource());
+                String sSql = "select name from usa_states where abbreviation=?";
+                String sStateName = jt.queryForObject(sSql, String.class, aStateAbbreviation);
+                return(sStateName);
+             }
+        }
+
+
+
+2) Initialize and store the cache in the MyApplicationWatcher.contextInitialized()
+
+        @Override
+        public void contextInitialized(ServletContextEvent aServetContextEvent)
+        {
+            . . .
+            
+            // Setup the cache
+            UnitedStatesCache usaCache = new UnitedStatesCache();
+            
+            // Initialize the cache
+            usaCache.initializeCache();
+                 
+            // Store the cache in the application context
+            ServletContext ctx = aServetContextEvent.getServletContext();   
+            ctx.setAttribute("usaCache", usaCache);
+            
+            . . .
+        }
+
+    
+        
+4) Now, all of your controllers can get the cache
+   NOTE: You must pass-in the request object so you can get the servlet context
+
+        /**********************************************************************
+         * settingsShow()
+         * 
+         ***********************************************************************/
+        @RequestMapping(value="/settings", method=RequestMethod.GET)
+        public ModelAndView settingsShow( HttpServletRequest request, Model aModel )
+        {
+            logger.debug("settingsShow() started");
+                    
+            // Create a modelAndView object
+            ModelAndView mav = new ModelAndView();
+            
+            // Show the welcome.jsp page
+            mav.setViewName("settings.jsp");
+            
+            
+            // Get a reference to the cache
+            UnitedStatesCache usaCache = (UnitedStatesCache) request.getServletContext().getAttribute("usaCache");
+            String mdFullName = usaCache.getFullName("MD");
+            String vaFullName = usaCache.getFullName("VA));
+            String dcFullName = usaCache.getFullName("DC");
+            
+            
+            logger.debug("settingsShow() finished");
+            return mav;
+        }
+
