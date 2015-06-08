@@ -1,0 +1,285 @@
+How to Store a Cache in the Spring Bean  (Using Gauva Libraries)
+----------------------------------------------------------------
+
+Assumptions:
+ A) You want your java app to cache something (that might take awhile to load or calculate)
+ 
+ B) You have added this dependency to your java app
+        <dependency>    
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>18.0</version>
+         </dependency>
+ 
+ C) You have a database table called usa_states
+    If not, run this SQL:
+    
+         CREATE TABLE usa_states(
+          abbreviation varchar(2) not null,
+          name         varchar(60) not null,
+          primary key(abbreviation)
+          );
+          
+         insert into usa_states(abbreviation, name) values('MD', 'Maryland');
+         insert into usa_states(abbreviation, name) values('VA', 'Virigina'); 
+         insert into usa_states(abbreviation, name) values('DC', 'Washington DC');
+         commit;
+    
+ 
+ 
+ 
+What are the Guave libraries? 
+-----------------------------
+The Guava project contains several of Google’s core libraries that we rely on in our Java-based projects: collections, caching, primitives support, concurrency libraries, common annotations, string processing, I/O, and so forth.
+ 
+
+The Guava LoadingCache class caches data in a key-object map, 
+ + lets you define a cache refreshing mechanism, all done in a thread safe manner.
+
+ 
+ 
+ 
+Procedures
+----------
+1) Create a utility class called SpringAppContextUtils
+   NOTES:
+     a) This class is a springbean
+     b) This class is a helper class to allow any class get access to the ApplicationContext
+     c) Once you have access to the ApplicationContext object, you can get access to a spring bean that holds the cache
+     
+     
+        package app1.utilities;
+        
+        
+        /**
+         * To work, this line must be in the applicationContext.xml file
+         *    <bean id="applicationContextProvider" class="app1.utilities.SpringAppContextUtils" />
+         * 
+         *  MySpringBean mySpringBean = (MySpringBean) SpringApplicationContext.getBean("mySpringBean");
+         * // do something with MySpringBean
+         * 
+        * Create a class which implements ApplicationContextAware. 
+        * The method, “setApplicationContext(…)” gets called during the creation of this bean
+        * providing the reference to the context. 
+        * 
+        * Our program should store this for a later interaction with the context.
+        */
+        import org.springframework.beans.BeansException;
+        import org.springframework.context.ApplicationContext;
+        import org.springframework.context.ApplicationContextAware;
+        
+        public class SpringAppContextUtils implements ApplicationContextAware
+        {
+             private static ApplicationContext applicationContext = null;
+        
+              public static ApplicationContext getApplicationContext() {
+                  return applicationContext;
+              }
+              
+              public void setApplicationContext(ApplicationContext aApplicationContext) throws BeansException
+              {
+                   // Assign the ApplicationContext into a static variable
+                   applicationContext = aApplicationContext;
+              }
+              
+              
+              public static Object getBean(String aName)
+              {
+                  if (applicationContext == null)
+                  {
+                      throw new RuntimeException("Error in SpringAppContextUtils.getBean().  The applicationContext is null");
+                  }
+                  
+                  return applicationContext.getBean(aName);
+              }
+              
+        }
+
+
+
+
+2) Create a class called UnitedStatesCache
+   NOTE:  This class will hold the cache object
+   
+
+        package app1.utilities;
+
+        import java.util.concurrent.TimeUnit;
+        import org.springframework.jdbc.core.JdbcTemplate;
+        import org.springframework.jdbc.support.rowset.SqlRowSet;
+        import com.google.common.cache.CacheBuilder;
+        import com.google.common.cache.CacheLoader;
+        import com.google.common.cache.LoadingCache;
+
+        public class UnitedStatesCache 
+        {
+
+            // The cache holds key=<State abbreviation>   value=<Full State Name>
+            private final LoadingCache<String, String> cache;
+                 
+            
+            public UnitedStatesCache()
+            {
+                  cache = CacheBuilder.newBuilder()
+                       .expireAfterWrite(1, TimeUnit.DAYS)         // Expire item after 1 day
+                       .refreshAfterWrite(60, TimeUnit.MINUTES)    // Refresh item after 60 minutes
+                       .build( new CacheLoader<String, String>()
+                       {
+                             
+                           public String load( String aStateAbbreviation ) throws Exception 
+                           {
+                                 return queryDatabaseForOneValue(aStateAbbreviation);
+                           }
+                           
+                       }
+                 );
+             }
+            
+            
+            
+
+            public String getFullName( String aStateAbbreviation ) 
+            {
+                  String sStateFullName =  cache.getUnchecked( aStateAbbreviation );
+                  return(sStateFullName);
+             }
+            
+            
+            public void initializeCache() throws Exception
+            {
+                JdbcTemplate jt = new JdbcTemplate(DaoUtilities.getDataSource());
+                String sSql = "select abbreviation, name from usa_states";
+                
+                SqlRowSet rs = jt.queryForRowSet(sSql);
+                while (rs.next() )
+                {
+                    String sAbbreviatedName = rs.getString(1);
+                    String sFullName = rs.getString(2);
+                    
+                    cache.put(sAbbreviatedName, sFullName);
+                }
+            }
+            
+
+            
+            private String queryDatabaseForOneValue(String aStateAbbreviation) throws Exception
+            {
+                // Return the full name
+                JdbcTemplate jt = new JdbcTemplate(DaoUtilities.getDataSource());
+                String sSql = "select name from usa_states where abbreviation=?";
+                String sStateName = jt.queryForObject(sSql, String.class, aStateAbbreviation);
+                return(sStateName);
+             }
+        }
+
+
+
+3) Initialize and store the cache in the MyApplicationWatcher.contextInitialized()
+   NOTE:  Your "MyApplicationWatcher" class must extend ContextLoaderListener
+   
+   
+   public class MyApplicationWatcher extends ContextLoaderListener
+   {
+     . . .
+     
+   
+        @Override
+        public void contextInitialized(ServletContextEvent aServetContextEvent)
+        {
+            . . .
+             // Initialize Spring Context
+             // NOTE:  Initializes spring beans
+             // NOTE:  This must be done before using SpringAppContextUtils
+             super.contextInitialized( aServetContextEvent);
+ 
+ 
+            
+             // UnitedStatesCache is a spring-bean.  Get a reference to it using SpringAppContextUtils
+             UnitedStatesCache usaCache = (UnitedStatesCache) SpringAppContextUtils.getBean("usaCache");
+             
+             // Initialize the cache
+             usaCache.initializeCache();
+            
+            . . .
+        }
+
+    
+        
+4) Now, Your controllers can get to the cache using the request object
+   NOTES:
+     a) Because we are using SpringAppContextUtils.getBean("usaCache"),
+        we can get access to the cache from *anywhere* within the Spring Web App
+        
+
+        /**********************************************************************
+         * settingsShow()
+         * 
+         ***********************************************************************/
+        @RequestMapping(value="/settings", method=RequestMethod.GET)
+        public ModelAndView settingsShow( Model aModel )
+        {
+            logger.debug("settingsShow() started");
+                    
+            // Create a modelAndView object
+            ModelAndView mav = new ModelAndView();
+            
+            // Show the welcome.jsp page
+            mav.setViewName("settings.jsp");
+            
+            
+            // UnitedStatesCache is a spring-bean.  Get a reference to it
+            UnitedStatesCache usaCache = (UnitedStatesCache) SpringAppContextUtils.getBean("usaCache");
+
+            String mdFullName = usaCache.getFullName("MD");
+            String vaFullName = usaCache.getFullName("VA));
+            String dcFullName = usaCache.getFullName("DC");
+            
+            
+            logger.debug("settingsShow() finished");
+            return mav;
+        }
+
+
+
+**OR**
+
+Or, use the @Autowired annotation to have Spring inject the bean into the class
+
+
+
+    
+@Controller
+public class WelcomeController 
+ {
+    
+
+    @Autowired
+    private UnitedStatesCache usaCache;         // Spring injects the bean
+
+    
+    
+        /**********************************************************************
+         * settingsShow()
+         * 
+         ***********************************************************************/
+        @RequestMapping(value="/settings", method=RequestMethod.GET)
+        public ModelAndView settingsShow( Model aModel )
+        {
+            logger.debug("settingsShow() started");
+                    
+            // Create a modelAndView object
+            ModelAndView mav = new ModelAndView();
+            
+            // Show the welcome.jsp page
+            mav.setViewName("settings.jsp");
+            
+            String mdFullName = usaCache.getFullName("MD");
+            String vaFullName = usaCache.getFullName("VA));
+            String dcFullName = usaCache.getFullName("DC");
+            
+            
+            logger.debug("settingsShow() finished");
+            return mav;
+        }
+
+ }   
