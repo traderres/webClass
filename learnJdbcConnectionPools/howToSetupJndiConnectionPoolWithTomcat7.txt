@@ -1,12 +1,12 @@
-How to Setup a JDBC Connection Pool using Tomcat 6
+How to Setup a JNDI Connection Pool using Tomcat 7
 --------------------------------------------------
 
 Assumptions:
- 1) Your webapp will be deployed on Tomcat 6 or Tomcat 7 
+ 1) Your webapp will be deployed on Tomcat 7
  
  
-Tomcat 6 comes with its own java classes to implement a JDBC connection pool
-  -- The data source factory is called org.apache.tomcat.dbcp.dbcp.BasicDataSourceFactory
+Tomcat 7 comes with its own java classes to implement a JDBC connection pool
+  -- The data source factory is called org.apache.tomcat.jdbc.pool.DataSourceFactory
   -- You will need to extend this class to encode the database username/password
   
   
@@ -32,7 +32,7 @@ Setting-up a connection pool has the following steps:
     
  5) Verify that it works
  
- 6) EncryptedDataSourceFactoryForTomcat6  **FOR BETTER SECURITY -- but optional**
+ 6) EncryptedDataSourceFactoryForTomcat7  **FOR BETTER SECURITY -- but optional**
     -- Java class that extends the data source factory used by C3P0
     -- This class decodes the username & password    
 
@@ -69,7 +69,7 @@ Add a context.xml file to the webapp's WAR -> META-INF
         NOTES:
             1) The java code will use the JNDI name to use this data source
             2) Requires the following JARs in Tomcat-home/lib
-                TOMCAT_HOME/lib/tomcat-dbcp.jar                 [provided with Tomcat 6 and Tomcat 7]
+                TOMCAT_HOME/lib/tomcat-dbcp.jar                 [provided with Tomcat 7]
             3) This JNDI shows has a plain-text username and password
         
     -->
@@ -79,7 +79,7 @@ Add a context.xml file to the webapp's WAR -> META-INF
         destroy-method="close
         auth="Container"
         type="javax.sql.DataSource"
-        factory="org.apache.tomcat.dbcp.dbcp.BasicDataSourceFactory"
+        factory="org.apache.tomcat.jdbc.pool.DataSourceFactory"
         description="My database connection info"
         username="root"
         password="secret"
@@ -94,6 +94,8 @@ Add a context.xml file to the webapp's WAR -> META-INF
 </Context>
 
 
+
+
 Part 3:  Add DaoUtilities class
 -------------------------------
  1) Create a package called app1.utilities
@@ -105,7 +107,6 @@ package app1.utilities;
 import javax.naming.InitialContext;
 import javax.sql.DataSource;
 
-import org.apache.tomcat.dbcp.dbcp.BasicDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -123,9 +124,6 @@ public class DaoUtilities
     
     /******************************************************************************
      * initializeDataSource()
-     *
-     * NOTE:  This method is synchronized to make sure the datasource singleton
-     *        is initialized only once
      *******************************************************************************/
     private synchronized static void initializeDataSource() throws Exception
     {
@@ -142,7 +140,6 @@ public class DaoUtilities
         
         logger.debug("initializeDataSource() finished successfully.");
     }
-    
     
     
     /******************************************************************************
@@ -162,6 +159,7 @@ public class DaoUtilities
     }
     
     
+    
     /******************************************************************************
      * closeDataSource()
      * 
@@ -172,11 +170,11 @@ public class DaoUtilities
         if ((bDataSourceInitialized == true) && (ds != null))
         {
             // Get a reference to the Tomcat-DBCP connection pool
-            BasicDataSource bds = (BasicDataSource) ds;
-            
+            org.apache.tomcat.jdbc.pool.DataSource bds = (org.apache.tomcat.jdbc.pool.DataSource) ds;
+        
             // Close the connection pool
             bds.close();
-        }    
+        }
     }
     
 }
@@ -334,9 +332,10 @@ So, the current setup works, but it's not very secure.  The database username an
 
 Here's how we will encode it:
  1) Adjust your context.xml to use this line:
-       factory="app1.utilities.EncryptedDataSourceFactoryForTomcat6"  
-       
- 2) Create a class called EncryptedBasicDataSourceFactory (that extends org.apache.tomcat.dbcp.dbcp.BasicDataSourceFactory)
+       factory="app1.utilities.EncryptedDataSourceFactoryForTomcat7"  
+
+ 
+ 2) Create a class called EncryptedDataSourceFactoryForTomcat7 (that extends org.apache.tomcat.jdbc.pool.DataSourceFactory)
  
  
  3) Copy the following contents to your new java class
@@ -345,15 +344,18 @@ package app1.utilities;
 
 import java.util.Enumeration;
 import java.util.Hashtable;
+
 import javax.naming.Context;
 import javax.naming.Name;
 import javax.naming.RefAddr;
 import javax.naming.Reference;
 import javax.naming.StringRefAddr;
+
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class EncryptedDataSourceFactoryForTomcat6 extends org.apache.tomcat.dbcp.dbcp.BasicDataSourceFactory 
+public class EncryptedBasicDataSourceFactory extends org.apache.tomcat.jdbc.pool.DataSourceFactory
 {
     private static final Logger logger = LoggerFactory.getLogger(EncryptedBasicDataSourceFactory.class);
     
@@ -441,3 +443,4 @@ public class EncryptedDataSourceFactoryForTomcat6 extends org.apache.tomcat.dbcp
     }
     
 }
+
