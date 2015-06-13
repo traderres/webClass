@@ -1,0 +1,361 @@
+How to setup Tomcat Connection Pool using Spring Beans
+------------------------------------------------------
+
+ASSUMPTIONS:
+ A) You want to setup a Tomcat-JDBC connection pool
+ B) You want to store your jdbc properties in a simple property file
+    (and not in context.xml)
+ C) You do no want to use JNDI
+ D) You do not want to add a mysql-connector jar file to your Tomcat/lib/
+ E) You want your JDBC connection pool to talk with a MySql database
+
+
+
+Procedures
+----------
+1) Add these dependencies to your pom.xml
+
+    Add the dependency for your mysql driver
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId> mysql-connector-java</artifactId>
+            <version>5.1.32</version> 
+        </dependency> 
+
+
+    Add the dependency for the Tomcat JDBC connection pool classes
+        <dependency>
+            <groupId>org.apache.tomcat</groupId>
+            <artifactId> tomcat-jdbc</artifactId>
+            <version>7.0.55</version> 
+            <scope>provided</scope>
+        </dependency> 
+
+
+
+
+  
+2) Add the mysqlDataSource bean to your applicationContext.xml    
+
+    <!-- Setup a spring bean that acts as a Connection pool                               -->
+    <!-- NOTE:  Set destroy-method="close" so that Spring will close the connection pool  -->
+    <bean id="mysqlDataSource" class="org.apache.tomcat.jdbc.pool.DataSource"  destroy-method="close">
+        <property name="driverClassName"         value="com.mysql.jdbc.Driver"/>
+        <property name="url"                     value="jdbc:mysql://127.0.0.1:3306/world"  />
+        <property name="username"                value="root" />
+        <property name="password"                value="secret" />
+        <property name="initialSize"             value="1" />
+        <property name="maxActive"               value="15" />
+        <property name="removeAbandoned"         value="true" />
+        <property name="removeAbandonedTimeout"  value="60000" />
+        <property name="validationQuery"         value="select now() "/>
+        <property name="validationQueryTimeout"  value="30000" />
+        <property name="validationInterval"      value="30000" />
+    </bean>
+
+
+
+
+ 3) Add the SpringApplicationUtils class to your project
+    NOTE:  This will be used to get access to spring beans from anywhere within your web app
+
+        package app1.utilities;
+        
+        
+        /**
+         * To work, this line must be in the applicationContext.xml file
+         *    <bean id="applicationContextProvider" class="app1.utilities.SpringAppContextUtils" />
+         * 
+         *  MySpringBean mySpringBean = (MySpringBean) SpringApplicationContext.getBean("mySpringBean");
+         * // do something with MySpringBean
+         * 
+        * Create a class which implements ApplicationContextAware. 
+        * The method, “setApplicationContext(…)” gets called during the creation of this bean
+        * providing the reference to the context. 
+        * 
+        * Our program should store this for a later interaction with the context.
+        */
+        import org.springframework.beans.BeansException;
+        import org.springframework.context.ApplicationContext;
+        import org.springframework.context.ApplicationContextAware;
+        
+        public class SpringAppContextUtils implements ApplicationContextAware
+        {
+             private static ApplicationContext applicationContext = null;
+        
+              public static ApplicationContext getApplicationContext() {
+                  return applicationContext;
+              }
+              
+              public void setApplicationContext(ApplicationContext aApplicationContext) throws BeansException
+              {
+                   // Assign the ApplicationContext into a static variable
+                   applicationContext = aApplicationContext;
+              }
+              
+              
+              public static Object getBean(String aName)
+              {
+                  if (applicationContext == null)
+                  {
+                      throw new RuntimeException("Error in SpringAppContextUtils.getBean().  The applicationContext is null");
+                  }
+                  
+                  return applicationContext.getBean(aName);
+              }
+              
+        }
+
+
+4) Setup SpringAppContextUtils so that it has the applicationContext passed into it
+   Add this line to your applicationContext.xml file 
+
+      <bean id="applicationContextProvider" class="app1.utilities.SpringAppContextUtils" />
+  
+ 
+ 
+ 
+
+  At this point, you can get to your datasource bean in one of two ways:
+    a) Use the SpringAppContextUtils.getBean("mysqlDataSource")
+       NOTE:  This will work anywhere in your web application
+         
+        // Get a reference to the mySqlDataSource bean
+        DataSource mySqlDataSource = (DataSource) SpringAppContextUtils.getBean("mysqlDataSource");
+  
+  
+    b) Inject your spring bean into your class by using
+        @Resource
+        private DataSource mySqlDataSource
+  
+ 
+ 
+ 
+  
+  
+5) Verify that this works 
+    a) Delete any mysql-connector-java.jar file in your Tomcat/lib 
+       -- Browse to C:\tools\apache-tomcat-7.0.55\lib
+       -- If you see mysql-connector-java-5.1.33.jar, then *delete* it
+       
+    b) Add this method to your MyApplicationWatcher class
+    
+            /*******************************************************************************
+             * verifyConnectionPool()
+             *******************************************************************************/
+            private void verifyConnectionPool() throws Exception
+            {
+                logger.debug("initializeConnectionPool() started");
+                 
+                // Get a reference to the mySqlDataSource bean
+                DataSource mySqlDataSource = (DataSource) SpringAppContextUtils.getBean("mysqlDataSource");
+                 
+                JdbcTemplate jt = new JdbcTemplate( mySqlDataSource );
+                
+                final String sSql = "Select now()";
+                
+                // Run a query -- which initialized the connection pool
+                String sDatabaseTime = jt.queryForObject(sSql, String.class);
+                
+                logger.debug("initializeConnectionPool() finished successfully.  Database Time is {}", sDatabaseTime);
+            }
+    
+
+    c) Adjust your MyApplicationWatcher so it looks like this:
+    
+        public class MyApplicationWatcher extends ContextLoaderListener
+        {
+            private static final Logger logger = LoggerFactory.getLogger(MyApplicationWatcher.class);
+            
+            
+            /*******************************************************************************
+             * contextInitialized()
+             *   1) Verify the connection pool by attempting to run a query
+             *******************************************************************************/
+            @Override
+            public void contextInitialized(ServletContextEvent aServetContextEvent)
+            {
+                // Get a pointer to the ServletContext
+                ServletContext ctx = aServetContextEvent.getServletContext();
+                
+                final String sWebAppName = ctx.getContextPath().substring(1);
+                logger.debug("{} contextInitialized() started.", sWebAppName);
+        
+                 try 
+                 {
+                     // Initialize Spring Context (which creates your spring beans)
+                     super.contextInitialized( aServetContextEvent);
+                     
+                     // NOTE:  This should be called *after* the Spring Context is initialized
+                     listSpringBeans( aServetContextEvent);
+                       
+                     // Verify your connection pool
+                     verifyConnectionPool();
+                 }
+                 catch (Exception e)
+                 {
+                     throw new RuntimeException("Critical Error in contextInitialized().  WEB APP WILL NOT STARTUP.", e);
+                 }
+                 
+                 
+                 logger.debug("{} contextInitialized() finished.", sWebAppName);
+            }
+        
+        
+            /*******************************************************************************
+             * listSpringBeans()
+             * 
+             * NOTE:  This method must be called *after* Spring is initialized
+             *******************************************************************************/
+            private void listSpringBeans(ServletContextEvent aServletContextEvent)
+            {
+                // Get a reference to the ServletContext
+                ServletContext srvContext = aServletContextEvent.getServletContext();
+                    
+                // Get a reference to the SpringAppContext
+                WebApplicationContext springAppContext = WebApplicationContextUtils.getWebApplicationContext(srvContext);
+                 
+                // Get a list of all spring bean names
+                String[] allSpringBeanNames = springAppContext.getBeanDefinitionNames();
+                
+                // Sort the list of spring bean names
+                Arrays.sort(allSpringBeanNames);
+                
+                // Display info about every bean
+                logger.debug("-All Spring Beans-");
+                for (int i=0; i< allSpringBeanNames.length; i++)
+                {
+                    String sBeanName = allSpringBeanNames[i];
+                    String sBeanClassInfo = springAppContext.getBean(sBeanName).getClass().toString();
+                    
+                    logger.debug("  Bean #{} {} -> {}", String.format("%-3d", i+1), sBeanName, sBeanClassInfo);
+                }
+                
+            }    
+        
+        
+        
+            
+            /*******************************************************************************
+             * verifyConnectionPool()
+             *******************************************************************************/
+            private void verifyConnectionPool() throws Exception
+            {
+                logger.debug("initializeConnectionPool() started");
+                 
+                // Get a reference to the mySqlDataSource bean
+                DataSource mySqlDataSource = (DataSource) SpringAppContextUtils.getBean("mysqlDataSource");
+                 
+                JdbcTemplate jt = new JdbcTemplate( mySqlDataSource );
+                
+                final String sSql = "Select now()";
+                
+                // Run a query -- which initialized the connection pool
+                String sDatabaseTime = jt.queryForObject(sSql, String.class);
+                
+                logger.debug("initializeConnectionPool() finished successfully.  Database Time is {}", sDatabaseTime);
+            }
+        
+        }
+        
+
+6) Inject your mysqlDataSource into a class and try to use it
+
+    a) Add this to the top of your WelcomeController class
+    
+        @Resource
+        private DataSource mysqlDataSource;
+    
+    
+    
+    b) Add this method to your WelcomeController class
+    
+            /*******************************************************************************
+             * getDatabaseTime()
+             *******************************************************************************/
+            private String getDatabaseTime() throws Exception
+            {                 
+                JdbcTemplate jt = new JdbcTemplate( this.mySqlDataSource );
+                
+                final String sSql = "Select now()";
+                
+                // Run a query -- which initialized the connection pool
+                String sDatabaseTime = jt.queryForObject(sSql, String.class);
+                
+                return sDatabaseTime;
+            }
+ 
+ 
+     c) Add this line to your controller
+            String sDatabaseTime = getDatabaseTime();
+            logger.debug("Current database time is {}", sDatabaseTime);
+            
+ 
+
+
+
+Move Property Values to their own property file
+-----------------------------------------------
+
+7) Setup a property file
+   a) Create the property file
+   b) Copy + Paste this to your property file
+   
+   #
+   # JDBC Connection Pool Properties
+   #
+   jdbc.driverClassName=com.mysql.jdbcDriver
+   jdbc.url=jdbc:mysql://127.0.0.1:3306/world
+   jdbc.username=root
+   jdbc.password=secret
+   jdbc.initialSize=1
+   jdbc.maxActive=15
+   jdbc.removeAbandoned=true
+   jdbc.removeAbandonedTimeout=60000
+   jdbc.validationQuery=select now()
+   jdbc.validationQueryTimeout=30000
+   jdbc.validationInterval=30000
+
+   
+  
+  
+  
+   
+   
+8) Tell Spring to read the values from your property file   
+   Add this to your applicationContext.xml file
+   
+    <!-- Move the data source values to a property file -->
+    <bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+       <property name="locations" value="classpath:myapp.properties"
+    </bean>
+    
+    **OR**
+    <context:property-placeholder location="classpath*:*.properties" />
+ 
+
+
+
+
+9) Replace the hard-coded values with variables
+   Your mysqlDataSource bean should look like this now:
+   
+    <!-- Setup a spring bean that acts as a Connection pool                               -->
+    <!-- NOTE:  Set destroy-method="close" so that Spring will close the connection pool  -->
+    <bean id="mysqlDataSource" class="org.apache.tomcat.jdbc.pool.DataSource"  destroy-method="close">
+        <property name="driverClassName"         value="${jdbc.driverClassName}"/>
+        <property name="url"                     value="${jdbc.url}"  />
+        <property name="username"                value="${jdbc.username}" />
+        <property name="password"                value="${jdbc.password}" />
+        <property name="initialSize"             value="${jdbc.initialSize}" />
+        <property name="maxActive"               value="${jdbc.maxActive}" />
+        <property name="removeAbandoned"         value="${jdbc.removeAbandoned}" />
+        <property name="removeAbandonedTimeout"  value="${jdbc.removeAbandonedTimeout}" />
+        <property name="validationQuery"         value="${jdbc.validationQuery}"/>
+        <property name="validationQueryTimeout"  value="${jdbc.validationQueryTimeout}" />
+        <property name="validationInterval"      value="${jdbc.validationInterval}" />
+    </bean>
+
+
+10) Verify that it works
+
