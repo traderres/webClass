@@ -152,7 +152,10 @@ Procedures
             
             public void initializeCache() throws Exception
             {
-                JdbcTemplate jt = new JdbcTemplate(DaoUtilities.getDataSource());
+                // Get a reference to the mySqlDataSource bean
+                DataSource mysqlDataSource = (DataSource) SpringAppContextUtils.getBean("mysqlDataSource");
+
+                JdbcTemplate jt = new JdbcTemplate(mysqlDataSource);
                 String sSql = "select abbreviation, name from usa_states";
                 
                 SqlRowSet rs = jt.queryForRowSet(sSql);
@@ -169,25 +172,68 @@ Procedures
             
             private String queryDatabaseForOneValue(String aStateAbbreviation) throws Exception
             {
+                 // Get a reference to the mySqlDataSource bean
+                DataSource mysqlDataSource = (DataSource) SpringAppContextUtils.getBean("mysqlDataSource");
+ 
                 // Return the full name
-                JdbcTemplate jt = new JdbcTemplate(DaoUtilities.getDataSource());
+                JdbcTemplate jt = new JdbcTemplate(mysqlDataSource);
                 String sSql = "select name from usa_states where abbreviation=?";
                 String sStateName = jt.queryForObject(sSql, String.class, aStateAbbreviation);
                 return(sStateName);
              }
+             
+             
+            public int getNumberOfElementsInCache()
+            {
+                Set<String> keyset = cache.asMap().keySet();
+        
+                return(keyset.size());
+            }
+             
         }
 
 
 4) Tell Spring that UnitedStatesCache is a spring-bean
-   Add this line to your WAR / WEB-INF / spring / applicationContext.xml
-               
-      <bean id="usaCache" class="app1.utilities.UnitedStatesCache" />
+        <!-- Setup the usaCache spring bean -->
+        <bean id="usaCache" class="app1.utilities.UnitedStatesCache" init-method="initializeCache"/>
+  
 
 
 
 
 
-5) Initialize the cache in MyApplicationWatcher.contextInitialized()
+5) Now, your applicationContext.xml should have these beans (in this order)
+           
+       <!-- Setup the applicationContextProvider bean                                    -->
+       <!-- NOTE:  Make sure this bean is created *FIRST* so that other beans can use it --> 
+       <bean id="applicationContextProvider" class="app1.utilities.SpringAppContextUtils" />
+    
+    
+       <!-- Setup a spring bean that acts as a Database Connection pool                      -->
+       <!-- NOTE:  Set destroy-method="close" so that Spring will close the connection pool  -->
+       <bean id="mysqlDataSource" class="org.apache.tomcat.jdbc.pool.DataSource"  destroy-method="close">
+            <property name="driverClassName"         value="com.mysql.jdbc.Driver"/>
+            <property name="url"                     value="jdbc:mysql://127.0.0.1:3306/world"  />
+            <property name="username"                value="root" />
+            <property name="password"                value="secret" />
+            <property name="initialSize"             value="1" />
+            <property name="maxActive"               value="15" />
+            <property name="removeAbandoned"         value="true" />
+            <property name="removeAbandonedTimeout"  value="60000" />
+            <property name="validationQuery"         value="select now() "/>
+            <property name="validationQueryTimeout"  value="30000" />
+            <property name="validationInterval"      value="30000" />
+        </bean>
+    
+        <!-- Setup the usaCache spring bean -->
+        <bean id="usaCache" class="app1.utilities.UnitedStatesCache" init-method="initializeCache"/>
+    
+
+
+
+
+
+6) Initialize the cache in MyApplicationWatcher.contextInitialized()
    NOTE:  Your "MyApplicationWatcher" class must extend ContextLoaderListener
    
    
@@ -196,8 +242,11 @@ Procedures
      . . .
      
    
-        @Override
-        public void contextInitialized(ServletContextEvent aServetContextEvent)
+        /*******************************************************************************
+         * contextInitialized()
+         *******************************************************************************/
+         @Override
+         public void contextInitialized(ServletContextEvent aServetContextEvent)
         {
             . . .
              // Initialize Spring Context
@@ -205,91 +254,156 @@ Procedures
              // NOTE:  This must be done before using SpringAppContextUtils
              super.contextInitialized( aServetContextEvent);
 
-             // UnitedStatesCache is a spring-bean.  Get a reference to it using SpringAppContextUtils
+             // Verify that the web app can talk with the database
+             verifyDatabaseConnectionPool();
+
+             // Verify that the cache is working
+             verifyCaches();
+        }
+
+
+
+        /*******************************************************************************
+         * verifyDatabaseConnectionPool()
+         *******************************************************************************/
+        private void verifyDatabaseConnectionPool() throws Exception
+        {
+            logger.debug("verifyDatabaseConnectionPool() started");
+             
+            // Get a reference to the mySqlDataSource bean
+            DataSource mySqlDataSource = (DataSource) SpringAppContextUtils.getBean("mysqlDataSource");
+             
+            JdbcTemplate jt = new JdbcTemplate( mySqlDataSource );
+            
+            final String sSql = "Select now()";
+            
+            // Run a query -- which initialized the connection pool
+            String sDatabaseTime = jt.queryForObject(sSql, String.class);
+            
+            logger.debug("verifyDatabaseConnectionPool() finished successfully.  Database Time is {}", sDatabaseTime);
+        }
+    
+    
+        
+        /*******************************************************************************
+         * verifyCaches()
+         *******************************************************************************/
+        private void verifyCaches() throws Exception
+        {
+            logger.debug("verifyCaches() started");
+             
+             // UnitedStatesCache is a spring-bean.  Get a reference to it
              UnitedStatesCache usaCache = (UnitedStatesCache) SpringAppContextUtils.getBean("usaCache");
              
-             // Initialize the cache
-             usaCache.initializeCache();
+             if (usaCache == null) 
+             {
+                 throw new RuntimeException("Error in verifyCaches():  The usaCache is null.");
+             }
+             
+             String sExpectedNameForMD = "Maryland";
+             String sNameFoundInCacheForMd = usaCache.getFullName("MD");
+             if (! sExpectedNameForMD.equalsIgnoreCase(sNameFoundInCacheForMd))
+             {
+                 throw new RuntimeException("Error in verifyCaches():  I expected to get " + sExpectedNameForMD + " but instead I got " + sNameFoundInCacheForMd);
+             }
             
-            . . .
+             logger.debug("This cache has {} elements.", usaCache.getNumberOfElementsInCache() );
+             if (usaCache.getNumberOfElementsInCache() < 3)
+             {
+                 throw new RuntimeException("Error in verifyCaches():  The cache has fewer than 3 items.  This is bad");
+             }
+    
+             logger.debug("verifyCaches() finished successfully.");
         }
 
     
         
-6) Now, Your controllers can get to the cache using the request object
+        
+7) Now, Your controllers can get to the cache using the request object
    NOTES:
      a) Because we are using SpringAppContextUtils.getBean("usaCache"),
         we can get access to the cache from *anywhere* within the Spring Web App
         
-
-        /**********************************************************************
-         * settingsShow()
-         * 
-         ***********************************************************************/
-        @RequestMapping(value="/settings", method=RequestMethod.GET)
-        public ModelAndView settingsShow( Model aModel )
-        {
-            logger.debug("settingsShow() started");
-                    
-            // Create a modelAndView object
-            ModelAndView mav = new ModelAndView();
-            
-            // Show the welcome.jsp page
-            mav.setViewName("settings.jsp");
-            
-            
-            // UnitedStatesCache is a spring-bean.  Get a reference to it
-            UnitedStatesCache usaCache = (UnitedStatesCache) SpringAppContextUtils.getBean("usaCache");
-
-            String mdFullName = usaCache.getFullName("MD");
-            String vaFullName = usaCache.getFullName("VA));
-            String dcFullName = usaCache.getFullName("DC");
-            
-            
-            logger.debug("settingsShow() finished");
-            return mav;
-        }
+        *OR*
+        
+     b) Have Spring inject the usaCache bean using this
+         @Resource
+         private UnitedStatesCache usaCache;  
 
 
 
-**OR**
-
-6) Or, use the @Autowired annotation to have Spring inject the "useCache" bean into the class
-
-
+Example of WelcomeController getting usaCache using  SpringAppContextUtils.getBean("usaCache")
+-----------------------------------------------------------------------------------------------  
+@Controller
+public class WelcomeController 
+ {
     
+    /**********************************************************************
+     * settingsShow()
+     * 
+     ***********************************************************************/
+    @RequestMapping(value="/settings", method=RequestMethod.GET)
+    public ModelAndView settingsShow( Model aModel )
+    {
+        logger.debug("settingsShow() started");
+                
+        // Create a modelAndView object
+        ModelAndView mav = new ModelAndView();
+        
+        // Show the welcome.jsp page
+        mav.setViewName("settings.jsp");
+      
+        
+        // UnitedStatesCache is a spring-bean.  Get a reference to it
+        UnitedStatesCache usaCache = (UnitedStatesCache) SpringAppContextUtils.getBean("usaCache");
+
+        String mdFullName = usaCache.getFullName("MD");
+        String vaFullName = usaCache.getFullName("VA));
+        String dcFullName = usaCache.getFullName("DC");
+        
+        
+        logger.debug("settingsShow() finished");
+        return mav;
+    }
+
+}
+
+
+
+Example of WelcomeController getting usaCache using Spring Injection
+--------------------------------------------------------------------    
 @Controller
 public class WelcomeController 
  {
     
 
-    @Autowired
+    @Resource
     private UnitedStatesCache usaCache;         // Spring injects the bean
 
     
     
-        /**********************************************************************
-         * settingsShow()
-         * 
-         ***********************************************************************/
-        @RequestMapping(value="/settings", method=RequestMethod.GET)
-        public ModelAndView settingsShow( Model aModel )
-        {
-            logger.debug("settingsShow() started");
-                    
-            // Create a modelAndView object
-            ModelAndView mav = new ModelAndView();
-            
-            // Show the welcome.jsp page
-            mav.setViewName("settings.jsp");
-            
-            String mdFullName = usaCache.getFullName("MD");
-            String vaFullName = usaCache.getFullName("VA));
-            String dcFullName = usaCache.getFullName("DC");
-            
-            
-            logger.debug("settingsShow() finished");
-            return mav;
-        }
+    /**********************************************************************
+     * settingsShow()
+     * 
+     ***********************************************************************/
+    @RequestMapping(value="/settings", method=RequestMethod.GET)
+    public ModelAndView settingsShow( Model aModel )
+    {
+        logger.debug("settingsShow() started");
+                
+        // Create a modelAndView object
+        ModelAndView mav = new ModelAndView();
+        
+        // Show the welcome.jsp page
+        mav.setViewName("settings.jsp");
+        
+        String mdFullName = usaCache.getFullName("MD");
+        String vaFullName = usaCache.getFullName("VA));
+        String dcFullName = usaCache.getFullName("DC");
+        
+        
+        logger.debug("settingsShow() finished");
+        return mav;
+    }
 
  }   
