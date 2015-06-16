@@ -1,43 +1,312 @@
 How to Encrypt Property Values
 ------------------------------
 
+Assumptions
+-----------
+ A) You are using Spring to load property values
+ B) You have a class that can encrypt/decrypt strings
+ 
+ 
+
 Procedures
 ----------
+1) Create your EncryptionUtils class
+   NOTE:  This package is dependent on base64.  You will need to include this dependency
+         <dependency>
+            <groupId>commons-codec</groupId>
+            <artifactId>commons-codec</artifactId>
+            <version>20041127.091804</version>
+         </dependency>
 
-1) In your property file, place a special prefix in front of the value
-
-jdbc.database.password=$$encryptedValue
-
-
-2) Create a class that extends PropertyPlaceholderConfigurer
-
-   public EncryptedPropertyConfigurer extends PropertyPlaceholderConfigurer
-    {
-       @Override
-       protected Stirng convertPropertyValue(String aOriginalValue)
-        {
-           String sReturnedValue = aOriginalValue
-          if (StringUtils.trimToEmpty(aOriginalValue).startsWith("$$"))
-           {
-              sEncryptedString = aOriginalValue.substring("$$", 2);
-              sReturnedValue = Encrypt.decrypteString( sEncryptedString)
-          }
-          
-          return sReturnedValue;
-        }
-    }
-    
-    
-    
-3) Update the existing property configurer bean to use your new class
+   Copy this text into the EncryptionUtils class
    
-       <bean class="com.EncryptedPropertyConfigurer">
+   
+        package app1.utilities;
+        
+        import javax.crypto.Cipher;
+        import javax.crypto.SecretKey;
+        import javax.crypto.SecretKeyFactory;
+        import javax.crypto.spec.PBEKeySpec;
+        import javax.crypto.spec.PBEParameterSpec;
+        
+        
+        import org.apache.commons.codec.binary.Base64;
+        
+        public class EncryptionUtils
+        {
+            private static final char[] PASSWORD = "!@#!@#ABc34234234ab#7*2[},m>$adfasfd@#$*&)_ahi_there_21312451".toCharArray();
+            private static final byte[] SALT = {
+                (byte) 0xde, (byte) 0x35, (byte) 0x10, (byte) 0x12,
+                (byte) 0xde, (byte) 0x35, (byte) 0x10, (byte) 0x12,
+            };
+        
+        
+            
+            public static void main(String[] args) throws Exception
+            {
+                 
+                if (args.length !=1) 
+                {
+                    System.out.println("USAGE: java EncryptionUtils [String]");
+                    System.exit(1);
+                }
+              
+             
+                String input = args[0];
+                System.out.println("Plain-Text: " + input);
+          
+                String sEncryptedBase64 = encrypt(input);
+                System.out.println("Encrypted:  " + sEncryptedBase64);
+                
+                String sDecryptedBase64 = decrypt(sEncryptedBase64);
+                System.out.println("Decrypted:  " + sDecryptedBase64);
+                       
+            }
+        
+            
+            private static String encrypt(String input) throws Exception
+            {
+                 SecretKeyFactory keyFactory = SecretKeyFactory.getInstance("PBEWithMD5AndDES");
+                 SecretKey key = keyFactory.generateSecret(new PBEKeySpec(PASSWORD));
+                 Cipher pbeCipher = Cipher.getInstance("PBEWithMD5AndDES");
+                 pbeCipher.init(Cipher.ENCRYPT_MODE, key, new PBEParameterSpec(SALT, 20));
+                 
+                 byte[] encryptedBase64AsBytes = Base64.encodeBase64(pbeCipher.doFinal(input.getBytes("UTF-8")));
+                 String sEncryptedBase64 = new String (encryptedBase64AsBytes);
+                 return sEncryptedBase64;
+            }
+        
+            
+            
+            
+            public static String decrypt(String input) throws Exception 
+            {
+                SecretKeyFactory keyFactory = SecretKeyFactory.getInstance("PBEWithMD5AndDES");
+                SecretKey key = keyFactory.generateSecret(new PBEKeySpec(PASSWORD));
+                Cipher pbeCipher = Cipher.getInstance("PBEWithMD5AndDES");
+                pbeCipher.init(Cipher.DECRYPT_MODE, key, new PBEParameterSpec(SALT, 20));
+                
+                byte[] bytes =  Base64.decodeBase64(input.getBytes() );
+                String sPlainText = new String(pbeCipher.doFinal(bytes));
+                
+                return sPlainText;
+             }
+            
+            
+            
+            public static String decryptNoException(String input)
+            {
+                try
+                {
+                    // Attempt to decrypt the string
+                    return decrypt(input);
+                }
+                catch(Exception e)
+                {
+                    // Convert the exception into a Runtime Exception
+                    RuntimeException re = new RuntimeException("Error occurred decrypting text");
+                    re.setStackTrace(e.getStackTrace());
+                    throw re;
+                }
+            }
+           
+        }
+
+
+    
+
+
+
+2) Generate the encrypted password
+   
+   a) Generate EncryptionUtils.jar
+        a) Open a DOS window
+           DOS> set JAVA_HOME=C:\progra~1\Java\jdk1.7.0_60
+           DOS> set PATH=%PATH%;%JAVA_HOME%/bin
+           DOS> mkdir c:\temp 
+           DOS> cd /d c:\temp
+           DOS> rd /s /q EncryptionUtils
+           
+           DOS>  mvn archetype:generate -DgroupId=whatever -DartifactId=EncryptionUtils  -DarchetypeArtifactId=maven-archetype-quickstart -DinteractiveMode=false
+   
+   b) Copy the EncryptionUtils.java to C:\temp\EncryptionUtils\src\main\java\whatever
+           DOS> copy /y c:\tools\eclipse\workspace\mywebapp1\src\app1\utilities\EncryptionUtils.java   C:\temp\EncryptionUtils\src\main\java\whatever
+   
+   c) Modify EncryptionUtils
+       a) Edit this file:   C:\temp\EncryptionUtils\src\main\java\whatever\EncryptionUtils.java
+       
+       b) Change the 1st line to it looks like this:
+             package whatever;
+                 
+   
+   d) Adjust the pom.xml for your EncryptionUtils project
+       1) Add this dependency
+          <dependency>
+            <groupId>commons-codec</groupId>
+            <artifactId>commons-codec</artifactId>
+            <version>20041127.091804</version>
+         </dependency>
+       
+       2) Add the plugin jar-with-dependencies
+      
+      
+      
+      When you're done, your pom.xml should look something like this:
+      
+      Completed pom.xml should look like this
+      ---------------------------------------
+          <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+          <modelVersion>4.0.0</modelVersion>
+          <groupId>whatever</groupId>
+          <artifactId>EncryptionUtils</artifactId>
+          <packaging>jar</packaging>
+          <version>1.0-SNAPSHOT</version>
+          <name>EncryptionUtils</name>
+          <url>http://maven.apache.org</url>
+          
+          
+          <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-assembly-plugin</artifactId>
+        
+                        <configuration>
+                            <descriptorRefs>
+                                <descriptorRef>jar-with-dependencies</descriptorRef>
+                            </descriptorRefs>
+        
+                            <archive>
+                              <manifest>
+                                <addClasspath>true</addClasspath>
+                              </manifest>
+                            </archive>
+                        </configuration>
+        
+                        <executions>
+                            <execution>
+                                <id>make-assembly</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+          
+                  
+          <dependencies>
+            <dependency>
+              <groupId>junit</groupId>
+              <artifactId>junit</artifactId>
+              <version>3.8.1</version>
+              <scope>test</scope>
+            </dependency>
+            
+            <dependency>
+                <groupId>commons-codec</groupId>
+                <artifactId>commons-codec</artifactId>
+                <version>20041127.091804</version>
+             </dependency>
+          </dependencies>
+        
+        </project>
+        
+        
+        
+   d) Build your jar file
+           DOS> cd /d c:\temp\EncryptionUtils
+           DOS> mvn clean package
+           
+      
+      Now, you should have a jar file here:
+      
+      c:\temp\EncryptionUtils\target\EncryptionUtils-1.0-SNAPSHOT.jar
+      
+      
+   e) Run the JAR file to encrypt a password
+          DOS> set JAVA_HOME=C:\progra~1\Java\jdk1.7.0_60
+          DOS> set PATH=%PATH%;%JAVA_HOME%/bin
+          DOS> java -cp c:\temp\EncryptionUtils\target\EncryptionUtils-1.0-SNAPSHOT-jar-with-dependencies.jar whatever.EncryptionUtils secret
+   
+          Plain-Text: secret
+          Encrypted:  3poes73bpaM=
+
+
+         
+
+  f) Now, update your property file (in your WEB-INF/classes) with the encrypted value
+    
+          #
+          # JDBC Connection Pool Properties
+          #
+          jdbc.driverClassName=com.mysql.jdbc.Driver
+          jdbc.url=jdbc:mysql://127.0.0.1:3306/world
+          jdbc.username=root
+          jdbc.password=ENCRYPT:3poes73bpaM=
+          jdbc.initialSize=1
+          jdbc.maxActive=15
+          jdbc.removeAbandoned=true
+          jdbc.removeAbandonedTimeout=60000
+          jdbc.validationQuery=select now()
+          jdbc.validationQueryTimeout=30000
+          jdbc.validationInterval=30000
+                 
+
+
+
+
+
+3) Create the EncryptedPropertyConfigurer class (that extends PropertyPlaceholderConfigurer)
+   
+        package app1.utilities;
+        
+        import org.springframework.beans.factory.config.PropertyPlaceholderConfigurer;
+        
+        public class EncryptedPropertyConfigurer extends PropertyPlaceholderConfigurer
+        {
+            
+            private static final String ENCRYPTED_STRING_PREFIX = "ENCRYPT:";
+            
+            @Override
+            protected String convertPropertyValue(String aOriginalValue) 
+             {
+                String sReturnedValue = aOriginalValue;
+                        
+                if ((aOriginalValue != null) && (aOriginalValue.length() > 0))
+                {
+                    // This string is not empty
+                    if (aOriginalValue.startsWith(ENCRYPTED_STRING_PREFIX))
+                    {
+                        // This string value starts with "ENCRYPT:"
+                        
+                        // Get the encoded part
+                        String sEncodedText = aOriginalValue.substring(ENCRYPTED_STRING_PREFIX.length());
+                        
+                        // Decrypt the string
+                        sReturnedValue =  EncryptionUtils.decryptNoException(sEncodedText);
+                    }
+                }
+        
+               return sReturnedValue;
+            }
+        }
+
+    
+    
+    
+4) Update the existing property configurer bean to use your new class
+   
+    <bean class="app1.utilities.EncryptedPropertyConfigurer">
           <property name="ignoreUnresolvablePlaceholders" value="true" />
           <property name="locations">
              <list>
-               <value>classpath:jdbc.properties</value>
+               <value>classpath:*.properties</value>
              </list>
           </property>
        </bean>
        
-       
+
+ 
