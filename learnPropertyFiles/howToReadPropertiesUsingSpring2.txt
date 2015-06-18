@@ -1,0 +1,185 @@
+How to Read Property Values Using Spring
+----------------------------------------
+
+ASSUMPTIONS:
+ A) Your web app uses Spring to read-in property values
+ B) You want to use the SpringAppContextUtils() to get the property value
+ 
+ 
+ 
+Procedures
+----------
+1) Create a text file in WEB-INF -> classes 
+   Right-click on WEB-INF -> classse -> New -> File
+   Filename: app1.properties
+   
+   Copy this into your app1.properties file
+   
+   
+    ###########################################################################
+    # app1.properties
+    #
+    # Any line that starts with a '#' is a comment
+    ###########################################################################
+    application.mode=development
+    app2.url=http://google.com/
+
+
+
+
+
+2) Have Spring create 2 beans:
+    a) The 1st bean is called "myProps" -- it holds the properties from app1.properties
+    b) The 2nd bean is called "applicationContextProvider"
+    
+   Add this to your applicationContext.xml file
+   
+   
+       <!-- Setup the applicationContextProvider bean                                    -->
+       <!-- NOTE:  Make sure this bean is created *FIRST* so that other beans can use it --> 
+       <bean id="applicationContextProvider" class="app1.utilities.SpringAppContextUtils" />
+   
+   
+        <bean id="myProps" class="org.springframework.beans.factory.config.PropertiesFactoryBean">
+           <property name="locations">
+             <list>
+               <value>classpath:app1.properties</value>
+             </list>
+          </property>
+       </bean>
+        
+        
+        
+        
+    
+3) Add the SpringAppContextUtils class to your project
+
+        package app1.utilities;
+        
+        
+        /**
+         * To work, this line must be in the applicationContext.xml file
+         *    <bean id="applicationContextProvider" class="app1.utilities.SpringAppContextUtils" />
+         * 
+         *  MySpringBean mySpringBean = (MySpringBean) SpringApplicationContext.getBean("mySpringBean");
+         * // do something with MySpringBean
+         * 
+        * Create a class which implements ApplicationContextAware. 
+        * The method, “setApplicationContext(…)” gets called during the creation of this bean
+        * providing the reference to the context. 
+        * 
+        * Our program should store this for a later interaction with the context.
+        */
+        import org.springframework.beans.BeansException;
+        import org.springframework.context.ApplicationContext;
+        import org.springframework.context.ApplicationContextAware;
+        
+        public class SpringAppContextUtils implements ApplicationContextAware
+        {
+             private static ApplicationContext applicationContext = null;
+        
+              public static ApplicationContext getApplicationContext() {
+                  return applicationContext;
+              }
+              
+              public void setApplicationContext(ApplicationContext aApplicationContext) throws BeansException
+              {
+                   // Assign the ApplicationContext into a static variable
+                   applicationContext = aApplicationContext;
+              }
+              
+              
+              public static Object getBean(String aName)
+              {
+                  if (applicationContext == null)
+                  {
+                      throw new RuntimeException("Error in SpringAppContextUtils.getBean().  The applicationContext is null");
+                  }
+                  
+                  return applicationContext.getBean(aName);
+              }
+              
+        }
+        
+
+    
+
+How to get property values?
+---------------------------
+A) Inject the myProps bean into your controller
+   In your back-end java code, you can pull-out the values using this code:
+   
+    @Controller
+    public class WelcomeController 
+    {
+        private final static Logger logger = LoggerFactory.getLogger(WelcomeController.class);
+   
+        @Resource(name = "myProps")
+        private Properties myProps;
+     
+     
+        /**********************************************************************
+         * settingsShow()
+         * 
+         ***********************************************************************/
+        @RequestMapping(value="/settings", method=RequestMethod.GET)
+        public ModelAndView settingsShow( Model aModel)
+        {
+            logger.debug("settingsShow() started");
+                    
+            // Create a modelAndView object
+            ModelAndView mav = new ModelAndView();
+            
+            // Show the welcome.jsp page
+            mav.setViewName("settings.jsp");
+            
+            // Get the application.mode
+            String sAppMode = (String) myProps.getProperty("application.mode");
+            logger.debug("application.mode={}", sAppMode);
+            
+               
+            logger.debug("settingsShow() finished");
+            return mav;
+        }
+  }
+
+ 
+B) Use the SpringApplicationContext to get the properties from anywhere with your application
+   
+    @Controller
+    public class WelcomeController 
+    {
+        private final static Logger logger = LoggerFactory.getLogger(WelcomeController.class);
+     
+     
+        /**********************************************************************
+         * settingsShow()
+         * 
+         ***********************************************************************/
+        @RequestMapping(value="/settings", method=RequestMethod.GET)
+        public ModelAndView settingsShow( Model aModel)
+        {
+            logger.debug("settingsShow() started");
+                    
+            // Create a modelAndView object
+            ModelAndView mav = new ModelAndView();
+            
+            // Show the welcome.jsp page
+            mav.setViewName("settings.jsp");
+            
+            // Get a reference to the "myProps" spring bean
+            Properties myProps = (Properties) SpringAppContextUtils.getBean("myProps");
+    
+            // Get the property from "myProps" spring bean
+            String sAppMode = (String) myProps.getProperty("application.mode");
+            logger.debug("application.mode={}", sAppMode);
+                
+               
+            logger.debug("settingsShow() finished");
+            return mav;
+        }
+  }
+
+
+ 
+ 
