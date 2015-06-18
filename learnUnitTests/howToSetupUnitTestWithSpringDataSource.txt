@@ -8,15 +8,161 @@ Assumptions:
  
 Procedures
 ----------
+1. Add these dependencies to your pom.xml 
 
-1. Setup a DataSource using a Tomcat JDBC Connection Pool
+      Add the dependency for junit
+        <dependency>
+             <groupId>junit</groupId>
+             <artifactId>junit</artifactId>
+             <version>4.4</version>
+             <scope>test</scope>
+         </dependency>
+ 
+     Add the dependency for your mysql driver
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId> mysql-connector-java</artifactId>
+            <version>5.1.32</version> 
+        </dependency> 
+
+
+    Add the dependency for the Tomcat JDBC connection pool classes
+        <dependency>
+            <groupId>org.apache.tomcat</groupId>
+            <artifactId> tomcat-jdbc</artifactId>
+            <version>7.0.55</version> 
+            <scope>provided</scope>
+        </dependency> 
+ 
+ 
+
+
+  
+
    
 
-2. Create a DAO class that has a DataSource injected
+2. Create a ProjectDao class that has a DataSource injected
+    
+        package app1.dao;
+    
+        import javax.annotation.PostConstruct;
+        import javax.annotation.Resource;
+        import javax.sql.DataSource;
+        
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.jdbc.core.JdbcTemplate;
+        
+        public class ProjectDao
+        {
+            private static final Logger logger = LoggerFactory.getLogger(ProjectDao.class);
+            
+            @Resource
+            private DataSource myDataSource;
+            
+            
+            /***************************************************************
+             * ProjectDao() Constructor
+             ***************************************************************/
+            public ProjectDao(DataSource aDataSource)
+            {
+                logger.debug("ProjectDao() constructor started");
+                
+                this.myDataSource = aDataSource;
+            }
+            
+            
+            
+            /***************************************************************
+             * postConstruct()
+             ***************************************************************/
+            @PostConstruct
+            public void postConstruct()
+            {
+                logger.debug("ProjectDao.postConstruct() started");
+                
+                if (myDataSource == null)
+                {
+                    throw new RuntimeException("Critical Error in ProjectDao:  The myDataSource object is not initialized.");
+                }
+                
+                logger.debug("ProjectDao.postConstruct() finished");
+            }
+            
+            
+            /***************************************************************
+             * getRecordCount()
+             ***************************************************************/
+            public int getRecordCount() throws Exception
+            {
+                String sSql = "Select count(id) from junk";
+                
+                JdbcTemplate jt = new JdbcTemplate(this.myDataSource);
+                
+                // Execute the SQL and return a count of records
+                int iReturnedCount = jt.queryForObject(sSql, Integer.class);
+                
+                return iReturnedCount;
+            }
+        }
+            
+    
+3. Create your JUnit Test Class
+   a) if there is no src/main directory, then create main (under src/)
+   b) Right-click on your project -> New -> Other...
+      Search for junit test case
+      
+      In the "New JUnit Test Case"
 
+        Select "New JUnit 4 test"
 
-3. Create a unit test that tests the Dao class
+        Source folder:  <project name>/src
+        Package:        test
+        Name:           ProjectDaoTest
+        Press Finish
 
+   c) You should see a ProjectDaoTest.java class with something like this in it
 
-4. Run the unit tests in Eclipse
+        package test;
+        
+        import static org.junit.Assert.*;
+        
+        import org.junit.Test;
+        
+        public class ProjectDaoTest {
+        
+            @Test
+            public void test() {
+                fail("Not yet implemented");
+            }
+        
+        }
+      
+    d)  
+      
+
+4. Create a simple applicationContext-test.xml file to test
+   NOTE:  This applicationContext-test.xml will only be used for test purposes
+   NOTE:  This applicationContext-test.xml will hold the spring beans for the JDBC Connection pool
+    
+   Create this file in your 
+    <!-- Setup a spring bean that acts as a Connection pool                               -->
+    <!-- NOTE:  Set destroy-method="close" so that Spring will close the connection pool  -->
+    <bean id="mysqlDataSource" class="org.apache.tomcat.jdbc.pool.DataSource"  destroy-method="close">
+        <property name="driverClassName"         value="com.mysql.jdbc.Driver"/>
+        <property name="url"                     value="jdbc:mysql://127.0.0.1:3306/world"  />
+        <property name="username"                value="root" />
+        <property name="password"                value="secret" />
+        <property name="initialSize"             value="1" />
+        <property name="maxActive"               value="15" />
+        <property name="removeAbandoned"         value="true" />
+        <property name="removeAbandonedTimeout"  value="60000" />
+        <property name="validationQuery"         value="select now() "/>
+        <property name="validationQueryTimeout"  value="30000" />
+        <property name="validationInterval"      value="30000" />
+    </bean>
+   
+   
+
+5. Run the unit tests in Eclipse
 
