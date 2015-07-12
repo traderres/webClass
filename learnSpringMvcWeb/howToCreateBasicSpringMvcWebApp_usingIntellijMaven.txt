@@ -60,7 +60,9 @@ Procedures
           
           Now, maven has created a simple "Hello World" web app
        
- 2. Configure preferences for this project
+       
+       
+ 2. Configure Intellij preferences for this project
     a. Turn off spell-checking
        1) Pull File / Settings
        2) Search for spelling
@@ -700,9 +702,8 @@ Procedures
         
         
         
-18. Pull File / Save All
-        
-19. Setup Remote Tomcat connection in intellij
+
+18. Setup Remote Tomcat connection in Intellij
     a. Pull Run / Edit Configurations
     b. Click the "+"
     c. Select "Remote"
@@ -717,7 +718,8 @@ Procedures
     f. Press OK
     
     
-20. Setup the Cargo maven plugin to startup a Tomcat from the command-line
+    
+19. Setup the Cargo maven plugin to startup a Tomcat from the command-line in debug mode
     The end of your pom.xml should look like this:
     
             <build>
@@ -725,43 +727,91 @@ Procedures
             </build>
          </project>
      
-    a. Add this part in between <build>...</build> 
-     
+    a. Change the end of the of the pom.xml to this:
+    
+          <build>
+            <finalName>webapp1</finalName>
+    
           <plugins>
               <plugin>
+                  <!-- Setup the Cargo plugin -->
                   <groupId>org.codehaus.cargo</groupId>
                   <artifactId>cargo-maven2-plugin</artifactId>
-    
+                  <version>1.4.13</version>
                   <configuration>
-    
-                      <!-- Container configuration -->
                       <container>
+                          <!-- Tell Cargo to use the installed Tomcat7 located in <home>...</home> -->
                           <containerId>tomcat7x</containerId>
+                          <type>installed</type>
                           <home>C:/tools/apache-tomcat-7.0.55</home>
                       </container>
-    
+                      <configuration>
+                          <properties>
+                              <!-- Have Cargo pass-in the debug parameters to the target -->
+                              <cargo.jvmargs>
+                                  -Xdebug
+                                  -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5005
+                                  -Xnoagent
+                                  -Djava.compiler=NONE
+                              </cargo.jvmargs>
+                              <cargo.logging>medium</cargo.logging>
+                          </properties>
+                      </configuration>
                   </configuration>
+    
+                  <executions>
+                      <execution>
+                          <id>run</id>
+                          <goals>
+                              <goal>run</goal>
+                          </goals>
+                      </execution>
+                  </executions>
+    
               </plugin>
           </plugins>
+      </build>
+    </project>
     
-    
+     
+
    
     
-
+20. Pull File / Save All
         
-19. Startup the webapp in debug mode
-    a) Browse to src/main/java -> app1.controllers -> WelcomeController.java
+        
+        
+        
+21. Startup the webapp in debug mode
+    a. Browse to src/main/java -> app1.controllers -> WelcomeController.java
        Click in the left margin around line 30 to set a breakpoint
        
-    b) Right-click on mywebapp1 -> Debug As -> Debug on Server
-        1. In the "Debug on Server", 
-           Single-click on Tomcat v.7.0 Server
-           Check "Always use this server when running this projecdt"
-           Press "Next"
-           Press "Finish"
-           
+    b. Open a DOS window by pressing <Start><Run>CMD and enter these commands
+       to use the Maven plugin to rebuild your webapp, deploy it to Tomcat, and startup Tomcat in debug mode
+       DOS> cd /d c:\tools\intellij\workspace\webapp1
+       DOS> mvn clean package cargo:run
+       
+       NOTE:  mvn clean package  will create a new build of your webapp
+       NOTE:  mvn cargo:run      will have your webapp deployed to your tomcat and startup Tomcat in debug mode
+       
+       You should see this:
+       
+       [INFO] [talledLocalContainer] Tomcat 7.x starting...
+       [INFO] [stalledLocalDeployer] Deploying [c:\tools\intellij\workspace\webapp1\target\webapp1.war] to [c:\tools\intellij\workspace\webapp1\target\cargo\configurations\tomcat7x/webapps]...
+       [INFO] [talledLocalContainer] Listening for transport dt_socket at address: 5005
+       
+       At this point, your Tomcat is *waiting* for someone to connect to it remotely
+        
     
-    
+    c. Use Intellij to connect to your Tomcat remotely
+       -- In Intellij, pull Run / Debug / webapp1
+        
+    d. Open a web browser to your local webapp
+       -- Open Firefox
+       -- Connect to http://localhost:8080/webapp1
+       -- You should reach your breakpoint
+       
+       
     
     
 What happens when you start the debugger
