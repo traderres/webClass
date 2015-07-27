@@ -1,0 +1,343 @@
+How to Debug a Map-Reduce Job using Intellij
+--------------------------------------------
+
+Assumptions:
+ A) You have Intellij Commnity Edition 14 installed
+ B) You have a Java JDK
+ C) You have an HDFS 
+    (you followed the procedures in howToCompile AndInstallHdfsOnWindows.txt)
+
+
+Procedures
+----------
+ 1. Modify the hadoop-env.cmd file by adding these options
+   (found in C:\tools\hadoop-2.7.1\etc\hadoop\hadoop-env.cmd)
+
+     set HADOOP_OPTS=-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5005
+       
+     When running hadoop from command-line, it will be in debug mode, listening on port 5005
+
+
+
+ 2. Create your wordCount Map-Reduce Project
+    a. Startup Intellij
+       NOTE:  IF an existing Intellij project appear, then pull File / Close Project
+       
+    b. Pull File / New / Project....
+       1) In the "New Project" window, select Maven
+            a) Next to Project SDK:  Select your Java JDK
+               NOTE:  If you do not see your java JDK, then
+                      Press New
+                      -- Browse to your Java JDK:  C:\Program Files\Java\jdk1.7.0_60
+                      -- Press OK
+               
+            b) Check "Create from archetype"
+            
+            c) Select maven-archetype-quickstart
+               Press Next
+               
+       2) In the next screen
+          GroupId:     com.whatever
+          ArtifactId:  wordCount    
+          Version:     1.0-SNAPSHOT
+          Press Next
+          
+          
+       3) In the next screen,
+          Maven home directory:  C:/tools/apache-maven-3.2.3
+          User settings file:    Check the checkbox to "Override"
+                                 C:\tools\apache-maven-3.2.3\conf\settings.xml
+          Press Next                       
+                                 
+       
+       4) Project Name:      wordCount
+          Project Location:  C:\tools\intellij\workspace\wordCount
+          Press Finish
+          
+       5) If you get prompted that "C:\tools\intellij\workspace\wordCount" does not exist
+          It will be created by Intellij
+          Press OK 
+     
+       6) If you get prompted 
+          "New projects can either be opened in a new window or replace the project"
+          Press "This Window"
+          
+       7) If you are prompted 
+          Maven projects need to be imported
+          Press "Enable Auto-Import"
+          
+          Now, maven has created a simple Java JAR project
+         
+ 
+ 3. Configure Intellij preferences for this project
+    a. Turn off spell-checking
+       1) Pull File / Settings
+       2) Search for spelling
+          a) Single-click on Inspections
+          b) next to Typo -- Uncheck the checkbox
+          c) Press Apply
+          
+          
+
+
+ 4. In Intellij, exclude build directory
+    a. Pull File / Settings
+    b. Search for maven
+       Importing -> Uncheck exclude build directory
+      
+     
+
+ 5. Setup the Maven test directories for your Intellij project
+
+    Add these directories
+       src/test/resources/             # Holds the logback.xml used by unit test code
+       src/main/resources/             # Holds the logback.xml used by main program
+
+
+    a. Right-click on src/test   -> New -> Directory:    resources
+    b. Right-click on src/main   -> New -> Directory:    resources
+
+
+    Now, you should have this directory structure
+      src/main/java/ 
+      src/main/resources/               # Holds logback.xml used by java main program     
+      src/test/java
+      src/test/resources/               # Holds logback.xml used by unit test code
+   
+
+
+           
+ 6. Add dependencies for logging and map-reduce
+    Your pom.xml should already have one dependency:
+      <dependencies>
+      
+        <dependency>
+          <groupId>junit</groupId>
+          <artifactId>junit</artifactId>
+          <version>3.8.1</version>
+          <scope>test</scope>
+        </dependency>
+        
+      </dependencies>
+    
+        
+        
+    Copy and paste these dependencies into your pom.xml
+    NOTE:  Add all of these dependencies should be between these tags:
+       <dependencies>
+       . . .
+       </dependencies>
+       
+     
+        <dependency>
+           <groupId>org.apache.hadoop</groupId>
+           <artifactId>hadoop-core</artifactId>
+           <version>1.0.3</version>
+           <scope>provided</scope>
+        </dependency>
+        
+        <dependency>
+           <groupId>org.slf4j</groupId>
+           <artifactId>slf4j-api</artifactId>
+           <version>1.7.5</version>
+        </dependency>
+        
+        <dependency>
+           <groupId>ch.qos.logback</groupId>
+           <artifactId>logback-classic</artifactId>
+           <version>1.0.13</version>
+        </dependency>
+
+
+
+ 7. Create this file:  logback.xml
+    a. Browse to src/main/resources
+    b. Right-click on classes -> New -> Other... -> Search for file
+       filename:  logback.xml
+       
+    c. Right-click on logback.xml -> Open With -> Text Editor
+       Copy this contents to your file
+       WARNING:  You *CANNOT* have leading spaces before <?xml version="1.0"... ?>
+    
+       <?xml version="1.0" encoding="windows-1252" ?>
+        <!DOCTYPE project>
+        
+        <configuration debug="true">
+            <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+                <encoder>
+                    <pattern>%d{MM/dd/yyyy HH:mm:ss} %c %m%n</pattern>
+                </encoder>
+            </appender>
+        
+        
+            <logger name="com.whatever" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+        
+            <root level="INFO">
+                <appender-ref ref="CONSOLE"/>
+            </root>
+        
+        </configuration>
+   
+   
+   
+ 8. in Intellij, create your WordCount class
+ 
+        package com.whatever;
+        
+        import org.apache.hadoop.io.IntWritable;
+        import org.apache.hadoop.io.LongWritable;
+        import org.apache.hadoop.mapred.*;
+        import org.apache.hadoop.io.Text;
+        import org.apache.hadoop.mapred.Reducer;
+        import org.apache.hadoop.fs.Path;
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        
+        import java.io.IOException;
+        import java.util.Iterator;
+        import java.util.StringTokenizer;
+        
+        
+        /**
+         * Created by adam on 7/26/2015.
+         */
+        public class WordCount
+        {
+            private static final Logger logger = LoggerFactory.getLogger(WordCount.class);
+        
+            public static void main(String[] args) throws Exception
+            {
+                logger.debug("main() started");
+        
+                JobConf conf = new JobConf(WordCount.class);
+                conf.setJobName("wordcount");
+                conf.setOutputKeyClass(Text.class);
+                conf.setOutputValueClass(IntWritable.class);
+                conf.setMapperClass(MyMapper.class);
+                conf.setReducerClass(MyReducer.class);
+                conf.setInputFormat(TextInputFormat.class);
+                conf.setOutputFormat(TextOutputFormat.class);
+                FileInputFormat.setInputPaths(conf, new Path("/tmp/input"));
+                FileOutputFormat.setOutputPath(conf, new Path("/tmp/output"));
+                JobClient.runJob(conf);
+                logger.debug("main() finished");
+            }
+        
+        
+            public static class MyMapper extends MapReduceBase implements Mapper<LongWritable, Text, Text, IntWritable>
+            {
+                private final static IntWritable one = new IntWritable(1);
+                private Text word = new Text();
+        
+                public void map(LongWritable key, Text value, OutputCollector<Text, IntWritable> output, Reporter reporter) throws IOException {
+                    String line = value.toString();
+                    StringTokenizer tokenizer = new StringTokenizer(line);
+                    while (tokenizer.hasMoreTokens()) {
+                        word.set(tokenizer.nextToken());
+                        output.collect(word, one);
+                    }
+                }
+            }
+        
+            public static class MyReducer extends MapReduceBase implements Reducer<Text, IntWritable, Text, IntWritable>
+            {
+                public void reduce(Text key, Iterator<IntWritable> values, OutputCollector<Text, IntWritable> output, Reporter reporter) throws IOException
+                {
+                    int sum = 0;
+                    while (values.hasNext())
+                    {
+                        sum += values.next().get();
+                    }
+        
+                    output.collect(key, new IntWritable(sum));
+                }
+            }
+        
+        }
+           
+ 9. Setup the HDFS directories and test data
+    a. Create the HDFS directorires /tmp/input 
+       DOS> hadoop fs -mkdir /tmp/input
+       DOS> hadoop fs -rmdir /tmp/output
+       
+    b. Create a file called c:\temp\stuff.txt with this
+            hi mom
+            hi Ben
+            hi Peter
+            hi Dad
+            hi Will
+            hi Sam
+            Will is cool
+    
+    c. Put that file in the /tmp/input direcory in HDFS
+       DOS> hadoop fs -put c:\temp\stuff.txt /tmp/input/stuff.txt
+      
+      
+      
+10. In Intellij, setup Remote debugging
+    a. Pull Run / Edit Configurations
+    b. Click the "+" on the left
+    c. Click on "Remote"
+       Name:           remote-wordCount
+       Transport:      Socket
+       Debugger mode:  Attach
+       Host:           localhost
+       Port:           5005
+       Press Apply
+       Press OK
+       
+   
+   
+11. Build your code -- create java jar
+    a. Open a DOS window by pressing <Start><Run>CMD
+    b. In the DOS window, type-in this:
+       DOS> cd /d c:\tools\intellij\workspace\wordCount
+       DOS> mvn package
+       
+       Now, you have this JAR
+          c:\tools\intellij\workspace\wordCount\target\wordCount-1.0-SNAPSHOT.jar
+       
+       
+       
+12. Run your hadoop java jar in debug mode
+    a. Make sure your HDFS system is turned on
+    
+    b. Open a DOS window in Administrative mode
+    
+    c. Setup Hadoop to run in debug mode   
+       DOS> set HADOOP_OPTS=-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5005
+       
+    d. Setup HADOOP_CLASSPATH so that it can find your logback.xml file
+       DOS> set HADOOP_CLASSPATH=c:\tools\intellij\workspace\wordCount\src\main\resources
+    
+    e. Run your hadoop job in debugging mode
+       DOS> cd /d c:\tools\intellij\workspace\wordCount
+       DOS> hadoop jar .\target\wordCount-1.0-SNAPSHOT.jar com.whatever.WordCount
+      
+            You should see Listening for transport dt_socket at address 5005
+      
+      
+12. In Intellij, connect to the hadoop job remotely
+    a. Set a breakpoint
+    b. Pull Run / Debug remote-wordCount
+    
+
+13. Look at the results
+    DOS> hadoop fs -ls /tmp/output
+    DOS> hadoop fs -cat /tmp/output/part-00000
+            Ben     1
+            Dad     1
+            Peter   1
+            Sam     1
+            Will    2
+            cool    1
+            hi      6
+            is      1
+            mom     1
+
+
+In order to run again
+ -- Delete the hdfs /tmp/output directory
+    DOS> hadoop fs -rm -r /tmp/output
