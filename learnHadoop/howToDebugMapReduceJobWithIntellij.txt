@@ -6,20 +6,12 @@ Assumptions:
  B) You have a Java JDK
  C) You have an HDFS 
     (you followed the procedures in howToCompile AndInstallHdfsOnWindows.txt)
-
+ D) You have hadoop running in "Local" mode
+ 
 
 Procedures
 ----------
- 1. Modify the hadoop-env.cmd file by adding these options
-   (found in C:\tools\hadoop-2.7.1\etc\hadoop\hadoop-env.cmd)
-
-     set HADOOP_OPTS=-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5005
-       
-     When running hadoop from command-line, it will be in debug mode, listening on port 5005
-
-
-
- 2. Create your wordCount Map-Reduce Project
+ 1. Create your wordCount Map-Reduce Project
     a. Startup Intellij
        NOTE:  IF an existing Intellij project appear, then pull File / Close Project
        
@@ -69,7 +61,7 @@ Procedures
           Now, maven has created a simple Java JAR project
          
  
- 3. Configure Intellij preferences for this project
+ 2. Configure Intellij preferences for this project
     a. Turn off spell-checking
        1) Pull File / Settings
        2) Search for spelling
@@ -80,14 +72,14 @@ Procedures
           
 
 
- 4. In Intellij, exclude build directory
+ 3. In Intellij, exclude build directory
     a. Pull File / Settings
     b. Search for maven
        Importing -> Uncheck exclude build directory
       
      
 
- 5. Setup the Maven test directories for your Intellij project
+ 4. Setup the Maven test directories for your Intellij project
 
     Add these directories
        src/test/resources/             # Holds the logback.xml used by unit test code
@@ -107,7 +99,7 @@ Procedures
 
 
            
- 6. Add dependencies for logging and map-reduce
+ 5. Add dependencies for logging and map-reduce
     Your pom.xml should already have one dependency:
       <dependencies>
       
@@ -143,14 +135,14 @@ Procedures
         </dependency>
         
         <dependency>
-           <groupId>ch.qos.logback</groupId>
-           <artifactId>logback-classic</artifactId>
-           <version>1.0.13</version>
-        </dependency>
+           <!-- Hadoop uses log4j so use SLF4j w/log4j bridge -->
+           <groupId>org.slf4j</groupId>
+           <artifactId>slf4j-log4j12</artifactId>
+           <version>1.7.12</version>
+       </dependency>
 
 
-
- 7. Create this file:  log4j.xml
+ 6. Create this file:  log4j.xml
     NOTE:  Hadoop uses log4j so we must, too.
     
     a. Browse to src/main/resources
@@ -183,82 +175,117 @@ Procedures
    
    
    
- 8. in Intellij, create your WordCount class
+ 7. in Intellij, create your WordCount class
  
+
         package com.whatever;
         
-        import org.apache.hadoop.io.IntWritable;
-        import org.apache.hadoop.io.LongWritable;
-        import org.apache.hadoop.mapred.*;
-        import org.apache.hadoop.io.Text;
-        import org.apache.hadoop.mapred.Reducer;
+        import java.io.IOException;
+        import java.util.StringTokenizer;
+        
+        import org.apache.hadoop.conf.Configuration;
         import org.apache.hadoop.fs.Path;
+        import org.apache.hadoop.io.IntWritable;
+        import org.apache.hadoop.io.Text;
+        import org.apache.hadoop.mapreduce.Job;
+        import org.apache.hadoop.mapreduce.Mapper;
+        import org.apache.hadoop.mapreduce.Reducer;
+        import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+        import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+        import org.apache.hadoop.util.GenericOptionsParser;
         import org.slf4j.Logger;
         import org.slf4j.LoggerFactory;
         
-        import java.io.IOException;
-        import java.util.Iterator;
-        import java.util.StringTokenizer;
-        
-        
-        /**
-         * Created by adam on 7/26/2015.
-         */
         public class WordCount
         {
             private static final Logger logger = LoggerFactory.getLogger(WordCount.class);
         
+        
             public static void main(String[] args) throws Exception
             {
-                logger.debug("main() started");
+                logger.debug("######### main() started #######");
+                Configuration conf = new Configuration();
+                String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
+                if (otherArgs.length < 2)
+                {
+                    System.err.println("Usage: wordcount <in> [<in>...] <out>");
+                    System.exit(2);
+                }
         
-                JobConf conf = new JobConf(WordCount.class);
-                conf.setJobName("wordcount");
-                conf.setOutputKeyClass(Text.class);
-                conf.setOutputValueClass(IntWritable.class);
-                conf.setMapperClass(MyMapper.class);
-                conf.setReducerClass(MyReducer.class);
-                conf.setInputFormat(TextInputFormat.class);
-                conf.setOutputFormat(TextOutputFormat.class);
-                FileInputFormat.setInputPaths(conf, new Path("/tmp/input"));
-                FileOutputFormat.setOutputPath(conf, new Path("/tmp/output"));
-                JobClient.runJob(conf);
-                logger.debug("main() finished");
+                Job job = new Job(conf, "word count");
+                job.setJarByClass(WordCount.class);
+                job.setMapperClass(TokenizerMapper.class);
+                job.setCombinerClass(IntSumReducer.class);
+                job.setReducerClass(IntSumReducer.class);
+                job.setOutputKeyClass(Text.class);
+                job.setOutputValueClass(IntWritable.class);
+                for (int i = 0; i < otherArgs.length - 1; ++i)
+                {
+                    FileInputFormat.addInputPath(job, new Path(otherArgs[i]));
+                }
+        
+                FileOutputFormat.setOutputPath(job,
+                        new Path(otherArgs[otherArgs.length - 1]));
+                boolean bJobFinishedSuccessfully = job.waitForCompletion(true);
+        
+                logger.debug("############## job finished successfully?  {}", bJobFinishedSuccessfully);
             }
         
         
-            public static class MyMapper extends MapReduceBase implements Mapper<LongWritable, Text, Text, IntWritable>
-            {
+            //  M A P P E R       C L A S S
+            public static class TokenizerMapper extends Mapper<Object, Text, Text, IntWritable> {
+        
                 private final static IntWritable one = new IntWritable(1);
                 private Text word = new Text();
         
-                public void map(LongWritable key, Text value, OutputCollector<Text, IntWritable> output, Reporter reporter) throws IOException {
-                    String line = value.toString();
-                    StringTokenizer tokenizer = new StringTokenizer(line);
-                    while (tokenizer.hasMoreTokens()) {
-                        word.set(tokenizer.nextToken());
-                        output.collect(word, one);
+                public void map(Object key, Text value, Context context) throws IOException, InterruptedException
+                {
+                    StringTokenizer itr = new StringTokenizer(value.toString());
+                    while (itr.hasMoreTokens())
+                    {
+                        word.set(itr.nextToken());
+                        context.write(word, one);
                     }
                 }
             }
         
-            public static class MyReducer extends MapReduceBase implements Reducer<Text, IntWritable, Text, IntWritable>
+        
+           //  R E D U C E R       C L A S S
+           public static class IntSumReducer extends Reducer<Text,IntWritable,Text,IntWritable>
             {
-                public void reduce(Text key, Iterator<IntWritable> values, OutputCollector<Text, IntWritable> output, Reporter reporter) throws IOException
+                private IntWritable result = new IntWritable();
+        
+                public void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException
                 {
                     int sum = 0;
-                    while (values.hasNext())
+                    for (IntWritable val : values)
                     {
-                        sum += values.next().get();
+                        sum += val.get();
                     }
-        
-                    output.collect(key, new IntWritable(sum));
+                    result.set(sum);
+                    context.write(key, result);
                 }
             }
         
         }
+
+ 
+ 8. Setup your input directory 
+    a. Create the c:/temp/input directory
+    b. Create a file called c:\temp\input\stuff.txt with this
+            hi mom
+            hi Ben
+            hi Peter
+            hi Dad
+            hi Will
+            hi Sam
+            Will is cool
+      
            
- 9. Setup the HDFS directories and test data
+8b. **OPTIONAL** 
+    Only use this step if running Hadoop in pseudo-distributed mode
+    
+    Setup the HDFS directories and test data
     a. Create the HDFS directorires /tmp/input 
        DOS> hadoop fs -mkdir /tmp/input
        DOS> hadoop fs -rmdir /tmp/output
@@ -277,7 +304,7 @@ Procedures
       
       
       
-10. In Intellij, setup Remote debugging
+9. In Intellij, setup Remote debugging
     a. Pull Run / Edit Configurations
     b. Click the "+" on the left
     c. Click on "Remote"
@@ -291,43 +318,59 @@ Procedures
        
    
    
-11. Build your code -- create java jar
+10. Build your code -- create java jar
     a. Open a DOS window by pressing <Start><Run>CMD
     b. In the DOS window, type-in this:
        DOS> cd /d c:\tools\intellij\workspace\wordCount
-       DOS> mvn package
+       DOS> mvn clean package
        
        Now, you have this JAR
           c:\tools\intellij\workspace\wordCount\target\wordCount-1.0-SNAPSHOT.jar
        
        
        
-12. Run your hadoop java jar in debug mode
-    a. Make sure your HDFS system is turned on
-    
+11. Run your hadoop java jar in debug mode
+    a. Make sure your test data is setup
+       If running in "Local" mode, then make sure you have a file in c:\temp\input
+       If running in "Psuedo-distributed" mode, then 
+         -- Make sure your HDFS system is turned on
+         -- Make sure your have a /tmp/input/stuff.txt file in your HDFSMake sure your HDFS system is turned on
+             
     b. Open a DOS window in Administrative mode
-    
-    c. Setup Hadoop to run in debug mode   
-       DOS> set HADOOP_OPTS=-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5005
+       Run these commands
        
-    d. Setup HADOOP_CLASSPATH so that it can find your logback.xml file
-       DOS> set HADOOP_CLASSPATH=c:\tools\intellij\workspace\wordCount\src\main\resources
+       1) Setup Hadoop to run in debug mode   
+          DOS> set HADOOP_OPTS=-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5005
+       
+       2) Setup HADOOP_CLASSPATH so that it can find your log4j.xml file
+          DOS> set HADOOP_CLASSPATH=c:\tools\intellij\workspace\wordCount\src\main\resources
     
-    e. Run your hadoop job in debugging mode
-       DOS> cd /d c:\tools\intellij\workspace\wordCount
-       DOS> hadoop jar .\target\wordCount.jar com.whatever.WordCount
+       3) If running Hadoop in "Local" mode
+          Run your hadoop job in debugging mode 
+          DOS> cd /d c:\tools\intellij\workspace\wordCount
+          DOS> hadoop jar .\target\wordCount.jar com.whatever.WordCount c:/temp/input c:/temp/output
       
-            You should see Listening for transport dt_socket at address 5005
+      
+       3b) If running Hadoop in "Pseudo-distributed" mode
+           DOS> cd /d c:\tools\intellij\workspace\wordCount
+           DOS> hadoop jar .\target\wordCount.jar com.whatever.WordCount /tmp/input /tmp/output
+        
+           You should see Listening for transport dt_socket at address 5005
       
       
-13. In Intellij, connect to the hadoop job remotely
+12. In Intellij, connect to the hadoop job remotely
     a. Set a breakpoint
     b. Pull Run / Debug remote-wordCount
     
 
-14. Look at the results
-    DOS> hadoop fs -ls /tmp/output
-    DOS> hadoop fs -cat /tmp/output/part-00000
+13. Look at the results
+    
+    If running Hadoop in "Local" mode, then your results are in c:\temp\output
+    
+    
+    If running Hadoop in "Pseudo-distributed" mode, then your results are in /tmp/output in HDFS
+      DOS> hadoop fs -ls /tmp/output
+      DOS> hadoop fs -cat /tmp/output/part-00000
             Ben     1
             Dad     1
             Peter   1
