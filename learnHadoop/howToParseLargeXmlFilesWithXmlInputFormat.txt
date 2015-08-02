@@ -1,0 +1,74 @@
+How to use Parse Large XML Files using XmlInputFormat
+-----------------------------------------------------
+
+Assumptions:
+ A) You want your Map/Reduce job to parse super-large XML files
+ B) You want to handle the case in which the the XML chunk is bigger than the block size.
+ 
+
+INCOMPLETE -- needs example
+
+
+
+Solution
+--------
+Use Mahout's XMLInputFormat class to process XML files and extract the XML between two configured start and end tags.
+    
+Mahout's XMLInputFormat will process XML files and extract out the XML between two configured start / end tags. So if your XML looks like the following:
+
+<main>
+  <person>
+    <name>Bob</name>
+    <dob>1970/01/01</dob>
+  </person>
+</main>
+
+and you've configured the start / end tags to be <person> and </person>, then your mapper will be passed the following <LongWritable, Text> pair to its map method:
+
+LongWritable: 10
+Text: "<person>\n    <name>Bob</name>\n    <dob>1970/01/01</dob>\n  </person>"
+
+What you do with this data in your mapper is then up to you.
+
+With regards to splits, XmlInputFormat extends TextInputFormat, so if you're input file is splittable (i.e. uncompressed or compressed with a splittable codec such as snappy), then the file will be processed by one or more mappers as follows:
+
+   1. If the input file size (let's say 48 MB) is less than a single block in HDFS (lets say 64MB), 
+      *AND* you don't configure min / max split size properties, 
+         then you'll get a single mapper to process the file.
+         
+   2. As with the above, but you configure max split size to be 10MB (mapred.max.split.size=10485760), 
+      then you'll get 5 map tasks to process the file
+      
+   3. If the file is bigger than the block size then you'll get a map task for each block, 
+      or if the max split size is configured, a map for each part of the file division by that split size
+
+When the file is split up into these block or split sized chunks, 
+the XmlInputFormat will seek to byte address/offset of the block / split boundaries and 
+then scan forwards until it finds either the configured XML start tag or 
+reaches the byte address of the block/split boundary. 
+
+If it finds the start tag, 
+   it will then consume data until it finds the end tag (or end of file). 
+   
+If it finds the end tag,
+   a record will be passed to your mapper, 
+
+Otherwise, your mapper will not receive any input. 
+
+To emphasize, the map may scan past the end of the block / split when trying to find the end tag, 
+but will only do this if it has found a start tag, otherwise scanning stops at the end of the block/split.
+
+
+
+Configuration config = new Configuration();
+config.set(XmlInputFormat.START_TAG_KEY, "<person>");
+config.set(XmlInputFormat.END_TAG_KEY, "</person>");
+
+Or
+
+Configuration config = new Configuration();
+config.set(XmlInputFormat.START_TAG_KEY, "<person");
+config.set(XmlInputFormat.END_TAG_KEY, "/>");
+
+
+  
