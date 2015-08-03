@@ -110,179 +110,9 @@ Procedures
         </root>
      </configuration>
  
-
-
- 4. Create your JaxbContextHelper Class
- 
-        package whatever;
-        
-        import javax.xml.bind.JAXBContext;
-        
-        /**
-         * Created by adam on 8/2/2015.
-         */
-        public class JaxbContextHelper
-        {
-            private static JAXBContext jaxbContext;
-        
-            //initailzed during class loading
-            private static final JaxbContextHelper INSTANCE = new JaxbContextHelper();
-        
-            //to prevent creating another instance of Singleton
-            private JaxbContextHelper(){}
-        
-            
-            public static JaxbContextHelper getInstance() 
-            {
-                return INSTANCE;
-            }
-        
-            public static synchronized void initContext(JAXBContext aJaxbContext)
-            {
-                jaxbContext = aJaxbContext;
-            }
-        
-            public JAXBContext getJaxbContext()
-            {
-                return jaxbContext;
-            }
-        
-        }
  
  
- 
- 5. Create your Parser1 class to use it
- 
-        package whatever;
-        
-        import org.slf4j.Logger;
-        import org.slf4j.LoggerFactory;
-        
-        import javax.xml.bind.JAXBContext;
-        import java.io.StringReader;
-        import java.io.StringWriter;
-        
-        public class Parser1
-        {
-            private static final Logger logger = LoggerFactory.getLogger(Parser1.class);
-        
-        
-            /***************************************************************
-             * main()
-             ***************************************************************/
-            public static void main(String[] args) throws Exception
-            {
-                logger.debug("main() started");
-        
-                long startTime;
-                long estimatedTime;
-                Parser1 parser1 = new Parser1();
-        
-                // Run marshalTest1() 5000 times
-                startTime = System.nanoTime();
-                for (int i=0; i<=10000; i++)
-                {
-                    parser1.marshalTest1();
-                }
-                estimatedTime = System.nanoTime() - startTime;
-                logger.debug("Running marshalTest1 10000 times took {} milliseconds or {} secs ",  estimatedTime/1000000, (double) estimatedTime/1000000000);
-        
-        
-        
-                // Run marshalTest2() 10000 times
-                startTime = System.nanoTime();
-                JAXBContext jaxbContext = JAXBContext.newInstance(Employee.class);
-                JaxbContextHelper.initContext(jaxbContext);
-                for (int i=0; i<=10000; i++)
-                {
-                    parser1.marshalTest2();
-                }
-                estimatedTime = System.nanoTime() - startTime;
-                logger.debug("Running marshalTest2 10000 times took {} milliseconds or {} secs ",  estimatedTime/1000000, (double) estimatedTime/1000000000);
-       
-        
-                logger.debug("main() finished.");
-            }
-        
-        
-        
-            /***************************************************************
-             * marshalTest1()
-             *
-             * In this case, we *create* a new jaxbContext every time
-             * NOTE:  This is an expensive operation
-             ***************************************************************/
-            private void marshalTest1() throws Exception
-            {
-                final Employee john = new Employee();
-                john.setId(1);
-                john.setFirstName("John");
-                john.setMiddleName("Robert");
-                john.setLastName("Doe");
-        
-                // write it out as XML
-                final JAXBContext jaxbContext = JAXBContext.newInstance(Employee.class);
-                StringWriter writer = new StringWriter();
-                jaxbContext.createMarshaller().marshal(john, writer);
-        
-                // read it from XML
-                final Employee johnRead =
-                        (Employee) jaxbContext.createUnmarshaller().unmarshal(
-                                new StringReader(writer.toString()));
-                if (john.equals(johnRead))
-                { 
-                    // write the new object out as XML again.
-                    writer = new StringWriter();
-                    jaxbContext.createMarshaller().marshal(johnRead, writer);
-               //     logger.debug("johnRead was identical to john: \n{}", writer.toString());
-                }
-                else
-                {
-                    throw new Exception("The john and johnRead are not equal");
-                }
-            }
-        
-        
-        
-            /***************************************************************
-             * marshalTest1()
-             *
-             * In this case, we *create* a get the jaxbContext from the JaxbContextHelper class
-             ***************************************************************/
-            private void marshalTest2() throws Exception
-            {
-                final Employee john = new Employee();
-                john.setId(1);
-                john.setFirstName("John");
-                john.setMiddleName("Robert");
-                john.setLastName("Doe");
-        
-                // write it out as XML
-                JAXBContext jaxbContext = JaxbContextHelper.getInstance().getJaxbContext();
-                StringWriter writer = new StringWriter();
-                jaxbContext.createMarshaller().marshal(john, writer);
-        
-                // read it from XML
-                final Employee johnRead =
-                        (Employee) jaxbContext.createUnmarshaller().unmarshal(
-                                new StringReader(writer.toString()));
-                if (john.equals(johnRead))
-                {   // write the new object out as XML again.
-                    writer = new StringWriter();
-                    jaxbContext.createMarshaller().marshal(johnRead, writer);
-                    //     logger.debug("johnRead was identical to john: \n{}", writer.toString());
-                }
-                else
-                {
-                    throw new Exception("The john and johnRead are not equal");
-                }
-        
-            }
-        }
-
-
-
-  6. Create your Employee Class
+  4. Create your Employee Class
   
         package whatever;
         
@@ -396,6 +226,169 @@ Procedures
             }
         }
           
+
+ 5. Create your JaxbContextHelper singleton Class
+ 
+        package whatever;
+        
+        import javax.xml.bind.JAXBContext;
+        
+        /**
+         * Created by adam on 8/2/2015.
+         */
+        public enum JaxbContextHelper
+        {
+            INSTANCE;
+        
+            private JAXBContext jaxbContext;
+        
+        
+            public JAXBContext getJaxbContext()
+            {
+                return jaxbContext;
+            }
+        
+            public void setJaxbContext(JAXBContext aJaxbContext)
+            {
+                jaxbContext = aJaxbContext;
+            }
+        
+        }
+ 
+ 
+ 
+ 6. Create your Parser1 class [which will do the actual XML processing using JAXB]
+ 
+        package whatever;
+        
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        
+        import javax.xml.bind.JAXBContext;
+        import java.io.StringReader;
+        import java.io.StringWriter;
+        
+        public class Parser1
+        {
+            private static final Logger logger = LoggerFactory.getLogger(Parser1.class);
+        
+        
+            /***************************************************************
+             * main()
+             ***************************************************************/
+            public static void main(String[] args) throws Exception
+            {
+                logger.debug("main() started");
+        
+                long startTime;
+                long estimatedTime;
+                Parser1 parser1 = new Parser1();
+        
+                // Run marshalTest1() 5000 times
+                startTime = System.nanoTime();
+                for (int i=0; i<=10000; i++)
+                {
+                    parser1.marshalTest1();
+                }
+                estimatedTime = System.nanoTime() - startTime;
+                logger.debug("Running marshalTest1 10000 times took {} milliseconds or {} secs ",  estimatedTime/1000000, (double) estimatedTime/1000000000);
+        
+        
+        
+                // Run marshalTest2() 10000 times
+                startTime = System.nanoTime();
+                JAXBContext jaxbContext = JAXBContext.newInstance(Employee.class);
+                JaxbContextHelper.INSTANCE.setJaxbContext(jaxbContext);
+                for (int i=0; i<=10000; i++)
+                {
+                    parser1.marshalTest2();
+                }
+                estimatedTime = System.nanoTime() - startTime;
+                logger.debug("Running marshalTest2 10000 times took {} milliseconds or {} secs ",  estimatedTime/1000000, (double) estimatedTime/1000000000);
+        
+        
+        
+                logger.debug("main() finished.");
+            }
+        
+        
+            /***************************************************************
+             * marshalTest1()
+             *
+             * In this case, we *create* a new jaxbContext every time
+             * NOTE:  This is an expensive operation
+             ***************************************************************/
+            private void marshalTest1() throws Exception
+            {
+                final Employee john = new Employee();
+                john.setId(1);
+                john.setFirstName("John");
+                john.setMiddleName("Robert");
+                john.setLastName("Doe");
+        
+                // write it out as XML
+                final JAXBContext jaxbContext = JAXBContext.newInstance(Employee.class);
+                StringWriter writer = new StringWriter();
+                jaxbContext.createMarshaller().marshal(john, writer);
+        
+                // read it from XML
+                final Employee johnRead =
+                        (Employee) jaxbContext.createUnmarshaller().unmarshal(
+                                new StringReader(writer.toString()));
+                if (john.equals(johnRead))
+                {   // write the new object out as XML again.
+                    writer = new StringWriter();
+                    jaxbContext.createMarshaller().marshal(johnRead, writer);
+               //     logger.debug("johnRead was identical to john: \n{}", writer.toString());
+                }
+                else
+                {
+                    throw new Exception("The john and johnRead are not equal");
+                }
+            }
+        
+            /***************************************************************
+             * marshalTest1()
+             *
+             * In this case, we get the JaxbContext from JaxbContextHelper
+             * Because the JaxbContext is only created once, this method is much faster
+             ***************************************************************/
+            private void marshalTest2() throws Exception
+            {
+                final Employee john = new Employee();
+                john.setId(1);
+                john.setFirstName("John");
+                john.setMiddleName("Robert");
+                john.setLastName("Doe");
+        
+                // write it out as XML
+                JAXBContext jaxbContext = JaxbContextHelper.INSTANCE.getJaxbContext();
+                StringWriter writer = new StringWriter();
+                jaxbContext.createMarshaller().marshal(john, writer);
+        
+                // read it from XML
+                final Employee johnRead =
+                        (Employee) jaxbContext.createUnmarshaller().unmarshal(
+                                new StringReader(writer.toString()));
+                if (john.equals(johnRead))
+                {   // write the new object out as XML again.
+                    writer = new StringWriter();
+                    jaxbContext.createMarshaller().marshal(johnRead, writer);
+                    //     logger.debug("johnRead was identical to john: \n{}", writer.toString());
+                }
+                else
+                {
+                    throw new Exception("The john and johnRead are not equal");
+                }
+        
+        
+            }
+        }
+        
+             
+
+
+
   
   
   7. Run your Parser1 class
