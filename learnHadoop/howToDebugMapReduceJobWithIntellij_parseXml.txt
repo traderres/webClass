@@ -1,0 +1,660 @@
+How to Debug a Map-Reduce Job to Parse XML using Intellij
+---------------------------------------------------------
+
+Assumptions:
+ A) You have Intellij Commnity Edition 14 installed
+ B) You have a Java JDK
+ C) You have an HDFS 
+    (you followed the procedures in howToCompile AndInstallHdfsOnWindows.txt)
+ D) You have hadoop running in "Local" mode
+ 
+
+Procedures
+----------
+ 1. Create your wordCount Map-Reduce Project
+    a. Startup Intellij
+       NOTE:  If an existing Intellij project appear, then pull File / Close Project
+       
+    b. Pull Create New Project
+       1) In the "New Project" window, select Maven
+            a) Next to Project SDK:  Select your Java JDK
+               NOTE:  If you do not see your java JDK, then
+                      Press New
+                      -- Browse to your Java JDK:  C:\Program Files\Java\jdk1.7.0_60
+                      -- Press OK
+               
+            b) Check "Create from archetype"
+            
+            c) Select maven-archetype-quickstart
+               Press Next
+               
+       2) In the next screen
+          GroupId:     com.whatever
+          ArtifactId:  mrParseXml    
+          Version:     1.0-SNAPSHOT
+          Press Next
+          
+          
+       3) In the next screen,
+          Maven home directory:  C:/tools/apache-maven-3.2.3
+          User settings file:    Check the checkbox to "Override"
+                                 C:\tools\apache-maven-3.2.3\conf\settings.xml
+          Press Next                       
+                                 
+       
+       4) Project Name:      mrParseXml
+          Project Location:  C:\tools\intellij\workspace\mrParseXml
+          Press Finish
+          
+       5) If you get prompted that "C:\tools\intellij\workspace\wordCount" does not exist
+          It will be created by Intellij
+          Press OK 
+     
+       6) If you get prompted 
+          "New projects can either be opened in a new window or replace the project"
+          Press "This Window"
+          
+       7) If you are prompted 
+          Maven projects need to be imported
+          Press "Enable Auto-Import"
+          
+          Now, maven has created a simple Java JAR project
+         
+ 
+ 
+ 2. Configure Intellij preferences for this project
+    a. Turn off spell-checking
+       1) Pull File / Settings
+       2) Search for spelling
+          a) Single-click on Inspections
+          b) next to Typo -- Uncheck the checkbox
+          c) Press Apply, Press OK
+          
+
+
+ 3. In Intellij, exclude build directory
+    a. Pull File / Settings
+    b. Search for maven
+       Select Build Tools -> Maven -> Importing
+       Uncheck exclude build directory
+       Press Apply, Press OK
+     
+
+ 4. Setup the Maven test directories for your Intellij project
+
+    Add these directories
+       src/test/resources/             # Holds the logback.xml used by unit test code
+       src/main/resources/             # Holds the logback.xml used by main program
+
+    a. Right-click on src/test   -> New -> Directory:    resources
+    b. Right-click on src/main   -> New -> Directory:    resources
+
+    Now, you should have this directory structure
+      src/main/java/ 
+      src/main/resources/               # Holds logback.xml used by java main program     
+      src/test/java
+      src/test/resources/               # Holds logback.xml used by unit test code
+
+
+           
+ 5. Add dependencies for logging and map-reduce
+    Your pom.xml should already have one dependency:
+      <dependencies>
+      
+        <dependency>
+          <groupId>junit</groupId>
+          <artifactId>junit</artifactId>
+          <version>3.8.1</version>
+          <scope>test</scope>
+        </dependency>
+        
+      </dependencies>
+    
+        
+        
+    Copy and paste these dependencies into your pom.xml
+    NOTE:  Add all of these dependencies should be between these tags:
+       <dependencies>
+       . . .
+       </dependencies>
+       
+     
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-core</artifactId>
+            <version>1.2.1</version>
+            <scope>provided</scope>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.3.2</version>
+        </dependency>
+        
+        
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.7.5</version>
+        </dependency>
+        
+        <dependency>
+            <!-- Hadoop uses log4j so use SLF4j w/log4j bridge -->
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+            <version>1.7.12</version>
+        </dependency>
+        
+        <dependency>
+            <!-- Jaxb library to parse XML -->
+            <groupId>javax.xml.bind</groupId>
+            <artifactId>jaxb-api</artifactId>
+            <version>2.2.12</version>
+        </dependency>
+        
+        <dependency>
+            <!-- I need this dependency to get XmlInputFormat.class -->
+            <groupId>org.apache.mahout</groupId>
+            <artifactId>mahout-integration</artifactId>
+            <version>0.10.1</version>
+        </dependency>
+
+
+ 6. Create this file:  log4j.xml
+    NOTE:  Hadoop uses log4j so we must, too.
+    
+    a. Browse to src/main/resources
+    b. Right-click on classes -> New -> Other... -> Search for file
+       filename:  log4j.xml
+       
+        <?xml version="1.0" encoding="UTF-8" ?>
+        <!DOCTYPE log4j:configuration SYSTEM "log4j.dtd">
+        
+        <log4j:configuration xmlns:log4j="http://jakarta.apache.org/log4j/">
+            <appender name="CONSOLE" class="org.apache.log4j.ConsoleAppender">
+                <param name="Target" value="System.out"/>
+                <layout class="org.apache.log4j.PatternLayout">
+                    <param name="ConversionPattern" value="%d{MM/dd/yyyy HH:mm:ss} %c %m%n"/>
+                </layout>
+            </appender>
+        
+        
+            <logger name="com.whatever" additivity="false">
+                <level value="debug" />
+                <appender-ref ref="CONSOLE" />
+            </logger>
+        
+            <root>
+                <priority value="info" />
+                <appender-ref ref="CONSOLE" />
+            </root>
+        
+        </log4j:configuration>
+   
+   
+ 7. In Intellij, create your Employee class
+    a. Browse to src/main/java/com.whatever -> New Java Class
+    b. Name:  Employee
+       Press OK
+    c. Copy this to your class 
+    
+        package com.whatever;
+        
+        import javax.xml.bind.annotation.*;
+        
+        /**
+         * Created by adam on 8/1/2015.
+         */
+        @XmlRootElement(name="Employee")
+        @XmlAccessorType(XmlAccessType.FIELD)
+        public class Employee
+        {
+            @XmlAttribute
+            private int id;
+        
+            // Employee's first name
+            @XmlElement
+            private String firstName;
+        
+            // Employee's middle name
+            @XmlElement
+            private String middleName;
+        
+            // Employee's last name
+            @XmlElement
+            private String lastName;
+        
+            // Employee no argument constructor
+            public Employee()
+            {
+            }
+        
+            public int getId()
+            {
+                return id;
+            }
+        
+            public void setId(int id)
+            {
+                this.id = id;
+            }
+        
+            public String getLastName()
+            {
+                return lastName;
+            }
+        
+            public void setLastName(String lastName)
+            {
+                this.lastName = lastName;
+            }
+        
+            public String getMiddleName()
+            {
+                return middleName;
+            }
+        
+            public void setMiddleName(String middleName)
+            {
+                this.middleName = middleName;
+            }
+        
+            public String getFirstName()
+            {
+                return firstName;
+            }
+        
+            public void setFirstName(String firstName)
+            {
+                this.firstName = firstName;
+            }
+        
+            @Override
+            public boolean equals(Object o)
+            {
+                if (this == o) return true;
+                if (o == null || getClass() != o.getClass()) return false;
+        
+                Employee employee = (Employee) o;
+        
+                if (id != employee.id) return false;
+                if (firstName != null ? !firstName.equals(employee.firstName) :
+                        employee.firstName != null) return false;
+                if (lastName != null ? !lastName.equals(employee.lastName) :
+                        employee.lastName != null) return false;
+                if (middleName != null ? !middleName.equals(employee.middleName) :
+                        employee.middleName != null) return false;
+        
+                return true;
+            }
+        
+            @Override
+            public int hashCode()
+            {
+                int result = id;
+                result = 31 * result + (firstName != null ? firstName.hashCode() : 0);
+                result = 31 * result + (middleName != null ? middleName.hashCode() : 0);
+                result = 31 * result + (lastName != null ? lastName.hashCode() : 0);
+                return result;
+            }
+        
+            @Override
+            public String toString()
+            {
+                return "Employee{" +
+                        "id=" + id +
+                        ", firstName='" + firstName + '\'' +
+                        ", middleName='" + middleName + '\'' +
+                        ", lastName='" + lastName + '\'' +
+                        '}';
+            }
+        }
+
+   
+ 8. in Intellij, create your ParseXml class 
+    a. Browse to src/main/java/com.whatever -> New Java Class
+    b. Name:  ParseXml
+       Press OK
+    c. Copy this to your class
+
+            package com.whatever;
+            
+            import java.io.*;
+            import java.net.URI;
+            import java.util.Properties;
+            import java.util.TreeMap;
+            
+            import org.apache.commons.lang3.StringUtils;
+            import org.apache.hadoop.conf.Configuration;
+            import org.apache.hadoop.filecache.DistributedCache;
+            import org.apache.hadoop.fs.FileSystem;
+            import org.apache.hadoop.fs.Path;
+            import org.apache.hadoop.io.Text;
+            import org.apache.hadoop.mapreduce.Job;
+            import org.apache.hadoop.mapreduce.Mapper;
+            import org.apache.hadoop.mapreduce.Reducer;
+            import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+            import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+            import org.apache.mahout.text.wikipedia.XmlInputFormat;
+            import org.slf4j.Logger;
+            import org.slf4j.LoggerFactory;
+            
+            import javax.xml.bind.JAXBContext;
+            import javax.xml.bind.Unmarshaller;
+            
+            public class ParseXml
+            {
+                private static final Logger logger = LoggerFactory.getLogger(ParseXml.class);
+            
+                private static final String INPUT_PATH_PROP_KEY = "inputPath";
+                private static final String OUTPUT_PATH_PROP_KEY = "outputPath";
+                private static final String LOOKUP_CACHE_FILEPATH_PROP_KEY = "lookupCacheFilePath";
+            
+                /**************************************************************
+                 * main()
+                 *   1) Create a logback.xml file and put in directory
+                 *   2) Create a property file called  ParseXml.properties
+                 *       inputPath=hdfs:/data/2015
+                 *       outputPath=hdfs:/reports/rp1
+                 *       lookupCacheFilePath=hdfs:/cache/cacheFile.txt
+                 *   3) unix> export HADOOP_CLASSPATH=/directory/that/holds/property/file
+                 *   4) unix> hadoop jar myFile.jar com.whatever.ParseXml
+                 *
+                 * Mapper
+                 *   1) Parse the XML using JAXB
+                 *   2) Pull-out part of XML and write to reducer
+                 *
+                 * Reduer
+                 *   1) Load distributed cache file into TreeMap
+                 *   2) Join value from mapper to distributed cache file
+                 *   3) Write joined value to output
+                 ***************************************************************/
+                public static void main(String[] args) throws Exception
+                {
+                    logger.debug("main() started");
+            
+                    // Read-in property file called "ParseXml.properties"
+                    Properties props = new Properties();
+                    InputStream iostream = Thread.currentThread().getContextClassLoader().getResourceAsStream( "/ParseXml.properties" );
+                    if (iostream == null)
+                    {
+                        throw new RuntimeException("Critical Error in ParseXml.main():  I could not find ParseXml.properties in your HADOOP_CLASSPATH");
+                    }
+                    props.load(iostream);
+            
+                    // Verify that the required property keys are found and that values are actually present
+                 //   verifyPropertyValues(props);
+            
+                    // Create a new job with an empty configuration
+                    Job job = new Job(new Configuration());
+            
+                    // Get a pointer to the job's configuration
+                    Configuration conf = job.getConfiguration();
+            
+                    job.setJobName("ParseXml Job");
+                    job.setJarByClass(ParseXml.class);
+                    job.setMapperClass(MyMapper.class);
+                    job.setCombinerClass(MyReducer.class);
+                    job.setReducerClass(MyReducer.class);
+                    job.setOutputKeyClass(Text.class);
+                    job.setOutputValueClass(Text.class);
+                    job.setInputFormatClass(XmlInputFormat.class);
+            
+                    conf.set(XmlInputFormat.START_TAG_KEY, "<Employee>");
+                    conf.set(XmlInputFormat.END_TAG_KEY, "</Employee>");
+            
+                    // Setup the input directory
+                    String sInputPath = props.getProperty(INPUT_PATH_PROP_KEY);
+                    FileInputFormat.addInputPath(job, new Path(sInputPath));
+            
+                    // Setup the output directory
+                    String sOutputPath = props.getProperty(OUTPUT_PATH_PROP_KEY);
+                    FileOutputFormat.setOutputPath(job,  new Path(sOutputPath));
+            
+                    // Setup the distributed cache
+                    String sLookupCacheFilePath = props.getProperty(LOOKUP_CACHE_FILEPATH_PROP_KEY);
+                    Path pLookupCatchFilePath = new Path(sLookupCacheFilePath);
+                    DistributedCache.addCacheFile(pLookupCatchFilePath.toUri(), conf);
+            
+                    // Run the job
+                    boolean bJobFinishedSuccessfully = job.waitForCompletion(true);
+            
+                    if (bJobFinishedSuccessfully) {
+                        logger.debug("Job finished successfully");
+                    }
+                    else {
+                        logger.debug("Job Failed");
+                    }
+            
+                    logger.debug("main() finished.");
+                }
+            
+            
+            
+            
+            
+                //  M A P P E R       C L A S S
+                public static class MyMapper extends Mapper<Text, Text, Text, Text>
+                {
+            
+                    public void setup(Mapper.Context context) throws IOException, InterruptedException
+                    {
+                        logger.debug("MyMapper.setup() called");
+                    }
+            
+                    public void map(Text aKey, Text aValue, Context aContext) throws IOException, InterruptedException
+                    {
+                        try {
+                            String sEmployeeXml = String.valueOf(aKey);
+            
+                            // Convert the XML into an Employee object
+                            final JAXBContext jaxbContext = JAXBContext.newInstance(Employee.class);
+                            Unmarshaller unmarshaller = jaxbContext.createUnmarshaller();
+                            StringReader reader = new StringReader(sEmployeeXml);
+                            final Employee employee = (Employee) unmarshaller.unmarshal(reader);
+            
+            
+                            aContext.write(new Text(String.valueOf(employee.getId())),
+                                           new Text(employee.getLastName() ) );
+                        }
+                        catch (Exception e)
+                        {
+                            RuntimeException re = new RuntimeException("Exception raised in MyMapper.map", e);
+                            re.setStackTrace(e.getStackTrace() );
+                            throw re;
+                        }
+                    }
+                }
+            
+            
+                //  R E D U C E R       C L A S S
+                public static class MyReducer extends Reducer<Text,Text,Text,Text>
+                {
+                    private TreeMap<String, String> lookupCache = new TreeMap<String, String>();
+            
+            
+                    /*************************************************************************
+                     * setup()
+                     *
+                     * Initialize the lookup cache by reading the distributed cache file
+                     *************************************************************************/
+                    public void setup(Reducer.Context aContext) throws IOException, InterruptedException
+                    {
+                        Configuration jobConf = aContext.getConfiguration();
+            
+                        URI[] cacheFileUris = DistributedCache.getCacheFiles(jobConf);
+            
+                        // verify that cacheFileUris is only one element
+                        if (cacheFileUris == null)
+                        {
+                            throw new RuntimeException("Critical Error in MyReducer.setup()  cacheFileUris is null.  This means that the distributed cache was not setup correctly.");
+                        }
+                        else if (cacheFileUris.length == 0)
+                        {
+                            throw new RuntimeException("Critical Error in MyReducer.setup()  cacheFileUris is empty.  This means that the distributed cache was not setup correctly.");
+                        }
+                        else if (cacheFileUris.length > 1)
+                        {
+                            throw new RuntimeException("Critical Error in MyReducer.setup()  cacheFileUris.length is " + cacheFileUris.length + ".  It should be one.  This means that the distributed cache was not setup correctly.");
+                        }
+            
+                        Path pathCacheFile = new Path(cacheFileUris[0].getPath());
+            
+                        // Open this file
+                        FileSystem fs = FileSystem.get(jobConf);
+                        BufferedReader fileReader = new BufferedReader(new InputStreamReader(fs.open(pathCacheFile)));
+                        String sLine;
+            
+                        while ((sLine = fileReader.readLine()) != null)
+                        {
+                            // add stuff into some lookup treemap or hashmap
+                            String[] parts = StringUtils.split(sLine, ",");
+            
+                            lookupCache.put(parts[0], parts[1]);
+                        }
+            
+                        fileReader.close();
+            
+                        logger.debug("The lookup cache has a total of {} elements in it.", lookupCache.size() );
+                    }
+            
+            
+            
+                    /*************************************************************************
+                     * reduce()
+                     *************************************************************************/
+                    public void reduce(Text aKey, Iterable<Text> aValues, Context aContext) throws IOException, InterruptedException
+                    {
+            //            context.write(key, result);
+                    }
+                }
+            
+            }
+            
+             
+ 9. Setup your input directory 
+    a. Create the c:/temp/input directory
+    b. Create a file called c:\temp\input\stuff.txt with this
+            hi mom
+            hi Ben
+            hi Peter
+            hi Dad
+            hi Will
+            hi Sam
+            Will is cool
+      
+
+         
+9b. **OPTIONAL** 
+    Only use this step if running Hadoop in pseudo-distributed mode
+    
+    Setup the HDFS directories and test data
+    a. Create the HDFS directorires /tmp/input 
+       DOS> hadoop fs -mkdir /tmp/input
+       DOS> hadoop fs -rmdir /tmp/output
+       
+    b. Create a file called c:\temp\stuff.txt with this
+            hi mom
+            hi Ben
+            hi Peter
+            hi Dad
+            hi Will
+            hi Sam
+            Will is cool
+    
+    c. Put that file in the /tmp/input direcory in HDFS
+       DOS> hadoop fs -put c:\temp\stuff.txt /tmp/input/stuff.txt
+  
+  
+      
+10. Setup your lookup file cache
+
+      
+  
+ 
+      
+      
+11. In Intellij, setup Remote debugging
+    a. Pull Run / Edit Configurations
+    b. Click the "+" on the left
+    c. Click on "Remote"
+       Name:           remote-wordCount
+       Transport:      Socket
+       Debugger mode:  Attach
+       Host:           localhost
+       Port:           5005
+       Press Apply
+       Press OK
+       
+   
+   
+12. Build your code -- create java jar
+    a. Open a DOS window by pressing <Start><Run>CMD
+    b. In the DOS window, type-in this:
+       DOS> cd /d c:\tools\intellij\workspace\wordCount
+       DOS> mvn clean package
+       
+       Now, you have this JAR
+          c:\tools\intellij\workspace\wordCount\target\wordCount-1.0-SNAPSHOT.jar
+     
+       
+       
+13. Run your hadoop java jar in debug mode
+    a. Make sure your test data is setup
+       If running in "Local" mode, then make sure you have a file in c:\temp\input
+       If running in "Psuedo-distributed" mode, then 
+         -- Make sure your HDFS system is turned on
+         -- Make sure your have a /tmp/input/stuff.txt file in your HDFSMake sure your HDFS system is turned on
+             
+    b. Open a DOS window in Administrative mode
+       Run these commands
+       
+       1) Setup Hadoop to run in debug mode   
+          DOS> set HADOOP_OPTS=-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5005
+       
+       2) Setup HADOOP_CLASSPATH so that it can find your log4j.xml file
+          DOS> set HADOOP_CLASSPATH=c:\tools\intellij\workspace\wordCount\src\main\resources
+    
+       3) If running Hadoop in "Local" mode
+          Run your hadoop job in debugging mode 
+          DOS> cd /d c:\tools\intellij\workspace\wordCount
+          DOS> hadoop jar .\target\wordCount.jar com.whatever.ParseXml c:/temp/input c:/temp/output
+      
+      
+       3b) If running Hadoop in "Pseudo-distributed" mode
+           DOS> cd /d c:\tools\intellij\workspace\wordCount
+           DOS> hadoop jar .\target\wordCount.jar com.whatever.WordCount /tmp/input /tmp/output
+        
+           You should see Listening for transport dt_socket at address 5005
+      
+      
+      
+14. In Intellij, connect to the hadoop job remotely
+    a. Set a breakpoint
+    b. Pull Run / Debug remote-wordCount
+    
+
+
+15. Look at the results
+    
+    If running Hadoop in "Local" mode, then your results are in c:\temp\output
+    
+    
+    If running Hadoop in "Pseudo-distributed" mode, then your results are in /tmp/output in HDFS
+      DOS> hadoop fs -ls /tmp/output
+      DOS> hadoop fs -cat /tmp/output/part-00000
+            Ben     1
+            Dad     1
+            Peter   1
+            Sam     1
+            Will    2
+            cool    1
+            hi      6
+            is      1
+            mom     1
+
+
+In order to run again
+ -- Delete the hdfs /tmp/output directory
+    DOS> hadoop fs -rm -r /tmp/output
