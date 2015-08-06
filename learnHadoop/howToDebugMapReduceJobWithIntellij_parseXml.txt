@@ -8,10 +8,15 @@ Assumptions:
     (you followed the procedures in howToCompile AndInstallHdfsOnWindows.txt)
  D) You have hadoop running in "Local" mode
  
+References
+----------
+http://blog.mafr.de/2010/07/24/maven-hadoop-job/     (how to build runnable hadoop job)
+
+
 
 Procedures
 ----------
- 1. Create your wordCount Map-Reduce Project
+ 1. Create your mrParseXml Map-Reduce Project
     a. Startup Intellij
        NOTE:  If an existing Intellij project appear, then pull File / Close Project
        
@@ -46,7 +51,7 @@ Procedures
           Project Location:  C:\tools\intellij\workspace\mrParseXml
           Press Finish
           
-       5) If you get prompted that "C:\tools\intellij\workspace\wordCount" does not exist
+       5) If you get prompted that "C:\tools\intellij\workspace\mrParseXml" does not exist
           It will be created by Intellij
           Press OK 
      
@@ -80,20 +85,25 @@ Procedures
        Press Apply, Press OK
      
 
- 4. Setup the Maven test directories for your Intellij project
+
+ 4. Setup the Maven directories for your Intellij project
 
     Add these directories
        src/test/resources/             # Holds the logback.xml used by unit test code
-       src/main/resources/             # Holds the logback.xml used by main program
-
+       src/main/assembly/              # Holds the hadoop-job.xml file
+       src/main/config/                # Simulates the HADOOP_CLASSPATH to hold log4j.xml and property file
+           
     a. Right-click on src/test   -> New -> Directory:    resources
-    b. Right-click on src/main   -> New -> Directory:    resources
+    b. Right-click on src/main   -> New -> Directory:    config
+    c. Right-click on src/main   -> New -> Directory:    assembly
+    
 
     Now, you should have this directory structure
-      src/main/java/ 
-      src/main/resources/               # Holds logback.xml used by java main program     
+      src/main/assembly/
+      src/main/config/                   
+      src/main/java/
       src/test/java
-      src/test/resources/               # Holds logback.xml used by unit test code
+      src/test/resources/    
 
 
            
@@ -119,40 +129,41 @@ Procedures
        </dependencies>
        
      
+    
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-core</artifactId>
             <version>1.2.1</version>
             <scope>provided</scope>
         </dependency>
-        
+    
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
             <version>3.3.2</version>
         </dependency>
-        
-        
+    
+    
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>1.7.5</version>
         </dependency>
-        
+    
         <dependency>
             <!-- Hadoop uses log4j so use SLF4j w/log4j bridge -->
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-log4j12</artifactId>
             <version>1.7.12</version>
         </dependency>
-        
+    
         <dependency>
             <!-- Jaxb library to parse XML -->
             <groupId>javax.xml.bind</groupId>
             <artifactId>jaxb-api</artifactId>
             <version>2.2.12</version>
-        </dependency>
-        
+          </dependency>
+    
         <dependency>
             <!-- I need this dependency to get XmlInputFormat.class -->
             <groupId>org.apache.mahout</groupId>
@@ -161,10 +172,73 @@ Procedures
         </dependency>
 
 
- 6. Create this file:  log4j.xml
-    NOTE:  Hadoop uses log4j so we must, too.
+
+
+ 6. Setup Maven to create a runnable Hadoop JAR that has all of the dependent JARs inside of it
+    a. Browse to src/main/assembly
+    b. Add a file:  hadoop-job.xml
+    c. Copy this to your hadoop-job.xml
+             
+        <assembly>
+            <id>job</id>
+            <formats>
+                <format>jar</format>
+            </formats>
+            <includeBaseDirectory>false</includeBaseDirectory>
+            <dependencySets>
+                <dependencySet>
+                    <unpack>false</unpack>
+                    <scope>runtime</scope>
+                    <outputDirectory>lib</outputDirectory>
+                    <excludes>
+                        <exclude>${groupId}:${artifactId}</exclude>
+                    </excludes>
+                </dependencySet>
+                <dependencySet>
+                    <unpack>true</unpack>
+                    <includes>
+                        <include>${groupId}:${artifactId}</include>
+                    </includes>
+                </dependencySet>
+            </dependencySets>
+        </assembly>
     
-    a. Browse to src/main/resources
+    d. Browse to your pom.xml
+    e. Add this to the end of your <plugins>...</plugins> section
+            <plugin>
+                <!-- Build the runnable hadoop job JAR file -->
+                <!-- NOTE:  Any dependencies with scope=provided will not be added to this JAR -->
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>2.2.1</version>
+                <configuration>
+                    <descriptors>
+                        <descriptor>src/main/assembly/hadoop-job.xml</descriptor>
+                    </descriptors>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>make-assembly</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            
+            
+            
+
+ 7. Create this file:  log4j.xml    [in src/main/config/ directory]
+    NOTES:
+      -- Hadoop uses log4j so we must, too...
+      -- Normally, we would put this file in src/main/resources
+         But, because this is a hadoop job we put in src/main/config
+      -- When running the hadoop job, we will set HADOOP_CLASSPATH to be the src/main/config directory
+         so that Hadoop can find the files in this directory
+      -- Remember:  Hadoop runs this JAR file [and not you]  
+          
+    a. Browse to src/main/config
     b. Right-click on classes -> New -> Other... -> Search for file
        filename:  log4j.xml
        
@@ -191,9 +265,23 @@ Procedures
             </root>
         
         </log4j:configuration>
+  
+  
+  
+ 8. Create this file:  ParseXml.properties  [in src/main/config/ directory]
+    a. Browse to src/main/config
+    b. Add this file:  ParseXml.properties
+    
+        #
+        # ParseXml.properties
+        #
+        inputPath=c:/temp/mrParseXml/input
+        outputPath=c:/temp/mrParseXml/output
+        lookupCacheFilePath=c:/temp/mrParseXml/cache/lookupFile.txt 
    
    
- 7. In Intellij, create your Employee class
+   
+ 9. In Intellij, create your Employee class
     a. Browse to src/main/java/com.whatever -> New Java Class
     b. Name:  Employee
        Press OK
@@ -311,13 +399,14 @@ Procedures
             }
         }
 
+
    
- 8. in Intellij, create your ParseXml class 
+10. in Intellij, create your ParseXml class 
     a. Browse to src/main/java/com.whatever -> New Java Class
     b. Name:  ParseXml
        Press OK
     c. Copy this to your class
-
+    
             package com.whatever;
             
             import java.io.*;
@@ -327,15 +416,19 @@ Procedures
             
             import org.apache.commons.lang3.StringUtils;
             import org.apache.hadoop.conf.Configuration;
+            import org.apache.hadoop.conf.Configured;
             import org.apache.hadoop.filecache.DistributedCache;
             import org.apache.hadoop.fs.FileSystem;
             import org.apache.hadoop.fs.Path;
+            import org.apache.hadoop.io.LongWritable;
             import org.apache.hadoop.io.Text;
             import org.apache.hadoop.mapreduce.Job;
             import org.apache.hadoop.mapreduce.Mapper;
             import org.apache.hadoop.mapreduce.Reducer;
             import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
             import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+            import org.apache.hadoop.util.Tool;
+            import org.apache.hadoop.util.ToolRunner;
             import org.apache.mahout.text.wikipedia.XmlInputFormat;
             import org.slf4j.Logger;
             import org.slf4j.LoggerFactory;
@@ -343,7 +436,7 @@ Procedures
             import javax.xml.bind.JAXBContext;
             import javax.xml.bind.Unmarshaller;
             
-            public class ParseXml
+            public class ParseXml extends Configured implements Tool
             {
                 private static final Logger logger = LoggerFactory.getLogger(ParseXml.class);
             
@@ -372,19 +465,32 @@ Procedures
                  ***************************************************************/
                 public static void main(String[] args) throws Exception
                 {
+                    ToolRunner.run(new Configuration(), new ParseXml(), args);
+                }
+            
+            
+                @Override
+                public int run(String[] strings) throws Exception
+                {
+            
                     logger.debug("main() started");
             
                     // Read-in property file called "ParseXml.properties"
-                    Properties props = new Properties();
-                    InputStream iostream = Thread.currentThread().getContextClassLoader().getResourceAsStream( "/ParseXml.properties" );
+                    InputStream iostream = ParseXml.class.getResourceAsStream("/ParseXml.properties");
                     if (iostream == null)
                     {
                         throw new RuntimeException("Critical Error in ParseXml.main():  I could not find ParseXml.properties in your HADOOP_CLASSPATH");
                     }
+            
+                    // Put the contents of the property file into the props object
+                    Properties props = new Properties();
                     props.load(iostream);
             
+                    // Close the iostream
+                    iostream.close();
+            
                     // Verify that the required property keys are found and that values are actually present
-                 //   verifyPropertyValues(props);
+                    //   verifyPropertyValues(props);
             
                     // Create a new job with an empty configuration
                     Job job = new Job(new Configuration());
@@ -395,13 +501,12 @@ Procedures
                     job.setJobName("ParseXml Job");
                     job.setJarByClass(ParseXml.class);
                     job.setMapperClass(MyMapper.class);
-                    job.setCombinerClass(MyReducer.class);
                     job.setReducerClass(MyReducer.class);
                     job.setOutputKeyClass(Text.class);
                     job.setOutputValueClass(Text.class);
                     job.setInputFormatClass(XmlInputFormat.class);
             
-                    conf.set(XmlInputFormat.START_TAG_KEY, "<Employee>");
+                    conf.set(XmlInputFormat.START_TAG_KEY, "<Employee");
                     conf.set(XmlInputFormat.END_TAG_KEY, "</Employee>");
             
                     // Setup the input directory
@@ -420,22 +525,22 @@ Procedures
                     // Run the job
                     boolean bJobFinishedSuccessfully = job.waitForCompletion(true);
             
-                    if (bJobFinishedSuccessfully) {
+                    if (bJobFinishedSuccessfully)
+                    {
                         logger.debug("Job finished successfully");
+                        return 0;
                     }
-                    else {
+                    else
+                    {
                         logger.debug("Job Failed");
+                        return 1;
                     }
             
-                    logger.debug("main() finished.");
                 }
             
             
-            
-            
-            
                 //  M A P P E R       C L A S S
-                public static class MyMapper extends Mapper<Text, Text, Text, Text>
+                public static class MyMapper extends Mapper<LongWritable, Text, Text, Text>
                 {
             
                     public void setup(Mapper.Context context) throws IOException, InterruptedException
@@ -443,10 +548,10 @@ Procedures
                         logger.debug("MyMapper.setup() called");
                     }
             
-                    public void map(Text aKey, Text aValue, Context aContext) throws IOException, InterruptedException
+                    public void map(LongWritable aKey, Text aValue, Context aContext) throws IOException, InterruptedException
                     {
                         try {
-                            String sEmployeeXml = String.valueOf(aKey);
+                            String sEmployeeXml = aValue.toString();
             
                             // Convert the XML into an Employee object
                             final JAXBContext jaxbContext = JAXBContext.newInstance(Employee.class);
@@ -456,7 +561,7 @@ Procedures
             
             
                             aContext.write(new Text(String.valueOf(employee.getId())),
-                                           new Text(employee.getLastName() ) );
+                                           new Text(employee.getLastName() + ";" + employee.getFirstName() ) );
                         }
                         catch (Exception e)
                         {
@@ -515,6 +620,7 @@ Procedures
                         }
             
                         fileReader.close();
+                        fs.close();
             
                         logger.debug("The lookup cache has a total of {} elements in it.", lookupCache.size() );
                     }
@@ -526,27 +632,48 @@ Procedures
                      *************************************************************************/
                     public void reduce(Text aKey, Iterable<Text> aValues, Context aContext) throws IOException, InterruptedException
                     {
-            //            context.write(key, result);
+                        for (Text tValue: aValues)
+                        {
+                            aContext.write(aKey, tValue);
+                        }
                     }
                 }
-            
             }
-            
              
- 9. Setup your input directory 
-    a. Create the c:/temp/input directory
-    b. Create a file called c:\temp\input\stuff.txt with this
-            hi mom
-            hi Ben
-            hi Peter
-            hi Dad
-            hi Will
-            hi Sam
-            Will is cool
-      
+             
+             
+11. Setup your input directory and an input file
+    a. Create this directory: c:\temp\mrParseXml\input
+    b. Create a file called   c:\temp\mrParseXml\input\file1.xml
+       NOTE:  The name does not matter
+       
+        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        <Employee id="1">
+          <firstName>Adam</firstName>
+          <middleName>L</middleName>
+          <lastName>Resnick</lastName>
+        </Employee>
+        
+        <Employee id="2">
+          <firstName>Ben</firstName>
+          <middleName>M</middleName>
+          <lastName>Resnick</lastName>
+        </Employee>
+        
+        <Employee id="3">
+          <firstName>Peter</firstName>
+          <middleName>F</middleName>
+          <lastName>Resnick</lastName>
+        </Employee>
+        
+        <Employee id="4">
+          <firstName>Justin</firstName>
+          <middleName>D</middleName>
+          <lastName>Resnick</lastName>
+        </Employee>
 
          
-9b. **OPTIONAL** 
+11b. **OPTIONAL** 
     Only use this step if running Hadoop in pseudo-distributed mode
     
     Setup the HDFS directories and test data
@@ -568,18 +695,24 @@ Procedures
   
   
       
-10. Setup your lookup file cache
-
-      
+12. Setup your lookup file cache
+    a. Create this directory: c:\temp\mrParseXml\cache
+    b. Create a file called   c:\temp\mrParseXml\cache\lookupFile.txt
+    
+       Copy this to your file
+            id,annual salary
+            1,150000
+            2,20000
+            3,40000
+            4,60000   
   
- 
       
       
-11. In Intellij, setup Remote debugging
+13. In Intellij, setup Remote debugging
     a. Pull Run / Edit Configurations
     b. Click the "+" on the left
     c. Click on "Remote"
-       Name:           remote-wordCount
+       Name:           hadoop-job
        Transport:      Socket
        Debugger mode:  Attach
        Host:           localhost
@@ -589,18 +722,21 @@ Procedures
        
    
    
-12. Build your code -- create java jar
+14. Build your runnable Hadoop JAR file
     a. Open a DOS window by pressing <Start><Run>CMD
     b. In the DOS window, type-in this:
-       DOS> cd /d c:\tools\intellij\workspace\wordCount
+       DOS> cd /d c:\tools\intellij\workspace\mrParseXml
        DOS> mvn clean package
        
        Now, you have this JAR
-          c:\tools\intellij\workspace\wordCount\target\wordCount-1.0-SNAPSHOT.jar
+          c:\tools\intellij\workspace\mrParseXml\target\mrParseXml-1.0-SNAPSHOT-job.jar
+          c:\tools\intellij\workspace\mrParseXml\target\mrParseXml-1.0-SNAPSHOT.jar
      
+       The file that ends with "-job" has all of the dependent JARs inside of it
        
        
-13. Run your hadoop java jar in debug mode
+       
+15. Run your hadoop java jar in debug mode
     a. Make sure your test data is setup
        If running in "Local" mode, then make sure you have a file in c:\temp\input
        If running in "Psuedo-distributed" mode, then 
@@ -612,27 +748,22 @@ Procedures
        
        1) Setup Hadoop to run in debug mode   
           DOS> set HADOOP_OPTS=-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5005
-       
-       2) Setup HADOOP_CLASSPATH so that it can find your log4j.xml file
-          DOS> set HADOOP_CLASSPATH=c:\tools\intellij\workspace\wordCount\src\main\resources
+           
+       2) Setup HADOOP_CLASSPATH to the directory that holds log4j.xml *AND* ParseXml.properties
+          DOS> set HADOOP_CLASSPATH=C:\tools\intellij\workspace\mrParseXml\src\main\config
     
        3) If running Hadoop in "Local" mode
           Run your hadoop job in debugging mode 
-          DOS> cd /d c:\tools\intellij\workspace\wordCount
-          DOS> hadoop jar .\target\wordCount.jar com.whatever.ParseXml c:/temp/input c:/temp/output
-      
-      
-       3b) If running Hadoop in "Pseudo-distributed" mode
-           DOS> cd /d c:\tools\intellij\workspace\wordCount
-           DOS> hadoop jar .\target\wordCount.jar com.whatever.WordCount /tmp/input /tmp/output
-        
-           You should see Listening for transport dt_socket at address 5005
+          DOS> cd /d c:\tools\intellij\workspace\mrParseXml
+          DOS> hadoop jar .\target\mrParseXml-1.0-SNAPSHOT-job.jar com.whatever.ParseXml
+              
+          You should see Listening for transport dt_socket at address 5005
       
       
       
 14. In Intellij, connect to the hadoop job remotely
     a. Set a breakpoint
-    b. Pull Run / Debug remote-wordCount
+    b. Pull Run / Debug hadoop-job
     
 
 
@@ -640,19 +771,6 @@ Procedures
     
     If running Hadoop in "Local" mode, then your results are in c:\temp\output
     
-    
-    If running Hadoop in "Pseudo-distributed" mode, then your results are in /tmp/output in HDFS
-      DOS> hadoop fs -ls /tmp/output
-      DOS> hadoop fs -cat /tmp/output/part-00000
-            Ben     1
-            Dad     1
-            Peter   1
-            Sam     1
-            Will    2
-            cool    1
-            hi      6
-            is      1
-            mom     1
 
 
 In order to run again
