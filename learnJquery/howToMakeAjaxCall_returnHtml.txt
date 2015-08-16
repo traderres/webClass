@@ -1,75 +1,195 @@
-How to Run an AJAX call that returns HTML (using jQuery)
+How to Run an AJAX call that returns JSON (using jQuery)
 --------------------------------------------------------
-If you have an AJAX call and you just want to return HTML, here's how to do it:
+If you have an AJAX call and you just want to return JSON, here's how to do it:
 
 
-INCOMPLETE
-
-
+Assumptions:
+ A) Your webapp is called 'springMvcWebApp1'
+ 
 
 Overall Steps
 -------------
  A) Setup a controller call that returns JSON
- B) Adjust your JSP or HTML file to make an AJAX call and show the results
+ B) Adjust your JSP to make an AJAX call and show the results
+ C) Use the HttpRequestor Firefox plugin to verify your ajax call
+ D) Verify that your AJAX call works from the web page
+ 
  
  
 Procedures
 ----------
- 1. Add these Jackson dependencies  (for Spring 4)
+ 1. Add a back-end call that will return an object
 
-        <!-- Spring 4 Jackson Dependencies -->
-        <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
-                <artifactId>jackson-core</artifactId>
-                <version>2.3.3</version>
-            </dependency>
 
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>2.3.3</version>
-        </dependency>
-        
-        
-        
- 2. Add a controller call that will return an object
-
-    @RequestMapping(value = "/welcome.json", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE, 
-                                             headers = {"Accept=text/xml, application/json"})
-    public @ResponseBody UserInfo getUserById() 
+    /**********************************************************************
+     * loadPageInfo()
+     *
+     * Generate some HTML and return it back to the page
+     ***********************************************************************/
+    @RequestMapping(value = "/pageInfo/{userid}", method = RequestMethod.GET)
+    public ModelAndView loadPageInfo(@PathVariable(value="userid") final String aUserid)
     {
+        logger.debug("Calling loadPageInfo()  aUserid={}", aUserid);
+
+        // Create a modelAndView object
+        ModelAndView mav = new ModelAndView();
+
         UserInfo userInfo = new UserInfo();
-        userInfo.setUserName("Adam");
-        userInfo.setIsAdministrator(true);
-        
-        return userInfo;
+        userInfo.setUserName("Ben");
+        userInfo.setIsAdministrator(false);
+
+        // Add the userInfo information to the view
+        mav.addObject("userInfo", userInfo);
+
+        // Generate the HTML for pageFragment.jsp
+        mav.setViewName("pageFragment.jsp");
+
+        logger.debug("loadPageInfo() finished");
+        return mav;
     }
+
     
+
+
     
- 3. Verify that your ajax call returns JSON
-    -- Open a browser
-    -- Go to http://localhost:8080/webapp/welcome.json
-    -- You should see JSON
-   
+ 3. Verify that your ajax call returns valid JSON using HttpRequestor
+    a. Download and Install the "HttpRequestor" plugin for Firefox
+       1) Open Firefox
+       2) Go to https://addons.mozilla.org/en-Us/firefox/addon/httprequester/
+       3) Press "Add to Firefox"
+       4) Press "Install Now"
+       5) Restart Firefox
+       
+    b. Use the HttpRequestor to simulate the ajax call 
+       1) Open Firefox
+       2) Pull Tools / HttpRequestor
+       3) Enter these fields
+          URL:  http://localhost:8080/springMvcWebApp1/pageInfo/15
+          press the "GET" button
+           
+                    
+          In the Respose window [on the right], you should see this:
+            Status:  200 OK
+             <p>This is the page fragment</p>
+
+             Username is Ben <br/>
+             Are you an administrator: false
+
+                
+                
  
- 4. Make your AJAX call from the JSP page
-    -- Edit sampleAjax.jsp, and add this:
+ 
+ 4. Edit your sample.jsp to make the ajax call
+
    
-    
-   
-    $.ajax({
-         type: 'GET',
-         cache: false,
-         url: '/welcome.json',
-         data: ''
-         success: function(msg) 
-         {
-            // I got some results back
-            alert("This has been a success ajax call: " + msg);
-         },
-         error: function (xhr, ajaxOptions, thrownError) 
-         {
-            alert("There has been an error:" + thrownError);
-         }
-         });
+        <%@ include file="/WEB-INF/jsp/stdJspIncludes.jsp" %>
         
+        <!DOCTYPE HTML>
+        
+        <html xmlns="http://www.w3.org/1999/xhtml">
+        
+        <head>
+            <title>sample.jsp</title>
+        
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+            <!-- Load Bootstrap CSS -->
+            <link href="${contextPath}/resources/bootstrap-3.3.4/css/bootstrap.min.css" rel="stylesheet" media="screen">
+        
+            <!-- Load Bootstrap CSS Themes -->
+            <link href="${contextPath}/resources/bootstrap-3.3.4/css/bootstrap-theme.min.css" rel="stylesheet" media="screen">
+        
+            <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+            <!--[if lt IE 9]>
+              <script src="${contextPath}/resources/bootstrap-3.3.4/assets/html5shiv.js"></script>
+              <script src="${contextPath}/resources/bootstrap-3.3.4/assets/respond.min.js"></script>
+            <![endif]-->
+        </head>
+        
+        
+        
+         <body>
+             <%-- S T A N D A R D       H E A D E R  --%>
+             <%@ include file="/WEB-INF/jsp/stdHeader.jsp" %>
+        
+             <h2>sample.jsp</h2>
+        
+             <br/>
+             <br/>
+             <p style="border: 1px solid black" onclick="loadPageOfInfo(15)">Click to call loadPageOfInfo()</p>
+        
+             <div id="divPageInfo" style="display: none; border: 1px dashed black">
+                  <%-- The AJAX call will fill this with info --%>
+             </div>
+        
+        
+             <br/>
+             <br/>
+        
+             <%-- S T A N D A R D       F O O T E R  --%>
+             <%@ include file="/WEB-INF/jsp/stdFooter.jsp" %>
+        
+        
+            <%-- Load jQuery (necessary for Bootstrap's JavaScript plugins) --%>
+            <script src="${contextPath}/resources/jquery/jquery-1.11.3.min.js"></script>
+        
+            <%-- Include all compiled plugins (below), or include individual files as needed --%>
+            <script src="${contextPath}/resources/bootstrap-3.3.4/js/bootstrap.min.js"></script>
+        
+        
+        
+            <script type="text/javascript">
+        
+               var gsContextPath = '${contextPath}';
+        
+        
+                /*****************************************************************
+                 * loadPageOfInfo()
+                 *****************************************************************/
+                function loadPageOfInfo(aUserid)
+                {
+                     var sUrl = gsContextPath + '/pageInfo/' + aUserid;
+        
+                      $.ajax({
+                             type: 'GET',
+                             cache: false,
+                             url:   sUrl,
+                             data: '',
+                             headers:
+                             {
+                                  "Content-Type": "application/html",
+                                  "Accept":       "application/html"
+                             },
+                             success: function(aData, aTextStatus, aXhr)
+                             {
+                                // Put the returned HTMl into the div
+                                $('#divPageInfo').html(aData);
+        
+                                // Show the div
+                                $('#divPageInfo').show();
+                             },
+                             error: function(aXhr, aTextStatus, aErrorThrown)
+                             {
+                                alert("Ajax call failed:  " + aErrorThrown);
+                             }
+                          });
+        
+        
+                };
+        
+            </script>
+         </body>
+        </html>
+
+
+
+ 5. Test your AJAX call
+    a. In a dos window, type-in this:
+       DOS> cd /d c:\tools\intellij\workspace\springMvcWebApp1
+       DOS> mvn jetty:run
+       
+    b. Open Firefox and go to http://localhost:8080/springMvcWebApp1/sample
+    c. In the web page click on the "Click to run getUserInfo() ajax call"
+    d. You should see the div with the generated HTML
+    
+    
