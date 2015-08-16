@@ -1,12 +1,12 @@
-How to Debug a Spring MVC web application using Intellij, Maven, and the Tomcat Plugin
---------------------------------------------------------------------------------------
+How to Debug a Spring MVC web application using Intellij, Maven, and the Jetty Plugin
+-------------------------------------------------------------------------------------
 
 
 Assumptions:  
  A) You have Intellij 14 Community Edition installed
  B) You have Maven installed
  C) Your Maven configuration can download files from a maven repository
- D) You want to use the Tomcat maven plugin to run your local Tomcat
+ D) You want to use the Jetty maven plugin to run your local application server (web container)
 
 
  
@@ -236,7 +236,7 @@ Procedures
             <display-name>mywebapp1</display-name>
             
             <welcome-file-list>
-                <welcome-file>default.jsp</welcome-file>
+                <welcome-file> </welcome-file>
             </welcome-file-list>
 
             <!-- Configure ContextLoaderListener to use XML files as configuration. -->
@@ -465,6 +465,7 @@ Procedures
 
 
 
+
 10. Create this file:  UserInfo.java
     a. Right-click on mywebapp1 -> src/main/java -> New -> Package
        Name:  app1.model
@@ -524,7 +525,7 @@ Procedures
        Press OK            
 
     c. Copy this java code to WelcomeController.java
-
+    
             package app1.controllers;
             
             import org.slf4j.Logger;
@@ -588,8 +589,8 @@ Procedures
                 }
             }
                     
-                
         
+            
                     
 
 
@@ -649,7 +650,6 @@ Procedures
 
     
     
-    
 15. Create this file:  welcome.jsp
     a. Right-click on src/main/webapp/WEB-INF/jsp -> New -> File
        File name:  welcome.jsp
@@ -688,9 +688,8 @@ Procedures
             </body>
             </html>
         
-        
-        
-     
+ 
+
 16. Delete the generated index.jsp
     a. Right-click on src/main/webapp/index.jsp -> Delete
     b. In the Delete File window, press OK
@@ -698,7 +697,7 @@ Procedures
         
         
 
-17. Setup Remote Tomcat connection in Intellij
+17. Setup Remote connection in Intellij
     a. Pull Run / Edit Configurations
     b. Click the "+"
     c. Select "Remote"
@@ -714,7 +713,7 @@ Procedures
     
     
     
-18. Setup the Tomcat maven plugin to startup a Tomcat from the command-line in debug mode
+18. Setup the Jetty maven plugin to startup a Jetty instance from the command-line in debug mode
     The end of your pom.xml should look like this:
     
             <build>
@@ -729,20 +728,22 @@ Procedures
             <finalName>webapp1</finalName>
     
           <plugins>
-              <plugin>
-                  <!-- Setup the Tomcat plugin -->
-                  <groupId>org.apache.tomcat.maven</groupId>
-                  <artifactId>tomcat7-maven-plugin</artifactId>
-                  
-                  <configuration>
-                     <server>mytomcatserver</server>
-                     <path>/</path>
-                     <tomcatConfigurationFilesDirectory>C:/tools/apache-tomcat-7.0.55/conf</tomcatConfigurationFilesDirectory>
-                     <url>http://localhost:8080/manager/text</url> 
-                     <username>tomcat</username>
-                     <password>secret</password>
-                 </configuration>
-              </plugin>
+                <plugin>
+                    <groupId>org.mortbay.jetty</groupId>
+                    <artifactId>maven-jetty-plugin</artifactId>
+                    <version>6.1.10</version>
+                    <configuration>
+                        <scanIntervalSeconds>5</scanIntervalSeconds>
+                        <stopKey>foo</stopKey>
+                        <stopPort>9999</stopPort>
+                        <connectors>
+                            <connector implementation="org.mortbay.jetty.nio.SelectChannelConnector">
+                                <port>8080</port>
+                                <maxIdleTime>60000</maxIdleTime>
+                            </connector>
+                        </connectors>
+                    </configuration>
+                </plugin>
           </plugins>
       </build>
     </project>
@@ -750,23 +751,23 @@ Procedures
      
     
      
-19. Startup the webapp in debug mode
+19 Startup the webapp in debug mode
     a. In Intellij, Pull File / Save All
     
     b. Set a breakpoint
        -- Browse to src/main/java -> app1.controllers -> WelcomeController.java
        -- Click in the left margin around line 30 to set a breakpoint
        
-    c. Startup Tomcat in debugging mode
+    c. Startup Jetty in debugging mode
        -- Open a DOS window by pressing <Start><Run>CMD and enter these commands
           DOS> cd /d c:\tools\intellij\workspace\webapp1
-          DOS> mvn clean package tomcat7:redeploy
-          
-        
-       At this point, your Tomcat is *waiting* for someone to connect to it remotely
+          DOS> set MAVEN_OPTS=-Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,address=5005,server=y,suspend=y
+          DOS> mvn jetty:run
+               
+       At this point, your Jetty instance is *waiting* for someone to connect to it remotely
         
     
-    d. Use Intellij to connect to your Tomcat remotely
+    d. Use Intellij to connect to your running Jetty instance remotely
        -- In Intellij, pull Run / Debug / webapp1
         
     e. Open a web browser to your local webapp
@@ -781,10 +782,10 @@ What happens when you start the debugger
 ----------------------------------------
  1) Your browser opens to here:  http://localhost:8080/webapp1
     
- 2) Your Tomcat instance will call WelcomeController.handleDefaultPage() 
+ 2) Your Jetty instance will call WelcomeController.handleDefaultPage() 
     which forwards the user to 
       http://localhost:8080/webapp1/welcome
-            
+       
  3) Your WelcomeController has this line in it:
     @RequestMapping("/welcome")
     public ModelAndView mainPage( Model aModel )
