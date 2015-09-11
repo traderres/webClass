@@ -1,4 +1,4 @@
-How to Execute a Runnable Class in the Background using Executor Class
+How to Execute a Callable Class in the Background using Executor Class
 ----------------------------------------------------------------------
 This is handy for the situation in which:
  -- You want to run an ajax call but don't want to wait for the response
@@ -13,7 +13,8 @@ LinkedBlockingQueue creates nodes dynamically until the capacity is reached. Thi
 
 Assumptions
  A) You setup the AddNumbers java package using Intellij
-    [see howToCreateJavaCommandLineProgramUsingIntellijMaven.txt
+    [see howToCreateJavaCommandLineProgramUsingIntellijMaven.txt]
+    
 
 
 Procedures
@@ -28,9 +29,7 @@ Procedures
         import java.text.DateFormat;
         import java.text.SimpleDateFormat;
         import java.util.Date;
-        import java.util.concurrent.ArrayBlockingQueue;
-        import java.util.concurrent.ThreadPoolExecutor;
-        import java.util.concurrent.TimeUnit;
+        import java.util.concurrent.*;
         
         /**
          * Created by adam on 9/10/2015.
@@ -39,7 +38,8 @@ Procedures
         {
             private static final Logger logger = LoggerFactory.getLogger(BackgroundRunner.class);
         
-            private ThreadPoolExecutor executorService;
+            private ExecutorService executorService;
+            private ExecutorCompletionService<String> completionService;
         
         
             /***************************************************************************
@@ -54,27 +54,23 @@ Procedures
                 }
             }
         
-        
            /***************************************************************************
-            * getExecutorService()
+            * getCompletionService()
             ****************************************************************************/
-            private ThreadPoolExecutor getExecutorService()
+            private ExecutorCompletionService getCompletionService()
             {
                 if (this.executorService == null)
                 {
-                    ArrayBlockingQueue<Runnable> queue = new ArrayBlockingQueue<Runnable>(100);
+                    // Setup a thread pool
+                    final int THREAD_COUNT = 5;
         
-                    int iMinPoolSize = 5;
-                    int iMaxPoolSize = 25;
-                    int iKeepAlivetime = 60;
-        
-                    this.executorService = new ThreadPoolExecutor(iMinPoolSize, iMaxPoolSize, iKeepAlivetime, TimeUnit.MINUTES, queue);
+                    // Create a threadpool with a fixed number of threads operating off a shared unbounded queue.
+                    this.executorService = Executors.newFixedThreadPool(THREAD_COUNT);
+                    this.completionService = new ExecutorCompletionService<String>(executorService);
                 }
         
-                return this.executorService;
+                return this.completionService;
             }
-        
-        
         
             /**************************************************************
              * getCurrentDateTime()
@@ -85,78 +81,65 @@ Procedures
                 return(df.format(new Date()));
             }
         
-        
-        
             /***************************************************************************
              * doSomethingInBackground()
              ****************************************************************************/
-            public void doSomething(Boolean aRunInBackground)
-            {
+            public void doSomething(Boolean aRunInBackground, int aiThreadNumber) throws Exception {
                 int iSleepTime = 5;
         
                 if (aRunInBackground)
                 {
-                    ThreadPoolExecutor executor = getExecutorService();
+                    ExecutorCompletionService completionService = getCompletionService();
         
-                    if (executor.getQueue().remainingCapacity() > 0)
-                    {        
-                        // There is room in the queue for this request
-    
-                        Runnable worker = new RunnableWorker(iSleepTime);;
-    
-                        // Kick off a thread to execute this work
-                        executor.execute(worker);
-                    }
-                    else
-                    {
-                        // The queue is full
-                        logger.warn("I cannot run this request right now -- the queue is full");
-                    }
+                    CallableWorker worker = new CallableWorker(iSleepTime, aiThreadNumber);
+        
+                    // Submit this into the unbound queue
+                    // NOTE:  if the number of worker threads is full, then this request is submitted (but it will wait for an opening)
+                    logger.debug("Submitting a request for thread {}", aiThreadNumber);
+                    completionService.submit(worker);
+                    logger.debug("Finished submitting a request for thread {}", aiThreadNumber);
                 }
                 else
                 {
                     // Run in foreground
-                    Runnable worker = new RunnableWorker(iSleepTime);
-                    worker.run();
+                    CallableWorker worker = new CallableWorker(iSleepTime, aiThreadNumber);
+                    String sMessage = worker.call();
                 }
             }
         
         
         
         
-            public class RunnableWorker implements Runnable
+            public class CallableWorker implements Callable<String>
             {
                 private int sleepTime;
+                private int threadNumber;
         
-                public RunnableWorker(int aiSleepTime)
+                public CallableWorker(int aiSleepTime, int aiThreadNumber)
                 {
                     this.sleepTime = aiSleepTime;
+                    this.threadNumber = aiThreadNumber;
                 }
         
-                public void run()
+        
+                @Override
+                public String call() throws Exception
                 {
-                    try
-                    {
-                        logger.debug("Thread started sleeping for " + this.sleepTime + " secs and started as of " + getCurrentDateTime("MM/dd/yyyy HH:mm:ss"));
+                    logger.debug("Thread #" + this.threadNumber + " started sleeping for " + this.sleepTime + " secs and started as of " + getCurrentDateTime("MM/dd/yyyy HH:mm:ss"));
         
-                        Thread.sleep(this.sleepTime * 1000);
+                    Thread.sleep(this.sleepTime * 1000);
         
-                        logger.debug("Thread finished task as of " + getCurrentDateTime("MM/dd/yyyy HH:mm:ss"));
+                    logger.debug("Thread #" + this.threadNumber + " finished task as of " + getCurrentDateTime("MM/dd/yyyy HH:mm:ss"));
         
-        
-                    }
-                    catch (Exception e)
-                    {
-                        logger.error("Error in RunnableWorker", e);
-                    }
+                    String sMessage = "Everything Worked";
+                    return sMessage;
                 }
             }
         }
 
 
-
  2. Create this class:  AddNumbers
- 
+
         package numbers;
         
         import org.apache.commons.lang3.StringUtils;
@@ -172,7 +155,7 @@ Procedures
              *
              * Main program to access this class from the command-line
              ********************************************************** */
-            public static void main(String[] args)
+            public static void main(String[] args) throws Exception
             {
                 logger.debug("main() started");
         
@@ -182,7 +165,11 @@ Procedures
         
                 BackgroundRunner bg = new BackgroundRunner();
                 boolean bRunInBackground=true;
-                bg.doSomething(bRunInBackground);
+        
+                for (int iThreadNumber=1; iThreadNumber <= 10; iThreadNumber++)
+                {
+                    bg.doSomething(bRunInBackground, iThreadNumber);
+                }
         
                 String arg1 = args[0];
                 String arg2 = args[1];
@@ -256,7 +243,7 @@ Procedures
             }
         
         }
-         
+                  
          
  3. Create this file:  logback.xml
     -- Add this file to src/main/resources/
