@@ -2,23 +2,35 @@ How to Setup a Form Wizard using Grails and Maven
 -------------------------------------------------
 
 Assumptions:
- A) You have a Java JDK
+ A) You have a Grails App created  [see howToSetupAndDebugGrails2.3WebAppWithIntellij.txt or howToSetupAndDebugGrails2.4WebAppWithIntellij.txt]
  B) You have Maven
- C) You are debugging using Intellij
- D) You have setup a web app using howToSetupAndDebugGrails2.4WebAppWithIntellij.txt
+ C) You want to setup a form wizard using the Spring Web Flow Grails Plugin
   
+
  
 References
 ----------
 http://stackoverflow.com/questions/1002170/grails-web-flow
 http://stackoverflow.com/questions/9730287/grails-web-flow-passing-map-to-first-step-state
 http://stackoverflow.com/questions/7158042/grails-web-flow-first-state
+http://grails-plugins.github.io/grails-webflow-plugin/guide/introduction.html
 
 
-INCOMPLETE
-INCOMPLETE
+  
+
+What does Spring WebFlow do for you?
+------------------------------------
+Grails supports the creation of web flows built on the Spring Web Flow project. 
+  -- A web flow is a conversation that spans multiple requests and retains state for the scope of the flow. 
+  -- A web flow also has a defined start and end state.
+  -- Web flows don't require an HTTP session, but instead store their state in a serialized form
+  
 
 
+
+
+Design
+------
 In this situation, I am going to simulate a 4 page web flow
    Page 1:  Ask user what stock symbol to buy
    Page 2:  Ask user how many shares and what price
@@ -28,14 +40,183 @@ In this situation, I am going to simulate a 4 page web flow
 Each page has the option of going back or forward
 
 
- I N C O M P L E T E
+
    
   
- Procedures
- ----------
- 1) Add the WebFlow Grails plugin
+Procedures
+----------
+ 1. Add the WebFlow Grails plugin to your pom.xml
+    
+    Add this dependency to your pom.xml
+    
+      <dependency>
+            <groupId>org.grails.plugins</groupId>
+            <artifactId>webflow</artifactId>
+            <version>2.0.8.1</version>
+            <type>zip</type>
+            <scope>compile</scope>
+        </dependency>
+    
  
- 2) Add the 4 pages
  
- 3) Hookup the pages using WebFlow
+ 2. Add a StockTradeController
  
+        package grailswebappr
+        
+        import org.slf4j.Logger
+        import org.slf4j.LoggerFactory
+        
+        
+        /**
+         * Created by adam on 9/17/2015.
+         */
+        class StockTradeController
+        {
+            private static final Logger logger = LoggerFactory.getLogger(StockTradeController.class);
+        
+            def index()
+            {
+                // The user is starting a stock trade
+                logger.debug("User entered index()");
+        
+                // Take the user to the stockTradeFlow
+                redirect(action: "stockTrade")
+            }
+        
+        
+            def stockTradeFlow =
+            {
+                initFlow
+                 {
+                    action
+                    {
+                        // Pass this information into the startingPage view
+                        def sMessage = new String("hi there")
+                        return [message: sMessage]
+                     }
+        
+                     on("success").to("startingPage")
+                 }
+        
+                startingPage {
+                    // This is the starting node because there is no action or redirect
+                    // NOTE:  This is a view state so goes to the view grails-apip/views/stockTrade/startingPage.gsp
+                    render(view: "/stockTrade/startingPage")
+        
+                    on("nextPage") {
+                      // The user clicked "Next" from the Starting Page
+                      logger.debug("User on starting page, clicked 'next'")
+        
+                    }.to "showReviewPage"
+                }
+        
+                showReviewPage
+                {
+                    render(view: "/stockTrade/reviewPage")
+        
+                    on("nextPage") {
+                        logger.debug("User on review page, clicked 'next'")
+                    }.to "showThankYouPage"
+        
+                    on("previousPage"){
+                        logger.debug("User on review page, clicked 'previous'")
+                    }.to "startingPage"
+                }
+                
+        
+                showThankYouPage
+                {
+                    // This is an end state  (it simply renders a view and nothing else)
+                    render(view: "/stockTrade/thankYouPage")
+                }
+            }
+        
+        }
+        
+                 
+ 
+ 3. Create this directory:  /grails-app/views/stockTrade directory
+ 
+ 
+ 
+ 4. Create this file:  startingPage.gsp
+    Add it to this directory:  /grails-app/views/stockTrade/
+    
+        <!DOCTYPE html>
+        <html>
+        <head>
+           <%-- Insert the boostrap menubar found in main.gsp --%>
+           <meta name="layout" content="main"/>
+        
+           <title>Starting Page</title>
+        </head>
+        
+        <body>
+            <h2>Starting Page  (startingPage.gsp)</h2>
+        
+            <br/>
+            message is here:  <b>${message}</b> <br/>
+        
+            <g:form>
+                <g:submitButton name="nextPage" value="Continue to Review Page" />
+            </g:form>
+        
+        </body>
+        </html>
+ 
+ 
+ 
+  5. Create this file:  reviewPage.gsp
+     Add it to this directory:  /grails-app/views/stockTrade/
+     
+        <!DOCTYPE html>
+        <html>
+        <head>
+           <%-- Insert the boostrap menubar found in main.gsp --%>
+           <meta name="layout" content="main"/>
+        
+           <title>Review Page</title>
+        </head>
+        
+        <body>
+            <h2>Review Page  (reviewPage.gsp)</h2>
+        
+            <g:form>
+                <g:submitButton name="previousPage" value="Back to Starting Page" />
+                <g:submitButton name="nextPage" value="Continue to Thank You Page" />
+            </g:form>
+        
+        </body>
+        </html>     
+        
+        
+        
+ 6. Create this file:  thankYouPage.gsp
+     Add it to this directory:  /grails-app/views/stockTrade/   
+     
+        <!DOCTYPE html>
+        <html>
+        <head>
+           <%-- Insert the boostrap menubar found in main.gsp --%>
+           <meta name="layout" content="main"/>
+        
+           <title>Thank You Page</title>
+        </head>
+        
+        <body>
+            <h2>Thank You Page  (thankYouPage.gsp)</h2>
+        
+            Your order has been submitted
+        </body>
+        </html> 
+        
+        
+        
+   7. Verify it works:
+      a. Startup your grails app
+         DOS> cd /d c:\tools\intellij\workspace\grailsWebAppR
+         DOS> mvn grais:run-app
+         
+      b. Browse to http://localhost:8080/grailsWebAppR/stockTrade/index
+      
+      
