@@ -1,0 +1,268 @@
+How to Secure Web App Implementing Filter Class
+-----------------------------------------------
+
+Resources
+--------
+http://stackoverflow.com/questions/3392552/how-do-i-implement-a-custom-filtersecurityinterceptor-using-grails-1-3-2-and-the
+http://learningviacode.blogspot.com/2013/12/delegatingfilterproxy-and-spring.html
+http://stackoverflow.com/questions/6725234/whats-the-point-of-spring-mvcs-delegatingfilterproxy
+
+
+
+Procedure
+---------
+ 1. Create a package called security
+    a. Under the grails /src directory -> Right-click -> New -> Package
+       Name:  security
+       
+       
+       
+ 2. Create a java class called UserManager
+    a. Right-click on src/security -> New -> Java Class
+       Name:  UserManager
+       
+    b. Copy this to your UserManager class
+
+        package security;
+        
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        
+        /**
+         * Created by adam on 9/15/2015.
+         */
+        public class UserManager
+        {
+            private static final Logger logger = LoggerFactory.getLogger(UserManager.class);
+        
+            public UserManager()
+            {
+                logger.debug("UserManager() Constructor called");
+            }
+        
+            public boolean isUsernameValid(String aUsername)
+            {
+                boolean bIsValid = true;
+                logger.debug("Authenticating {}.  isUsernameValid() returns {}", aUsername, bIsValid);
+        
+                return(bIsValid);
+            }
+        }
+        
+            
+       
+          
+ 3. Create a java class called SecurityFilter
+    a. Right-click on src/security -> New -> Java Class
+       Name:  SecurityFilter
+      
+    b. Copy this to your SecurityFilter class
+               
+                               
+        package security;
+        
+        
+        import org.slf4j.LoggerFactory;
+        import org.slf4j.Logger;
+        import javax.servlet.*;
+        import javax.servlet.http.HttpServletRequest;
+        import javax.servlet.http.HttpServletResponse;
+        import java.io.IOException;
+        
+        
+        /**
+         * Created by adam on 9/15/2015.
+         */
+        // @Component(value = "securityFilter")
+        public class SecurityFilter implements Filter
+        {
+            private static final Logger logger = LoggerFactory.getLogger(SecurityFilter.class);
+        
+            private UserManager userManager;
+        
+            public SecurityFilter(UserManager aUserManager)
+            {
+                this.userManager = aUserManager;
+                logger.debug("Calling SecurityFilter() constructor.");
+            }
+        
+        
+            public void doFilter(ServletRequest aServletRequest,
+                                 ServletResponse aServletResponse,
+                                 FilterChain aFilterChain) throws IOException, ServletException
+            {
+                logger.debug("in doFilter()  Received request from {}", aServletRequest.getRemoteAddr());
+        
+                String sUserName = "Adam";
+        
+                String sCurrentUrl = ((HttpServletRequest) aServletRequest).getRequestURL().toString();
+                if (sCurrentUrl.equalsIgnoreCase("/notAuthorized"))
+                {
+                    // The user is going to the /notAuthorized page -- so show that page
+                    aFilterChain.doFilter(aServletRequest, aServletResponse);
+                }
+                else if (this.userManager.isUsernameValid(sUserName))
+                {
+                    // The user is valid
+                    aFilterChain.doFilter(aServletRequest, aServletResponse);
+                }
+                else
+                {
+                    // The user is not authenticated
+                    // -- Redirect the user to some where else
+                    logger.debug("This user is not authorized.  Redirecting to the /notAuthorized.jsp page");
+                    HttpServletResponse httpResponse = (HttpServletResponse) aServletResponse;
+                    httpResponse.sendRedirect("/notAuthorized");
+                    return;
+                }
+            }
+        
+            public void init(FilterConfig paramFilterConfig) throws ServletException
+            {
+                logger.debug("in init()");
+            }
+        
+            public void destroy()
+            {
+                logger.debug("in destroy()");
+            }
+        
+        }
+
+               
+               
+               
+ 4. If you do not have a web.xml file, then you need to create one
+    DOS> cd c:\tools\intellij\workspace\grailsWebAppR
+    DOS> grails install-templates
+    -- Now, you should have src/templates/war/web.xml file 
+
+
+
+ 5. Modify your src/templates/war/web.xml so that your filter is applied against all requests
+    NOTE:  by using the DelegatingFilterProxy, spring can inject components into it
+    
+    Add this to your web.xml
+   
+    <filter>
+        <filter-name>securityFilter</filter-name>
+        <filter-class>org.springframework.web.filter.DelegatingFilterProxy</filter-class>
+    </filter>
+
+    <filter-mapping>
+        <filter-name>securityFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
+ 
+ 
+ 
+ 6. Make sure logging is turned on for your Security class
+    Edit your Config.groovy
+   
+    Adjust the log4j setting so it looks like this:
+
+        log4j = {
+        
+            appenders {
+                console name:'stdout',
+                        layout:pattern(conversionPattern: '%d{MM/dd/yyyy HH:mm:ss} %-5p %c{2} %m%n')
+            }
+        
+            error  'org.codehaus.groovy.grails.web.servlet',        // controllers
+                    'org.codehaus.groovy.grails.web.pages',          // GSP
+                    'org.codehaus.groovy.grails.web.sitemesh',       // layouts
+                    'org.codehaus.groovy.grails.web.mapping.filter', // URL mapping
+                    'org.codehaus.groovy.grails.web.mapping',        // URL mapping
+                    'org.codehaus.groovy.grails.commons',            // core / classloading
+                    'org.codehaus.groovy.grails.plugins',            // plugins
+                    'org.codehaus.groovy.grails.orm.hibernate',      // hibernate integration
+                    'org.springframework',
+                    'org.hibernate',
+                    'net.sf.ehcache.hibernate'
+        
+            debug  'security'                     // Show me logging from my security package
+        
+            warn  'org.grails.plugin.resource'    // See resources debugging
+        
+            root {
+                info 'stdout'
+                additivity = false
+            }
+        }
+    
+    
+                  
+ 7. Create the SecurityFilter spring bean  (using resources.xml)
+    
+    
+    Edit your grails-app/conf/spring/resources.xml file
+    NOTE:  If the resources.xml file does not exist, then create it
+    
+    Put this in your resources.xml
+            
+        <?xml version="1.0" encoding="UTF-8"?>
+        <beans xmlns="http://www.springframework.org/schema/beans"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.0.xsd">
+        
+        
+            <bean id="userManager" class="security.UserManager"/>
+        
+            <bean id="securityFilter" class="security.SecurityFilter">
+                <constructor-arg ref="userManager"/>
+            </bean>
+        
+         </beans>
+
+
+  *OR*
+  
+  
+  7. Create the SecurityFilter spring bean  (using resources.groovy)
+  
+
+        // Place your Spring DSL code here
+        // Format is beanName(type, constructor-args)
+        
+        
+        beans = {
+            // Define your userManager bean
+            userManager(security.UserManager);
+        
+            // Define your securityFilter bean and pass-in the userManager into its consturctor
+            securityFilter(security.SecurityFilter, ref('userManager') )
+        }
+        
+
+
+   
+   8. Add an Error Controller
+   
+           
+        package grailswebappr
+        
+        /**
+         * Created by adam on 9/15/2015.
+         */
+        class ErrorController
+        {
+        
+            def index()
+            {
+                def exception = request.exception.cause
+                if (exception) {
+                    def message = ExceptionMapper.mapException(exception)
+                    def status = message.status
+                }
+        
+                response.status = status
+        
+                // Take the user to the error.gsp
+                render(view: "/error", model: [status: status, exception: exception])
+            }
+        }
+           
+  
+  
+  
+
