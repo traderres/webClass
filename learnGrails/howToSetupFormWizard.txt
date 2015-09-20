@@ -69,78 +69,114 @@ Procedures
  
  2. Add a StockTradeController
  
-package grailswebappr
-
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
-
-
-/**
- * Created by adam on 9/17/2015.
- */
-class StockTradeController
-{
-    private static final Logger logger = LoggerFactory.getLogger(StockTradeController.class);
-
-    def index()
-    {
-        // The user is starting a stock trade
-        logger.debug("User entered index()");
-
-        // Take the user to the stockTradeFlow
-        redirect(action: "stockTrade")
-    }
-
-
-    def stockTradeFlow =
-      {
-                initFlow 
-                {
-                    action
+        package grailswebappa
+        
+        import org.slf4j.Logger
+        import org.slf4j.LoggerFactory
+        
+        
+        /**
+         * Created by adam on 9/17/2015.
+         */
+        class StockTradeController
+        {
+            private static final Logger logger = LoggerFactory.getLogger(StockTradeController.class);
+        
+            def index()
+            {
+                // The user is starting a stock trade
+                logger.debug("User entered index()");
+        
+                // Take the user to the stockTradeFlow
+                redirect(action: "stockTrade")
+            }
+        
+        
+        
+            /**********************************************************************
+             * MyInfo
+             *
+             * This class holds information stored in the pages of the form wizard
+             * NOTE:  It must implement Serializable.
+             **********************************************************************/
+            static class MyInfo implements Serializable
+            {
+                String name
+                int age
+                String category
+            }
+        
+        
+            /**********************************************************************
+             * stockTradeFlow
+             *
+             * Define the flow of the stockTrade 
+             **********************************************************************/
+            def stockTradeFlow =
+              {
+                        initFlow
+                        {
+                            action
                             {
+                                MyInfo info = new MyInfo();
+                                info.name = "Mr. Resnick";
+        
+                                flow.info = info;
+        
                                 // Pass this information into the startingPage view
                                 def sMessage = new String("hi there")
-                                return [message: sMessage]
+                                return [message: sMessage,
+                                        info:   info]
                             }
-
-                    on("success").to("startingPage")
-                }
-
-                startingPage 
-                {
-                    // This is the starting node because there is no action or redirect
-                    // NOTE:  This is a view state so goes to the view grails-apip/views/stockTrade/startingPage.gsp
-                    render(view: "/stockTrade/startingPage")
-
-                    on("nextPage") {
-                        // The user clicked "Next" from the Starting Page
-                        logger.debug("User on starting page, clicked 'next'")
-
-                    }.to "showReviewPage"
-                }
-
-                showReviewPage
-                {
-                    render(view: "/stockTrade/reviewPage")
-
-                    on("nextPage") {
-                        logger.debug("User on review page, clicked 'next'")
-                    }.to "showThankYouPage"
-
-                    on("previousPage"){
-                        logger.debug("User on review page, clicked 'previous'")
-                    }.to "startingPage"
-                }
-
-
-                showThankYouPage
-                {
-                    // This is an end state  (it simply renders a view and nothing else)
-                    render(view: "/stockTrade/thankYouPage")
-                }
-     }
-
-}
+        
+                            on("success").to("startingPage")
+                        }
+        
+                        startingPage
+                        {
+                            // This is the starting node because there is no action or redirect
+                            // NOTE:  This is a view state so goes to the view grails-apip/views/stockTrade/startingPage.gsp
+                            render(view: "/stockTrade/startingPage")
+        
+                            on("nextPage")
+                            {
+                                // The user clicked "Next" from the Starting Page
+                                String sName = params?.txtName
+                                flow.info.name = sName;
+                                logger.debug("User entered {} on starting page then, clicked 'next'", sName)
+        
+                            }.to "showReviewPage"
+                        }
+        
+                        showReviewPage
+                        {
+                            render(view: "/stockTrade/reviewPage")
+        
+                            on("nextPage")
+                            {
+                                // The user clicked "Next" from the Review Page
+                                int age = Integer.valueOf(params.txtAge)
+                                flow.info.age = age;
+        
+                                logger.debug("User on review page, clicked 'next'   flow.name={}", flow?.name)
+                            }.to "showThankYouPage"
+        
+                            on("previousPage")
+                            {
+                                // The user clicked "Previous" from the Review Page
+                                logger.debug("User on review page, clicked 'previous'  flow.name={}", flow?.name)
+                            }.to "startingPage"
+                        }
+        
+        
+                        showThankYouPage
+                        {
+                            // This is an end state  (it simply renders a view and nothing else)
+                            render(view: "/stockTrade/thankYouPage")
+                        }
+             }
+        
+        }
 
         
                  
@@ -168,12 +204,14 @@ class StockTradeController
             message is here:  <b>${message}</b> <br/>
         
             <g:form>
+                Name: <g:textField name="txtName" value="${info.name}" maxlength="60" /><br>
+        
                 <g:submitButton name="nextPage" value="Continue to Review Page" />
             </g:form>
         
         </body>
         </html>
- 
+         
  
  
   5. Create this file:  reviewPage.gsp
@@ -192,18 +230,22 @@ class StockTradeController
             <h2>Review Page  (reviewPage.gsp)</h2>
         
             <g:form>
+                Name: ${info.name} <br/>
+        
+                Age: <g:textField name="txtAge" value="" maxlength="3" /><br/>
+        
                 <g:submitButton name="previousPage" value="Back to Starting Page" />
                 <g:submitButton name="nextPage" value="Continue to Thank You Page" />
             </g:form>
         
         </body>
-        </html>     
+        </html> 
         
         
         
  6. Create this file:  thankYouPage.gsp
-     Add it to this directory:  /grails-app/views/stockTrade/   
-     
+    Add it to this directory:  /grails-app/views/stockTrade/   
+             
         <!DOCTYPE html>
         <html>
         <head>
@@ -216,17 +258,22 @@ class StockTradeController
         <body>
             <h2>Thank You Page  (thankYouPage.gsp)</h2>
         
+            flow.info.name=${info.name} <br/>
+            flow.info.age=${info.age} <br/>
+            <br/>
+        
             Your order has been submitted
         </body>
-        </html> 
+        </html>
+
         
         
         
-   7. Verify it works:
-      a. Startup your grails app
-         DOS> cd /d c:\tools\intellij\workspace\grailsWebAppR
-         DOS> mvn grais:run-app
+  7. Verify it works:
+     a. Startup your grails app
+        DOS> cd /d c:\tools\intellij\workspace\grailsWebAppR
+        DOS> mvn grais:run-app
          
-      b. Browse to http://localhost:8080/grailsWebAppR/stockTrade/
+     b. Browse to http://localhost:8080/grailsWebAppR/stockTrade/
       
       
