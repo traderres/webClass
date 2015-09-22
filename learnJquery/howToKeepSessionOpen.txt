@@ -1,0 +1,67 @@
+How to Use jQuery to Keep a Session Open
+----------------------------------------
+
+Assumptions:
+ 1) You have a Java webapp
+ 2) Your webapp has some valid web page at /welcome/index
+
+
+
+
+Design
+------
+If your web.xml holds this:
+   <session-config>
+        <session-timeout>10</session-timeout>
+    </session-config>
+
+Then, ${request.session.maxInactiveInterval} returnes 600000 (10 min * 60 secs * 1000 msecs-per-sec)
+
+So, the timeout (in milliseconds) is set to be be 30 secs less
+So, the timeout is 600,000 - 30,000 msecs
+So, the timeout is 570,000 msecs
+So, every 570 secs, this web page will call the server
+
+
+
+
+Procedures
+----------
+Add this to the page you want to keep open:
+
+   <script type="text/javascript">
+        var gsContextPath = '${request.contextPath}';
+
+        // Assumption:  The timeout is the session timeout - 30 secs
+        var TIMEOUT_IN_MSEC =  ${request.session.maxInactiveInterval} * 1000 - 30000;
+
+        function keepMeAlive(aImageId)
+        {
+             var sUrl = gsContextPath + '/welcome/index';
+             console.log("Making ajax call to " + sUrl);
+
+             $.ajax({
+                 type: 'GET',
+                 cache: false,
+                 url:   sUrl,
+                 data: '',
+                 success: function(aData, aTextStatus, aXhr)
+                 {
+                      console.log("Ajax call finished");
+                 },
+                 error: function(aXhr, aTextStatus, aErrorThrown)
+                  {
+                     console.log("Ajax call errored out:  aErrorThrown=" + aErrorThrown);
+                  }
+              });
+        }
+
+
+
+      $(document).ready(function()
+       {
+          console.log("calling setInterval with TIMEOUT_IN_MSEC = " + TIMEOUT_IN_MSEC);
+          window.setInterval("keepMeAlive('keepAliveImage')", TIMEOUT_IN_MSEC);
+       });
+
+    </script> 
