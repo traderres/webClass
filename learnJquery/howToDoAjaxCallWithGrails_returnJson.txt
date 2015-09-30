@@ -1,0 +1,237 @@
+How to Run an AJAX call that returns JSON (using jQuery and Grails)
+-------------------------------------------------------------------
+If you have an AJAX call and you just want to return JSON, here's how to do it:
+
+
+Assumptions:
+ A) You want to use jquery to make a web service call
+ B) Your web app is running the Grails framework
+ C) Your Grails webapp is called 'grailsWebApp1'  
+    [see howToSetupAndDebugGrails2.4WebAppWithIntellij.txt]
+ D) Your Grails webapp has the jquery resource or asset added]
+    [see howToAddJQueryToGrailsAppUsingIntellij.txt]
+    
+ 
+Overall Steps
+-------------
+ A) Setup a controller call that returns JSON
+ B) Adjust your GSP to make an AJAX call and show the results
+ C) Use the HttpRequestor Firefox plugin to verify your ajax call
+ D) Verify that your AJAX call works from the web page
+ 
+ 
+ 
+Procedures
+----------
+ 1. Add this method to your WelcomeController.groovy
+ 
+        def getPersonDetails()
+        {
+            logger.debug("getPersonDetails() started")
+    
+            String sPersonid = params.id;
+            logger.debug("personId={}", sPersonid)
+    
+            Person person = new Person(firstName: 'John', lastName:'Doe', age:55)
+    
+            // Return the person object as JSON
+            render person as JSON
+        }
+ 
+ 
+    After this change, my WelcomeController.groovy looks like this:
+    
+        package grailswebappa
+    
+        import demo.Person
+        import grails.converters.JSON
+        import org.slf4j.Logger
+        import org.slf4j.LoggerFactory
+        
+        import static org.slf4j.LoggerFactory.getLogger
+        
+        class WelcomeController
+        {
+            private static final Logger logger = LoggerFactory.getLogger(WelcomeController.class)
+        
+            def index()
+            {
+                logger.debug("index() started")
+        
+                Person person = new Person(firstName: 'John', lastName:'Doe', age:55)
+        
+                render view: "/welcome/index", model: [person: person]
+            }
+        
+        
+            def getPersonDetails()
+            {
+                logger.debug("getPersonDetails() started")
+        
+                String sPersonid = params.id;
+                logger.debug("personId={}", sPersonid)
+        
+                Person person = new Person(firstName: 'John', lastName:'Doe', age:55)
+        
+                // Return the person object as JSON
+                render person as JSON
+            }
+        }
+
+    
+    
+ 2. Verify that your ajax call returns valid JSON using HttpRequestor
+    a. Download and Install the "HttpRequestor" plugin for Firefox
+       1) Open Firefox
+       2) Go to https://addons.mozilla.org/en-Us/firefox/addon/httprequester/
+       3) Press "Add to Firefox"
+       4) Press "Install Now"
+       5) Restart Firefox
+       
+    b. Use the HttpRequestor to simulate the ajax call 
+       1) Open Firefox
+       2) Pull Tools / HttpRequestor
+       3) Enter these fields
+          URL:  http://localhost:8080/grailsWebApp1/welcome/getPersonDetails?id=15
+          press the "GET" button
+           
+                    
+          In the Respose window [on the right], you should see this:
+            Status:  200 OK
+ 
+            {"class":"demo.Person","id":null,"age":55,"firstName":"John","lastName":"Doe"}
+
+                
+                
+ 
+ 
+ 3. Edit your index.jsp to make the ajax call
+    ASSUMPTION:  You are using the asset-pipeline grails plugin to handle javascript
+    
+     
+        
+          <asset:script type="text/javascript">
+         
+               var gsContextPath = '${request.contextPath}';
+        
+        
+                /*****************************************************************
+                 * getPersonDetails()
+                 *  1) Make an ajax call   
+                 *  2) Get a Person object back as json
+                 *  3) Display some of the info in an alert box    
+                 *****************************************************************/
+                function getPersonDetails(aUserid)
+                {
+                     var sUrl = gsContextPath + '/welcome/getPersonDetails';
+                     
+        
+                      $.ajax({
+                             type: 'GET',
+                             cache: false,
+                             url:   sUrl,
+                             data: 'id=' + aUserid',
+                             headers:
+                                 {
+                                      "Content-Type": "application/json",
+                                      "Accept":       "application/json"
+                                  },
+                             success: function(aData, aTextStatus, aXhr)
+                             {
+                                var user = aData;
+        
+                                // I got  some results back
+                                alert("Ajax call succeeded:   user.firstName=" + user.firstName+ "  user.lastName=" + user.lastName);
+                             },
+                             error: function(aXhr, aTextStatus, aErrorThrown)
+                             {
+                                alert("Ajax call failed:  " + aErrorThrown);
+                             }
+                          });
+        
+        
+                };
+        
+        </asset:script>
+
+
+
+    My updated /grails-app/views/welcome/index.gsp page looks like this:
+    
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta name="layout" content="main"/>
+            <title>Render Domain</title>
+        </head>
+        
+        <body>
+            Last Name: ${person.lastName} <br/>
+            First Name: ${person.firstName} <br/>
+            Age: ${person.age} <br/>
+        
+            <br/>
+        
+         
+            <a href="#" onclick="getPersonDetails(15)">Click to make ajax call</a>
+        
+            <br/>
+            <br/>
+        
+        
+        
+             <asset:script type="text/javascript">
+    
+                   var gsContextPath = '${request.contextPath}';
+    
+    
+                    /*****************************************************************
+                     * getPersonDetails()
+                     *  1) Make an ajax call
+                     *  2) Get a Person object back as json
+                     *  3) Display some of the info in an alert box
+                     *****************************************************************/
+                    function getPersonDetails(aUserid)
+                    {
+                         var sUrl = gsContextPath + '/welcome/getPersonDetails';
+    
+    
+                          $.ajax({
+                                 type: 'GET',
+                                 cache: false,
+                                 url:   sUrl,
+                                 data: 'id=' + aUserid,
+                                 headers:
+                                     {
+                                          "Content-Type": "application/json",
+                                          "Accept":       "application/json"
+                                      },
+                                 success: function(aData, aTextStatus, aXhr)
+                                 {
+                                    var user = aData;
+    
+                                    // I got  some results back
+                                    alert("Ajax call succeeded:   user.firstName=" + user.firstName+ "  user.lastName=" + user.lastName);
+                                 },
+                                 error: function(aXhr, aTextStatus, aErrorThrown)
+                                 {
+                                    alert("Ajax call failed:  " + aErrorThrown);
+                                 }
+                              });
+                    };
+    
+            </asset:script>
+        </body>
+        </html>
+
+
+ 5. Test your AJAX call
+    a. In a dos window, type-in this:
+       DOS> cd /d c:\tools\intellij\workspace\springMvcWebApp1
+       DOS> mvn jetty:run
+       
+    b. Open Firefox and go to http://localhost:8080/grailsWebApp1/welcome
+    c. In the web page click on the "Click to make ajax call"
+    d. You should see the alert box show the json details
+    
+    
