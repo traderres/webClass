@@ -1,0 +1,114 @@
+How to Setup Rolling Logging in Grails
+--------------------------------------
+
+
+Procedures
+----------
+ 1. Add this dependency to your pom.xml
+
+        <dependency>
+            <!-- Include this to get the extra log4j RollingFileAppender -->
+            <groupId>log4j</groupId>
+            <artifactId>apache-log4j-extras</artifactId>
+            <version>1.0</version>
+            <scope>compile</scope>
+        </dependency>
+        
+        
+  
+  
+  
+ 2. Setup your log4j configuration (in Config.groovy)
+    In development, the logging is sent to the console
+    In production,  the logging is sent to the <TOMCAT_HOME>/logs/grailsWebApp.log
+                    *and* the log files is rolled over and zipped by date
+    
+    
+    a. Edit your Config.groovy  [or where ever your log4j configuration is setup]
+    
+    
+        import org.apache.log4j.rolling.TimeBasedRollingPolicy
+        import org.apache.log4j.rolling.RollingFileAppender
+                
+        . . .
+            
+        
+        // log4j configuration
+        log4j.main = {
+        
+            appenders {
+        
+        
+                environments {
+                    development {
+                        console   name:'outputLog',
+                                  layout:pattern(conversionPattern: '%d{MM/dd/yyyy HH:mm:ss} %-5p %c %m%n')
+                    }
+        
+                    production {
+        
+                        RollingFileAppender rollingFile = new RollingFileAppender(
+                                name:   'rollingFileAppender',
+                                layout:  pattern(conversionPattern: '%d{MM/dd/yyyy HH:mm:ss} %-5p %c %m%n')
+                        )
+        
+                        TimeBasedRollingPolicy rollingPolicy = new TimeBasedRollingPolicy(
+                                fileNamePattern:  System.getProperty('catalina.home') + '/logs/grailsWebApp.%d{yyyy-MM-dd}.zip',
+                                activeFileName:   System.getProperty('catalina.home') + '/logs/grailsWebApp.log'
+                        )
+                        rollingPolicy.activateOptions()
+                        rollingFile.setRollingPolicy rollingPolicy
+        
+                        appender rollingFile
+                    }
+                }
+             }
+        
+            info    'org.codehaus.groovy.grails.web.servlet',        // controllers
+                    'org.codehaus.groovy.grails.web.pages',          // GSP
+                    'org.codehaus.groovy.grails.web.sitemesh',       // layouts
+                    'org.codehaus.groovy.grails.web.mapping.filter', // URL mapping
+                    'org.codehaus.groovy.grails.web.mapping',        // URL mapping
+                    'org.codehaus.groovy.grails.commons',            // core / classloading
+                    'org.codehaus.groovy.grails.plugins',            // plugins
+                    'org.codehaus.groovy.grails.orm.hibernate',      // hibernate integration
+                    'org.hibernate',
+                    'net.sf.ehcache.hibernate',
+                    'org.springframework'
+        
+            debug   'grails.app'
+        
+            root {
+                debug 'outputLog', 'rollingFileAppender'
+                additivity = false
+            }
+        }
+        
+        
+        
+        
+        
+   3. Perform a mvn clean package 
+      DOS> cd /d C:\tools\intellij\workspace\grailsWebAppA
+      DOS> mvn clean package
+      
+      
+   4. Start up Tomcat
+      DOS> cd /d c:\tools\apache-tomcat-8.0.23\bin
+      DOS> startup.bat
+      
+    
+   5. Copy your grailsWebAppA.war to your Tomcat/webapps
+      DOS> copy /y target\grailsWebAppA-0.1.war c:\tools\apache-tomcat-8.0.23\webapps
+      
+   
+   6. Connect to your website 
+      http://localhost:8080/gralsWebAppA
+      Click on some links  (to generate some logging)
+      
+      
+   7. View your grailsWebApp.log file
+      DOS> tail -f c:\tools\apache-tomcat-8.0.23\logs\grailsWebApp.log
+      
+      
+      
