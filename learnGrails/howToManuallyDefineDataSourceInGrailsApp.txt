@@ -1,0 +1,239 @@
+How to Manually Define a Data Source in Grails App
+--------------------------------------------------
+
+
+
+Procedures
+----------
+ 1. Add a data source Spring Bean that holds the JDBC connection pool information
+    a. Create this file:  grails-app / conf / spring / resources.xml
+    
+    b. Copy this to your resources.xml file:
+    
+        <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+        <beans xmlns="http://www.springframework.org/schema/beans"
+               xmlns:aop="http://www.springframework.org/schema/aop"
+               xmlns:context="http://www.springframework.org/schema/context"
+               xmlns:jee="http://www.springframework.org/schema/jee"
+               xmlns:mvc="http://www.springframework.org/schema/mvc"
+               xmlns:tx="http://www.springframework.org/schema/tx"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:schemaLocation="http://www.springframework.org/schema/aop
+                                        http://www.springframework.org/schema/aop/spring-aop.xsd
+                                        http://www.springframework.org/schema/beans
+                                        http://www.springframework.org/schema/beans/spring-beans.xsd
+                                        http://www.springframework.org/schema/context
+                                        http://www.springframework.org/schema/context/spring-context.xsd
+                                        http://www.springframework.org/schema/jee
+                                        http://www.springframework.org/schema/jee/spring-jee.xsd
+                                        http://www.springframework.org/schema/mvc
+                                        http://www.springframework.org/schema/mvc/spring-mvc.xsd
+                                        http://www.springframework.org/schema/tx
+                                        http://www.springframework.org/schema/tx/spring-tx-xsd">
+        
+        
+            <bean id="mysqlDataSource" class="org.apache.tomcat.jdbc.pool.DataSource"  destroy-method="close">
+                <property name="driverClassName"         value="com.mysql.jdbc.Driver"/>
+                <property name="url"                     value="jdbc:mysql://127.0.0.1:3306/world"  />
+                <property name="username"                value="root" />
+                <property name="password"                value="secret" />
+                <property name="initialSize"             value="1" />
+                <property name="maxActive"               value="15" />
+                <property name="removeAbandoned"         value="true" />
+                <property name="removeAbandonedTimeout"  value="60000" />
+                <property name="validationQuery"         value="select now() "/>
+                <property name="validationQueryTimeout"  value="30000" />
+                <property name="validationInterval"      value="30000" />
+            </bean>
+        
+        </beans>
+ 
+ 
+ *OR*
+ 
+ 
+ 1b. Add a spring bean that holds your data source using resources.groovy
+     a. Modify this file:  grails-app / conf / spring / resources.groovy
+     
+        It probably looks like this:
+        
+        // Place your Spring DSL code here
+        beans = {
+        }
+        
+        
+        
+     b. Change it to this:
+     
+        // Place your Spring DSL code here
+        beans = {
+               mysqlDataSource(org.apache.tomcat.jdbc.pool.DataSource) {
+                   driverClassName = "com.mysql.jdbc.Driver"
+                   url = "jdbc:mysql://127.0.0.1:3306/world"
+                   username = "root"
+                   password = "secret"
+                   initialSize = "1"
+                   maxActive = "15"
+                   removeAbandoned = "true"
+                   removeAbandonedTimeout = "60000"
+                   validationQuery = "select now()"
+                   validationQueryTimeout = "30000"
+                   validationInterval = "30000"
+               }
+        }
+     
+     
+  
+  
+  2. Now, inject your bean into your WelcomeController
+  
+     In your WelcomeController, you can inject the datasource and use it
+         
+        package grailswebappa
+    
+        import demo.Person
+        import grails.converters.JSON
+        import org.slf4j.Logger
+        import org.slf4j.LoggerFactory
+        import org.springframework.jdbc.core.JdbcTemplate
+        
+        import javax.sql.DataSource
+        
+        
+        class WelcomeController
+        {
+            private static final Logger logger = LoggerFactory.getLogger(WelcomeController.class)
+        
+            DataSource mysqlDataSource    // Spring injects the data source
+         
+            def index()
+            {
+                logger.debug("index() started")
+        
+                // Run a query to get the current date/time
+                JdbcTemplate jt = new JdbcTemplate(mysqlDataSource);
+                String sCurrentDateTime = jt.queryForObject("select now()", String.class);
+                logger.debug("Current Date time is {}", sCurrentDateTime);
+        
+                Person person = new Person(firstName: 'John', lastName:'Doe', age:55)
+        
+                render view: "/welcome/index", model: [person: person]
+            }
+        
+       }
+    
+    
+   
+  
+  3. Or, create a spring bean that is a service and inject your spring bean
+  
+     a. Create a BogusService (in services.grailswebappa)
+        Under grails-app/services -> New -> Package:  grailswebappa
+        
+        Right-click on grails-app/services/grailswebappa -> New -> Groovy Class
+            
+            package grailswebappa
+            
+            import org.slf4j.Logger
+            import org.slf4j.LoggerFactory
+            import org.springframework.jdbc.core.JdbcTemplate
+            
+            import javax.sql.DataSource
+            
+            /**
+             * Created by adam on 10/9/2015.
+             */
+            class BogusService
+            {
+                private static final Logger logger = LoggerFactory.getLogger(BogusService.class);
+            
+                private DataSource dataSource
+            
+                public BogusService(DataSource aDataSource)
+                {
+                    logger.debug("BogusService instantiated.");
+                    this.dataSource = aDataSource
+                }
+            
+                public String getCurrentDateTime()
+                {
+                    JdbcTemplate jt = new JdbcTemplate(dataSource);
+            
+                    String sSql = "Select NOW()"
+            
+                    String sCurrentDateTime = jt.queryForObject(sSql, String.class);
+            
+                    return sCurrentDateTime
+                }
+            
+            }
+        
+        
+      b. Add the BogusService to your resources.groovy file 
+         Modify your resources.groovy to look like this:
+         
+        // Place your Spring DSL code here
+        beans = {
+               mysqlDataSource(org.apache.tomcat.jdbc.pool.DataSource) {
+                   driverClassName = "com.mysql.jdbc.Driver"
+                   url = "jdbc:mysql://127.0.0.1:3306/world"
+                   username = "root"
+                   password = "secret"
+                   initialSize = "1"
+                   maxActive = "15"
+                   removeAbandoned = "true"
+                   removeAbandonedTimeout = "60000"
+                   validationQuery = "select now()"
+                   validationQueryTimeout = "30000"
+                   validationInterval = "30000"
+               }
+        
+        
+              // Call the BogusService constructor and pass-in the data source
+              bogusService(grailswebappa.BogusService, ref('mysqlDataSource') )
+        }
+         
+      
+   
+   
+      c. Inject BogusService into the WelcomeController class
+                  
+            package grailswebappa
+            
+            import demo.Person
+            import org.slf4j.Logger
+            import org.slf4j.LoggerFactory
+            
+            class WelcomeController
+            {
+                private static final Logger logger = LoggerFactory.getLogger(WelcomeController.class)
+            
+                BogusService bogusService    // Inject the service
+            
+                def index()
+                {
+                    logger.debug("index() started")
+            
+                    String sCurrentDateTime = bogusService.getCurrentDateTime()
+                    logger.debug("Current Date time is {}", sCurrentDateTime);
+            
+                    Person person = new Person(firstName: 'John', lastName:'Doe', age:55)
+            
+                    render view: "/welcome/index", model: [person: person]
+                }
+            
+            
+                def getPersonDetails()
+                {
+                    logger.debug("getPersonDetails() started")
+            
+                    String sPersonid = params.id;
+                    logger.debug("personId={}", sPersonid)
+            
+                    Person person = new Person(firstName: 'John', lastName:'Doe', age:55)
+            
+                    // Return the personDetails.gsp view
+                    render view: "/welcome/personDetails", model: [person: person]
+                }
+            }
+      
