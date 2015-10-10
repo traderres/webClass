@@ -1,0 +1,151 @@
+How to Setup Mod_cluster to Load Balance Tomcat Web Apps
+--------------------------------------------------------
+Mod_cluster is an apache httpd-based load balancer that uses a communication channel to forward requests 
+from apache-httpd to a set of application server nodes.  And, each application server nodes holds an app server -- e.g., Tomcat
+
+Unlike mod_jk and mod_proxy, mod_cluster utilizes an additional connection between the application server nodes and httpd. 
+The application server nodes use this connection to send server-side load balance factors and lifecycle events back to httpd via the Mod-Cluster Management Protocol (MCMP), 
+a custom set of HTTP methods. With this additional feedback channel, mod_cluster can provide more intelligence and 
+granularity than many other load-balancing alternatives.  This provides the following advantages:
+ a) Dynamic configuration of httpd workers
+ b) Server-side load balance factor calculation
+ c) Fine-grained Web app lifecycle control
+ d) AJP is optional
+
+
+References
+----------
+http://www.devx.com/Java/Article/48086
+http://docs.jboss.org/mod_cluster/1.2.0/html/Quick_Start_Guide.html#d0e250
+
+
+Assumption
+ A) You have a Java Web App that you want to run on *multiple* Tomcat instances
+ B) You are running Apache httpd on Windows
+ 
+
+INCOMPLETE
+
+
+Procedures
+----------
+ 1. Download and install Apache httpd for Windows
+    a. Download a windows-binary of Apache httpd
+       1) http://httpd.apache.org/docs/current/platform/windows.html#down
+       2) Click on a mirror such as
+          http://www.apachehaus.com/cgi-bin/download.plx
+           
+       3) Click on the link next to a version of apache that has OpenSSL included in it
+       
+          Apache 2.4.16 x64    httpd-2.4.16-x64.zip    7,167.8 KB  Download Locations
+          with OpenSSL 1.0.1p, Zlib 1.2.8 (mod_deflate), PCRE 8.37, APR 1.5.2, APR-Util 1.5.4, IPv6 and TLS SNI enabled
+       
+       4) Save the httpd-2.4.16-x64.zip to your c:\vault\
+       
+       
+    b. Install Apache httpd 2.4.16 64-bit version
+       1) Right-click on c:\vault\httpd-2.4.16-x64.zip -> 7zip -> Extract Files....
+       2) In the "Extract to" box, type-in  c:\tools
+          -- Now, you should have an c:\tools\Apache24\ directory
+          
+       3) Move the c:\tools\readme_first.html to your c:\tools\Apache24\ directory
+       
+           
+    c. Verify that the apache httpd daemon runs on windows
+       1) Edit the httpd.conf to indicate that c:\tools\Apache24 is the server root
+          Edit c:\tools\Apache24\conf\httpd.conf
+             
+             Change this line so that it looks like this
+             
+             Define SRVROOT "/tools/Apache24"
+    
+       2) Attempt to start httpd
+          a) Open a DOS window by pressing <Start><Run>CMD
+          b) DOS> cd /d c:\tools\Apache24\bin
+             DOS> httpd.exe
+             
+       3) Attempt to connect to it
+          a) Open a web browser
+          b) Connecto http://localhost/
+             -- You should see "It works"
+    
+       4) Kill the DOS window that is running httpd
+       
+       
+     d. Setup Apache 2.4 to run as a Windows Service
+        1) Open a DOS Window as an *ADMINISTRATOR* by press <Start><Run>CMD   (but do not press enter)
+           NOTE:  Right-click on "Command Prompt" -> Run as Administrator
+           
+        2) DOS> cd /d c:\tools\Apache24\bin
+           DOS> httpd -k install
+           
+           Installing the 'Apache2.4' service
+           The 'Apache2.4' service is successfully installed.
+           Testing httpd.conf....
+           Errors reported here must be corrected before the service can be started.
+           
+        3) Run the service
+           a. Press <Start><Run>Services.msc
+           b. Right-click on "Apache2.4" -> Start
+           c. Verify that it is running by
+              1) Open a web browser
+              2) Connect to http://localhost/
+                 -- You should see the "It works" page
+                 
+                 
+                 
+ 2. Download and install the mod_cluster package   
+ 
+ 3. Configure apache httpd to use mod-cluster
+    a) Edit the httpd.conf file
+    
+    b) Make sure these lines are not commented out
+    
+    Add the following modules in your Apache Web Server to enable clustering and load balancing:
+
+        mod_proxy_ajp
+        mod_proxy
+        mod_proxy_cluster
+        mod_manager
+        mod_advertise
+        mod_slotmem
+
+
+    # MOD_CLUSTER configuration details 
+    <IfModule manager_module> 
+      Listen *:9999 
+      ManagerBalancerName paascluster 
+      <VirtualHost *:9999> 
+            <Directory />  
+            : : : : :Order deny,allow  
+            : : : : :Deny from none  
+            : : : : :Allow from all 
+            </Directory> 
+            
+            KeepAliveTimeout 300 
+            MaxKeepAliveRequests 0 
+            ServerAdvertise on http://localhost:9999 
+            AdvertiseFrequency 5 
+            <Location /mod_cluster_paas> 
+                SetHandler mod_cluster-manager 
+                Order deny,allow 
+                Deny from none 
+                Allow from all 
+            </Location> 
+      </VirtualHost> 
+      </IfModule> 
+    
+    
+ 3. Download Tomcat
+ 
+ 4. Setup Tomcat #1
+ 
+ 5. Setup Tomcat #2
+ 
+ 
+ 6. Configure Tomcat #1 to talk with mod_cluster
+ 
+ 7. Configure tomcat #2 to talk with mod_cluster
+ 
+ 8. Setup Sticky Sessions
+ 
