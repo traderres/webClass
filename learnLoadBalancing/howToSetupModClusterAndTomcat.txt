@@ -138,7 +138,7 @@ A P P R O A C H    #1:  Download an apache httpd daemon that has the mod-cluster
     
   
  
- 5. Configure Tomcat #1 to load balance with mod-cluster
+ 5. Setup Tomcat #1 to load balance with mod-cluster
     a. Download the mod-cluster jar files
        1) Download the mod-cluster server-side binaries for Tomcat
           Go to http://mod-cluster.jboss.org/mod_cluster/downloads/1-3-1-Final-bin
@@ -158,17 +158,17 @@ A P P R O A C H    #1:  Download an apache httpd daemon that has the mod-cluster
 
 
     b. Install the mod-cluster jar files to Tomcat #1's <TOMCAT-HOME>/lib
-       a) Copy all of the jars found in 
+       1) Copy all of the jars found in 
               c:\tools\mod-cluster-server-side-binaries\JBossWeb-Tomcat\lib
           To your
               <TOMCAT-HOME>/lib
 
-       b) Delete the Tomcat-versioned jar files that you are not using:
-         If you are running Tomcat7, then
+       2) Delete the Tomcat-versioned jar files that you are not using:
+          If you are running Tomcat7, then
             delete <TOMCAT-HOME>/lib/mod_cluster-container-tomcat6-1.3.1.Final.jar
             delete <TOMCAT-HOME>/lib/mod_cluster-container-tomcat8-1.3.1.Final.jar
        
-         If you are running Tomcat8, then
+          If you are running Tomcat8, then
             delete <TOMCAT-HOME>/lib/mod_cluster-container-tomcat6-1.3.1.Final.jar
             delete <TOMCAT-HOME>/lib/mod_cluster-container-tomcat7-1.3.1.Final.jar     
                
@@ -198,7 +198,10 @@ A P P R O A C H    #1:  Download an apache httpd daemon that has the mod-cluster
        
        
  
- 7. Verify that it all works together
+ 7. Verify that the load balancer talks to Tomcat #1
+    NOTE:  The load balancer is listening on port 8000
+           Tomcat #1 is listening on port 8080
+           
     a. Startup the Apache load balancer
        CMD> net start Apache24
        
@@ -207,49 +210,91 @@ A P P R O A C H    #1:  Download an apache httpd daemon that has the mod-cluster
        Connect to http://localhost:6666/mod_cluster_manager
        -- You should see Virtual Host 1
        
-    c. Connect to the Tomcat webapp using the load balancer 
+    c. Startup Tomcat #1
+       DOS> cd /d C:\tools\apache-tomcat-7.0.55\bin
+       DOS> startup.bat
+       
+    d. Connect to the Tomcat webapp using the load balancer 
        Open a web browser
        Connect to http://localhost:8000/mywebapp1
  
  
  
- 8. Setup Tomcat #2
+ 
+ 
+ 8. Install Tomcat #2 to C:\tools\apache-tomcat-7.0.59b\
+    [Follow procedures in howToSetupTomcat8.txt]
+ 
+ 
+ 9. Setup Tomcat #2 to load balance with mod-cluster
     NOTE:  We are changing this tomcat to listen on port 9080 because both Tomcats are running on the same computer
     
-    [see howToSetupTomcat8.txt]
-     Edit your <TOMCAT-HOME>/conf/server.xml
+    b. Install the mod-cluster jar files to Tomcat #1's <TOMCAT-HOME-2>/lib
+       1) Copy all of the jars found in 
+              c:\tools\mod-cluster-server-side-binaries\JBossWeb-Tomcat\lib
+          To your
+              <TOMCAT-HOME-2>/lib
+
+       2) Delete the Tomcat-versioned jar files that you are not using:
+          If you are running Tomcat7, then
+            delete <TOMCAT-HOME-2>/lib/mod_cluster-container-tomcat6-1.3.1.Final.jar
+            delete <TOMCAT-HOME-2>/lib/mod_cluster-container-tomcat8-1.3.1.Final.jar
        
-     a) Add this to it
-         <Listener className="org.jboss.modcluster.container.catalina.standalone.ModClusterListener" advertise="true"/>
+          If you are running Tomcat8, then
+            delete <TOMCAT-HOME-2>/lib/mod_cluster-container-tomcat6-1.3.1.Final.jar
+            delete <TOMCAT-HOME-2>/lib/mod_cluster-container-tomcat7-1.3.1.Final.jar     
+     
+    b. Configure Tomcat #1 to talk with mod_cluster  
+       Edit your <TOMCAT-HOME>/conf/server.xml
+      
+       1) Add this to it
+           <Listener className="org.jboss.modcluster.container.catalina.standalone.ModClusterListener" advertise="true"/>
  
-     b) Disable the AJP listener in the server.xml.
-        Delete this line
-         <Connector port="8009" protocol="AJP/1.3" redirectPort="8443" />
+       2) Disable the AJP listener in the server.xml.
+          Delete this line
+            <Connector port="8009" protocol="AJP/1.3" redirectPort="8443" />
  
-     c) Modify the server.xml so that the Connector listens on 9080
-         <Connector port="9080" protocol="HTTP/1.1"
+       3) Modify the server.xml so that the Connector listens on 9080
+            <Connector port="9080" protocol="HTTP/1.1"
                connectionTimeout="20000"
                redirectPort="9443" />
     
-     d) Modify the server.xml so that Tomcat #1's shutdown port is 9005
-         <Server port="9005" shutdown="SHUTDOWN">
+       4) Modify the server.xml so that Tomcat #1's shutdown port is 9005
+            <Server port="9005" shutdown="SHUTDOWN">
               
-       -- You can reach this tomcat's manager using http://localhost:9080/manager
+         -- You can reach this tomcat's manager using http://localhost:9080/manager
     
 
     
- 9. Deploy mywebapp1.war to Tomcat #2
+10. Deploy mywebapp1.war to Tomcat #2
 
  
-10. Configure Tomcat #2 to load balance with mod-cluster
 
 
-11. Verify that mod-cluster recognizes both Tomcats
-    http://localhost:6666/mod_cluster_manager
-    -- You should see 2 nodes
-    
+11. Verify that the load balancer talks to Tomcat #1 and Tomcat #2
+    NOTE:  The load balancer is listening on port 8000
+           Tomcat #1 is listening on port 8080
+           
+    a. Startup the Apache load balancer
+       CMD> net start Apache24
  
-
+    b. Startup Tomcat #1
+       DOS> cd /d C:\tools\apache-tomcat-7.0.55\bin
+       DOS> startup.bat
+ 
+    c. Startup Tomcat #2
+       DOS> cd /d C:\tools\apache-tomcat-7.0.55b\bin
+       DOS> startup.bat
+     
+    d. Look at the load balancer status page
+       Open a web browser
+       Connect to http://localhost:6666/mod_cluster_manager
+       -- You should see Virtual Host 1
+       -- You should see *TWO NODES*
+     
+    e. Connect to the Tomcat webapp using the load balancer 
+       Open a web browser
+       Connect to http://localhost:8000/mywebapp1
  
 
  
