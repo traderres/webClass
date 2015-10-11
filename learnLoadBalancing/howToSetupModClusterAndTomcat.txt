@@ -24,12 +24,131 @@ Assumption
  B) You are running Apache httpd on Windows
  
 
-INCOMPLETE
+There are a few approaches:
+  Approach #1) Download an apache httpd that has the mod-cluster modules
+  Approach #2) Add the mod-cluster modules to your existing apache httpd
+
+ 
+
+                
 
 
-Procedures
-----------
- 1. Download and install Apache httpd for Windows
+
+A P P R O A C H    #1:  Download an apache httpd daemon that has the mod-cluster modules with it
+------------------------------------------------------------------------------------------------
+ 1. Download and install the httpd binaries with mod-cluster
+    a. Go to http://mod-cluster.jboss.org/downloads
+    b. Click on "mod_cluster 1.3.1 Final bin downloads"
+       or 
+       http://mod-cluster.jboss.org/mod_cluster/downloads/1-3-1-Final-bin
+       
+       
+       -- You want to download the mod_cluster native bundles with httpd and openssl (mod_cluster-1.2.6.Final)
+          or 
+          32-bit Windows:  http://downloads.jboss.org/mod_cluster//1.3.1.Final/windows/mod_cluster-1.3.1.Final-windows-x86-ssl.zip 
+          64-bit Windows:  http://downloads.jboss.org/mod_cluster//1.3.1.Final/windows/mod_cluster-1.3.1.Final-windows-amd64-ssl.zip            
+    b. Save mod_cluster-1.3.1.Final-windows-x86-ssl.zip to your c:\vault
+    
+    c. Right-click on c:\vaultmod_cluster-1.3.1.Final-windows-x86-ssl.zip -> 7-zip -> Extract Files...
+       In the "Extract to" box, type-in c:\tools
+    
+        -- You should have these directories:
+              C:\tools\httpd-2.4\bin\
+              C:\tools\httpd-2.4\cgi-bin\
+              C:\tools\httpd-2.4\conf
+              
+        This is an apache httpd-2.4 installation with the mod-cluster binaries compiled in
+        
+        
+    e. Open a DOS window in *ADMINISTRATOR* mode
+       DOS> cd /d c:\tools\httpd-2.4\bin
+       DOS> installconf.bat
+            NOTE:  Now, you have a httpd.conf file
+                   Now, your default apache httpd is listening on port 8000
+            
+     
+    f. Verify that the apache httpd daemon runs on windows    
+       1) Attempt to start httpd
+          a) Open a DOS window by pressing <Start><Run>CMD
+          b) DOS> cd /d c:\tools\httpd-2.4\bin
+             DOS> httpd.exe
+             
+       3) Attempt to connect to it
+          a) Open a web browser
+          b) Connecto http://localhost:8000/
+             -- You should see "It works"
+    
+       4) Kill the Ctrl-C in the DOS window to stop running httpd.exe
+       
+        
+    g. Setup Apache 2.4 to run as a Windows Service
+       1) Open a DOS Window as an *ADMINISTRATOR* by press <Start><Run>CMD   (but do not press enter)
+          NOTE:  Right-click on "Command Prompt" -> Run as Administrator
+           
+       2) DOS> cd /d c:\tools\Apache24\bin
+          DOS> httpd -k install
+           
+          Installing the 'Apache2.4' service
+          The 'Apache2.4' service is successfully installed.
+          Testing httpd.conf....
+          Errors reported here must be corrected before the service can be started.
+           
+       3) Run the service
+          a) Press <Start><Run>Services.msc
+          b) Right-click on "Apache2.4" -> Start
+          c) Verify that it is running by
+             1) Open a web browser
+             2) Connect to http://localhost:8000/
+                -- You should see the "It works" page
+          
+          
+         NOTE:  To delete this windows service, run this command
+           a) Open a DOS window (as *ADMINISTRATOR*)
+           b) DOS> sc delete Apache2.4
+                [SC] DeleteService SUCCESS          
+            
+    
+ 
+ 2. Configure apache httpd to use activate ssl
+    a. Edit the httpd.conf file
+       It should be here:  c:\tools\httpd-2.4\conf\httpd.conf
+      
+       Uncomment this line
+         LoadModule ssl_module modules/mod_ssl.so
+      
+    b. Restart the Apache 2.4 service
+    
+    c. Look at the C:\tools\httpd-2.4\logs\error_log
+       You should see what version of OpenSSL was compiled0in to the mod_ssl.so file
+       
+       [Sat Oct 10 21:35:14.899584 2015] [mpm_winnt:notice] [pid 5628:tid 488] AH00455: Apache/2.4.10 (Win64) OpenSSL/0.9.8r mod_cluster/1.3.1.Final configured -- resuming normal operations
+
+  
+ 4. Look at the mod-cluster manager status page:
+      http://localhost:6666/mod_cluster_manager
+    
+    
+    
+ 3. Download Tomcat
+ 
+ 4. Setup Tomcat #1
+ 
+ 5. Setup Tomcat #2
+ 
+ 6. Configure Tomcat #1 to talk with mod_cluster
+ 
+ 7. Configure tomcat #2 to talk with mod_cluster
+ 
+
+ 
+ 
+ 
+ 
+
+
+A P P R O A C H    #2:  Download an apache httpd daemon and add mod-cluster to it
+---------------------------------------------------------------------------------
+ 1. Download and install Apache httpd for Windows (with ssl)
     a. Download a windows-binary of Apache httpd
        1) http://httpd.apache.org/docs/current/platform/windows.html#down
        2) Click on a mirror such as
@@ -91,61 +210,11 @@ Procedures
               1) Open a web browser
               2) Connect to http://localhost/
                  -- You should see the "It works" page
-                 
-                 
-                 
- 2. Download and install the mod_cluster package   
- 
- 3. Configure apache httpd to use mod-cluster
-    a) Edit the httpd.conf file
-    
-    b) Make sure these lines are not commented out
-    
-    Add the following modules in your Apache Web Server to enable clustering and load balancing:
-
-        mod_proxy_ajp
-        mod_proxy
-        mod_proxy_cluster
-        mod_manager
-        mod_advertise
-        mod_slotmem
-
-
-    # MOD_CLUSTER configuration details 
-    <IfModule manager_module> 
-      Listen *:9999 
-      ManagerBalancerName paascluster 
-      <VirtualHost *:9999> 
-            <Directory />  
-            : : : : :Order deny,allow  
-            : : : : :Deny from none  
-            : : : : :Allow from all 
-            </Directory> 
-            
-            KeepAliveTimeout 300 
-            MaxKeepAliveRequests 0 
-            ServerAdvertise on http://localhost:9999 
-            AdvertiseFrequency 5 
-            <Location /mod_cluster_paas> 
-                SetHandler mod_cluster-manager 
-                Order deny,allow 
-                Deny from none 
-                Allow from all 
-            </Location> 
-      </VirtualHost> 
-      </IfModule> 
-    
-    
- 3. Download Tomcat
- 
- 4. Setup Tomcat #1
- 
- 5. Setup Tomcat #2
- 
- 
- 6. Configure Tomcat #1 to talk with mod_cluster
- 
- 7. Configure tomcat #2 to talk with mod_cluster
- 
- 8. Setup Sticky Sessions
- 
+          
+          
+          NOTE:  To delete this windows service, run this command
+             a. Open a DOS window (as *ADMINISTRATOR*)
+             b. DOS> sc delete Apache2.4
+                [SC] DeleteService SUCCESS
+                
+                
