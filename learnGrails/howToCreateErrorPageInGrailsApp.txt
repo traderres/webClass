@@ -14,49 +14,58 @@ Procedures
 ----------
  1. Update the grails-app/conf/UrlMappings.groovy
  
-         class UrlMappings 
-         {
+        class UrlMappings {
         
-            static mappings =
-             {
-                "/$controller/$action?/$id?"{
+            static mappings = {
+                "/$controller/$action?/$id?(.$format)?"{
                     constraints {
                         // apply constraints here
                     }
                 }
         
                 "/"(view:"/index")
-                
+        
                 "500" (controller: "error")
             }
         }
 
 
+
+
  2. Create an ErrorController
  
-         class ErrorController
-          {
+        package grailswebappe
+        
+        import org.codehaus.groovy.grails.web.errors.GrailsWrappedRuntimeException
+        import org.slf4j.Logger
+        import org.slf4j.LoggerFactory
+        
+        /**
+         * Created by adam on 10/16/2015.
+         */
+        class ErrorController
+        {
+            private static final Logger logger = LoggerFactory.getLogger(ErrorController.class);
         
             def index()
-             {
-                def exception = request.getAttribute('exception')
-                String sExceptionSummary = "";
-                if (exception instanceof GrailsWrappedRuntimeException) 
-                 {
-                    sExceptionSummary "exception in $exception.className, line $exception.lineNumber has thrown $exception.cause"
-                    logger.error(sExceptionSummary);
-                 }
-            
-            
-                String sExceptionCause = request.exception.cause
-                def message = ExceptionMapper.mapException(exception)
-                def status = message.status
-        
-                response.status = status
-                render(view: "/error", model: [status: status, 
-                                               message: message,
-                                               exception: sExceptionCause,
-                                               summary: sExceptionSummary])
+            {
+                try
+                {
+                    Exception exception = (Exception) request.getAttribute('exception')
+                    if (exception instanceof GrailsWrappedRuntimeException)
+                    {
+                        String sExceptionSummary = "exception in $exception.className, line $exception.lineNumber has thrown $exception.cause"
+                        logger.error(sExceptionSummary, exception);
+                    }
+                }
+                catch (Exception e)
+                {
+                    // ignore any exceptions to prevent infinite loops
+                }
+                finally {
+                    // Show the error.gsp page
+                    render(view: "/error")
+                }
             }
         }
 
@@ -71,36 +80,13 @@ Procedures
         <html>
             <head>
                 <title><g:if env="development">Grails Runtime Exception</g:if><g:else>Error</g:else></title>
-                <meta name="layout" content="main">
-                <g:if env="development"><link rel="stylesheet" href="${resource(dir: 'css', file: 'errors.css')}" type="text/css"></g:if>
-            </head>
-            <body>
-                <g:if env="development">
-                    <g:renderException exception="${exception}" />
-                </g:if>
-                <g:else>
-                    <ul class="errors">
-                        <li>An error has occurred</li>
-                    </ul>
-                </g:else>
-            </body>
-        </html>
-        
-        
-        *OR*
-        
-            
-        <!DOCTYPE html>
-        <html>
-            <head>
-                <title><g:if env="development">Grails Runtime Exception</g:if><g:else>Error</g:else></title>
             </head>
         
         <body>
             <h1>Grails Runtime Exception</h1>
-
+        
             <h2>Error Details</h2>
-    
+        
             <div class="message">
                 <strong>Error ${request.'javax.servlet.error.status_code'}:</strong>
                 ${request.'javax.servlet.error.message'.encodeAsHTML()}<br/>
@@ -109,11 +95,10 @@ Procedures
                 <g:if test="${exception}">
                     <strong>Exception Message:</strong> ${exception.message?.encodeAsHTML()} <br/>
                     <strong>Caused by:</strong> ${exception.cause?.message?.encodeAsHTML()} <br/>
-                    <strong>Controller name:</strong> ${request['org.codehaus.groovy.grails.CONTROLLER_NAME_ATTRIBUTE']} <br/>
                     <strong>Class:</strong> ${exception.className} <br/>
                     <strong>At Line:</strong> [${exception.lineNumber}] <br/>
                     <strong>Code Snippet:</strong><br/>
-    
+        
                     <div class="snippet">
                         <g:each var="cs" in="${exception.codeSnippet}">
                             ${cs?.encodeAsHTML()}<br/>
@@ -121,14 +106,42 @@ Procedures
                     </div>
                 </g:if>
             </div>
+        
+        
             <g:if test="${exception}">
                 <h2>Stack Trace</h2>
-    
                 <div class="stack">
                     <pre><g:each in="${exception.stackTraceLines}">${it.encodeAsHTML()}<br/></g:each></pre>
                 </div>
             </g:if>
-       </body>
+        </body>
         </html>
-        
               
+              
+              
+ How to Test ErrorController
+ ---------------------------
+ 1. Add a button to call an action that throws an exception
+    a. Modify your grails-app/views/welcome/index.gsp
+    b. Add this to it:
+    
+        <g:link action="problemEvent" controller="welcome">
+            <input type="button" value="problem event" clas="button"/>
+        </g:link>
+        
+ 
+ 2. Add a problemEvent method to your WelcomeController class
+ 
+    def problemEvent()
+    {
+        throw new RuntimeException("Something bad happens");
+    }
+    
+    
+ 3. Verify it works
+    a. Startup the grails web app
+    b. Click on the "problem event" button
+    c. This calls WelcomeController.problemEvent()
+       -- this throws a RuntimeException
+    d. This causes the ErrorController.index() to be called
+       -- this forward the user to the error.gsp page   
