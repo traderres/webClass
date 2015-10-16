@@ -1,0 +1,134 @@
+How to Create an Error Page in Grails Web App
+---------------------------------------------
+
+When something goes wrong, you will need a nice error page that displays or logs the message
+
+References
+----------
+https://github.com/grails/grails-core/blob/2.2.x/grails-resources/src/grails/grails-app/views/error.gsp
+http://kylewbanks.com/blog/Create-Custom-404-Page-Grails
+http://stackoverflow.com/questions/5491065/how-to-know-from-where-was-thrown-error-500-grails/
+
+
+Procedures
+----------
+ 1. Update the grails-app/conf/UrlMappings.groovy
+ 
+         class UrlMappings 
+         {
+        
+            static mappings =
+             {
+                "/$controller/$action?/$id?"{
+                    constraints {
+                        // apply constraints here
+                    }
+                }
+        
+                "/"(view:"/index")
+                
+                "500" (controller: "error")
+            }
+        }
+
+
+ 2. Create an ErrorController
+ 
+         class ErrorController
+          {
+        
+            def index()
+             {
+                def exception = request.getAttribute('exception')
+                String sExceptionSummary = "";
+                if (exception instanceof GrailsWrappedRuntimeException) 
+                 {
+                    sExceptionSummary "exception in $exception.className, line $exception.lineNumber has thrown $exception.cause"
+                    logger.error(sExceptionSummary);
+                 }
+            
+            
+                String sExceptionCause = request.exception.cause
+                def message = ExceptionMapper.mapException(exception)
+                def status = message.status
+        
+                response.status = status
+                render(view: "/error", model: [status: status, 
+                                               message: message,
+                                               exception: sExceptionCause,
+                                               summary: sExceptionSummary])
+            }
+        }
+
+
+
+
+ 3. Create an error.gsp page
+    a. Create this file: grails-app/views/error.gsp
+    b. Copy this to your error.gsp page
+            
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <title><g:if env="development">Grails Runtime Exception</g:if><g:else>Error</g:else></title>
+                <meta name="layout" content="main">
+                <g:if env="development"><link rel="stylesheet" href="${resource(dir: 'css', file: 'errors.css')}" type="text/css"></g:if>
+            </head>
+            <body>
+                <g:if env="development">
+                    <g:renderException exception="${exception}" />
+                </g:if>
+                <g:else>
+                    <ul class="errors">
+                        <li>An error has occurred</li>
+                    </ul>
+                </g:else>
+            </body>
+        </html>
+        
+        
+        *OR*
+        
+            
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <title><g:if env="development">Grails Runtime Exception</g:if><g:else>Error</g:else></title>
+            </head>
+        
+        <body>
+            <h1>Grails Runtime Exception</h1>
+
+            <h2>Error Details</h2>
+    
+            <div class="message">
+                <strong>Error ${request.'javax.servlet.error.status_code'}:</strong>
+                ${request.'javax.servlet.error.message'.encodeAsHTML()}<br/>
+                <strong>Servlet:</strong> ${request.'javax.servlet.error.servlet_name'}<br/>
+                <strong>URI:</strong> ${request.'javax.servlet.error.request_uri'}<br/>
+                <g:if test="${exception}">
+                    <strong>Exception Message:</strong> ${exception.message?.encodeAsHTML()} <br/>
+                    <strong>Caused by:</strong> ${exception.cause?.message?.encodeAsHTML()} <br/>
+                    <strong>Controller name:</strong> ${request['org.codehaus.groovy.grails.CONTROLLER_NAME_ATTRIBUTE']} <br/>
+                    <strong>Class:</strong> ${exception.className} <br/>
+                    <strong>At Line:</strong> [${exception.lineNumber}] <br/>
+                    <strong>Code Snippet:</strong><br/>
+    
+                    <div class="snippet">
+                        <g:each var="cs" in="${exception.codeSnippet}">
+                            ${cs?.encodeAsHTML()}<br/>
+                        </g:each>
+                    </div>
+                </g:if>
+            </div>
+            <g:if test="${exception}">
+                <h2>Stack Trace</h2>
+    
+                <div class="stack">
+                    <pre><g:each in="${exception.stackTraceLines}">${it.encodeAsHTML()}<br/></g:each></pre>
+                </div>
+            </g:if>
+       </body>
+        </html>
+        
+              
