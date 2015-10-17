@@ -1,0 +1,430 @@
+How to Secure Web App with a Login Page and Security Filter
+------------------------------------------------=----------
+
+
+Assumption
+ A) You have a grails web app
+ B) You want to setup a Login page 
+ C) You want to setup a Logout page
+ D) You want all pages to make sure that the user is logged-in (except the login page and error page)
+ 
+
+Procedure
+---------
+ 1. Add a UserController with loginScreen() and logout() methods
+    NOTE:  The SecurityFilter.groovy does not interfere with calls to the UserController or ErrorController
+    NOTE:  This authenticator lets login succeed if the username is "adam"
+           
+ 
+        package grailswebappe
+        
+        import org.slf4j.Logger
+        import org.slf4j.LoggerFactory
+        
+        /**
+         * Created by adam on 10/16/2015.
+         */
+        class UserController
+        {
+            private static final Logger logger = LoggerFactory.getLogger(ErrorController.class);
+        
+        
+            /***************************************************************************
+             * logoutScreen()
+             *
+             * Show the logout page
+             ****************************************************************************/
+            def logoutScreen()
+            {
+                logger.debug("logoutScreen() started");
+        
+                // Forward the user to the logout.gsp page
+                render view: "/logout"
+            }
+        
+        
+            /***************************************************************************
+             * logout()
+             *
+             * The user clicked on the "Logout" button in the menubar
+             *  1) Terminate the session
+             *  2) Redirect the user to the logout page
+             ****************************************************************************/
+            def logout()
+            {
+                logger.debug("logout() started.  session.id about to die is {}", session?.id)
+        
+                // End the session
+                session.invalidate()
+        
+                // Redirect the user to the logout page
+                redirect(controller: 'user', action: 'logoutScreen')
+            }
+        
+        
+            /***************************************************************************
+             * loginScreen()
+             *
+             * Show the login page
+             ****************************************************************************/
+            def loginScreen()
+            {
+                logger.debug("loginScreen() started");
+        
+                // Forward the user to the login.gsp page
+                render view: "/login"
+            }
+        
+        
+            /***************************************************************************
+             * loginAuthenticate()
+             *
+             * The user clicked on the "Login" button on the /login.gsp page
+             *  1) Verify that username and password were provided
+             *  2) Authenticate
+             *  3) If authentication passes, then redirect to the welcome controller
+             *     Else, forward the user back to the page
+             ****************************************************************************/
+            def loginAuthenticate()
+            {
+                logger.debug("loginAuthenticate() started");
+        
+                String sUsername = params.username;
+                String sPassword = params.password;
+        
+                // Authenticate
+                boolean bUserAuthenticated = doesUserAuthenticate(sUsername, sPassword);
+                if (bUserAuthenticated)
+                {
+                    // The user authenticated
+        
+                    // Start a new session
+                    logger.debug("N E W     S E S S I O N     session.id={}", session.id);
+                    session.username = sUsername;
+        
+                    // Redirect to the welcome page
+                    redirect(controller:"welcome", action: "index")
+                }
+                else
+                {
+                    // The user failed to authenticate
+                    // -- Go to the login page but add a message saying that authentication failed
+                    render view: "/login", model: [message: "User or Password is Invalid"]
+                }
+            }
+        
+        
+            private boolean doesUserAuthenticate(String aUsername, String aPassword)
+            {
+                if (aUsername.equalsIgnoreCase("adam"))
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+        
+        
+        }
+
+ 
+ 
+ 2. Add a "Login" page that is displayed [if a user is not logged-in]
+ 
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta name="layout" content="main"/>
+            <title>Login</title>
+        </head>
+        
+        <body>
+            <h2>Login Page</h2>
+        
+            <g:form controller="user">
+                Username: <input type="text" name="username" placeholder="-username-" value=""><br/>
+                Password: <input type="password" name="password" placeholder="-password-" value=""><br/>
+                <g:actionSubmit value="Submit" action="loginAuthenticate"/>
+        
+                <g:if test="${message}">
+                    <br/>
+                    <br/>
+                    ${message}
+                </g:if>
+            </g:form>
+        
+        </body>
+        </html>
+  
+  
+  
+ 3. Add a "Logout" page that is displayed when a user clicks to Logout
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta name="layout" content="main"/>
+            <title>Login</title>
+        </head>
+        
+        <body>
+            <h2>Thank you for using the app</h2>
+        
+            <g:form controller="user">
+                Username: <input type="text" name="username" placeholder="-username-" value=""><br/>
+                Password: <input type="password" name="password" placeholder="-password-" value=""><br/>
+                <g:actionSubmit value="Submit" action="loginAuthenticate"/>
+        
+                <g:if test="${message}">
+                    <br/>
+                    <br/>
+                    ${message}
+                </g:if>
+            </g:form>
+        
+        </body>
+        </html>
+ 
+ 
+ 
+ 4. Add a "Logout" link to your menubar (which calls UserController.logout()
+ 
+      <g:link controller="user" action="logout">
+           <input type="button" value="Logout" class="button"/>
+       </g:link>
+ 
+ 
+ 
+ 5. Adjust filters to verify that a user is logged-in  
+    Edit your grails-app/conf/security/SecurityFilters.groovy
+    NOTE:  We let calls to the UserController proceed without interruption
+    
+        package security
+        
+        import org.slf4j.LoggerFactory
+        import org.slf4j.Logger
+        
+        class SecurityFilters
+        {
+            private static final Logger logger = LoggerFactory.getLogger(SecurityFilters.class)
+        
+            def filters = {
+                all(controller:'*', action:'*') {
+                    before = {
+        
+                        // if current view is error then do nothing
+                        logger.debug("actionName={}  controllerName={}", actionName, controllerName)
+        
+                        String sControllerName = controllerName;
+        
+                        if ((sControllerName != null) &&
+                            ((sControllerName.equalsIgnoreCase("user")) || (sControllerName.equalsIgnoreCase("error"))))
+                        {
+                            // The user is logging-in or logging-out or involved with the errorController
+                            // -- Let these calls proceed
+                            logger.debug("UserController or ErrorController is being called....Proceeding with this request.")
+                        }
+                        else if (! session.username)
+                        {
+                            // The user is not authenticated
+                            logger.debug("User is not authenticated.  Redirect user to the login page.");
+        
+                            // Take the user to the login page
+                            redirect(controller: 'user', action: 'loginScreen')
+        
+                            return false
+                        }
+                        else
+                        {
+                            // The user is already logged-in
+                            // -- Let these calls proceed
+                            logger.debug("User is already authenticated.  Proceeding with this request.");
+                        }
+        
+                    }
+        
+                }
+            }
+        }
+        
+        
+        
+  6. Adjust UrlMappings.groovy
+     so that / takes users to WelcomeController.index()
+     so that any 500 errors take user to ErrorController.index()
+     so that any 404 not-found errors take users to ErrorController.notFound()
+     
+        class UrlMappings {
+        
+            static mappings = {
+                "/$controller/$action?/$id?(.$format)?"{
+                    constraints {
+                        // apply constraints here
+                    }
+                }
+        
+                // By default, take the user to the WelcomeController.index() method
+                // If the user is not logged-in, then the SecurityFilters will redirect the user to the login page
+                "/"   (controller: 'welcome', action: 'index')
+        
+        
+                "500" (controller: "error", action: "index")
+        
+                "404" (controller: "error", action: "notFound")
+            }
+        }
+ 
+ 
+ 
+  7. Add an ErrorController to handle errors and 404-not-found situations
+     NOTE:  The SecurityFilter.groovy does not interfere with calls to the UserController or ErrorController
+     
+        package grailswebappe
+        
+        import org.codehaus.groovy.grails.web.errors.GrailsWrappedRuntimeException
+        import org.slf4j.Logger
+        import org.slf4j.LoggerFactory
+        
+        /**
+         * Created by adam on 10/16/2015.
+         */
+        class ErrorController
+        {
+            private static final Logger logger = LoggerFactory.getLogger(ErrorController.class);
+        
+        
+            /*********************************************************************
+             * index()
+             *
+             * Some kind of internal exception has been raised
+             *  1) Log the exception
+             *  2) Show the error.gsp page [which will display error details]
+             *********************************************************************/
+            def index()
+            {
+                try
+                {
+                    Exception exception = (Exception) request.getAttribute('exception')
+                    if (exception instanceof GrailsWrappedRuntimeException)
+                    {
+                        String sExceptionSummary = "exception in $exception.className, line $exception.lineNumber has thrown $exception.cause"
+                        logger.error(sExceptionSummary, exception);
+                    }
+                }
+                catch (Exception e)
+                {
+                    // ignore any exceptions to prevent infinite loops
+                }
+                finally
+                 {
+                    // Show the error.gsp page
+                    render(view: "/error")
+                }
+            }
+        
+        
+            /*********************************************************************
+             * notFound()
+             *
+             * A 404 not-found error has been raised
+             *  1) Show the /notFound.gsp page
+             *********************************************************************/    
+           def notFound()
+            {
+                // Show the notFound.gsp page
+                render(view: "/notFound")
+            }
+        }
+          
+     
+     
+  8. Add an error.gsp page
+  
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <title><g:if env="development">Grails Runtime Exception</g:if><g:else>Error</g:else></title>
+            </head>
+        
+        <body>
+            <h1>Grails Runtime Exception</h1>
+        
+            <g:link controller="welcome" action="index">
+               Go back to the Application
+            </g:link>
+        
+            <h2>Error Details</h2>
+        
+            <div class="message">
+                <strong>Error ${request.'javax.servlet.error.status_code'}:</strong>
+                ${request.'javax.servlet.error.message'.encodeAsHTML()}<br/>
+                <strong>Servlet:</strong> ${request.'javax.servlet.error.servlet_name'}<br/>
+                <strong>URI:</strong> ${request.'javax.servlet.error.request_uri'}<br/>
+                <g:if test="${exception}">
+                    <strong>Exception Message:</strong> ${exception.message?.encodeAsHTML()} <br/>
+                    <strong>Caused by:</strong> ${exception.cause?.message?.encodeAsHTML()} <br/>
+                    <strong>Class:</strong> ${exception.className} <br/>
+                    <strong>At Line:</strong> [${exception.lineNumber}] <br/>
+                    <strong>Code Snippet:</strong><br/>
+        
+                    <div class="snippet">
+                        <g:each var="cs" in="${exception.codeSnippet}">
+                            ${cs?.encodeAsHTML()}<br/>
+                        </g:each>
+                    </div>
+                </g:if>
+            </div>
+        
+        
+            <g:if test="${exception}">
+                <h2>Stack Trace</h2>
+                <div class="stack">
+                    <pre><g:each in="${exception.stackTraceLines}">${it.encodeAsHTML()}<br/></g:each></pre>
+                </div>
+            </g:if>
+        </body>
+        </html> 
+        
+        
+        
+ 9. Add a notFound.gsp page
+ 
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <title><g:if env="development">Grails Runtime Exception</g:if><g:else>Error</g:else></title>
+            </head>
+        
+        <body>
+            <h1>404 - Not Found</h1>
+        
+            <h2>I could not find the page</h2>
+        
+            <br/>
+        
+            <g:link controller="welcome" action="index">
+               Go back to the Application
+            </g:link>
+        </body>
+        </html>        
+        
+        
+        
+10. Adjust the main layout file  (views/layouts/main.gsp) to stop caching
+    -- This is needed to protect us from the situation in which
+        a. A user logs-in
+        b. A user logs-out
+        c. A user sees the logout page
+        d. A user presses the back button to view pages
+           [instead, the user will be redirected to the login page]
+           
+    -- Add this java code to the top of main.gsp
+    
+        <%
+        // Stop page caching so that logged-out users cannot use the back button to view pages
+        response.setHeader("Cache-Control","no-cache");
+        response.setHeader("Cache-Control","no-store");
+        response.setDateHeader("Expires", 0);
+        response.setHeader("Pragma","no-cache");
+        %>           
