@@ -1,0 +1,273 @@
+How to setup a Connection Pool that Reuses a Single Connection to MS-Access 
+---------------------------------------------------------------------------
+
+Assumptions
+ A) You want to use Eclipse to run/debug your Java JAR
+ B) You want to talk with an MS-Access database
+ C) You want to use a Java datasource but re-use a single connection
+    -- You want to create a connection pool of one connection
+    
+    
+    
+Procedures
+----------
+ 1. Create an empty mysql database located here:
+    c:\temp\db1.mdb
+    Create a table called students
+   
+    a. Startup MS-Access
+    b. Pull File / New...
+    c. Select "Blank Database"
+    d. In the "File New Database" box, type-in:
+       c:\temp\db1.mdb
+       Press "Create"
+      
+    e. Create your "students" table
+       1) Press "Create a table in Design View"
+      
+       2) Add these columns:
+            id          autoNumber   Indexed (No Duplicates)
+            firstName   Text
+            lastName    Text
+            grade       Text
+     
+       3) Right-click on the "id" column, select primary key
+       4) Pull File / Save
+          Table Name:  students
+         
+       5) Pull File / Close
+      
+    f. Enter some data into the "students" data
+       1) Double-click on students
+       2) Enter some data
+       3) Pull File / Close
+      
+      
+      
+ 2. Create a Java JAR Project (in Eclipse)
+    a. Startup Eclipse
+    b. Pull File / New / Project...
+       Select Java Project and press "Next"
+    c. In the "Create a Java Project" screen
+        Project Name:  singleConnection
+        Press "Finish"
+        
+
+
+ 3. Convert your web project into a Maven project        
+    a. Right-click on singleConnection -> Configure -> Convert to Maven Project
+               
+    b. In the next screen
+       Group Id:     com.resnick
+       Artifact Id:  singleConnection
+       Version:      0.0.1-SNAPSHOT
+       Packing:      jar
+       Press Finish
+          
+       NOTE:  This will generate a pom.xml file
+       
+      
+           
+ 4. Add Maven dependencies for Spring-JDBC and Logbck
+    NOTE:  You can copy the <dependency> tags to your pom.xml *OR* 
+           Enter each dependecy one at a time by right-clicking on mywebapp1 -> Maven -> Add Dependency
+
+     a. Click on singleConnectionMsAccess -> Java Resources -> Libraries -> Maven Dependencies
+        NOTE:  You should see nothing
+        
+     b. Add the dependency for the Spring MVC framework
+        Right-click on singleConnection -> Maven -> Add Dependency
+        
+        NOTE:  If no scope is listed here, then use the default scope of "compile"
+
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jdbc</artifactId>
+            <version>4.1.1.RELEASE</version>
+        </dependency>
+    
+
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jdbc</artifactId>
+            <version>4.1.1.RELEASE</version>
+        </dependency>
+
+         <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-core</artifactId>
+            <version>4.1.1.RELEASE</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+                
+               
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.0.13</version>
+        </dependency>
+           
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jcl-over-slf4j</artifactId>
+            <version>1.7.5</version>
+        </dependency>
+            
+         <dependency>
+            <!-- Add the dependency for your ms-access driver -->
+            <groupId>net.sf.ucanaccess</groupId>
+            <artifactId>ucanaccess</artifactId>
+            <version>3.0.1</version>
+        </dependency> 
+                  
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.11</version>
+            <scope>test</scope>
+        </dependency>      
+
+
+
+ 5. Create a logback.xml 
+    a. Right-click on src / main / resources -> New -> Other....
+        Select General -> File
+        Press "Next"
+        Filename:  logback.xml
+        
+    b. Copy this to your logback.xml file
+       WARNING:  You *CANNOT* have leading spaces before <?xml version="1.0"... ?>
+
+        <?xml version="1.0" encoding="windows-1252" ?>
+        <!DOCTYPE project>
+        
+        <configuration debug="false">
+            <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+                <encoder>
+                    <pattern>%d{MM/dd/yyyy HH:mm:ss} %c %m%n</pattern>
+                </encoder>
+            </appender>
+            
+            
+            <logger name="org.springframework" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+            
+            <logger name="stuff" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>   
+            
+            <root level="WARN">
+                <appender-ref ref="CONSOLE"/>
+            </root>
+            
+        </configuration>
+
+        
+
+ 6. Create your UseAccess class
+    a. Right-click on src -> New -> Package
+       Name:  stuff
+       Press "Finish"
+        
+    b. Right-click on stuff -> New -> Class
+       Name: UseAccess
+       Check the checkbox next to "public static void main"
+       Press "Finish"
+        
+       Your UseClass.java file should look like this:
+        
+        package stuff;
+
+        public class UseClass 
+        {
+
+            public static void main(String[] args)
+            {
+                // TODO Auto-generated method stub
+
+            }
+
+        }
+
+
+ 
+        
+ 7. Change the UseClass.java to look like this:
+
+        package stuff;
+        
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.jdbc.core.JdbcTemplate;
+        import org.springframework.jdbc.datasource.SingleConnectionDataSource;
+        
+        public class UseAccess
+        {
+        
+            private static final Logger logger = LoggerFactory.getLogger(UseAccess.class);
+            
+            
+            public static void main(String[] args)
+            {
+                logger.debug("main() started");
+                
+                try
+                {
+                    // Create the data source object
+                    SingleConnectionDataSource sds = (SingleConnectionDataSource) new SingleConnectionDataSource();
+                    
+                    // Initialize the data source by setting its properties
+                    sds.setDriverClassName("net.ucanaccess.jdbc.UcanaccessDriver");
+                    sds.setUrl("jdbc:ucanaccess://C:/temp/db1.mdb");
+        
+                         
+                    JdbcTemplate jt = new JdbcTemplate(sds);
+        
+                    
+                    // Run query #1 -- get number of students
+                    String sSql1 = "Select count(*) from students;";
+                    int iTotalStudents = jt.queryForObject(sSql1, Integer.class);
+                    logger.debug("Total student count is {}", iTotalStudents);
+                                
+                    
+                    // Close the datasource
+                    sds.destroy();
+                
+                }
+                catch (Exception e)
+                {
+                    logger.error("Something bad happened attempting to connect to the database", e);
+                }
+        
+                
+                logger.debug("main() finished");
+            }
+        
+        }
+
+        
+        
+
+    
+ 8. Run your java Application in the debugger
+    a. Set a breakpoint in the main() by double-clicking in the left margin of the file
+    b. Right-click on SingleConnection.java -> Debug As -> Java Application 
+    
+    You should see something like this:
+    10/18/2015 15:55:02 stuff.UseAccess main() started
+    10/18/2015 15:55:02 org.springframework.jdbc.datasource.SingleConnectionDataSource Loaded JDBC driver: net.ucanaccess.jdbc.UcanaccessDriver
+    10/18/2015 15:55:05 org.springframework.jdbc.core.JdbcTemplate Executing SQL query [Select count(*) from students;]
+    10/18/2015 15:55:05 org.springframework.jdbc.datasource.DataSourceUtils Fetching JDBC Connection from DataSource
+    10/18/2015 15:55:05 org.springframework.jdbc.datasource.SingleConnectionDataSource Creating new JDBC DriverManager Connection to [jdbc:ucanaccess://C:/temp/db1.mdb]
+    10/18/2015 15:55:06 org.springframework.jdbc.datasource.SingleConnectionDataSource Established shared JDBC Connection: net.ucanaccess.jdbc.UcanaccessConnection@62bc454f[C:\temp\db1.mdb]
+    10/18/2015 15:55:06 org.springframework.jdbc.datasource.DataSourceUtils Returning JDBC Connection to DataSource
+    10/18/2015 15:55:06 stuff.UseAccess Total student count is 4
+    10/18/2015 15:55:06 stuff.UseAccess main() finished
+
+    

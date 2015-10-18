@@ -1,0 +1,347 @@
+How to setup a Spring Bean Connection Pool with Tomcat 7 to MS Access
+-------------------------------------------------------- ------------
+
+ASSUMPTIONS:
+ A) You want your Tomcat webapp to talk with an MS-Access database
+ B) You want to setup a Tomcat-JDBC connection pool to manage the pool of connections
+ B) You want to store your jdbc properties in a simple property file
+    (and not in context.xml)
+ C) You do no want to use JNDI
+ E) You want your JDBC connection pool to talk with an ms-access database
+
+
+
+Procedures
+----------
+ 1. Create an empty mysql database located here:
+    c:\temp\db1.mdb
+    Create a table called students
+   
+    a. Startup MS-Access
+    b. Pull File / New...
+    c. Select "Blank Database"
+    d. In the "File New Database" box, type-in:
+       c:\temp\db1.mdb
+       Press "Create"
+      
+    e. Create your "students" table
+       1) Press "Create a table in Design View"
+      
+       2) Add these columns:
+            id          autoNumber   Indexed (No Duplicates)
+            firstName   Text
+            lastName    Text
+            grade       Text
+     
+       3) Right-click on the "id" column, select primary key
+       4) Pull File / Save
+          Table Name:  students
+         
+       5) Pull File / Close
+      
+    f. Enter some data into the "students" data
+       1) Double-click on students
+       2) Enter some data
+       3) Pull File / Close
+       
+       
+       
+ 2. Add these dependencies to your webapp's pom.xml
+
+   
+        <dependency>
+            <!-- Add the dependency for your ms-access driver -->
+            <groupId>net.sf.ucanaccess</groupId>
+            <artifactId>ucanaccess</artifactId>
+            <version>3.0.1</version>
+            <scope>compile</scope>
+        </dependency> 
+
+   
+        <dependency>
+            <!-- Add the dependency for the Tomcat JDBC connection pool classes -->
+            <groupId>org.apache.tomcat</groupId>
+            <artifactId>tomcat-jdbc</artifactId>
+            <version>7.0.55</version> 
+            <scope>provided</scope>
+        </dependency> 
+
+  
+  
+        WARNING:  If you use mvn jetty:run to debug your web app, then
+                  You will get a classNotFound exception as jetty does not come with tomcat-jdbc
+                  To solve this, change the tomcat-jdbc to use a scope of compile
+        
+                     <scope>compile</scope>
+
+
+
+
+  
+ 3. Add the accessDataSource bean to your applicationContext.xml    
+
+    <!-- Setup a spring bean that acts as a Connection pool                               -->
+    <!-- NOTE:  Set destroy-method="close" so that Spring will close the connection pool  -->
+    <bean id="accessDataSource" class="org.apache.tomcat.jdbc.pool.DataSource"  destroy-method="close">
+         <property name="driverClassName" value="net.ucanaccess.jdbc.UcanaccessDriver" />
+         <property name="url" value="jdbc:ucanaccess://C:/temp/db1.mdb" />
+    </bean>
+
+
+
+ 4. Add the SpringAppContextUtils class to your project
+    NOTE:  This will be used to get access to spring beans from anywhere within your web app
+
+        package app1.utilities;
+        
+        
+        /**
+         * To work, this line must be in the applicationContext.xml file
+         *    <bean id="applicationContextProvider" class="app1.utilities.SpringAppContextUtils" />
+         * 
+         *  MySpringBean mySpringBean = (MySpringBean) SpringApplicationContext.getBean("mySpringBean");
+         * // do something with MySpringBean
+         * 
+        * Create a class which implements ApplicationContextAware. 
+        * The method, “setApplicationContext(…)” gets called during the creation of this bean
+        * providing the reference to the context. 
+        * 
+        * Our program should store this for a later interaction with the context.
+        */
+        import org.springframework.beans.BeansException;
+        import org.springframework.context.ApplicationContext;
+        import org.springframework.context.ApplicationContextAware;
+        
+        public class SpringAppContextUtils implements ApplicationContextAware
+        {
+             private static ApplicationContext applicationContext = null;
+        
+              public static ApplicationContext getApplicationContext() {
+                  return applicationContext;
+              }
+              
+              public void setApplicationContext(ApplicationContext aApplicationContext) throws BeansException
+              {
+                   // Assign the ApplicationContext into a static variable
+                   applicationContext = aApplicationContext;
+              }
+              
+              
+              public static Object getBean(String aName)
+              {
+                  if (applicationContext == null)
+                  {
+                      throw new RuntimeException("Error in SpringAppContextUtils.getBean().  The applicationContext is null");
+                  }
+                  
+                  return applicationContext.getBean(aName);
+              }
+              
+        }
+
+
+ 5. Setup SpringAppContextUtils so that it has the applicationContext passed into it
+    Add this line to your applicationContext.xml file 
+
+      <bean id="applicationContextProvider" class="app1.utilities.SpringAppContextUtils" />
+  
+ 
+ 
+ 
+
+  At this point, you can get to your datasource bean in one of two ways:
+    a) Use the SpringAppContextUtils.getBean("mysqlDataSource")
+       NOTE:  This will work anywhere in your web application
+         
+       // Get a reference to the accessDataSource bean
+       DataSource accessDataSource = (DataSource) SpringAppContextUtils.getBean("accessDataSource");
+ 
+  
+    b) Inject your spring bean into your class by using
+        @Resource
+        private DataSource accessDataSource
+  
+ 
+ 
+ 
+  
+  
+ 6. Verify that this works 
+           
+    a. Make sure you have this listener in your web.xml
+    
+        
+         <listener>
+            <description>Tell Spring where my application watcher is</description>
+            <listener-class>
+                <!-- NOTE:  This extends Spring's ContextLoaderListener -->
+                app1.utilities.MyApplicationWatcher
+            </listener-class>
+        </listener>
+        
+    
+
+    b. Adjust your MyApplicationWatcher so it looks like this:
+    
+        package app1.utilities;
+        
+        
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.jdbc.core.JdbcTemplate;
+        import org.springframework.web.context.ContextLoaderListener;
+        
+        import javax.servlet.ServletContext;
+        import javax.servlet.ServletContextEvent;
+        import javax.sql.DataSource;
+        
+        public class MyApplicationWatcher extends ContextLoaderListener
+        {
+            private static final Logger logger = LoggerFactory.getLogger(MyApplicationWatcher.class);
+        
+        
+            /*******************************************************************************
+             * contextInitialized()
+             *   1) Verify the connection pool by attempting to run a query
+             *******************************************************************************/
+            @Override
+            public void contextInitialized(ServletContextEvent aServetContextEvent)
+            {
+                // Get a pointer to the ServletContext
+                ServletContext ctx = aServetContextEvent.getServletContext();
+        
+        
+                final String sWebAppName = ctx.getContextPath().substring(1);
+                logger.debug("{} contextInitialized() started.", sWebAppName);
+        
+                try
+                {
+                    // Initialize Spring Context (which creates your spring beans)
+                    super.contextInitialized( aServetContextEvent);
+        
+                    // Verify your connection pool
+                    verifyConnectionPool();
+                }
+                catch (Exception e)
+                {
+                    throw new RuntimeException("Critical Error in contextInitialized().  WEB APP WILL NOT STARTUP.", e);
+                }
+        
+        
+                logger.debug("{} contextInitialized() finished.", sWebAppName);
+            }
+        
+        
+        
+        
+            /*******************************************************************************
+             * verifyConnectionPool()
+             *******************************************************************************/
+            private void verifyConnectionPool() throws Exception
+            {
+                logger.debug("verifyConnectionPool() started");
+        
+                // Get a reference to the accessDataSource bean
+                DataSource accessDataSource = (DataSource) SpringAppContextUtils.getBean("accessDataSource");
+        
+                JdbcTemplate jt = new JdbcTemplate( accessDataSource );
+        
+                final String sSql = "Select count(*) from students";
+        
+                // Run a query -- which initialized the connection pool
+                int iStudentCount = jt.queryForObject(sSql, Integer.class);
+                logger.debug("Student count is {}", iStudentCount);
+        
+                logger.debug("verifyConnectionPool() finished successfully");
+            }
+        
+        }
+        
+        
+        
+
+ 7. Inject your accessDataSource into your WelcomeController class and try to use it
+
+    a) Add this to the top of your WelcomeController class
+    
+        @Resource
+        private DataSource accessDataSource;
+    
+    
+    
+    b) Add this method to your WelcomeController class
+    
+         /**********************************************************************
+         * handleDefaultPage()
+         *
+         * The user browsed to the   http://www.myserver.com/webapp
+         * So, forward the user to   http://www.myserver.com/webapp/forward
+         ***********************************************************************/
+        @RequestMapping("/")
+        public ModelAndView handleDefaultPage( Model aModel )
+        {
+            logger.debug("handleDefaultPage() started");
+    
+            JdbcTemplate jt = new JdbcTemplate( accessDataSource );
+            final String sSql = "Select count(*) from students";
+            int iStudentCount = jt.queryForObject(sSql, Integer.class);
+            logger.debug("studentCount is {}", iStudentCount);
+    
+            // By default, forward users to the /welcome page
+            return new ModelAndView("forward:/popupMenuPageMultiple");
+        }
+ 
+           
+ 
+
+
+
+Move Property Values to their own property file
+-----------------------------------------------
+ 8. Setup a property file in the WAR / WEB-INF / classes  *or* /src/main/resources/
+    a. Create the property file called jdbc.properties
+    b. Copy + Paste this to your property file
+   
+        #
+        # JDBC Connection Pool Properties
+        #
+        jdbc.driverClassName=net.ucanaccess.jdbc.UcanaccessDriver
+        jdbc.url=jdbc:ucanaccess://C:/temp/db1.mdb
+
+
+
+  
+   
+   
+10. Tell Spring to read the values from your property file   
+    Add this to your applicationContext.xml file
+   
+    <!-- Move the data source values to a property file -->
+    <bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+       <property name="locations" value="classpath:jdbc.properties" />
+    </bean>
+    
+    **OR**
+    
+    <!-- Load all files that end with .properties that are found in WAR / WEB-INF / classes -->
+    <context:property-placeholder location="classpath*:*.properties" />
+ 
+
+
+
+
+11. Replace the hard-coded values with variables
+    Your accessDataSource bean should look like this now:
+   
+    <!-- Setup a spring bean that acts as a Connection pool                               -->
+    <!-- NOTE:  Set destroy-method="close" so that Spring will close the connection pool  -->
+    <bean id="accessDataSource" class="org.apache.tomcat.jdbc.pool.DataSource"  destroy-method="close">
+         <property name="driverClassName" value="${jdbc.driverClassName}" />
+         <property name="url" value="${jdbc.url}" />
+    </bean>
+
+
+
+12. Verify that it works
+
+
