@@ -1,0 +1,278 @@
+How to setup a Connection Pool that Reuses a Single Connection 
+--------------------------------------------------------------
+
+Assumptions
+  A) You want your java app to talk with a MySql database
+  B) You want to use a Java datasource but re-use a single connection
+    -- You want to create a connection pool of one connection
+
+    
+    
+Procedures
+----------
+1. Create a Java JAR Project (in Eclipse)
+    a) Startup Eclipse
+    b) Pull File / New / Project...
+       Select Java Project and press "Next"
+    c) In the "Create a Java Project" screen
+        Project Name:  singleConnection
+        Press "Finish"
+        
+        
+2. Convert your web project into a Maven project        
+    a) Right-click on singleConnection -> Configure -> Convert to Maven Project
+               
+    b) In the next screen
+       Group Id:     com.resnick
+       Artifact Id:  singleConnection
+       Version:      0.0.1-SNAPSHOT
+       Packing:      jar
+       Press Finish
+          
+       NOTE:  This will generate a pom.xml file
+       
+           
+3. Add Maven dependencies for Spring-JDBC and Logbck
+   NOTE:  You can copy the <dependency> tags to your pom.xml *OR* 
+          Enter each dependecy one at a time by right-clicking on mywebapp1 -> Maven -> Add Dependency
+
+     a) Click on singleConnection -> Java Resources -> Libraries -> Maven Dependencies
+        NOTE:  You should see nothing
+        
+     b) Add the dependency for the Spring MVC framework
+        Right-click on singleConnection -> Maven -> Add Dependency
+        
+        NOTE:  If no scope is listed here, then use the default scope of "compile"
+
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jdbc</artifactId>
+            <version>4.1.1.RELEASE</version>
+        </dependency>
+    
+        <!-- Spring Core -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-core</artifactId>
+            <version>4.1.1.RELEASE</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+                
+            
+     c) Add the dependencies for logging (part 1)
+        Right-click on mywebapp1 -> Maven -> Add Dependency         
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.0.13</version>
+        </dependency>
+            
+     d) Add the dependencies for sending log4j logging to logback (part 2)
+        Right-click on mywebapp1 -> Maven -> Add Dependency         
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jcl-over-slf4j</artifactId>
+            <version>1.7.5</version>
+        </dependency>
+    
+      e) Add the dependencies for connecting to a MySql database
+        Right-click on mywebapp1 -> Maven -> Add Dependency          
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>5.1.6</version>
+        </dependency>
+
+
+4. Create a classes/ directory (that will be added to the classpath)
+    a) Right-click on singleConnection -> New -> Folder
+        Folder name:  classes
+    
+    b) Right-click on classes -> Build Path -> Use as source folder
+
+    c) Right-click on classes -> New -> Other....
+        Select General -> File
+        Press "Next"
+        
+        Filename:  logback.xml
+        
+    c) Copy this to your logback.xml file
+
+        <?xml version="1.0" encoding="windows-1252" ?>
+        <!DOCTYPE project>
+        
+        <configuration debug="true">
+            <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+                <encoder>
+                    <pattern>%d{MM/dd/yyyy HH:mm:ss} %c %m%n</pattern>
+                </encoder>
+            </appender>
+            
+            
+            <logger name="org.springframework" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+            
+            <logger name="stuff" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>   
+            
+            <root level="WARN">
+                <appender-ref ref="CONSOLE"/>
+            </root>
+            
+        </configuration>
+
+        
+
+5. Create your SingleConnection class
+    a) Right-click on src -> New -> Package
+        Name:  stuff
+        Press "Finish"
+        
+    b) Right-click on stuff -> New -> Class
+        Name: SingleConnection
+        Check the checkbox next to "public static void main"
+        Press "Finish"
+        
+        Your SingleConnection.java file should look like this:
+        
+        package stuff;
+
+        public class SingleConnection 
+        {
+
+            public static void main(String[] args)
+            {
+                // TODO Auto-generated method stub
+
+            }
+
+        }
+
+
+    c) Change your SingleConnection.java to this:
+    
+
+        package stuff;
+
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+
+        public class SingleConnection 
+        {
+            public static final Logger logger = LoggerFactory.getLogger(SingleConnection.class);
+            
+            public static void main(String[] args) 
+            {
+                logger.debug("main() started");
+                
+                logger.debug("main() finished");
+            }
+
+        }
+
+    
+    
+6.  Try running your program to make sure logging works
+        a) Set a breakpoint in the main() by double-clicking in the left margin of the file
+        b) Right-click on SingleConnection.java -> Debug As -> Java Application
+
+        
+7. Change the main() method to look like this:
+
+    public static void main(String[] args) 
+    {
+        logger.debug("main() started");
+        
+        try
+        {
+            // Create the data source object
+            SingleConnectionDataSource sds = (SingleConnectionDataSource) new SingleConnectionDataSource();
+            
+            // Initialize the data source by setting its properties
+            sds.setDriverClassName("com.mysql.jdbc.Driver");
+            sds.setUrl("jdbc:mysql://localhost:3306/world?autoReconnect=true");
+            sds.setUsername("root");
+            sds.setPassword("secret");
+        
+            
+            
+            // Run query #1 -- get database time in default format
+            JdbcTemplate jt = new JdbcTemplate(sds);
+            String sSql1 = "Select now()";
+            String sDatabaseTime = jt.queryForObject(sSql1, String.class);  
+            logger.debug("Database Time is {}", sDatabaseTime);
+                        
+            
+            // Have the program wait for 2 seconds
+            logger.debug("Sleeping for 2 seconds\n\n");
+            Thread.sleep(2000);                            
+          
+            
+            // Run query #2 -- get database time with some formatting
+            String sSql2 = "Select date_format( now(), '%d/%m/%Y %H:%i:%s')  ";
+            String sDatabaseTime2 = jt.queryForObject(sSql2, String.class);
+            logger.debug("Database Time is {}", sDatabaseTime2);
+                        
+            
+            
+            // Close the datasource
+            sds.destroy();
+        
+        }
+        catch (Exception e)
+        {
+            logger.error("Something bad happened attempting to connect to the database", e);
+        }
+
+        
+        logger.debug("main() finished");
+    }
+        
+        
+8. Startup your mysql database
+    a) Press <Start><Run>Services.msc
+    b) Look for MySQL56 or something like that
+    c) Right-click on your Mysql Service -> Start
+    
+
+
+9. Verify that your SQL is good
+    a) Startup mysql workbench
+    b) Select "Local Instance"
+    c) In the Query1 window, type-in this:
+        select now();
+        
+    d) Press Control-Enter to execute the query
+
+    
+    
+10. Run your java Application in the debugger
+    a) Set a breakpoint in the main() by double-clicking in the left margin of the file
+    b) Right-click on SingleConnection.java -> Debug As -> Java Application 
+    
+    You should see something like this:
+        06/02/2015 20:52:42 stuff.SingleConnection main() started
+        06/02/2015 20:52:42 org.springframework.jdbc.datasource.SingleConnectionDataSource Loaded JDBC driver: com.mysql.jdbc.Driver
+        06/02/2015 20:52:42 org.springframework.jdbc.core.JdbcTemplate Executing SQL query [Select now()]
+        06/02/2015 20:52:42 org.springframework.jdbc.datasource.DataSourceUtils Fetching JDBC Connection from DataSource
+        06/02/2015 20:52:42 org.springframework.jdbc.datasource.SingleConnectionDataSource Creating new JDBC DriverManager Connection to [jdbc:mysql://localhost:3306/world?autoReconnect=true]
+        06/02/2015 20:52:42 org.springframework.jdbc.datasource.SingleConnectionDataSource Established shared JDBC Connection: com.mysql.jdbc.JDBC4Connection@3a0d2766
+        06/02/2015 20:52:42 org.springframework.jdbc.datasource.DataSourceUtils Returning JDBC Connection to DataSource
+        06/02/2015 20:52:42 stuff.SingleConnection Database Time is 2015-06-02 20:52:42.0
+        
+        06/02/2015 20:52:42 stuff.SingleConnection Sleeping for 2 seconds
+        
+        06/02/2015 20:52:44 org.springframework.jdbc.core.JdbcTemplate Executing SQL query [Select date_format( now(), '%d/%m/%Y %H:%i:%s')  ]
+        06/02/2015 20:52:44 org.springframework.jdbc.datasource.DataSourceUtils Fetching JDBC Connection from DataSource
+        06/02/2015 20:52:44 org.springframework.jdbc.datasource.DataSourceUtils Returning JDBC Connection to DataSource
+        06/02/2015 20:52:44 stuff.SingleConnection Database Time is 02/06/2015 20:52:44
+        06/02/2015 20:52:44 stuff.SingleConnection main() finished
+
+    
