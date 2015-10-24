@@ -1,0 +1,146 @@
+How to Add OpenLayer Map to a Web Page
+--------------------------------------
+
+Assumptions
+ 1) You have the openLayers 3.10.1 js and css loaded on your page
+    -- e.g., your application.js, has something like this:
+               //= require openLayers-3.10.1/ol-debug.js
+            
+             your application.css has something like this:
+               *= require openLayers-3.10.1/ol.css
+
+
+
+
+Procedures
+----------
+ 1. Add an action to your WelcomeController.groovy called map2()
+ 
+    def map2()
+    {
+        render view: "/welcome/map2"
+    }
+ 
+ 
+ 
+ 2. Add a map1.gsp page to your views
+    a. Create this file:  grails-app / views / welcome / map2.gsp
+    
+    b. Copy this to your map2.gsp
+    
+         
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta name="layout" content="main"/>
+            <title>map2</title>
+        
+            <style>
+                #map {
+                   height: 400px;
+                   width: 80%;
+                   margin-left: 10%;
+                   margin-right: 10%;
+                }
+            </style>
+        </head>
+        
+        <body>
+            <h2>My Map #2 - Centered on Instanbul</h2>
+        
+            <div id="map" class="map"></div>
+        
+        
+            <!-- Clicking on a different location causes the map to change -->
+            <select name="selectedLocation" id="selectedLocation" onclick="panToLocation(this.value)">
+                <option value="istanbul" SELECTED=selected>Istanbul</option>
+                <option value="london">London</option>
+                <option value="moscow">Moscow</option>
+                <option value="rome">Rome</option>
+            </select>
+        
+        
+        
+              <asset:script type="text/javascript">
+                   var londonCoordinates = ol.proj.transform([-0.12755, 51.507222], 'EPSG:4326', 'EPSG:3857');
+                   var moscowCoordinates = ol.proj.transform([37.6178, 55.7517], 'EPSG:4326', 'EPSG:3857');
+                   var istanbulCoordinates = ol.proj.transform([28.9744, 41.0128], 'EPSG:4326', 'EPSG:3857');
+                   var romeCoordinates = ol.proj.transform([12.5, 41.9], 'EPSG:4326', 'EPSG:3857');
+        
+                    <!-- Setup a hash of location coordinates -->
+                    var hshLocations = {};
+                    hshLocations['london']   = londonCoordinates;
+                    hshLocations['moscow']   = moscowCoordinates;
+                    hshLocations['istanbul'] = istanbulCoordinates;
+                    hshLocations['rome'] = romeCoordinates;
+        
+                    var view;
+                    var map;
+        
+        
+        
+                    function panToLocation(aLocationName)
+                    {
+                      var coordinates = hshLocations[aLocationName];
+        
+                      var pan = ol.animation.pan( {
+                         duration: 1000,
+                         source:  /** @type {ol.Coordinate} */ (view.getCenter())
+                      });
+        
+                        map.beforeRender(pan);
+                        view.setCenter(coordinates);
+                    }
+        
+        
+                   function initializeMap(aLocationName)
+                    {
+                       var coordinates = hshLocations[aLocationName];
+        
+                        view = new ol.View({
+                          // the view's initial state
+                          center: coordinates,
+                          zoom: 5
+                        });
+        
+                       map = new ol.Map({
+                         layers: [
+                           new ol.layer.Tile({
+                             preload: 4,
+                             source: new ol.source.OSM()
+                           })
+                         ],
+        
+                         // Improve user experience by loading tiles while animating. Will make
+                         // animations stutter on mobile or slow devices.
+                         loadTilesWhileAnimating: true,
+                         target: 'map',
+                         controls: ol.control.defaults({
+                           attributionOptions: /** @type {olx.control.AttributionOptions} */ ({
+                             collapsible: false
+                           })
+                         }),
+                         view: view
+                       });
+                 }
+        
+        
+                 $(document).ready(function()
+                  {
+                      initializeMap('istanbul');
+                  });
+        
+              </asset:script>
+        </body>
+        </html>
+ 
+ 
+ 
+ 3. Verify it works:
+    a. Open a browser
+    b. Connect this url:
+       http://localhost:8080/grailsWebAppE/welcome/map2
+       
+       -- You should see a map on the page
+       
+       
