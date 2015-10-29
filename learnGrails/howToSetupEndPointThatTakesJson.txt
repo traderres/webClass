@@ -1,0 +1,105 @@
+How to Setup a Grails End Point that Expects JSON
+-------------------------------------------------
+
+Suppose a user will pass-in JSON to your end point like this:
+
+POST to http://localhost:8080/myWebApp/stuff/add
+contents:
+  {
+      "name":  "some item"
+      "isActive" false
+  }
+  
+
+
+BE CAREFUL!!  Checking for json?.isActive on boolean fields is risky
+              It is safer to use json.get("isActive")
+              
+
+Procedures
+----------
+Update your StuffController class
+ a) Verify that the JSON is valid
+ b) Convert the JSON into a model
+ c) Pass in the model into your service layer
+ 
+
+ 
+  def add()
+  {
+    try
+    {
+       if (! isJsonValid(request.JSON))
+       {
+          return
+       }
+      
+      // Convert the JSON into a view model
+      MyViewModel myViewModel = getViewModelFromJson(request.JSON)
+      
+      // Call my service with the view model
+      myService.add(myViewModel);
+      
+    }
+    catch (Exception e)
+     {
+       logger.error("Something bad happened in add()", e);
+       
+       // Tell the caller that something bad happened
+       render(status: 500, text: "I did not add this item:\n" + e.toString())
+    }  
+     
+  }
+  
+  
+  private boolean isJsonValid(def aJson)
+  {
+     if (! aJson) 
+     {
+        render(status: 500, text: "You did not pass any JSON in")
+        return false
+     }
+     
+    if (aJson.get("name") == null)
+    {
+       // There is no name field
+       render(status: 500, text:  "You did not provide a name field in your JSON")
+       return false
+    }
+    
+    if (aJson.get("isActive") == null)
+    {
+       // There is no isActive field
+       render(status: 500, text:  "You did not provide an isActive field in your JSON")
+    }
+    
+    if (! isStringTrueOrFalse(aJson.isActive)
+    {
+       // The user provided an isActive string but it is not either true or false
+       render(status: 500, text:  "You provided an isActive value but it should be either true or false")
+    }
+    
+    return true;
+    }
+    
+    
+private boolean isStringTrueOrFalse(def aString)
+{
+   if (aString == null) 
+   {
+     return false;
+   }
+     
+  String str = String.valueOf(aString)
+  
+  if ( (str.equalsIgnoreCase("true")) || (str.equalsIgnoreCase("false")))
+  {
+     // This string holds either "true" or "false"
+     return true;
+  }
+  else
+  {
+     // This string holds something else
+     return false; 
+  }
+}
