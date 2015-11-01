@@ -12,15 +12,12 @@ References
 https://jawr.java.net/
 https://jawr.java.net/integration/spring.html
 
-
-INCOMPELTE -- fails when javr.debug.on=false
-              works when javr.debug.on=true
+NOTE:  
 
 
 
-
-A P P R O A C H   # 1:  Use the jawr servlet
---------------------------------------------
+P A R T   # 1:  Setup a bundle to hold jquery, bootstrap, angular, and dataTables.net JS
+----------------------------------------------------------------------------------------
  1. Add this to your pom.xml
  
     <dependency>
@@ -31,10 +28,11 @@ A P P R O A C H   # 1:  Use the jawr servlet
    
 
    
- 2. Add the jawr servlet to your web.xml
+ 2. Add the jawr servlet to your web.xml (to hanlde JS bundles)
     
-    <servlet>
-        <servlet-name>JavascriptServlet</servlet-name>
+     <servlet>
+         <!-- Setup JAWR Servlet to bundle JS Files -->
+        <servlet-name>JawrServletForJs</servlet-name>
         <servlet-class>net.jawr.web.servlet.JawrServlet</servlet-class>
         <init-param>
             <param-name>configLocation</param-name>
@@ -48,34 +46,39 @@ A P P R O A C H   # 1:  Use the jawr servlet
     </servlet>
 
     <servlet-mapping>
-        <servlet-name>JavascriptServlet</servlet-name>
+        <servlet-name>JawrServletForJs</servlet-name>
         <url-pattern>*.js</url-pattern>
-    </servlet-mapping>
-    
-    
-    
+    </servlet-mapping>  
+   
+
+   
 3. Create this file:  jawr.properties 
    a. Right-click on src/main/resources -> new -> File
       Enter file name:  jawr.properties
       
+        ####################################################################################
         #
         # jawr.properties
         #
+        # Set jawr.debug.on=true  and files are *not* bundled   (development mode)
+        # Set jawr.debug.on=false and files are bundled         (production mode)
+        ####################################################################################
         jawr.debug.on=false
         jawr.gzip.on=false
         jawr.strict.mode=true
+        
+        jawr.use.bundle.mapping=true
         
         # Define a bundle that holds jQuery, bootstrap, Angular, DataTales.net  (jbad)
         # NOTE:  The bundle id must end with .js
         jawr.js.bundle.jbad.id=/id/jquery.boostrap.angular.datatables.js
         jawr.js.bundle.jbad.mappings=/resources/jquery-1.11.3/jquery-1.11.3.min.js,/resources/bootstrap-3.3.4/js/bootstrap.min.js,/resources/angular-1.3.16/angular.min.js,/resources/DataTables-1.10.9/media/js/jquery.dataTables.min.js
+   
 
-
-
+   
  4. Edit your layout.jsp
     a. Add this to the top of layout.jsp:
          <%@ taglib prefix="jwr"    uri="http://jawr.net/tags"  %>
-    
     
     
     b. Remove these from the bottom:
@@ -97,11 +100,10 @@ A P P R O A C H   # 1:  Use the jawr servlet
     c. Add this instead: 
     
         <%-- L O A D    J A V A S C R I P T     B U N D L E            --%>
-        <jwr:script src="/id/jquery.boostrap.angular.datatables.js" />
-        
-         
-        
-    
+        <jwr:script src="/id/jquery.boostrap.angular.datatables.js" />        
+   
+
+   
   5. Verify it works:
      a) Startup the webapp using
         DOS> mvn clean install cargo:run
@@ -118,4 +120,66 @@ A P P R O A C H   # 1:  Use the jawr servlet
         
           
 
+P A R T   # 2:  Setup a bundle to hold jquery, bootstrap, angular, and dataTables.net CSS
+-----------------------------------------------------------------------------------------
+ 6. Add the SCCS compiler dependency 
+ 
+    <dependency>
+      <groupId>com.vaadin</groupId>
+      <artifactId>vaadin-sass-compiler</artifactId>
+      <version>0.9.12</version>
+    </dependency>
+   
+
+   
+ 7. Add this to your web.xml
+ 
+    <servlet>
+        <!-- Setup JAWR Servlet to bundle CSS Files -->
+        <servlet-name>JawrServletForCSS</servlet-name>
+        <servlet-class>net.jawr.web.servlet.JawrServlet</servlet-class>
+        <init-param>
+            <param-name>configLocation</param-name>
+            <param-value>/jawr.properties</param-value>
+        </init-param>
+        <init-param>
+            <param-name>type</param-name>
+            <param-value>css</param-value>
+        </init-param>
+        <load-on-startup>0</load-on-startup>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>JawrServletForCSS</servlet-name>
+        <url-pattern>*.css</url-pattern>
+    </servlet-mapping>
+   
+
+   
+ 7. Adjust your layout.jsp
+    a. Remove these from your layout.jsp
+        <%-- Load Bootstrap CSS --%>
+        <link href="${contextPath}/resources/bootstrap-3.3.4/css/bootstrap.min.css" rel="stylesheet" media="screen">
+
+        <%-- Load Bootstrap CSS Themes --%>
+        <link href="${contextPath}/resources/bootstrap-3.3.4/css/bootstrap-theme.min.css" rel="stylesheet" media="screen">
+        
+        <%-- Load DataTables CSS Themes --%>
+        <link rel="stylesheet" href="${contextPath}/resources/DataTables-1.10.9/media/css/jquery.dataTables.min.css?compile=false"  />
+
+
+    b. Add this to your jawr.properties
+        <%-- I N S E R T       C S S     B U N D L E     --%>
+        <jwr:style src="/id/jquery.boostrap.angular.datatables.css"/>
+   
+
+   
+ 8. Add this to your jawr.properties
+
+        # Define a CSS bundle
+        jawr.css.bundle.jbad_css.id=/id/jquery.boostrap.angular.datatables.css
+        jawr.css.bundle.jbad_css.mappings=/resources/bootstrap-3.3.4/css/bootstrap.min.css,/resources/bootstrap-3.3.4/css/bootstrap-theme.min.css,/resources/DataTables-1.10.9/media/css/jquery.dataTables.min.css
+    
+
+   
     
