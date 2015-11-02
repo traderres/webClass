@@ -13,8 +13,31 @@ Procedures
     a. Press <Start><Run>Command Prompt -> Right-click on Command Prompt -> Run as administrator*
     b. In the DOS window, type-in this:
        DOS> net start mysql56
+ 
+ 
+ 
+ 2. Set your JDBC connection pool so that it should have an initial size of 5
+    Where ever you define initialSize --> set it to 5
     
- 2. Query the database to see the number of open connections
+    <!-- Setup a spring bean that acts as a Connection pool                               -->
+    <!-- NOTE:  Set destroy-method="close" so that Spring will close the connection pool  -->
+    <bean id="mysqlDataSource" class="org.apache.tomcat.jdbc.pool.DataSource"  destroy-method="close">
+        <property name="driverClassName"         value="com.mysql.jdbc.Driver"/>
+        <property name="url"                     value="jdbc:mysql://127.0.0.1:3306/world"  />
+        <property name="username"                value="root" />
+        <property name="password"                value="secret" />
+        <property name="initialSize"             value="5" />
+        <property name="maxActive"               value="15" />
+        <property name="removeAbandoned"         value="true" />
+        <property name="removeAbandonedTimeout"  value="60000" />
+        <property name="validationQuery"         value="select now() "/>
+        <property name="validationQueryTimeout"  value="30000" />
+        <property name="validationInterval"      value="30000" />
+    </bean>
+    
+ 
+ 
+ 2. Query the database to see the number of open connections *before* starting up web app
     a. Run Mysql Workbench
     b. Connect to you Mysql database
     c. Run this SQL:
@@ -22,29 +45,41 @@ Procedures
        SQL> SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST; 
        
        You should see this:
-       
-       2   root    localhost:49189 world   Sleep   56      
-       3   root    localhost:49190 world   Query   0   executing   SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
+        2  root    localhost:49189 world   Sleep   383     
+        3  root    localhost:49190 world   Query   0   executing   SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST LIMIT 0, 1000
  
  
  
-  3. Startup your webapp on Tomcat
+  3. Startup your webapp in Tomcat
   
   
   
   4. Query the database to see the number of open connections 
      SQL> SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST; 
-  
-      2   root    localhost:49189 world   Sleep   11      
-      3   root    localhost:49190 world   Query   0   executing   SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
-      4   root    localhost:49257 world   Sleep   4       
+        2  root    localhost:49189 world   Sleep   39      
+        3   root    localhost:49190 world   Query   0   executing   SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST LIMIT 0, 1000
+        15  root    localhost:49411 world   Sleep   9       
+        16  root    localhost:49412 world   Sleep   9       
+        19  root    localhost:49415 world   Sleep   9       
+        18  root    localhost:49414 world   Sleep   9       
+        17  root    localhost:49413 world   Sleep   9             
       
-      
+     NOTE:  There are 5 sleeping connections to be used by the connection pool
+     
+     
   
   
   5. Use the Tomcat Manager to *stop* your webapp
   
   
+  
   6. Run the query again
      SQL> SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST; 
  
+     You should see this:
+      2  root    localhost:49189 world   Sleep   383     
+      3  root    localhost:49190 world   Query   0   executing   SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST LIMIT 0, 1000
+ 
+ 
+    -- This proves that the web application releases database connections on web app stop
+    
