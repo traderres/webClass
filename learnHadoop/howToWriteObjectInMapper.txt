@@ -1,15 +1,128 @@
 How to Write an Object in a Mapper Class
 ----------------------------------------
 
+Assumptions:
+ A) You have an Employee class that has info you want to 
+    transmit from the mapper to the reducer
 
-INCOMPLETE
-
+ B) You have an Employee class that has getters and setters
+ 
 
 Procedure
 ---------
  1. Create a class that you want to write from your Mapper to your Reducer
+    In this case, we will extend the Employee class *and* implement Writable
  
- 2. Make sure your class implements Writable
+    package com.whatever;
+    
+    import org.apache.hadoop.io.Writable;
+    
+    import java.io.DataInput;
+    import java.io.DataOutput;
+    import java.io.IOException;
+    
+    /**
+     * Created by adam on 11/3/2015.
+     */
+    public class EmployeeWritable extends Employee implements Writable
+    {
+    
+    
+        @Override
+        public void write(DataOutput aDataOutput) throws IOException
+        {
+            aDataOutput.writeInt(this.getId());
+            aDataOutput.writeUTF(this.getFirstName());
+            aDataOutput.writeUTF(this.getMiddleName());
+            aDataOutput.writeUTF(this.getLastName());
+        }
+    
+        @Override
+        public void readFields(DataInput aDataOutput) throws IOException
+        {
+            this.setId(aDataOutput.readInt());
+            this.setFirstName(aDataOutput.readUTF());
+            this.setMiddleName(aDataOutput.readUTF());
+            this.setLastName(aDataOutput.readUTF());
+        }
+    }
  
  
- 
+ 2. Setup your Job configuration
+    
+    Adjust your driver so that the output value class is your writable
+         job.setOutputValueClass(EmployeeWritable.class);
+    
+    
+    
+    
+ 3. Adjust your Mapper class so that the VALUEOUT class is your writable
+    
+        //  M A P P E R       C L A S S
+        public static class MyMapper extends Mapper<LongWritable, Text, Text, EmployeeWritable>
+         {
+    
+    
+         }
+         
+     
+         
+  4. Make sure your MyMapper.map() method performs a context write
+     
+        public void map(LongWritable aKey, Text aValue, Context aContext) throws IOException, InterruptedException
+        {
+            try {
+                String sEmployeeXml = aValue.toString();
+
+                // Convert the XML into an Employee object
+                final JAXBContext jaxbContext = JAXBContext.newInstance(Employee.class);
+                Unmarshaller unmarshaller = jaxbContext.createUnmarshaller();
+                StringReader reader = new StringReader(sEmployeeXml);
+                final Employee employee = (Employee) unmarshaller.unmarshal(reader);
+
+
+                // Create an EmployeeWritable object (that will be serialized by hadoop)
+                EmployeeWritable employeeW = new EmployeeWritable();
+                employeeW.setId(employee.getId());
+                employeeW.setFirstName(employee.getFirstName());
+                employeeW.setMiddleName(employee.getMiddleName());
+                employeeW.setLastName(employee.getLastName());
+
+                aContext.write(new Text(String.valueOf(employee.getId())),
+                              employeeW);
+            }
+            catch (Exception e)
+            {
+                RuntimeException re = new RuntimeException("Exception raised in MyMapper.map", e);
+                re.setStackTrace(e.getStackTrace() );
+                throw re;
+            }
+        }
+        
+        
+        
+        
+  4. Adjust your Reducer class so that the VALUEIN class is your writable
+    
+      //  R E D U C E R       C L A S S
+      public static class MyReducer extends Reducer<Text,EmployeeWritable,Text,Text>
+
+   
+   
+   
+  5. Adjust your MyReducer.reduce() so that it gets the Writable object
+  
+        /*************************************************************************
+         * reduce()
+         *************************************************************************/
+        public void reduce(Text aKey, Iterable<EmployeeWritable> aValues, Context aContext) throws IOException, InterruptedException
+        {
+
+            for (EmployeeWritable employeeW: aValues)
+            {
+                logger.debug("employeeW.firstName={}", employeeW.getFirstName());
+
+                aContext.write(aKey, new Text(employeeW.getFirstName()));
+            }
+        }
+   
