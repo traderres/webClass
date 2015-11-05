@@ -291,21 +291,120 @@ Procedures
 
     
 14. Move the plain-text JDBC settings (in applicationContext.xml) to a property file
-    INCOMPLETE
-    
     a. Create a springMvcWebAppE.properties file here:
        /src/main/resources/springMvcWebAppE.properties
-       
-    b. Copy this to the new property file:
     
-    c. Replace the mysqlDataSource bean with this:
+    
+    b. Copy this to the new property file:
+        ##################################################################
+        # springMvcWebAppE.properties
+        #
+        ##################################################################
+        
+        # JDBC Driver Settings
+        jdbc.driverClassName=com.mysql.jdbc.Driver
+        jdbc.url=jdbc:mysql://127.0.0.1:3306/world
+        jdbc.username=root
+        jdbc.password=secret
+        jdbc.initialSize=1
+        jdbc.maxActive=15
+        jdbc.removeAbandoned=true
+        jdbc.removeAbandonedTimeout=60000
+        jdbc.validationQuery=select now()
+        jdbc.validationQueryTimeout=30000
+        jdbc.validationInterval=30000    
+        
+        
+    c. Add this spring bean to your applicationContext.xml
+        <!-- Setup a spring bean to hold all of the properties in springMvcWebAppE.properties  -->
+        <bean id="myProps" class="org.springframework.beans.factory.config.PropertiesFactoryBean">
+            <property name="locations" value="classpath:springMvcWebAppE.properties" />
+        </bean>
+
+    
+    d. Verify that this is found in applicationContext.xml
+          <context:property-placeholder location="classpath*:*.properties" />
+       NOTE:  This lets us use ${jdbc.url} variables by pulling those values from all files that end with .properties in the classpath
+              
+    
+    e. Replace the "mysqlDataSource" spring bean with this:
+       <!-- Setup a spring bean that acts as a Connection pool                               -->
+       <!-- NOTE:  Set destroy-method="close" so that Spring will close the connection pool  -->
+       <bean id="mysqlDataSource" class="org.apache.tomcat.jdbc.pool.DataSource"  destroy-method="close">
+         <property name="driverClassName"         value="${jdbc.driverClassName}"        />
+         <property name="url"                     value="${jdbc.url}"                    />
+         <property name="username"                value="${jdbc.username}"               />
+         <property name="password"                value="${jdbc.password}"               />
+         <property name="initialSize"             value="${jdbc.initialSize}"            />
+         <property name="maxActive"               value="${jdbc.maxActive}"              />
+         <property name="removeAbandoned"         value="${jdbc.removeAbandoned}"        />
+         <property name="removeAbandonedTimeout"  value="${jdbc.removeAbandonedTimeout}" />
+         <property name="validationQuery"         value="${jdbc.validationQuery}"        />
+         <property name="validationQueryTimeout"  value="${jdbc.validationQueryTimeout}" />
+         <property name="validationInterval"      value="${jdbc.validationInterval}"     />
+       </bean>  
        
-    c. Verify it works
+       
+    f. Verify that you can pull property values out using code:
+       1) Add this to your MyApplicationWatcher class
+       
+        /*******************************************************************************
+         * verifyPropertyValues()
+         *******************************************************************************/
+        private void verifyPropertyValues() throws Exception
+        {
+            // Get a reference to the "myProps" spring bean
+            Properties myProps = (Properties) SpringAppContextUtils.getBean("myProps");
+    
+            String sJdbcUrl = (String) myProps.getProperty("jdbc.url");
+            logger.debug("sJdbcUrl={}", sJdbcUrl);
+    
+            if (sJdbcUrl == null)
+            {
+                throw new RuntimeException("Error in verifyPropertyValues:  This value was not found:  jdbc.url");
+            }
+        }
+        
+       
+       2) Change the contextInitialized to this
+         
+       public void contextInitialized( ServletContextEvent aContextEvent )
+        {
+            // Get the name of the web application
+            final String sWebAppName = aContextEvent.getServletContext().getContextPath().substring(1);
+    
+            logger.debug("{} contextInitialized() started", sWebAppName);
+    
+    
+            try
+            {
+                // I N I T I A T E      S P R I N G       C O N T E X T
+                super.contextInitialized(aContextEvent);
+    
+                // Verify that I can get property values
+                verifyPropertyValues();
+    
+                // Do additional tests
+                verifyConnectionPool();
+            }
+            catch (Exception e)
+            {
+                logger.error("{} WILL NOT STARTUP", sWebAppName);
+    
+                // Throw a runtime exception so that this webapp will *not* startup
+                RuntimeException runtimeException = new RuntimeException(e);
+                runtimeException.setStackTrace(e.getStackTrace());
+                throw runtimeException;
+            }
+    
+            logger.debug("{} contextInitialized() finished", sWebAppName);
+        }
+    
 
 
     
 15. Encode the JDBC settings within the springMvcWebAppE.properties file
-    INCOMPLETE     
+    [see howToEncryptPropertyValues.txt]     
 
 
     
