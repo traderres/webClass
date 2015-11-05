@@ -348,58 +348,57 @@ Procedures
     f. Verify that you can pull property values out using code:
        1) Add this to your MyApplicationWatcher class
        
-        /*******************************************************************************
-         * verifyPropertyValues()
-         *******************************************************************************/
-        private void verifyPropertyValues() throws Exception
-        {
-            // Get a reference to the "myProps" spring bean
-            Properties myProps = (Properties) SpringAppContextUtils.getBean("myProps");
-    
-            String sJdbcUrl = (String) myProps.getProperty("jdbc.url");
-            logger.debug("sJdbcUrl={}", sJdbcUrl);
-    
-            if (sJdbcUrl == null)
+            /*******************************************************************************
+             * verifyPropertyValues()
+             *******************************************************************************/
+            private void verifyPropertyValues() throws Exception
             {
-                throw new RuntimeException("Error in verifyPropertyValues:  This value was not found:  jdbc.url");
+                // Get a reference to the "myProps" spring bean
+                Properties myProps = (Properties) SpringAppContextUtils.getBean("myProps");
+        
+                String sJdbcUrl = (String) myProps.getProperty("jdbc.url");
+                logger.debug("sJdbcUrl={}", sJdbcUrl);
+        
+                if (sJdbcUrl == null)
+                {
+                    throw new RuntimeException("Error in verifyPropertyValues:  This value was not found:  jdbc.url");
+                }
             }
-        }
         
        
-       2) Change the contextInitialized to this
-         
-       public void contextInitialized( ServletContextEvent aContextEvent )
-        {
-            // Get the name of the web application
-            final String sWebAppName = aContextEvent.getServletContext().getContextPath().substring(1);
-    
-            logger.debug("{} contextInitialized() started", sWebAppName);
-    
-    
-            try
+       2) Change the contextInitialized so that it calls verifyPropertyValues() *after* the spring context is initialized
+       
+           public void contextInitialized(ServletContextEvent aContextEvent)
             {
-                // I N I T I A T E      S P R I N G       C O N T E X T
-                super.contextInitialized(aContextEvent);
-    
-                // Verify that I can get property values
-                verifyPropertyValues();
-    
-                // Do additional tests
-                verifyConnectionPool();
+                // Get the name of the web application
+                final String sWebAppName = aContextEvent.getServletContext().getContextPath().substring(1);
+        
+                logger.debug("{} contextInitialized() started", sWebAppName);
+        
+                try
+                {
+                    // I N I T I A T E      S P R I N G       C O N T E X T
+                    super.contextInitialized(aContextEvent);
+        
+                    // Verify that I can get property values
+                    verifyPropertyValues();
+        
+                    // Do additional tests
+                    verifyConnectionPool();
+                }
+                catch (Exception e)
+                {
+                    logger.error("{} WILL NOT STARTUP", sWebAppName);
+        
+                    // Throw a runtime exception so that this webapp will *not* startup
+                    RuntimeException runtimeException = new RuntimeException(e);
+                    runtimeException.setStackTrace(e.getStackTrace());
+                    throw runtimeException;
+                }
+        
+                logger.debug("{} contextInitialized() finished", sWebAppName);
             }
-            catch (Exception e)
-            {
-                logger.error("{} WILL NOT STARTUP", sWebAppName);
-    
-                // Throw a runtime exception so that this webapp will *not* startup
-                RuntimeException runtimeException = new RuntimeException(e);
-                runtimeException.setStackTrace(e.getStackTrace());
-                throw runtimeException;
-            }
-    
-            logger.debug("{} contextInitialized() finished", sWebAppName);
-        }
-    
+        
 
 
 
