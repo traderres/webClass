@@ -1,0 +1,176 @@
+How to Create a Global Exception Handler for Spring MVC Web App
+---------------------------------------------------------------
+
+Suppose you want to create an exception handler that will do two things:
+ 1) Log the exception
+ 2) If the web app is making an ajax call,
+       then set a status to 500 and return the message
+    Otherwise
+       Forward the user to an error.jsp page
+ 
+ 
+Procedure
+---------
+ 1. Setup a MyExceptionHandler class 
+    a. Right-click on src/main/java/app1/utilities -> New -> Java Class
+       Name:  MyExceptionHandler
+    
+    b. Copy this to your new MyExceptionhandler class
+    
+        package app1.utilities;
+        
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.web.bind.annotation.ControllerAdvice;
+        import org.springframework.web.bind.annotation.ExceptionHandler;
+        
+        import javax.servlet.ServletException;
+        import javax.servlet.http.HttpServletRequest;
+        import javax.servlet.http.HttpServletResponse;
+        import java.io.IOException;
+        
+        /**
+         * Created by adam on 11/7/2015.
+         */
+        
+        @ControllerAdvice
+        public class MyExceptionHandler
+        {
+            private static final Logger logger = LoggerFactory.getLogger(MyExceptionHandler.class);
+        
+            /************************************************************************
+             * handleException()
+             *
+             * This is the Global Exception Handler
+             ************************************************************************/
+            @ExceptionHandler( Exception.class )
+            public void handleException( Exception aException,
+                                         HttpServletRequest aRequest,
+                                         HttpServletResponse aResponse) throws ServletException, IOException
+            {
+                // Log the error
+                logger.error("Exception raised", aException);
+        
+                if (isThisRequestFromAnAjaxCall(aRequest))
+                {
+                    // A J A X     C A L L    F A I L E D
+        
+                    // set content type to XML
+                    aResponse.setContentType("text/xml");
+        
+                    // Set the status to internal server error
+                    aResponse.setStatus( HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        
+                    // Write the exception message to the output stream
+                    aResponse.getOutputStream().print( aException.getMessage() );
+                }
+                else
+                {
+                    // H T M L    C A L L     F A I L E D
+        
+                    // Set the ${message} so that it will be displayed in error.jsp
+                    aRequest.setAttribute( "message", aException.toString() + "<br/>" + aException.getMessage() );
+        
+                    // Forward the user to the error.jsp
+                    aRequest.getRequestDispatcher( "/WEB-INF/jsp/error.jsp").forward(aRequest, aResponse);
+                }
+            }
+        
+        
+            /************************************************************************
+             * isThisRequestFromAnAjaxCall()
+             *
+             * Look at the headers in the Request object to determine if this request
+             * if an AJAX call or regular call
+             *
+             * Returns TRUE if aRequest has the 'X-Requested-With' header with value of XMLHttpRequest
+             * Returns FALSE otherwise
+             ************************************************************************/
+            private boolean isThisRequestFromAnAjaxCall(HttpServletRequest aRequest)
+            {
+                boolean bRequestIsAjaxCall = false;
+        
+                String sxRequestedHeaderValue = aRequest.getHeader("X-Requested-With");
+        
+                if ((sxRequestedHeaderValue != null) && (sxRequestedHeaderValue.equalsIgnoreCase("XMLHttpRequest")))
+                {
+                    // This is an AJAX call
+                    bRequestIsAjaxCall = true;
+                }
+        
+                return(bRequestIsAjaxCall);
+            }
+        
+        }
+
+
+    
+    
+ 
+ 2. Create a JSP:  error.jsp
+    Create this file here:  /src/main/webapp/WEB-INF/jsp/error.jsp
+    
+    <html>
+    
+    <head>
+        <title>Error</title>
+    </head>
+    
+    <body>
+        <h2>Ooops!  This is embarrasing.</h2>
+    
+        <%-- Display the Error Message --%>
+        <br/>
+        ${message}
+    
+        <br/>
+        <br/>
+        <a href="${contextPath}" title="Go back to the main page">Click here to start over</a>
+        <br/>
+        <br/>
+    
+    </body>
+    </html>
+ 
+ 
+ 
+ 3. Test it by throwing a RuntimeException in one of your controllers
+ 
+    a. Add this to your WelcomeController.java
+    
+        /**********************************************************************
+         * simulateError()
+         *
+         * The user browsed to the /error page
+         * -- Throw a RuntimeException
+         ***********************************************************************/
+        @RequestMapping("/error")
+        public ModelAndView simulateError( Model aModel )
+        {
+            logger.debug("simulateError() started");
+    
+            // Create a modelAndView object
+            ModelAndView mav = new ModelAndView();
+    
+            // Show the welcome.jsp page
+            mav.setViewName("welcome.jsp");
+    
+            int x=5;
+    
+            if (x==5)
+            {
+                // Throw a runtime exception
+                throw new RuntimeException("Something bad happened");
+            }
+    
+    
+            logger.debug("simulateError() finished");
+            return mav;
+        }
+        
+        
+        
+      b. Add a link to the welcome.jsp
+      
+            <h2><a href="${contextPath}/error">Simulate an Error</a></h2>
+      
