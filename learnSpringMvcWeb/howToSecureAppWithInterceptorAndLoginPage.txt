@@ -124,12 +124,24 @@ Procedure
                 {
                     // I did not find this item in the session -- so store the default value
                     sessionValue = aDefaultValue;
-                    storeDataInSession(aKey, sessionValue);
                 }
         
                 return(sessionValue);
             }
         
+        
+            /****************************************************************************************
+             * clearSession()
+             *****************************************************************************************/
+            public static void clearSession()
+            {
+                // Get a reference to the request object
+                ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+                HttpServletRequest request = servletRequestAttributes.getRequest();
+        
+                // Kill the session
+                request.getSession().invalidate();
+            }
         }
 
  
@@ -142,10 +154,8 @@ Procedure
         package app1.utilities;
         
         import app1.model.UserInfo;
-        import org.slf4j.Logger;
-        import org.slf4j.LoggerFactory;
+        import org.springframework.web.servlet.HandlerMapping;
         import org.springframework.web.servlet.handler.HandlerInterceptorAdapter;
-        
         import javax.servlet.http.HttpServletRequest;
         import javax.servlet.http.HttpServletResponse;
         
@@ -155,7 +165,6 @@ Procedure
          */
         public class MySecurityInterceptor extends HandlerInterceptorAdapter
         {
-            private static final Logger logger = LoggerFactory.getLogger(MySecurityInterceptor.class);
         
             /*******************************************************************************
              * preHandle()
@@ -163,63 +172,31 @@ Procedure
             @Override
             public boolean preHandle(HttpServletRequest aRequest, HttpServletResponse aResponse, Object aHhandler) throws Exception
             {
-                // If user is on the error.jsp or login.jsp page, then continue
-                // INCOMPLETE
-                
-             
-                // Attempt to get the userInfo information from the session
-                UserInfo userInfo = MySessionUtilities.getUserInfo();
+                // If this is the error page or login page, then continue
+                String sRequestUrl = (String) aRequest.getAttribute( HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
         
-                if (userInfo == null)
+                if ((! sRequestUrl.equalsIgnoreCase("/error")) &&
+                    (! sRequestUrl.equalsIgnoreCase("/")) &&
+                    (! sRequestUrl.equalsIgnoreCase("/login")) &&
+                    (! sRequestUrl.equalsIgnoreCase("/authenticate")))
                 {
-                    // User is not logged-in.  Authenticate the user and if authenticated, create a new session
-                    String sUsername = "Adam";
-                    logger.info("{} connected", sUsername);
+                    // The user is visiting a page that does involve login, authenticate, or error
+                    // Attempt to get the userInfo information from the session
+                    UserInfo userInfo = MySessionUtilities.getUserInfo();
         
-                    // Get a userinfo object from the user's name
-                    userInfo = authenticateUserWithUsername(sUsername);
-        
-                    if ((userInfo != null) && (userInfo.getIsAuthenticated() ))
+                    if (userInfo == null)
                     {
-                        // This user *is* authenticated.  So, store the userInfo object in the session
-                        MySessionUtilities.setUserInfo(userInfo);
-                        logger.info("{} successfully logged-in.", sUsername);
-                        return true;
+                        // User is going to a non-protected page and is not logged.  Redirect the user to the /login page
+                        String sRedirectUrl = aRequest.getContextPath() + "/login";
+                        aResponse.sendRedirect(sRedirectUrl);
+                        return false;
                     }
-                    else
-                    {
-                        // This user is not authenticated -- redirect the user to the error.jsp
-                        logger.info("{} failed to login.", sUsername);
-        
-                        // Set the message attribute so it will be displayed in the error.jsp
-                        aRequest.setAttribute("message", "I'm sorry, but you are not authorized to use this web app");
-        
-                        // Forward the user to the error.jsp page
-                        aRequest.getRequestDispatcher("/WEB-INF/jsp/error.jsp").forward(aRequest, aResponse);
-        
-                        // Return false to indicate that execution does not continue normally
-                        return(false);
-                    }
-        
                 }
         
-                return true;
+               return true;
             }
         
         
-            /*******************************************************************************
-             * authenticateUserWithUsername()
-             ********************************************************************************/
-            private UserInfo authenticateUserWithUsername(String aUsername)
-            {
-                UserInfo userInfo = new UserInfo();
-        
-                userInfo.setUserName(aUsername);
-        
-                // The real authenticator would be here
-                userInfo.setIsAuthenticated(true);
-                return(userInfo);
-            }
         }
 
 
@@ -234,7 +211,11 @@ Procedure
         <mvc:interceptors>
             <mvc:interceptor>
                 <!-- Make sure that the MySecurityInterceptor class is called for all URLs -->
-                <mvc:mapping path="/**"/>
+                <mvc:mapping path="/**"   />
+    
+                <!-- The MySecurityInterceptor class allows resource to JS, CSS to proceed -->
+                <mvc:exclude-mapping path="/resources/**" />
+    
                 <bean class="app1.utilities.MySecurityInterceptor" />
             </mvc:interceptor>
         </mvc:interceptors>
@@ -243,56 +224,115 @@ Procedure
  
  5. Adjust the WelcomeController by adding these methods:
 
-     
-        /**********************************************************************
-         * loginPage()
-         ***********************************************************************/
-        @RequestMapping("/login")
-        public ModelAndView loginPage( Model aModel )
-        {
-            logger.debug("loginPage() started");
-    
-            // Create a modelAndView object
-            ModelAndView mav = new ModelAndView();
-    
-            // Show the welcome.jsp page
-            mav.setViewName("login.jsp");
-    
-            logger.debug("loginPage() finished");
-            return mav;
-        }
-    
-    
-        /**********************************************************************
-         * authenticate()
-         ***********************************************************************/
-        @RequestMapping("/authenticate")
-        public ModelAndView authenticate( Model aModel )
-        {
-            logger.debug("authenticate() started");
-    
-            // Authenticate the user
-    
-            // Create a modelAndView object
-            ModelAndView mav = new ModelAndView();
-    
-            // Show the welcome.jsp page
-            mav.setViewName("welcome.jsp");
-    
-            // Create a userInfo object
-            UserInfo userInfo = MySessionUtilities.getUserInfo();
-    
-            // Add the userInfo information to the view
-            mav.addObject("userInfo", userInfo);
-    
-            logger.debug("authenticate() finished");
-            return mav;
-        }
+   /**********************************************************************
+     * handleDefaultPage()
+     *
+     * The user browsed to the   http://www.myserver.com/webapp
+     * So, forward the user to   http://www.myserver.com/webapp/welcome
+     ***********************************************************************/
+    @RequestMapping("/")
+    public ModelAndView handleDefaultPage( Model aModel )
+    {
+        logger.debug("handleDefaultPage()");
+
+        // By default, forward users to the /welcome page
+        return new ModelAndView("forward:/welcome");
+    }
+
+
+
+    /**********************************************************************
+     * mainPage()
+     *
+     * The user browsed to the /welcome page
+     *  1) Get a userinfo object setup
+     *  2) Forward the user to the welcome.jsp page
+     ***********************************************************************/
+    @RequestMapping(value="/welcome")
+    public ModelAndView mainPage( Model aModel )
+    {
+        logger.debug("mainPage() started");
+
+        // Create a modelAndView object
+        ModelAndView mav = new ModelAndView();
+
+        // Show the welcome.jsp page
+        mav.setViewName("welcome.jsp");
+
+        // Create a userInfo object
+        UserInfo userInfo = new UserInfo();
+        userInfo.setUserName("Adam");
+        userInfo.setIsAdministrator(true);
+
+        // Add the userInfo information to the view
+        mav.addObject("userInfo", userInfo);
+
+        logger.debug("mainPage() finished");
+        return mav;
+    }
+
+    /**********************************************************************
+     * loginPage()
+     * -- Show the login page
+     ***********************************************************************/
+    @RequestMapping(value="/login")
+    public ModelAndView loginPage( Model aModel )
+    {
+        logger.debug("loginPage() started");
+
+        // Create a modelAndView object
+        ModelAndView mav = new ModelAndView();
+
+        // Show the welcome.jsp page
+        mav.setViewName("login.jsp");
+
+        logger.debug("loginPage() finished");
+        return mav;
+    }
+
+
+    /**********************************************************************
+     * authenticate()
+     * -- The user pressed the "Login" button
+     ***********************************************************************/
+    @RequestMapping(value="/authenticate", method=RequestMethod.POST)
+    public ModelAndView authenticate( @ModelAttribute("loginForm") LoginForm aLoginForm, Model aModel )
+    {
+        logger.debug("authenticate() started");
+
+        // Attempt to authenticate the user
+
+        // Get a userinfo object from the user's name
+        UserInfo userInfo = authenticateUserWithUsername(aLoginForm.getUsername());
+
+        // This user *is* authenticated.  So, store the userInfo object in the session
+        MySessionUtilities.setUserInfo(userInfo);
+
+        // Redirect the user to the welcome page (so the url changes from /authenticate to /welcome )
+        return new ModelAndView("redirect:/welcome");
+    }
+
+
+    /*******************************************************************************
+     * authenticateUserWithUsername()
+     ********************************************************************************/
+    private UserInfo authenticateUserWithUsername(String aUsername)
+    {
+        UserInfo userInfo = new UserInfo();
+
+        userInfo.setUserName(aUsername);
+
+        // The real authenticator would be here
+        userInfo.setIsAuthenticated(true);
+        return(userInfo);
+    }
+
  
  
   6. Create a login.jsp page
      Clicking "Login" will call the /authenticate method passing in the username and password
      NOTE:  the WelcomeController.authenticate() method will 
+
         <%-- Include Core taglib and set contextPath --%>
         <%@ include file="/WEB-INF/jsp/stdJspIncludes.jsp" %>
         
@@ -305,191 +345,48 @@ Procedure
         <body>
             <h2>login.jsp</h2>
         
+                <form:form action="authenticate" method="post" commandName="loginForm">
+                    Username: <input type="text" name="username" placeholder="-username-" value=""><br/>
+                    Password: <input type="password" name="password" placeholder="-password-" value=""><br/>
+                    <input type="submit" value="Login" />
+                </form:form>
         
-        
-        
-        
-            <br/>
-            <br/>
-        
-        </body>
-        </html>
-
- 
-  7. Adjust the 
-          
-       
- Add a UserController with loginScreen() and logout() methods
-    NOTE:  The SecurityFilter.groovy does not interfere with calls to the UserController or ErrorController
-    NOTE:  This authenticator lets login succeed if the username is "adam"
-           
- 
-        package grailswebappe
-        
-        import org.slf4j.Logger
-        import org.slf4j.LoggerFactory
-        
-        /**
-         * Created by adam on 10/16/2015.
-         */
-        class UserController
-        {
-            private static final Logger logger = LoggerFactory.getLogger(ErrorController.class);
-        
-        
-            /***************************************************************************
-             * logoutScreen()
-             *
-             * Show the logout page
-             ****************************************************************************/
-            def logoutScreen()
-            {
-                logger.debug("logoutScreen() started");
-        
-                // Forward the user to the logout.gsp page
-                render view: "/logout"
-            }
-        
-        
-            /***************************************************************************
-             * logout()
-             *
-             * The user clicked on the "Logout" button in the menubar
-             *  1) Terminate the session
-             *  2) Redirect the user to the logout page
-             ****************************************************************************/
-            def logout()
-            {
-                logger.debug("logout() started.  session.id about to die is {}", session?.id)
-        
-                // End the session
-                session.invalidate()
-        
-                // Redirect the user to the logout page
-                redirect(controller: 'user', action: 'logoutScreen')
-            }
-        
-        
-            /***************************************************************************
-             * loginScreen()
-             *
-             * Show the login page
-             ****************************************************************************/
-            def loginScreen()
-            {
-                logger.debug("loginScreen() started");
-        
-                // Forward the user to the login.gsp page
-                render view: "/login"
-            }
-        
-        
-            /***************************************************************************
-             * loginAuthenticate()
-             *
-             * The user clicked on the "Login" button on the /login.gsp page
-             *  1) Verify that username and password were provided
-             *  2) Authenticate
-             *  3) If authentication passes, then redirect to the welcome controller
-             *     Else, forward the user back to the page
-             ****************************************************************************/
-            def loginAuthenticate()
-            {
-                logger.debug("loginAuthenticate() started");
-        
-                String sUsername = params.username;
-                String sPassword = params.password;
-        
-                // Authenticate
-                boolean bUserAuthenticated = doesUserAuthenticate(sUsername, sPassword);
-                if (bUserAuthenticated)
-                {
-                    // The user authenticated
-        
-                    // Start a new session
-                    logger.debug("N E W     S E S S I O N     session.id={}", session.id);
-                    session.username = sUsername;
-        
-                    // Redirect to the welcome page
-                    redirect(controller:"welcome", action: "index")
-                }
-                else
-                {
-                    // The user failed to authenticate
-                    // -- Go to the login page but add a message saying that authentication failed
-                    render view: "/login", model: [message: "User or Password is Invalid"]
-                }
-            }
-        
-        
-            private boolean doesUserAuthenticate(String aUsername, String aPassword)
-            {
-                if (aUsername.equalsIgnoreCase("adam"))
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-        
-        
-        }
-
- 
- 
- 2. Add a "Login" page that is displayed [if a user is not logged-in]
- 
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta name="layout" content="main"/>
-            <title>Login</title>
-        </head>
-        
-        <body>
-            <h2>Login Page</h2>
-        
-            <g:form controller="user">
-                Username: <input type="text" name="username" placeholder="-username-" value=""><br/>
-                Password: <input type="password" name="password" placeholder="-password-" value=""><br/>
-                <g:actionSubmit value="Submit" action="loginAuthenticate"/>
-        
-                <g:if test="${message}">
+                <c:if test="${message}">
                     <br/>
                     <br/>
                     ${message}
-                </g:if>
-            </g:form>
+                </c:if>
+            <br/>
+            <br/>
         
         </body>
         </html>
+ 
+ 
   
-  
-  
- 3. Add a "Logout" page that is displayed when a user clicks to Logout
-        <!DOCTYPE html>
+ 7. Create a logout.jsp page
+    Add a "Logout" page that is displayed when a user clicks to Logout
+ 
+        <%-- Include Core taglib and set contextPath --%>
+        <%@ include file="/WEB-INF/jsp/stdJspIncludes.jsp" %>
+        
         <html>
+        
         <head>
-            <meta name="layout" content="main"/>
-            <title>Login</title>
+            <title>Logout Page</title>
         </head>
         
         <body>
-            <h2>Thank you for using the app</h2>
+             <h2>Thank you for using the app</h2>
         
-            <g:form controller="user">
-                Username: <input type="text" name="username" placeholder="-username-" value=""><br/>
-                Password: <input type="password" name="password" placeholder="-password-" value=""><br/>
-                <g:actionSubmit value="Submit" action="loginAuthenticate"/>
-        
-                <g:if test="${message}">
-                    <br/>
-                    <br/>
-                    ${message}
-                </g:if>
-            </g:form>
+                <form:form action="authenticate" method="post" commandName="loginForm">
+                    Username: <input type="text" name="username" placeholder="-username-" value=""><br/>
+                    Password: <input type="password" name="password" placeholder="-password-" value=""><br/>
+                    <input type="submit" value="Login" />
+                </form:form>
+
+            <br/>
+            <br/>
         
         </body>
         </html>
@@ -497,242 +394,39 @@ Procedure
  
  
  
- 4. Add a "Logout" capability (which calls UserController.logout()
+ 8. Add a "Logout" capability (which calls WelcomeController.logout()
     
-    a. Add a "Logout" button to your /views/welcome/index.gsp page
+    a. Add a "Logout" button to your welcome.jsp
+          <h2><a href="${contextPath/logout">Logout</a></h2>
+ 
     
-       <g:link controller="user" action="logout">
-           <input type="button" value="Logout" class="button"/>
-       </g:link>
- 
- 
-    b. Add a "Logout" button to your menubar (in /views/layouts/main.gsp)
-       Change the "Logout" link to this
-       
-       <li><g:link controller="user" action="logout"><span class="glyphicon glyphicon-off"></span>Logout</g:link></li>
-  
- 
- 
- 
- 5. Adjust SecurityFilters to do several things:
-    -- Do not interfere with requests to the ErrorController [so that errors are displayed]
-    -- Do not interfere with requests to the UserController [so that requests to login or logout work properly]
-    -- Check all other requests.  If users are not logged-in, then redirect those users to the "login" page
+    b. Add a WelcomeController.logout() method
         
-    Edit your grails-app/conf/security/SecurityFilters.groovy
-    
-        package security
-        
-        import org.slf4j.LoggerFactory
-        import org.slf4j.Logger
-        
-        class SecurityFilters
+        /**********************************************************************
+         * logout()
+         ***********************************************************************/
+        @RequestMapping(value="/logout")
+        public ModelAndView logoutPage( Model aModel )
         {
-            private static final Logger logger = LoggerFactory.getLogger(SecurityFilters.class)
-        
-            def filters = {
-                all(controller:'*', action:'*') {
-                    before = {
-        
-                        // if current view is error then do nothing
-                        logger.debug("actionName={}  controllerName={}", actionName, controllerName)
-        
-                        String sControllerName = controllerName;
-        
-                        if ((sControllerName != null) &&
-                            ((sControllerName.equalsIgnoreCase("user")) || (sControllerName.equalsIgnoreCase("error"))))
-                        {
-                            // The user is logging-in or logging-out or involved with the errorController
-                            // -- Let these calls proceed
-                            logger.debug("UserController or ErrorController is being called....Proceeding with this request.")
-                        }
-                        else if (! session.username)
-                        {
-                            // The user is not authenticated
-                            logger.debug("User is not authenticated.  Redirect user to the login page.");
-        
-                            // Take the user to the login page
-                            redirect(controller: 'user', action: 'loginScreen')
-        
-                            return false
-                        }
-                        else
-                        {
-                            // The user is already logged-in
-                            // -- Let these calls proceed
-                            logger.debug("User is already authenticated.  Proceeding with this request.");
-                        }
-        
-                    }
-        
-                }
-            }
+            logger.debug("logoutPage() started");
+    
+            // Clear the session
+            MySessionUtilities.clearSession();
+    
+            // Create a modelAndView object
+            ModelAndView mav = new ModelAndView();
+    
+            // Show the welcome.jsp page
+            mav.setViewName("logout.jsp");
+    
+            logger.debug("logoutPage() finished");
+            return mav;
         }
         
-        
-        
-  6. Adjust UrlMappings.groovy
-     so that / takes users to WelcomeController.index()
-     so that any 500 errors take user to ErrorController.index()
-     so that any 404 not-found errors take users to ErrorController.notFound()
-     
-        class UrlMappings {
-        
-            static mappings = {
-                "/$controller/$action?/$id?(.$format)?"{
-                    constraints {
-                        // apply constraints here
-                    }
-                }
-        
-                // By default, take the user to the WelcomeController.index() method
-                // If the user is not logged-in, then the SecurityFilters will redirect the user to the login page
-                "/"   (controller: 'welcome', action: 'index')
-        
-        
-                "500" (controller: "error", action: "index")
-        
-                "404" (controller: "error", action: "notFound")
-            }
-        }
  
- 
- 
-  7. Add an ErrorController to handle errors and 404-not-found situations
-     NOTE:  The SecurityFilter.groovy does not interfere with calls to the UserController or ErrorController
-     
-        package grailswebappe
-        
-        import org.codehaus.groovy.grails.web.errors.GrailsWrappedRuntimeException
-        import org.slf4j.Logger
-        import org.slf4j.LoggerFactory
-        
-        /**
-         * Created by adam on 10/16/2015.
-         */
-        class ErrorController
-        {
-            private static final Logger logger = LoggerFactory.getLogger(ErrorController.class);
         
         
-            /*********************************************************************
-             * index()
-             *
-             * Some kind of internal exception has been raised
-             *  1) Log the exception
-             *  2) Show the error.gsp page [which will display error details]
-             *********************************************************************/
-            def index()
-            {
-                try
-                {
-                    Exception exception = (Exception) request.getAttribute('exception')
-                    if (exception instanceof GrailsWrappedRuntimeException)
-                    {
-                        String sExceptionSummary = "exception in $exception.className, line $exception.lineNumber has thrown $exception.cause"
-                        logger.error(sExceptionSummary, exception);
-                    }
-                }
-                catch (Exception e)
-                {
-                    // ignore any exceptions to prevent infinite loops
-                }
-                finally
-                 {
-                    // Show the error.gsp page
-                    render(view: "/error")
-                }
-            }
-        
-        
-            /*********************************************************************
-             * notFound()
-             *
-             * A 404 not-found error has been raised
-             *  1) Show the /notFound.gsp page
-             *********************************************************************/    
-           def notFound()
-            {
-                // Show the notFound.gsp page
-                render(view: "/notFound")
-            }
-        }
-          
-     
-     
-  8. Add an error.gsp page
-  
-        <!DOCTYPE html>
-        <html>
-            <head>
-                <title><g:if env="development">Grails Runtime Exception</g:if><g:else>Error</g:else></title>
-            </head>
-        
-        <body>
-            <h1>Grails Runtime Exception</h1>
-        
-            <g:link controller="welcome" action="index">
-               Go back to the Application
-            </g:link>
-        
-            <h2>Error Details</h2>
-        
-            <div class="message">
-                <strong>Error ${request.'javax.servlet.error.status_code'}:</strong>
-                ${request.'javax.servlet.error.message'.encodeAsHTML()}<br/>
-                <strong>Servlet:</strong> ${request.'javax.servlet.error.servlet_name'}<br/>
-                <strong>URI:</strong> ${request.'javax.servlet.error.request_uri'}<br/>
-                <g:if test="${exception}">
-                    <strong>Exception Message:</strong> ${exception.message?.encodeAsHTML()} <br/>
-                    <strong>Caused by:</strong> ${exception.cause?.message?.encodeAsHTML()} <br/>
-                    <strong>Class:</strong> ${exception.className} <br/>
-                    <strong>At Line:</strong> [${exception.lineNumber}] <br/>
-                    <strong>Code Snippet:</strong><br/>
-        
-                    <div class="snippet">
-                        <g:each var="cs" in="${exception.codeSnippet}">
-                            ${cs?.encodeAsHTML()}<br/>
-                        </g:each>
-                    </div>
-                </g:if>
-            </div>
-        
-        
-            <g:if test="${exception}">
-                <h2>Stack Trace</h2>
-                <div class="stack">
-                    <pre><g:each in="${exception.stackTraceLines}">${it.encodeAsHTML()}<br/></g:each></pre>
-                </div>
-            </g:if>
-        </body>
-        </html> 
-        
-        
-        
- 9. Add a notFound.gsp page
- 
-        <!DOCTYPE html>
-        <html>
-            <head>
-                <title><g:if env="development">Grails Runtime Exception</g:if><g:else>Error</g:else></title>
-            </head>
-        
-        <body>
-            <h1>404 - Not Found</h1>
-        
-            <h2>I could not find the page</h2>
-        
-            <br/>
-        
-            <g:link controller="welcome" action="index">
-               Go back to the Application
-            </g:link>
-        </body>
-        </html>        
-        
-        
-        
-10. Adjust the main layout file  (views/layouts/main.gsp) to stop caching
+ 9. Adjust the main layout file  (/src/main/webapp/WEB-INF/jsp/layout.jsp) to stop caching
     -- This is needed to protect us from the situation in which
         a. A user logs-in
         b. A user logs-out
@@ -740,14 +434,43 @@ Procedure
         d. A user presses the back button to view pages
            [instead, the user will be redirected to the login page]
            
-    -- Add this java code to the top of main.gsp
+    Change your MySecurityInterceptor.java to this:
     
-        <%
-        // Stop page caching so that logged-out users cannot use the back button to view pages
-        response.setHeader("Cache-Control","no-cache");
-        response.setHeader("Cache-Control","no-store");
-        response.setDateHeader("Expires", 0);
-        response.setHeader("Pragma","no-cache");
-        %>      
+        /*******************************************************************************
+         * preHandle()
+         ********************************************************************************/
+        @Override
+        public boolean preHandle(HttpServletRequest aRequest, HttpServletResponse aResponse, Object aHhandler) throws Exception
+        {
+            // If this is the error page or login page, then continue
+            String sRequestUrl = (String) aRequest.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
+    
+            if ((! sRequestUrl.equalsIgnoreCase("/error")) &&
+                (! sRequestUrl.equalsIgnoreCase("/")) &&
+                (! sRequestUrl.equalsIgnoreCase("/login")) &&
+                (! sRequestUrl.equalsIgnoreCase("/authenticate")))
+            {
+                // The user is visiting a page that does involve login, authenticate, or error
+                // Attempt to get the userInfo information from the session
+                UserInfo userInfo = MySessionUtilities.getUserInfo();
+    
+                if (userInfo == null)
+                {
+                    // User is going to a non-protected page and is not logged.  Redirect the user to the /login page
+                    String sRedirectUrl = aRequest.getContextPath() + "/login";
+                    aResponse.sendRedirect(sRedirectUrl);
+                    return false;
+                }
+            }
+    
+            // Prevent the case in which a user logs-out and then hits the back button to back to secure pages
+            aResponse.setHeader("Cache-Control","no-cache");
+            aResponse.setHeader("Cache-Control","no-store");
+            aResponse.setDateHeader("Expires", 0);
+            aResponse.setHeader("Pragma","no-cache");
+    
+           return true;
+        }
+    
         
              
