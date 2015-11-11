@@ -323,16 +323,77 @@ Procedures
     
 
    
-20. Externalize the web app's property file
+20. Externalize the web app's property file (so it is not packaged inside the springMvcWebAppE.war)
     a. Create a src/main/config/ directory
-    b. Copy /src/main/resources/springMvcWebAppE.properties to /src/main/config/
-    c. Copy your springMvcWebAppE.properties to your <Tomcat-Home>/lib
-    d. Deploy your /springMvcWebAppE.war to your Tomcat
-       -- It should pick up the property file properly
-       
-    e. Now, change a value in the <Tomcat-Home>/lib//springMvcWebAppE.properties
-    f. Use the Tomcat manager webapp to stop and start the /springMvcWebAppE.war
-    g. Your webapp should pickup the property change
+    b. Move /src/main/resources/springMvcWebAppE.properties to /src/main/config/
+   
+    Now, when you run mvn install, your springMvcWebAppE.war will *not* contain springMvcWebAppE.properties  
+
+    PROBLEM:  You want your war file to not include the property file *and*
+              You want mvn cargo:run command to *use* your property file
+              
+    SOLUTION: Tell cargo to copy the property file to it's own Tomcat/lib directory
+              Add this little section to the Cargo maven-plugin configuration
+                <files>
+                  <file>
+                    <file>${basedir}/src/main/config/springMvcWebAppE.properties</file>
+                    <todir>lib</todir>
+                  </file>
+                </files>
+    
+      So, your <plugins>...</plugins> section should look like this:
+      
+            <plugins>
+              <plugin>
+                <!-- Setup the Cargo plugin -->
+                <groupId>org.codehaus.cargo</groupId>
+                <artifactId>cargo-maven2-plugin</artifactId>
+                <version>1.4.16</version>
+                <configuration>
+                  <container>
+                    <!-- Tell Cargo to use the installed Tomcat7 located in <home>...</home> -->
+                    <containerId>tomcat7x</containerId>
+                    <type>installed</type>
+                    <home>C:/tools/apache-tomcat-7.0.55</home>
+                  </container>
+                  <configuration>
+                    <properties>
+                      <!-- Have Cargo pass-in the debug parameters to the target -->
+                      <cargo.jvmargs>
+                        -Xdebug
+                        -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5005
+                        -Xnoagent
+                        -Djava.compiler=NONE
+                        -Dlogback.configurationFile=C:\tools\logging\logbackConsole.xml
+                        -Dnet.jawr.debug.on=true
+                       </cargo.jvmargs>
+                      <cargo.logging>medium</cargo.logging>
+                    </properties>
+        
+                    <files>
+                      <file>
+                        <!-- For local debugging only:  Copy the property file to Cargo's tomcat/lib/ directory -->
+                        <file>${basedir}/src/main/config/springMvcWebAppE.properties</file>
+                        <todir>lib</todir>
+                      </file>
+                    </files>
+        
+                  </configuration>
+                </configuration>
+        
+                <executions>
+                  <execution>
+                    <id>run</id>
+                    <goals>
+                      <goal>run</goal>
+                    </goals>
+                  </execution>
+                </executions>
+        
+              </plugin>
+            </plugins>
+        
+    
     
 
     
