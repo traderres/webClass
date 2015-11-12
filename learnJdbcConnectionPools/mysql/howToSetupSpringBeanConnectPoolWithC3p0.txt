@@ -13,7 +13,7 @@ ASSUMPTIONS:
 
 Procedures
 ----------
-1) Add these dependencies to your pom.xml
+ 1. Add these dependencies to your pom.xml
 
     Add the dependency for your mysql driver
         <dependency>
@@ -24,16 +24,16 @@ Procedures
 
 
     Add the dependency for the C3P0 connection pool classes
-         <dependency>
-            <groupId>c3p0</groupId>
+        <dependency>
+            <groupId>com.mchange</groupId>
             <artifactId>c3p0</artifactId>
-            <version>0.9.1.2</version> 
-        </dependency> 
+            <version>0.9.5.1</version>
+        </dependency>
 
 
 
   
-2) Add the mysqlDataSource bean to your applicationContext.xml    
+ 2. Add the mysqlDataSource bean to your applicationContext.xml    
 
     <!-- Setup a spring bean that acts as a C3P0 Connection pool                          -->
     <!-- NOTE:  Set destroy-method="close" so that Spring will close the connection pool  -->
@@ -53,27 +53,41 @@ Procedures
 
 
 
- 3) Adjust c3p0 logging
+ 3. Adjust c3p0 logging level (by adjusting the com.mchange class)
+    NOTE:  If you are using logback, then edit your logback.xml like this:
     
-    WARNING:  C3p0 does not follow the usual logging rules
-    By, default you will see INFO stuff in your logging
+        <?xml version="1.0" encoding="windows-1252" ?>
+        <!DOCTYPE project>
+        
+        <configuration debug="true">
+            <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+                <encoder>
+                    <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+                </encoder>
+            </appender>
+             
+            <logger name="org.springframework" level="WARN" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+        
+            <logger name="app1" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/> 
+             </logger>
+            
+            <logger name="com.mchange" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+        
+            
+            <root level="WARN" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </root>
+        
+        </configuration>
     
-    But, you will *NOT* be able to control it with logback.xml
-    
-    06/14/2015 19:23:00 org.springframework.beans.factory.support.DefaultListableBeanFactory Creating instance of bean 'mysqlDataSource'
-    Jun 14, 2015 7:23:00 PM com.mchange.v2.log.MLog <clinit>
-    INFO: MLog clients using java 1.4+ standard logging.
-    Jun 14, 2015 7:23:00 PM com.mchange.v2.c3p0.C3P0Registry banner
-    INFO: Initializing c3p0-0.9.1.2 [built 21-May-2007 15:04:56; debug? true; trace: 10]
-    
-    
-    To set c3p0 logging to WARN or lower
-    Add this code to your MyApplicationWatcher  (before you call 
-    
-             System.setProperty("com.mchange.v2.log.MLog", "com.mchange.v2.log.FallbackMLog");
-             System.setProperty("com.mchange.v2.log.FallbackMLog.DEFAULT_CUTOFF_LEVEL", "WARNING");
-    
-    
+        
+        
+        
     
     Here is a sample contextInitialized()
     
@@ -86,12 +100,7 @@ Procedures
         logger.debug("{} contextInitialized() started.", sWebAppName);
 
          try 
-         {
-             // Set C3P0 logging to WARNING
-             System.setProperty("com.mchange.v2.log.MLog", "com.mchange.v2.log.FallbackMLog");
-             System.setProperty("com.mchange.v2.log.FallbackMLog.DEFAULT_CUTOFF_LEVEL", "WARNING");
-        
-             
+         {         
              // Initialize Spring Context
              // NOTE:  Initializes spring beans
              // NOTE:  This must be done before using SpringAppContextUtils
@@ -112,7 +121,7 @@ Procedures
 
     
 
- 4) Add the SpringApplicationUtils class to your project
+ 4. Add the SpringApplicationUtils class to your project
     NOTE:  This will be used to get access to spring beans from anywhere within your web app
 
         package app1.utilities;
@@ -163,8 +172,8 @@ Procedures
         }
 
 
-5) Setup SpringAppContextUtils so that it has the applicationContext passed into it
-   Add this line to your applicationContext.xml file 
+ 5. Setup SpringAppContextUtils so that it has the applicationContext passed into it
+    Add this line to your applicationContext.xml file 
 
       <bean id="applicationContextProvider" class="app1.utilities.SpringAppContextUtils" />
   
@@ -189,12 +198,12 @@ Procedures
  
   
   
-6) Verify that this works 
-    a) Delete any mysql-connector-java.jar file in your Tomcat/lib 
+ 6. Verify that this works 
+    a. Delete any mysql-connector-java.jar file in your Tomcat/lib 
        -- Browse to C:\tools\apache-tomcat-7.0.55\lib
        -- If you see mysql-connector-java-5.1.33.jar, then *delete* it
        
-    b) Add this method to your MyApplicationWatcher class
+    b. Add this method to your MyApplicationWatcher class
     
             /*******************************************************************************
              * verifyConnectionPool()
@@ -217,7 +226,7 @@ Procedures
             }
     
 
-    c) Adjust your MyApplicationWatcher so it looks like this:
+    c. Adjust your MyApplicationWatcher so it looks like this:
     
         public class MyApplicationWatcher extends ContextLoaderListener
         {
@@ -340,16 +349,16 @@ Procedures
         }
         
 
-7) Inject your mysqlDataSource into a class and try to use it
+ 7. Inject your mysqlDataSource into a class and try to use it
 
-    a) Add this to the top of your WelcomeController class
+    a. Add this to the top of your WelcomeController class
     
         @Resource
         private DataSource mysqlDataSource;
     
     
     
-    b) Add this method to your WelcomeController class
+    b. Add this method to your WelcomeController class
     
             /*******************************************************************************
              * getDatabaseTime()
@@ -367,7 +376,7 @@ Procedures
             }
  
  
-     c) Add this line to your controller
+     c. Add this line to your controller
             String sDatabaseTime = getDatabaseTime();
             logger.debug("Current database time is {}", sDatabaseTime);
             
@@ -377,51 +386,51 @@ Procedures
 
 Move Property Values to their own property file
 -----------------------------------------------
-
-8) Setup a property file in WAR / WEB-INF / classes
-   a) Create the property file
-      Filename:  jdbc.properties
+ 8. Setup a property file in WAR / WEB-INF / classes
+    a. Create the property file
+       Filename:  jdbc.properties
       
-      NOTE:  The name of the property file does not matter as spring will load all of them that end with .properties
+       NOTE:  The name of the property file does not matter as spring will load all of them that end with .properties
+     
       
-   b) Copy + Paste this to your property file
+   b. Copy + Paste this to your property file
    
-    #
-    # JDBC Connection Pool Properties
-    #
-    jdbc.driverClass=com.mysql.jdbc.Driver
-    jdbc.jdbcUrl=jdbc:mysql://127.0.0.1:3306/world
-    jdbc.user=root
-    jdbc.password=secret
-    jdbc.initialPoolSize=1
-    jdbc.minPoolSize=1
-    jdbc.maxPoolSize=15
-    jdbc.maxIdleTime=240
-    jdbc.maxConnectionAge=3600
-    jdbc.preferredTestQuery=select now()
-    jdbc.idleConnectionTestPeriod=30000
+        #
+        # JDBC Connection Pool Properties
+        #
+        jdbc.driverClass=com.mysql.jdbc.Driver
+        jdbc.jdbcUrl=jdbc:mysql://127.0.0.1:3306/world
+        jdbc.user=root
+        jdbc.password=secret
+        jdbc.initialPoolSize=1
+        jdbc.minPoolSize=1
+        jdbc.maxPoolSize=15
+        jdbc.maxIdleTime=240
+        jdbc.maxConnectionAge=3600
+        jdbc.preferredTestQuery=select now()
+        jdbc.idleConnectionTestPeriod=30000
 
    
      
-9) Tell Spring to read the values from your property file   
-   Add this to your applicationContext.xml file
-   
-    <!-- Move the data source values to a property file -->
-    <bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
-       <property name="locations" value="classpath:jdbc.properties" />
-    </bean>
-    
-    **OR**
-    
-    <!-- Load any file that is found in WEB-INF/classes that ends with .properties -->
-    <context:property-placeholder location="classpath*:*.properties" />
+ 9. Tell Spring to read the values from your property file   
+    Add this to your applicationContext.xml file
+       
+        <!-- Move the data source values to a property file -->
+        <bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+           <property name="locations" value="classpath:jdbc.properties" />
+        </bean>
+        
+        **OR**
+        
+        <!-- Load any file that is found in WEB-INF/classes that ends with .properties -->
+        <context:property-placeholder location="classpath*:*.properties" />
  
 
 
 
 
-10) Replace the hard-coded values with variables
-   Your mysqlDataSource bean should look like this now:
+10. Replace the hard-coded values with variables
+    Your mysqlDataSource bean should look like this now:
    
     <!-- Setup a spring bean that acts as a C3P0 Connection pool                          -->
     <!-- NOTE:  Set destroy-method="close" so that Spring will close the connection pool  -->
@@ -443,7 +452,7 @@ Move Property Values to their own property file
 
 
 
-11) Verify that it works
+11. Verify that it works
 
     After the spring beans are loaded, you should see this:
     
