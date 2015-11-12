@@ -61,10 +61,12 @@ Procedure
         Name:  MySessionUtilities
      
      b. Copy this to your MySessionUtilities class
-     
+             
         package app1.utilities;
         
         import app1.model.UserInfo;
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
         import org.springframework.web.context.request.RequestContextHolder;
         import org.springframework.web.context.request.ServletRequestAttributes;
         
@@ -75,6 +77,8 @@ Procedure
          */
         public class MySessionUtilities
         {
+            private static final Logger logger = LoggerFactory.getLogger(MySessionUtilities.class);
+        
             private static final String USER_INFO = "u";   // NOTE:  The actual value of this constant does not matter
         
             public static UserInfo getUserInfo()
@@ -98,12 +102,29 @@ Procedure
              *****************************************************************************************/
             private static void storeDataInSession(String aKey, Object aValue)
             {
+                logger.debug("storeDataInSession()  aKey={}  aValue={}", aKey, aValue.toString());
+        
                 // Get a reference to the request object
                 ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
                 HttpServletRequest request = servletRequestAttributes.getRequest();
         
                 // Store this key and object in the session
                 request.getSession().setAttribute(aKey, aValue);
+            }
+        
+            /****************************************************************************************
+             * clearSession()
+             *****************************************************************************************/
+            public static void clearSession()
+            {
+                logger.debug("clearSession()");
+        
+                // Get a reference to the request object
+                ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+                HttpServletRequest request = servletRequestAttributes.getRequest();
+        
+                // Kill the session
+                request.getSession().invalidate();
             }
         
         
@@ -115,34 +136,36 @@ Procedure
              *****************************************************************************************/
             private static<T> T getDataFromSession(String aKey, T aDefaultValue)
             {
+                logger.debug("getDataFromSession()  aKey={}", aKey);
+        
+                T sessionValue;
+        
                 // Get a reference to the request object
                 ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
                 HttpServletRequest request = servletRequestAttributes.getRequest();
         
-                T sessionValue = (T) request.getSession().getAttribute(aKey);
-                if (sessionValue == null)
+                if (request.getSession(false) == null)
                 {
-                    // I did not find this item in the session -- so store the default value
+                    // There is no session
                     sessionValue = aDefaultValue;
                 }
+                else
+                {
+                    // There is a session
+                    sessionValue = (T) request.getSession().getAttribute(aKey);
+                    if (sessionValue == null)
+                    {
+                        // I did not find this item in the session -- so store the default value
+                        sessionValue = aDefaultValue;
+                    }
+                }
         
+                logger.debug("  -- Returning sessionValue={}", sessionValue);
                 return(sessionValue);
             }
         
-        
-            /****************************************************************************************
-             * clearSession()
-             *****************************************************************************************/
-            public static void clearSession()
-            {
-                // Get a reference to the request object
-                ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-                HttpServletRequest request = servletRequestAttributes.getRequest();
-        
-                // Kill the session
-                request.getSession().invalidate();
-            }
         }
+
 
  
  3. Create a MySecurityInterceptor class 
@@ -332,6 +355,8 @@ Procedure
   6. Create a login.jsp page
      Clicking "Login" will call the /authenticate method passing in the username and password
      NOTE:  the WelcomeController.authenticate() method will 
+        
+        <%@page session="false" language="java" contentType="text/html; charset=ISO-8859-1" pageEncoding="ISO-8859-1" %>
 
         <%-- Include Core taglib and set contextPath --%>
         <%@ include file="/WEB-INF/jsp/stdJspIncludes.jsp" %>
@@ -366,6 +391,8 @@ Procedure
   
  7. Create a logout.jsp page
     Add a "Logout" page that is displayed when a user clicks to Logout
+
+        <%@page session="false" language="java" contentType="text/html; charset=ISO-8859-1" pageEncoding="ISO-8859-1" %>
  
         <%-- Include Core taglib and set contextPath --%>
         <%@ include file="/WEB-INF/jsp/stdJspIncludes.jsp" %>
@@ -393,8 +420,16 @@ Procedure
  
  
  
+ 8. Make sure that all of your JSPs do not automatically create empty sessions
+    Add this to the top of your regular JSP pages
+         <%@page session="false" language="java" contentType="text/html; charset=ISO-8859-1" pageEncoding="ISO-8859-1" %>
+    
+    NOTE:  You do not need this in stedHeader.jsp, stdFooter.jsp, layout.jsp, or stdJspIncludes.jsp
+           If you add this line to layout.jsp, then sitemesh will not propogate it correctly
+           
+           
  
- 8. Add a "Logout" capability (which calls WelcomeController.logout()
+ 9. Add a "Logout" capability (which calls WelcomeController.logout()
     
     a. Add a "Logout" button to your welcome.jsp
           <h2><a href="${contextPath/logout">Logout</a></h2>
@@ -426,7 +461,7 @@ Procedure
  
         
         
- 9. Adjust the main layout file  (/src/main/webapp/WEB-INF/jsp/layout.jsp) to stop caching
+10. Adjust the MySecurityInterceptor.preHandle() to prevent logged-out users from going back
     -- This is needed to protect us from the situation in which
         a. A user logs-in
         b. A user logs-out
@@ -469,7 +504,7 @@ Procedure
             aResponse.setDateHeader("Expires", 0);
             aResponse.setHeader("Pragma","no-cache");
     
-           return true;
+            return true;
         }
     
         
