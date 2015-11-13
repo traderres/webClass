@@ -1,0 +1,428 @@
+How to Secure Spring Web App with Spring Security and a Login Page
+------------------------------------------------------------------
+
+
+Assumption
+ A) You have a Spring MVC web app
+ B) You want to setup a Login page 
+ C) You want to setup a Logout page
+ D) You want all pages to make sure that the user is logged-in (except the login page and error page)
+ 
+
+Procedure
+---------
+ 1. Add the dependencies to your web app's pom.xml file
+ 
+       <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-web</artifactId>
+            <version>4.0.3.RELEASE</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-config</artifactId>
+            <version>4.0.3.RELEASE</version>
+        </dependency>
+
+ 
+ 2. Create this package:  app1.security
+ 
+ 
+ 
+ 3. Create this class:  LoginSecurityConfig
+
+        package app1.security;
+        
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.beans.factory.annotation.Autowired;
+        import org.springframework.context.annotation.Configuration;
+        import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+        import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+        import org.springframework.security.config.annotation.web.builders.WebSecurity;
+        import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+        import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+        
+        
+        /**
+         * Created by adam on 11/12/2015.
+         *
+         * NOTE: @EnableWebSecurity = @EnableWebMVCSecurity + Extra features.
+         */
+        @Configuration
+        @EnableWebSecurity
+        public class LoginSecurityConfig extends WebSecurityConfigurerAdapter
+        {
+            private static final Logger logger = LoggerFactory.getLogger(LoginSecurityConfig.class);
+        
+            /**************************************************************************************
+             * configureGlobal()
+             * -- This method is used to store and manage user credentials
+             ***************************************************************************************/
+            @Autowired
+            public void configureGlobal(AuthenticationManagerBuilder authenticationMgr) throws Exception
+            {
+                logger.debug("configureGlobal() started");
+        
+                authenticationMgr.inMemoryAuthentication()
+                        .withUser("adam")
+                        .password("a")
+                        .authorities("ROLE_USER");
+            }
+        
+        
+            /**************************************************************************************
+             * configure()
+             ***************************************************************************************/
+            @Override
+            public void configure(WebSecurity web) throws Exception
+            {
+                // Allow requests to resources to get through
+                web.ignoring()
+                    .antMatchers("/resources/**");
+            }
+        
+        
+            /**************************************************************************************
+             * configure()
+             ***************************************************************************************/
+            @Override
+            protected void configure(HttpSecurity http) throws Exception {
+                logger.debug("configure() started");
+        
+                http.authorizeRequests()
+                        .antMatchers("/").permitAll()
+                        .antMatchers("/loginPage").permitAll()
+                        .antMatchers("/**").access("hasRole('ROLE_USER')")
+                        .and()
+                            .formLogin().loginPage("/loginPage")
+                            .defaultSuccessUrl("/welcome")
+                        .failureUrl("/loginPage?error")
+                            .usernameParameter("username").passwordParameter("password")
+                        .and()
+                             .logout().logoutSuccessUrl("/loginPage?logout");
+        
+            }
+        }
+
+
+
+ 4. Create this class:  SpringSecurityInitializer
+        
+        package app1.security;
+        
+        import org.springframework.security.web.context.AbstractSecurityWebApplicationInitializer;
+        
+        /**
+         * Created by adam on 11/12/2015.
+         *
+         * SpringSecurityInitializer class:  This is used to initialize Spring Security
+         */
+        public class SpringSecurityInitializer extends AbstractSecurityWebApplicationInitializer
+        {
+        
+        }
+
+
+
+
+
+
+ 5. Create a LoginController class
+                 
+        package app1.controllers;
+        
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.security.core.Authentication;
+        import org.springframework.security.core.context.SecurityContextHolder;
+        import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
+        import org.springframework.stereotype.Controller;
+        import org.springframework.ui.Model;
+        import org.springframework.web.bind.annotation.RequestMapping;
+        import org.springframework.web.bind.annotation.RequestMethod;
+        import org.springframework.web.bind.annotation.RequestParam;
+        import org.springframework.web.servlet.ModelAndView;
+        
+        import javax.servlet.http.HttpServletRequest;
+        import javax.servlet.http.HttpServletResponse;
+        
+        /**
+         * Created by adam on 11/12/2015.
+         */
+        @Controller
+        public class LoginController
+        {
+            private static final Logger logger = LoggerFactory.getLogger(LoginController.class);
+        
+            /**********************************************************************
+             * handleDefaultPage()
+             *
+             * The user browsed to the   http://www.myserver.com/webapp
+             * So, forward the user to   http://www.myserver.com/webapp/welcome
+             ***********************************************************************/
+            @RequestMapping("/")
+            public ModelAndView handleDefaultPage( Model aModel )
+            {
+                logger.debug("handleDefaultPage()");
+        
+                // By default, forward users to the /loginPage page
+                return new ModelAndView("forward:/loginPage");
+            }
+        
+        
+        
+            /***********************************************************************************
+             * loginPage()
+             *
+             * If login fails, then the error param will be passed-in
+              ************************************************************************************/
+            @RequestMapping(value = "/loginPage", method = RequestMethod.GET)
+            public ModelAndView loginPage(@RequestParam(value = "error",required = false) String aError,
+                                         @RequestParam(value = "logout", required = false) String aLogout) {
+        
+                ModelAndView mav = new ModelAndView();
+                if (aError != null)
+                {
+                    mav.addObject("error", "Invalid username or password.");
+                }
+        
+                if (aLogout != null)
+                {
+                    mav.addObject("message", "You are successfully logged out.");
+                }
+        
+                mav.setViewName("loginPage.jsp");
+                return mav;
+            }
+        
+        
+        
+            /***********************************************************************************
+             * logoutPage()
+             *  1) Invalidate the HTTP Session.
+             *  2) Remove the Authentication from the SecurityContext to prevent issues with concurrent requests.
+             *  3) Explicitly clears the context value from the current thread.
+             ************************************************************************************/
+            @RequestMapping(value="/logout", method = RequestMethod.GET)
+            public String logoutPage (HttpServletRequest request, HttpServletResponse response)
+            {
+                Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                if (auth != null)
+                {
+                    new SecurityContextLogoutHandler().logout(request, response, auth);
+                }
+        
+                // Redirect the user back to the login page with a flag indicating that the user just logged-out
+                return "redirect:/loginPage?logout";
+            }
+        
+        }
+
+
+
+ 6. Create this jsp:  loginPage.jsp
+ 
+        <%@page session="false" language="java" contentType="text/html; charset=ISO-8859-1" pageEncoding="ISO-8859-1" %>
+        
+        <%-- Include Core taglib and set contextPath --%>
+        <%@ include file="/WEB-INF/jsp/stdJspIncludes.jsp" %>
+        
+        <html>
+        
+        
+        <head>
+            <title>Login Page</title>
+        </head>
+        
+        <body>
+            <h2>loginPage.jsp</h2>
+        
+               <c:if test="${not empty error}"><div>${error}</div></c:if>
+               <c:if test="${not empty message}"><div>${message}</div></c:if>
+        
+                <form name='login' action="${contextPath}/loginPage" method="post">
+                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+                    Username: <input type="text" name="username" placeholder="-username-" value=""><br/>
+                    Password: <input type="password" name="password" placeholder="-password-" value=""><br/>
+                    <input type="submit" value="Login" />
+                </form>
+        
+            <br/>
+            <br/>
+        
+        </body>
+        </html>
+ 
+ 
+ 
+ 
+     INCOMPLETE:  How to store UserInfo object in Spring
+     
+     
+ 
+
+ 7.  Create the UserInfo class
+ 
+ 
+    NOTE:  This class will hold information in the session about the user
+     
+        package app1.model;
+        
+        public class UserInfo
+        {
+            private boolean isAdministrator = false;
+            private String username;
+            private boolean isUserAuthenticated = false;
+        
+            public UserInfo()
+            {
+        
+            }
+        
+            public boolean getIsAuthenticated() { return this.isUserAuthenticated; }
+            public void setIsAuthenticated(boolean aValue)
+            {
+                this.isUserAuthenticated = aValue;
+            }
+        
+            public boolean getIsAdministrator()
+            {
+                return this.isAdministrator;
+            }
+        
+            public void setIsAdministrator(boolean aValue)
+            {
+                this.isAdministrator = aValue;
+            }
+        
+            public String getUserName()
+            {
+                return this.username;
+            }
+        
+            public void setUserName(String aUserName)
+            {
+                this.username = aUserName;
+            }
+        }
+        
+        
+        
+  8. Create a MySessionUtilities class 
+     a. Right-click on /src/main/java/app1/utilities -> new -> Java Class
+        Name:  MySessionUtilities
+     
+     b. Copy this to your MySessionUtilities class
+             
+        package app1.utilities;
+        
+        import app1.model.UserInfo;
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.web.context.request.RequestContextHolder;
+        import org.springframework.web.context.request.ServletRequestAttributes;
+        
+        import javax.servlet.http.HttpServletRequest;
+        
+        /**
+         * Created by adam on 11/7/2015.
+         */
+        public class MySessionUtilities
+        {
+            private static final Logger logger = LoggerFactory.getLogger(MySessionUtilities.class);
+        
+            private static final String USER_INFO = "u";   // NOTE:  The actual value of this constant does not matter
+        
+            public static UserInfo getUserInfo()
+            {
+                // Get the UserInfo object stored from the session or null
+                return getDataFromSession( USER_INFO, null);
+            }
+        
+        
+            public static void setUserInfo(UserInfo aUserInfo)
+            {
+                // Store this UserInfo object in the session (associated with the USER_INFO key)
+                storeDataInSession(USER_INFO, aUserInfo);
+            }
+        
+        
+            /****************************************************************************************
+             * storeDataInSession()
+             *
+             * Store the passed-in aValue into the session with the related aKey
+             *****************************************************************************************/
+            private static void storeDataInSession(String aKey, Object aValue)
+            {
+                logger.debug("storeDataInSession()  aKey={}  aValue={}", aKey, aValue.toString());
+        
+                // Get a reference to the request object
+                ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+                HttpServletRequest request = servletRequestAttributes.getRequest();
+        
+                // Store this key and object in the session
+                request.getSession().setAttribute(aKey, aValue);
+            }
+        
+            /****************************************************************************************
+             * clearSession()
+             *****************************************************************************************/
+            public static void clearSession()
+            {
+                logger.debug("clearSession()");
+        
+                // Get a reference to the request object
+                ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+                HttpServletRequest request = servletRequestAttributes.getRequest();
+        
+                // Kill the session
+                request.getSession().invalidate();
+            }
+        
+        
+            /****************************************************************************************
+             * getDataFromSession()
+             *
+             * Get any object from the session
+             * NOTE:  If the object is not found in the session, then return the default value object
+             *****************************************************************************************/
+            private static<T> T getDataFromSession(String aKey, T aDefaultValue)
+            {
+                logger.debug("getDataFromSession()  aKey={}", aKey);
+        
+                T sessionValue;
+        
+                // Get a reference to the request object
+                ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+                HttpServletRequest request = servletRequestAttributes.getRequest();
+        
+                if (request.getSession(false) == null)
+                {
+                    // There is no session
+                    sessionValue = aDefaultValue;
+                }
+                else
+                {
+                    // There is a session
+                    sessionValue = (T) request.getSession().getAttribute(aKey);
+                    if (sessionValue == null)
+                    {
+                        // I did not find this item in the session -- so store the default value
+                        sessionValue = aDefaultValue;
+                    }
+                }
+        
+                logger.debug("  -- Returning sessionValue={}", sessionValue);
+                return(sessionValue);
+            }
+        
+        }
+
+
+ 
+ 
+
+        
+             
