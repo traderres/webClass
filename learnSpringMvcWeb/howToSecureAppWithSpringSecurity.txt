@@ -130,7 +130,7 @@ Procedure
 
 
  5. Create a LoginController class
-                 
+                         
         package app1.controllers;
         
         import org.slf4j.Logger;
@@ -147,6 +147,7 @@ Procedure
         
         import javax.servlet.http.HttpServletRequest;
         import javax.servlet.http.HttpServletResponse;
+        import javax.servlet.http.HttpSession;
         
         /**
          * Created by adam on 11/12/2015.
@@ -179,18 +180,13 @@ Procedure
              * If login fails, then the error param will be passed-in
               ************************************************************************************/
             @RequestMapping(value = "/loginPage", method = RequestMethod.GET)
-            public ModelAndView loginPage(@RequestParam(value = "error",required = false) String aError,
-                                         @RequestParam(value = "logout", required = false) String aLogout) {
+            public ModelAndView loginPage(@RequestParam(value = "error",required = false) String aError)
+            {
         
                 ModelAndView mav = new ModelAndView();
                 if (aError != null)
                 {
                     mav.addObject("error", "Invalid username or password.");
-                }
-        
-                if (aLogout != null)
-                {
-                    mav.addObject("message", "You are successfully logged out.");
                 }
         
                 mav.setViewName("loginPage.jsp");
@@ -206,25 +202,29 @@ Procedure
              *  3) Explicitly clears the context value from the current thread.
              ************************************************************************************/
             @RequestMapping(value="/logout", method = RequestMethod.GET)
-            public String logoutPage (HttpServletRequest request, HttpServletResponse response)
+            public ModelAndView logoutPage (HttpServletRequest request, HttpServletResponse response)
             {
                 Authentication auth = SecurityContextHolder.getContext().getAuthentication();
                 if (auth != null)
                 {
-                    new SecurityContextLogoutHandler().logout(request, response, auth);
+                    SecurityContextLogoutHandler ctxLogOut = new SecurityContextLogoutHandler();
+                    ctxLogOut.setInvalidateHttpSession(true);
+                    ctxLogOut.setClearAuthentication(true);
+                    ctxLogOut.logout(request, response, auth);
                 }
         
-                // Redirect the user back to the login page with a flag indicating that the user just logged-out
-                return "redirect:/loginPage?logout";
+                ModelAndView mav = new ModelAndView();
+                mav.setViewName("logoutPage.jsp");
+                return mav;
             }
         
         }
-
+        
 
 
  6. Create this jsp:  loginPage.jsp
  
-        <%@page session="false" language="java" contentType="text/html; charset=ISO-8859-1" pageEncoding="ISO-8859-1" %>
+        <%@ page session="false" %>
         
         <%-- Include Core taglib and set contextPath --%>
         <%@ include file="/WEB-INF/jsp/stdJspIncludes.jsp" %>
@@ -244,6 +244,7 @@ Procedure
         
                 <form name='login' action="${contextPath}/loginPage" method="post">
                     <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+        
                     Username: <input type="text" name="username" placeholder="-username-" value=""><br/>
                     Password: <input type="password" name="password" placeholder="-password-" value=""><br/>
                     <input type="submit" value="Login" />
@@ -254,11 +255,40 @@ Procedure
         
         </body>
         </html>
+         
+ 
+ 
+ 7. Create this page:  logoutPage.jsp
+    NOTE:  This page cannot have any csrf tokens [because that will cause a session to be created]
+       
+        <%@ page session="false" %>
+        
+        <%-- Include Core taglib and set contextPath --%>
+        <%@ include file="/WEB-INF/jsp/stdJspIncludes.jsp" %>
+        
+        <html>
+        
+        
+        <head>
+            <title>Logout Page</title>
+        </head>
+        
+        <body>
+            <h2>logoutPage.jsp</h2>
+        
+            Thank you for using the application
+        
+            Click here to <a href="${contextPath}/loginPage" title="Go back to the Login Page">login again</a>
+        
+            <br/>
+            <br/>
+        
+        </body>
+        </html>
  
  
  
- 
- 7. Adjust JAWR bundling so that bundled JS and CSS files start with /resources
+ 8. Adjust JAWR bundling so that bundled JS and CSS files start with /resources
     NOTE:  This will allow the bundled JS and bundled CSS files get through Spring Security
     
     Edit the jawr.properties so that the bundle ids start with /bundles
@@ -330,9 +360,13 @@ Procedure
     
     
     
+ 9.  Add this line to the top of *every* JSP page  (even those that are included)
+       <%@ page session="false" %>
+       
+   
+   
     
-    
- 7.  Create the UserInfo class
+10.  Create the UserInfo class
  
  
     NOTE:  This class will hold information in the session about the user
