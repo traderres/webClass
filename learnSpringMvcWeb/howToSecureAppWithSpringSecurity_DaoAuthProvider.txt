@@ -17,13 +17,36 @@ http://projects.spring.io/spring-security/
 
 Procedure
 ---------
- 1. Create a mysql table:  users
+ 1. Setup your mysql user and roles tables
+    Run this sql:
+    
+       create table users
+       (
+          id int auto_increment not null,
+          username varchar(25) not null,
+          password varchar(50) not null,
+          isEnabled boolean    not null, 
+          primary  key(id)
+       );
+       
+  
+     create table roles
+       (
+          userid  int not null,
+          name    varchar(25) not null
+       );
+       
 
 
 
- 2. Create a mysql table:  roles
- 
-
+ 2. Add some users:
+    
+    insert into users(id, username, password, isEnabled) values(3, 'adam', 'a', true);
+    insert into users(id, username, password, isEnabled) values(4, 'ben', 'b', false);
+    insert into roles(userid, name) values(3, 'ROLE_USER');
+    insert into roles(userid, name) values(4, 'ROLE_USER');
+   
+   
 
  3. Add the dependencies to your web app's pom.xml file
  
@@ -84,7 +107,7 @@ Procedure
  
  
  7. Create this class:  MyDaoAuthenticationProvider
- 
+         
         package app1.security;
         
         import org.slf4j.Logger;
@@ -190,9 +213,9 @@ Procedure
                 try
                 {
                     boolean bUserIsAuthenticated = false;
-                    final String sSql = "select count(id) from users where islocked=false and username=? and password=?";
+                    final String sSql = "select count(id) from users where isEnabled=true and username=? and password=?";
         
-                     JdbcTemplate jt = new JdbcTemplate(this.mysqlDataSource);
+                    JdbcTemplate jt = new JdbcTemplate(this.mysqlDataSource);
         
                     int iUserCount = jt.queryForObject(sSql, Integer.class, aUsername, aPassword);
         
@@ -220,7 +243,11 @@ Procedure
             private List<GrantedAuthority> getListOfAuthoritiesForUsername(String aUsername)
             {
                 try {
-                    final String sSql = "select name from roles where username=?";
+                    final String sSql = "select r.name " +
+                                        "from roles r " +
+                                        "left join users u on (r.userid=u.id) " +
+                                        "where u.username=?";
+        
                     JdbcTemplate jt = new JdbcTemplate(this.mysqlDataSource);
                     SqlRowSet rs = jt.queryForRowSet(sSql, aUsername);
                     ArrayList<GrantedAuthority> grantedAuthorities = new ArrayList<GrantedAuthority>();
@@ -250,8 +277,6 @@ Procedure
             }
         }
 
- 
- 
  
  8. Create this class:  LoginSecurityConfig
                 
