@@ -17,7 +17,15 @@ http://projects.spring.io/spring-security/
 
 Procedure
 ---------
- 1. Add the dependencies to your web app's pom.xml file
+ 1. Create a mysql table:  users
+
+
+
+ 2. Create a mysql table:  roles
+ 
+
+
+ 3. Add the dependencies to your web app's pom.xml file
  
        <dependency>
             <groupId>org.springframework.security</groupId>
@@ -32,13 +40,13 @@ Procedure
         </dependency>
 
  
- 2. Create this package:  app1.security
+ 4. Create this package:  app1.security
  
  
 
 
 
- 3. Create this class:  SpringSecurityInitializer
+ 5. Create this class:  SpringSecurityInitializer
         
         package app1.security;
         
@@ -56,7 +64,7 @@ Procedure
 
 
 
- 4. Create a BadCredentialsException class
+ 6. Create a BadCredentialsException class
  
          package app1.security;
         
@@ -75,7 +83,7 @@ Procedure
           
  
  
- 5. Create this class:  MyDaoAuthenticationProvider
+ 7. Create this class:  MyDaoAuthenticationProvider
  
         package app1.security;
         
@@ -182,20 +190,19 @@ Procedure
              ***************************************************************************************/
             private boolean isUserAuthenticated(String aUsername, String aPassword)
             {
-                // final String sSql = "select username from users where username=? and password=?";
-                final String sSql = "select now()";
+                boolean bUserIsAuthenticated = false;
+                final String sSql = "select count(id) from users where islocked=false and username=? and password=?";
+                
                 JdbcTemplate jt = new JdbcTemplate(this.mysqlDataSource);
-                String sCurrentDateTime = jt.queryForObject(sSql, String.class);
-                logger.debug("sCurrentDateTime={}", sCurrentDateTime);
-        
-                if (aUsername.equalsIgnoreCase("adam") && (aPassword.equalsIgnoreCase("b")))
+                
+                int iUserCount = jt.queryForObject(sSql, Integer.class, aUsername, aPassword);
+                
+                if (iuserCount == 1)
                 {
-                    return true;
+                    return bUserIsAuthenticated;
                 }
-                else
-                {
-                    return false;
-                }
+                 
+                return bUserIsAuthenticated;
             }
         
         
@@ -207,8 +214,18 @@ Procedure
              ***************************************************************************************/
             private List<GrantedAuthority> getListOfAuthoritiesForUsername(String aUsername)
             {
-                ArrayList<GrantedAuthority> grantedAuthorities = (ArrayList<GrantedAuthority>) AuthorityUtils.createAuthorityList("ROLE_USER");
-        
+                
+                final String sSql = "select name from roles where username=?";
+                JdbcTemplate jt = new JdbcTemplate(this.mysqlDataSource);
+                SqlRowSet rs = jt.queryForRowSet(sSql, aUsername);
+                ArrayList<GrantedAuthority> grantedAuthorities = new ArrayList<GrantedAuthority>();
+                                
+                while (rs.next() )
+                {
+                   grantedAuthorities.add( new SimpleGrantedAuthority(rs.getString(1));
+                }
+            
+         
                 return grantedAuthorities;
             }
         
@@ -226,7 +243,7 @@ Procedure
  
  
  
- 6. Create this class:  LoginSecurityConfig
+ 8. Create this class:  LoginSecurityConfig
                 
         package app1.security;
         
@@ -325,7 +342,7 @@ Procedure
                 
                 
 
-  7. Pass-in the mysqlDataSource into your myDaoAuthenticationProvider class
+  9. Pass-in the mysqlDataSource into your myDaoAuthenticationProvider class
      
      Approach #1:  Create a bean in your applicationContext.xml
       
@@ -355,7 +372,7 @@ Procedure
           
  
  
- 8. Create this class:  LoginController 
+10. Create this class:  LoginController 
         
         package app1.controllers;
         
@@ -457,7 +474,7 @@ Procedure
 
  
  
- 9. Create this jsp:  loginPage.jsp
+11. Create this jsp:  loginPage.jsp
          
         <%@ page session="false" %>
         
@@ -492,7 +509,7 @@ Procedure
         </html>
  
 
-10. Create this jsp:  logoutPage.jsp
+12. Create this jsp:  logoutPage.jsp
     NOTE:  This page does not have a form (so it clears the session completely)
     
         <%@ page session="false" %>
@@ -523,7 +540,7 @@ Procedure
  
  
  
-11. Adjust JAWR bundling so that bundled JS and CSS files start with /resources
+13. Adjust JAWR bundling so that bundled JS and CSS files start with /resources
     NOTE:  This will allow the bundled JS and bundled CSS files get through Spring Security
     
     Edit the jawr.properties so that the bundle ids start with /bundles
@@ -595,7 +612,7 @@ Procedure
     
     
     
-12.  Add this line to the top of *every* JSP page  (even those that are included)
+14.  Add this line to the top of *every* JSP page  (even those that are included)
        <%@ page session="false" %>
        
    
