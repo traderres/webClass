@@ -87,19 +87,16 @@ Procedure
  
         package app1.security;
         
-        import app1.utilities.SpringAppContextUtils;
-        import com.mysql.jdbc.jdbc2.optional.MysqlDataSource;
         import org.slf4j.Logger;
         import org.slf4j.LoggerFactory;
-        import org.springframework.beans.factory.annotation.Autowired;
         import org.springframework.jdbc.core.JdbcTemplate;
+        import org.springframework.jdbc.support.rowset.SqlRowSet;
         import org.springframework.security.authentication.AuthenticationProvider;
         import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
         import org.springframework.security.core.Authentication;
         import org.springframework.security.core.AuthenticationException;
         import org.springframework.security.core.GrantedAuthority;
-        import org.springframework.security.core.authority.AuthorityUtils;
-        import org.springframework.stereotype.Component;
+        import org.springframework.security.core.authority.SimpleGrantedAuthority;
         
         import javax.annotation.PostConstruct;
         import javax.annotation.Resource;
@@ -190,19 +187,27 @@ Procedure
              ***************************************************************************************/
             private boolean isUserAuthenticated(String aUsername, String aPassword)
             {
-                boolean bUserIsAuthenticated = false;
-                final String sSql = "select count(id) from users where islocked=false and username=? and password=?";
-                
-                JdbcTemplate jt = new JdbcTemplate(this.mysqlDataSource);
-                
-                int iUserCount = jt.queryForObject(sSql, Integer.class, aUsername, aPassword);
-                
-                if (iuserCount == 1)
+                try
                 {
+                    boolean bUserIsAuthenticated = false;
+                    final String sSql = "select count(id) from users where islocked=false and username=? and password=?";
+        
+                     JdbcTemplate jt = new JdbcTemplate(this.mysqlDataSource);
+        
+                    int iUserCount = jt.queryForObject(sSql, Integer.class, aUsername, aPassword);
+        
+                     if (iUserCount == 1)
+                     {
+                         bUserIsAuthenticated = true;
+                     }
+        
                     return bUserIsAuthenticated;
                 }
-                 
-                return bUserIsAuthenticated;
+                catch (Exception e)
+                {
+                    logger.error("Error in MyDaoAuthenticationProvider.isUserAuthenticated()", e);
+                    return false;
+                }
             }
         
         
@@ -214,21 +219,26 @@ Procedure
              ***************************************************************************************/
             private List<GrantedAuthority> getListOfAuthoritiesForUsername(String aUsername)
             {
-                
-                final String sSql = "select name from roles where username=?";
-                JdbcTemplate jt = new JdbcTemplate(this.mysqlDataSource);
-                SqlRowSet rs = jt.queryForRowSet(sSql, aUsername);
-                ArrayList<GrantedAuthority> grantedAuthorities = new ArrayList<GrantedAuthority>();
-                                
-                while (rs.next() )
-                {
-                   grantedAuthorities.add( new SimpleGrantedAuthority(rs.getString(1));
-                }
-            
-         
-                return grantedAuthorities;
-            }
+                try {
+                    final String sSql = "select name from roles where username=?";
+                    JdbcTemplate jt = new JdbcTemplate(this.mysqlDataSource);
+                    SqlRowSet rs = jt.queryForRowSet(sSql, aUsername);
+                    ArrayList<GrantedAuthority> grantedAuthorities = new ArrayList<GrantedAuthority>();
         
+                    while (rs.next()) {
+                        grantedAuthorities.add(new SimpleGrantedAuthority(rs.getString(1)));
+                    }
+        
+                    return grantedAuthorities;
+                }
+                catch (Exception e)
+                {
+                    logger.error("Error in MyDaoAuthenticationProvider.getListOfAuthoritiesForUsername()", e);
+        
+                    ArrayList<GrantedAuthority>  emptyAuthoritiesList = new ArrayList<GrantedAuthority>();
+                    return emptyAuthoritiesList;
+                }
+            }
         
         
             /**************************************************************************************
@@ -239,7 +249,7 @@ Procedure
                 return aAuthentication.equals(UsernamePasswordAuthenticationToken.class);
             }
         }
-         
+
  
  
  
