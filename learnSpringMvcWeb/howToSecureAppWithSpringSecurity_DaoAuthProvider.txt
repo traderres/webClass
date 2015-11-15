@@ -1,0 +1,605 @@
+How to Secure Spring Web App with Spring Security and a Login Page (Custom DAO Authentication Provider)
+-------------------------------------------------------------------------------------------------------
+
+
+Assumption
+ A) You have a Spring MVC web app
+ B) You want to setup a Login page 
+ C) You want to setup a Logout page
+ D) You want all pages to make sure that the user is logged-in (except the login page and error page)
+ E) You want to use a database table lookup to determine user and roles
+ 
+References
+----------
+http://docs.spring.io/spring-security/site/faq/faq.html#faq-what-is-userdetailservice
+http://projects.spring.io/spring-security/
+
+
+Procedure
+---------
+ 1. Add the dependencies to your web app's pom.xml file
+ 
+       <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-web</artifactId>
+            <version>4.0.3.RELEASE</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-config</artifactId>
+            <version>4.0.3.RELEASE</version>
+        </dependency>
+
+ 
+ 2. Create this package:  app1.security
+ 
+ 
+
+
+
+ 3. Create this class:  SpringSecurityInitializer
+        
+        package app1.security;
+        
+        import org.springframework.security.web.context.AbstractSecurityWebApplicationInitializer;
+        
+        /**
+         * Created by adam on 11/12/2015.
+         *
+         * SpringSecurityInitializer class:  This is used to initialize Spring Security
+         */
+        public class SpringSecurityInitializer extends AbstractSecurityWebApplicationInitializer
+        {
+        
+        }
+
+
+
+ 4. Create a BadCredentialsException class
+ 
+         package app1.security;
+        
+        import org.springframework.security.core.AuthenticationException;
+        
+        /**
+         * Created by adam on 11/15/2015.
+         */
+        public class BadCredentialsException extends AuthenticationException
+        {
+            public BadCredentialsException(String aMessage)
+            {
+                super(aMessage);
+            }
+        }
+          
+ 
+ 
+ 5. Create this class:  MyDaoAuthenticationProvider
+ 
+        package app1.security;
+        
+        import app1.utilities.SpringAppContextUtils;
+        import com.mysql.jdbc.jdbc2.optional.MysqlDataSource;
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.beans.factory.annotation.Autowired;
+        import org.springframework.jdbc.core.JdbcTemplate;
+        import org.springframework.security.authentication.AuthenticationProvider;
+        import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+        import org.springframework.security.core.Authentication;
+        import org.springframework.security.core.AuthenticationException;
+        import org.springframework.security.core.GrantedAuthority;
+        import org.springframework.security.core.authority.AuthorityUtils;
+        import org.springframework.stereotype.Component;
+        
+        import javax.annotation.PostConstruct;
+        import javax.annotation.Resource;
+        import javax.sql.DataSource;
+        import java.util.ArrayList;
+        import java.util.List;
+        
+        /**
+         * Created by adam on 11/15/2015.
+         */
+        public class MyDaoAuthenticationProvider implements AuthenticationProvider
+        {
+            private static final Logger logger = LoggerFactory.getLogger(MyDaoAuthenticationProvider.class);
+        
+            @Resource
+            private DataSource mysqlDataSource;
+        
+            /**************************************************************************************
+             * MyDaoAuthenticationProvider()  Constructor #1
+             ***************************************************************************************/
+            public MyDaoAuthenticationProvider()
+            {
+                logger.debug("MyDaoAuthenticationProvider() constructor #1");
+            }
+        
+        
+            /**************************************************************************************
+             * MyDaoAuthenticationProvider()  Constructor #2
+             ***************************************************************************************/
+            public MyDaoAuthenticationProvider(DataSource aDataSource)
+            {
+                logger.debug("MyDaoAuthenticationProvider() constructor #2 with passed-in data source");
+                this.mysqlDataSource = aDataSource;
+            }
+        
+        
+        
+            /**************************************************************************************
+             * postConstruct()
+             *
+             * Verify that all required resources are passed-in
+             ***************************************************************************************/
+            @PostConstruct
+            public void postConstruct() throws Exception
+            {
+                if (this.mysqlDataSource == null)
+                {
+                    throw new RuntimeException("Critical Error in MyDaoAuthenticationProvider.postConstruct():  The mysqlDataSource is null.");
+                }
+            }
+        
+        
+            /**************************************************************************************
+             * authenticate()
+             *
+             * Actually perform authentication against the username and password
+             *
+             * Returns BadCredentialsException if authentication fails
+             * Returns UsernamePasswordAuthenticationToken if authentication succeeds
+             ***************************************************************************************/
+            public Authentication authenticate(Authentication aAuthentication) throws AuthenticationException
+            {
+                String sUsername = aAuthentication.getName();
+                String sPassword = aAuthentication.getCredentials().toString();
+        
+                // Use the credentials to try to authenticate the user against a source
+                if (isUserAuthenticated(sUsername, sPassword))
+                {
+                    List<GrantedAuthority> grantedAuths = getListOfAuthoritiesForUsername(sUsername);
+        
+                    return new UsernamePasswordAuthenticationToken(sUsername, sPassword, grantedAuths);
+                }
+                else
+                {
+                    throw new BadCredentialsException("Unable to authenticate this user");
+                }
+            }
+        
+        
+            /**************************************************************************************
+             * isUserAuthenticated()
+             *
+             * Use the passed-in username and password to query against the database
+             * If the user is found in the database *and*
+             * If the user's account is not locked *and*
+             * If the user's password matches
+             *   Then return true
+             ***************************************************************************************/
+            private boolean isUserAuthenticated(String aUsername, String aPassword)
+            {
+                // final String sSql = "select username from users where username=? and password=?";
+                final String sSql = "select now()";
+                JdbcTemplate jt = new JdbcTemplate(this.mysqlDataSource);
+                String sCurrentDateTime = jt.queryForObject(sSql, String.class);
+                logger.debug("sCurrentDateTime={}", sCurrentDateTime);
+        
+                if (aUsername.equalsIgnoreCase("adam") && (aPassword.equalsIgnoreCase("b")))
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+        
+        
+        
+            /**************************************************************************************
+             * getListOfAuthoritiesForUsername()
+             *
+             * Returns a list of granted authorities for the passed-in username
+             ***************************************************************************************/
+            private List<GrantedAuthority> getListOfAuthoritiesForUsername(String aUsername)
+            {
+                ArrayList<GrantedAuthority> grantedAuthorities = (ArrayList<GrantedAuthority>) AuthorityUtils.createAuthorityList("ROLE_USER");
+        
+                return grantedAuthorities;
+            }
+        
+        
+        
+            /**************************************************************************************
+             * supports()
+             ***************************************************************************************/
+            public boolean supports(Class<?> aAuthentication)
+            {
+                return aAuthentication.equals(UsernamePasswordAuthenticationToken.class);
+            }
+        }
+         
+ 
+ 
+ 
+ 6. Create this class:  LoginSecurityConfig
+                
+        package app1.security;
+        
+        
+        import app1.utilities.SpringAppContextUtils;
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.context.annotation.Configuration;
+        import org.springframework.security.authentication.AuthenticationProvider;
+        import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+        import org.springframework.security.config.annotation.web.builders.WebSecurity;
+        import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+        import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+        
+        import javax.annotation.PostConstruct;
+        import javax.annotation.Resource;
+        import javax.sql.DataSource;
+        
+        
+        /**
+         * Created by adam on 11/12/2015.
+         *
+         * NOTE: @EnableWebSecurity = @EnableWebMVCSecurity + Extra features.
+         */
+        @Configuration
+        @EnableWebSecurity
+        public class LoginSecurityConfig extends WebSecurityConfigurerAdapter
+        {
+            private static final Logger logger = LoggerFactory.getLogger(LoginSecurityConfig.class);
+        
+        
+            @Resource
+            private MyDaoAuthenticationProvider myDaoAuthenticationProvider;
+        
+            /**************************************************************************************
+             * postConstruct()
+             *
+             * Verify that all required resources are passed-in
+             ***************************************************************************************/
+            @PostConstruct
+            public void postConstruct() throws Exception
+            {
+                if (this.myDaoAuthenticationProvider == null)
+                {
+                    throw new RuntimeException("Critical Error in LoginSecurityConfig.postConstruct():  The myDaoAuthenticationProvider is null.");
+                }
+            }
+        
+        
+            /**************************************************************************************
+             * configure()
+             ***************************************************************************************/
+            @Override
+            public void configure(WebSecurity web) throws Exception
+            {
+                // Allow requests to resources to get through
+                web.ignoring()
+                    .antMatchers("/resources/**")
+                    .regexMatchers(".*/bundles/.*");
+            }
+        
+        
+            /**************************************************************************************
+             * configure()
+             ***************************************************************************************/
+            @Override
+            protected void configure(HttpSecurity http) throws Exception {
+                logger.debug("configure() started");
+        
+        
+                // Configure authentication provider(s)
+                DataSource mysqlDataSource = (DataSource) SpringAppContextUtils.getBean("mysqlDataSource");
+                MyDaoAuthenticationProvider myDaoAuthProvider = new MyDaoAuthenticationProvider(mysqlDataSource);
+                http.authenticationProvider(myDaoAuthProvider);
+        
+                // Configure authentication provider(s)
+                http.authenticationProvider(this.myDaoAuthenticationProvider);
+        
+        
+                // Setup Security
+                http.authorizeRequests()
+                                .antMatchers("/").permitAll()
+                                .antMatchers("/loginPage").permitAll()
+                                .antMatchers("/**").access("hasRole('ROLE_USER')")
+                                .and()
+                                .formLogin().loginPage("/loginPage")
+                                .defaultSuccessUrl("/welcome")
+                                .failureUrl("/loginPage?error")
+                                .usernameParameter("username").passwordParameter("password")
+                        .and()
+                        .logout().logoutSuccessUrl("/logout");
+        
+            }
+        }
+        
+                
+                
+
+  7. Pass-in the mysqlDataSource into your myDaoAuthenticationProvider class
+     
+     Approach #1:  Create a bean in your applicationContext.xml
+      
+          <bean id="myDaoAuthenticationProvider" class="app1.security.MyDaoAuthenticationProvider">
+            <constructor-arg ref="mysqlDataSource"/>
+         </bean> 
+ 
+ 
+ 
+     Approach #2:  Modify LoginSecurityConfig.configure()
+      
+          a. Remove this code:
+          
+             @Resource
+             private MyDaoAuthenticationProvider myDaoAuthenticationProvider;
+             
+             // Configure authentication provider(s)
+             http.authenticationProvider(this.myDaoAuthenticationProvider);
+     
+          
+          b. Insert this code: 
+          
+              // Configure authentication provider(s)
+              DataSource mysqlDataSource = (DataSource) SpringAppContextUtils.getBean("mysqlDataSource");
+              MyDaoAuthenticationProvider myDaoAuthProvider = new MyDaoAuthenticationProvider(mysqlDataSource);
+              http.authenticationProvider(myDaoAuthProvider);
+          
+ 
+ 
+ 8. Create this class:  LoginController 
+        
+        package app1.controllers;
+        
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.security.core.Authentication;
+        import org.springframework.security.core.context.SecurityContextHolder;
+        import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
+        import org.springframework.stereotype.Controller;
+        import org.springframework.ui.Model;
+        import org.springframework.web.bind.annotation.RequestMapping;
+        import org.springframework.web.bind.annotation.RequestMethod;
+        import org.springframework.web.bind.annotation.RequestParam;
+        import org.springframework.web.servlet.ModelAndView;
+        
+        import javax.servlet.http.HttpServletRequest;
+        import javax.servlet.http.HttpServletResponse;
+        
+        /**
+         * Created by adam on 11/12/2015.
+         */
+        @Controller
+        public class LoginController
+        {
+            private static final Logger logger = LoggerFactory.getLogger(LoginController.class);
+        
+            /**********************************************************************
+             * handleDefaultPage()
+             *
+             * The user browsed to the   http://www.myserver.com/webapp
+             * So, forward the user to   http://www.myserver.com/webapp/welcome
+             ***********************************************************************/
+            @RequestMapping("/")
+            public ModelAndView handleDefaultPage( Model aModel )
+            {
+                logger.debug("handleDefaultPage()");
+        
+                // If the user is logged-in, then take the user to the welcome page
+                if (! SecurityContextHolder.getContext().getAuthentication().getPrincipal().toString().equalsIgnoreCase("anonymousUser"))
+                {
+                    // the user is authenticated
+        
+                    // Take the user in to the welcome page
+                    return new ModelAndView("redirect:/welcome");
+                }
+        
+                // By default, forward users to the /loginPage page
+                return new ModelAndView("forward:/loginPage");
+            }
+        
+        
+        
+            /***********************************************************************************
+             * loginPage()
+             *
+             * If login fails, then the error param will be passed-in
+              ************************************************************************************/
+            @RequestMapping(value = "/loginPage", method = RequestMethod.GET)
+            public ModelAndView loginPage(@RequestParam(value = "error",required = false) String aError)
+            {
+        
+                ModelAndView mav = new ModelAndView();
+                if (aError != null)
+                {
+                    mav.addObject("error", "Invalid username or password.");
+                }
+        
+                mav.setViewName("loginPage.jsp");
+                return mav;
+            }
+        
+        
+        
+            /***********************************************************************************
+             * logoutPage()
+             *  1) Invalidate the HTTP Session.
+             *  2) Remove the Authentication from the SecurityContext to prevent issues with concurrent requests.
+             *  3) Explicitly clears the context value from the current thread.
+             ************************************************************************************/
+            @RequestMapping(value="/logout", method = RequestMethod.GET)
+            public ModelAndView logoutPage (HttpServletRequest request, HttpServletResponse response)
+            {
+                Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                if (auth != null)
+                {
+                    SecurityContextLogoutHandler ctxLogOut = new SecurityContextLogoutHandler();
+                    ctxLogOut.setInvalidateHttpSession(true);
+                    ctxLogOut.setClearAuthentication(true);
+                    ctxLogOut.logout(request, response, auth);
+                }
+        
+                ModelAndView mav = new ModelAndView();
+                mav.setViewName("logoutPage.jsp");
+                return mav;
+            }
+        
+        }
+
+
+ 
+ 
+ 9. Create this jsp:  loginPage.jsp
+         
+        <%@ page session="false" %>
+        
+        <%-- Include Core taglib and set contextPath --%>
+        <%@ include file="/WEB-INF/jsp/stdJspIncludes.jsp" %>
+        
+        <html>
+        
+        
+        <head>
+            <title>Login Page</title>
+        </head>
+        
+        <body>
+            <h2>loginPage.jsp</h2>
+        
+               <c:if test="${not empty error}"><div>${error}</div></c:if>
+               <c:if test="${not empty message}"><div>${message}</div></c:if>
+        
+                <form name='login' action="${contextPath}/loginPage" method="post">
+                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+        
+                    Username: <input type="text" name="username" placeholder="-username-" value=""><br/>
+                    Password: <input type="password" name="password" placeholder="-password-" value=""><br/>
+                    <input type="submit" value="Login" />
+                </form>
+        
+            <br/>
+            <br/>
+        
+        </body>
+        </html>
+ 
+
+10. Create this jsp:  logoutPage.jsp
+    NOTE:  This page does not have a form (so it clears the session completely)
+    
+        <%@ page session="false" %>
+        
+        <%-- Include Core taglib and set contextPath --%>
+        <%@ include file="/WEB-INF/jsp/stdJspIncludes.jsp" %>
+        
+        <html>
+        
+        
+        <head>
+            <title>Logout Page</title>
+        </head>
+        
+        <body>
+            <h2>logoutPage.jsp</h2>
+        
+            Thank you for using the application
+        
+            Click here to <a href="${contextPath}/loginPage" title="Go back to the Login Page">login again</a>
+        
+            <br/>
+            <br/>
+        
+        </body>
+        </html> 
+ 
+ 
+ 
+ 
+11. Adjust JAWR bundling so that bundled JS and CSS files start with /resources
+    NOTE:  This will allow the bundled JS and bundled CSS files get through Spring Security
+    
+    Edit the jawr.properties so that the bundle ids start with /bundles
+    
+    a. Change this line:
+            jawr.js.bundle.jbad.id=/id/jquery.boostrap.angular.datatables.js      
+       To this:
+            jawr.js.bundle.jbad.id=/bundles/jquery.boostrap.angular.datatables.js
+       
+ 
+    b. Change this line:
+            jawr.css.bundle.jbad_css.id=/id/jquery.boostrap.angular.datatables.css
+       To this:
+            jawr.css.bundle.jbad_css.id=/bundles/jquery.boostrap.angular.datatables.css
+       
+       
+ 
+    When completed, your jawr.properties should look like this:
+    
+        ####################################################################################
+        #
+        # jawr.properties
+        #
+        # Set jawr.debug.on=true  and files are *not* bundled   (development mode)
+        # Set jawr.debug.on=false and files are bundled         (production mode)
+        ####################################################################################
+        jawr.debug.on=false
+        jawr.gzip.on=false
+        jawr.strict.mode=true
+        
+        jawr.use.bundle.mapping=true
+        
+        # Define a bundle that holds jQuery, bootstrap, Angular, DataTales.net  (jbad)
+        # NOTE:  The bundle id must end with .js
+        jawr.js.bundle.jbad.id=/bundles/jquery.boostrap.angular.datatables.js
+        jawr.js.bundle.jbad.mappings=/resources/jquery-1.11.3/jquery-1.11.3.min.js,/resources/bootstrap-3.3.4/js/bootstrap.min.js,/resources/angular-1.3.16/angular.min.js,/resources/DataTables-1.10.9/media/js/jquery.dataTables.min.js
+        
+        # Define a CSS bundle
+        jawr.css.bundle.jbad_css.id=/bundles/jquery.boostrap.angular.datatables.css
+        jawr.css.bundle.jbad_css.mappings=/resources/bootstrap-3.3.4/css/bootstrap.min.css,/resources/bootstrap-3.3.4/css/bootstrap-theme.min.css,/resources/DataTables-1.10.9/media/css/jquery.dataTables.min.css         
+        
+
+    c. Change your layout.jsp so that the src="/id/..." becomes src="/bundles/..."
+  
+            <%-- I N S E R T       C S S     B U N D L E     --%>
+            <jwr:style src="/bundles/jquery.boostrap.angular.datatables.css"/>
+       
+            <%-- L O A D    J A V A S C R I P T     B U N D L E            --%>
+            <jwr:script src="/bundles/jquery.boostrap.angular.datatables.js" />
+
+
+
+    d. Modify the LoginSecurityConfig class so that requests with /bundles/ in it get through
+       
+       Change this method to lookl ike this:
+       
+        /**************************************************************************************
+         * configure()
+         ***************************************************************************************/
+        @Override
+        public void configure(WebSecurity web) throws Exception
+        {
+            // Allow requests to resources to get through
+            web.ignoring()
+                .antMatchers("/resources/**")
+                .regexMatchers(".*/bundles/.*");
+        }
+    
+    
+    
+    
+12.  Add this line to the top of *every* JSP page  (even those that are included)
+       <%@ page session="false" %>
+       
+   
+ 
+
+        
+             
