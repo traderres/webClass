@@ -112,34 +112,36 @@ Procedure
                   UserInfo userInfo = myAuth.getUserInfo();
              
      2) This class is really a wrapper around the UserInfo object
-     
         
-        
-        package app1.security;
-        
-        import app1.model.UserInfo;
-        import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-        import org.springframework.security.core.Authentication;
-        import org.springframework.security.core.GrantedAuthority;
-        
-        import java.util.Collection;
-        
-        /**
-         * Created by adam on 11/15/2015.
-         */
-        public class MyAuthentication extends UsernamePasswordAuthenticationToken implements Authentication
-        {
-            private UserInfo userInfo;
-        
-            public UserInfo getUserInfo() { return this.userInfo; }
-        
-            public MyAuthentication(Object principal, Object credentials,  Collection<? extends GrantedAuthority> authorities, UserInfo aUserInfo) {
-                super(principal, credentials, authorities);
-        
-                this.userInfo = aUserInfo;
+            package app1.security;
+            
+            import app1.model.UserInfo;
+            import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+            import org.springframework.security.core.Authentication;
+            import org.springframework.security.core.GrantedAuthority;
+            
+            import java.util.Collection;
+            
+            /**
+             * Created by adam on 11/15/2015.
+             */
+            public class MyAuthentication extends UsernamePasswordAuthenticationToken implements Authentication
+            {
+                private UserInfo userInfo;
+            
+                public UserInfo getUserInfo() { return this.userInfo; }
+            
+                public MyAuthentication(Object principal,
+                                        Object credentials,
+                                        Collection<? extends GrantedAuthority> authorities,
+                                        UserInfo aUserInfo)
+                {
+                    super(principal, credentials, authorities);
+            
+                    this.userInfo = aUserInfo;
+                }
             }
-        }
-
+            
 
  
  8. Create this class:  MyDaoAuthenticationProvider
@@ -380,7 +382,7 @@ Procedure
             @Override
             public void configure(WebSecurity web) throws Exception
             {
-                // Allow requests to resources to get through
+                // Allow requests to resources and bundles to get through
                 web.ignoring()
                     .antMatchers("/resources/**")
                     .regexMatchers(".*/bundles/.*");
@@ -391,14 +393,10 @@ Procedure
              * configure()
              ***************************************************************************************/
             @Override
-            protected void configure(HttpSecurity http) throws Exception {
+            protected void configure(HttpSecurity http) throws Exception
+            {
                 logger.debug("configure() started");
         
-        
-                // Configure authentication provider(s)
-                DataSource mysqlDataSource = (DataSource) SpringAppContextUtils.getBean("mysqlDataSource");
-                MyDaoAuthenticationProvider myDaoAuthProvider = new MyDaoAuthenticationProvider(mysqlDataSource);
-                http.authenticationProvider(myDaoAuthProvider);
         
                 // Configure authentication provider(s)
                 http.authenticationProvider(this.myDaoAuthenticationProvider);
@@ -419,23 +417,65 @@ Procedure
         
             }
         }
-        
+
                 
                 
 
 10. Pass-in the mysqlDataSource into your myDaoAuthenticationProvider class
      
-     Approach #1:  Create a bean in your applicationContext.xml
+     Approach #1:  Setup myDaoAuthenticationProvider as a spring bean and 
+                   use Spring to call myDaoAuthenticationProvider's constructor with the datasource passed-in
+          
+          a. Create a bean in your applicationContext.xml
       
-          <bean id="myDaoAuthenticationProvider" class="app1.security.MyDaoAuthenticationProvider">
-            <constructor-arg ref="mysqlDataSource"/>
-         </bean> 
+               <bean id="myDaoAuthenticationProvider" class="app1.security.MyDaoAuthenticationProvider">
+                   <constructor-arg ref="mysqlDataSource"/>
+                </bean> 
+    
+              
+             When completed, LoginSecurityConfig has these 2 parts:
+             
+             @Resource
+             private MyDaoAuthenticationProvider myDaoAuthenticationProvider;
+             
+             . . .
+             
+             
+            /**************************************************************************************
+             * configure()
+             ***************************************************************************************/
+            @Override
+            protected void configure(HttpSecurity http) throws Exception
+            {
+                logger.debug("configure() started");
+        
+        
+                // Configure authentication provider(s)
+                http.authenticationProvider(this.myDaoAuthenticationProvider);
+        
+        
+                // Setup Security
+                http.authorizeRequests()
+                                .antMatchers("/").permitAll()
+                                .antMatchers("/loginPage").permitAll()
+                                .antMatchers("/**").access("hasRole('ROLE_USER')")
+                                .and()
+                                .formLogin().loginPage("/loginPage")
+                                .defaultSuccessUrl("/welcome")
+                                .failureUrl("/loginPage?error")
+                                .usernameParameter("username").passwordParameter("password")
+                        .and()
+                        .logout().logoutSuccessUrl("/logout");
+        
+            }
+             
  
  
  
-     Approach #2:  Modify LoginSecurityConfig.configure()
-      
-          a. Remove this code:
+     Approach #2:  Manually get a reference to the data source and
+                   create a myDaoAuthProvider object in the LoginSecurityConfig.configure()
+
+          a. Remove this code from LoginSecurityConfig.configure()
           
              @Resource
              private MyDaoAuthenticationProvider myDaoAuthenticationProvider;
@@ -443,13 +483,40 @@ Procedure
              // Configure authentication provider(s)
              http.authenticationProvider(this.myDaoAuthenticationProvider);
      
+                   
+          b. Insert this code at the beginning of LoginSecurityConfig.configure()
           
-          b. Insert this code: 
-          
-              // Configure authentication provider(s)
-              DataSource mysqlDataSource = (DataSource) SpringAppContextUtils.getBean("mysqlDataSource");
-              MyDaoAuthenticationProvider myDaoAuthProvider = new MyDaoAuthenticationProvider(mysqlDataSource);
-              http.authenticationProvider(myDaoAuthProvider);
+                
+              When completed, configure() looks like this:
+              
+                /**************************************************************************************
+                 * configure()
+                 ***************************************************************************************/
+                @Override
+                protected void configure(HttpSecurity http) throws Exception
+                {
+                    logger.debug("configure() started");
+            
+                    // Configure authentication provider(s)
+                    DataSource mysqlDataSource = (DataSource) SpringAppContextUtils.getBean("mysqlDataSource");
+                    MyDaoAuthenticationProvider myDaoAuthProvider = new MyDaoAuthenticationProvider(mysqlDataSource);
+                    http.authenticationProvider(myDaoAuthProvider);
+            
+                    // Setup Security
+                    http.authorizeRequests()
+                                    .antMatchers("/").permitAll()
+                                    .antMatchers("/loginPage").permitAll()
+                                    .antMatchers("/**").access("hasRole('ROLE_USER')")
+                                    .and()
+                                    .formLogin().loginPage("/loginPage")
+                                    .defaultSuccessUrl("/welcome")
+                                    .failureUrl("/loginPage?error")
+                                    .usernameParameter("username").passwordParameter("password")
+                            .and()
+                            .logout().logoutSuccessUrl("/logout");
+            
+                }
+              
           
  
  
