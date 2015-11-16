@@ -64,10 +64,9 @@ Procedure
 
  
  4. Create this package:  app1.security
- 
- 
-
-
+    NOTE:  The remaining classes will be created inside app1.security
+    
+    
 
  5. Create this class:  SpringSecurityInitializer
         
@@ -104,12 +103,50 @@ Procedure
             }
         }
           
+
+ 7. Create this class:  MyAuthentication
+    NOTES:
+      1) This class holds the UserInfo details that will be set on authentication
+         and these details are retrievable using this bit of code:
+                  MyAuthentication myAuth = (MyAuthentication) SecurityContextHolder.getContext().getAuthentication();
+                  UserInfo userInfo = myAuth.getUserInfo();
+             
+     2) This class is really a wrapper around the UserInfo object
+     
+        
+        
+        package app1.security;
+        
+        import app1.model.UserInfo;
+        import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+        import org.springframework.security.core.Authentication;
+        import org.springframework.security.core.GrantedAuthority;
+        
+        import java.util.Collection;
+        
+        /**
+         * Created by adam on 11/15/2015.
+         */
+        public class MyAuthentication extends UsernamePasswordAuthenticationToken implements Authentication
+        {
+            private UserInfo userInfo;
+        
+            public UserInfo getUserInfo() { return this.userInfo; }
+        
+            public MyAuthentication(Object principal, Object credentials,  Collection<? extends GrantedAuthority> authorities, UserInfo aUserInfo) {
+                super(principal, credentials, authorities);
+        
+                this.userInfo = aUserInfo;
+            }
+        }
+
+
  
- 
- 7. Create this class:  MyDaoAuthenticationProvider
+ 8. Create this class:  MyDaoAuthenticationProvider
          
         package app1.security;
         
+        import app1.model.UserInfo;
         import org.slf4j.Logger;
         import org.slf4j.LoggerFactory;
         import org.springframework.jdbc.core.JdbcTemplate;
@@ -190,7 +227,16 @@ Procedure
                 {
                     List<GrantedAuthority> grantedAuths = getListOfAuthoritiesForUsername(sUsername);
         
-                    return new UsernamePasswordAuthenticationToken(sUsername, sPassword, grantedAuths);
+                    // Create a userInfo object and add to the returned Authenticaiton object
+                    UserInfo userInfo = new UserInfo();
+                    userInfo.setUserName(sUsername);
+                    userInfo.setIsAdministrator(false);
+        
+                    // Create an authentication object
+                    // We can get this info out using this code:
+                    //   SecurityContextHolder.getContext().getAuthentication()
+                    MyAuthentication myAuthentication = new MyAuthentication(sUsername, sPassword, grantedAuths, userInfo);
+                    return myAuthentication;
                 }
                 else
                 {
@@ -278,7 +324,7 @@ Procedure
         }
 
  
- 8. Create this class:  LoginSecurityConfig
+ 9. Create this class:  LoginSecurityConfig
                 
         package app1.security;
         
@@ -377,7 +423,7 @@ Procedure
                 
                 
 
-  9. Pass-in the mysqlDataSource into your myDaoAuthenticationProvider class
+10. Pass-in the mysqlDataSource into your myDaoAuthenticationProvider class
      
      Approach #1:  Create a bean in your applicationContext.xml
       
@@ -407,7 +453,7 @@ Procedure
           
  
  
-10. Create this class:  LoginController 
+11. Create this class:  LoginController 
         
         package app1.controllers;
         
@@ -509,7 +555,7 @@ Procedure
 
  
  
-11. Create this jsp:  loginPage.jsp
+12. Create this jsp:  loginPage.jsp
          
         <%@ page session="false" %>
         
@@ -544,7 +590,7 @@ Procedure
         </html>
  
 
-12. Create this jsp:  logoutPage.jsp
+13. Create this jsp:  logoutPage.jsp
     NOTE:  This page does not have a form (so it clears the session completely)
     
         <%@ page session="false" %>
@@ -575,7 +621,7 @@ Procedure
  
  
  
-13. Adjust JAWR bundling so that bundled JS and CSS files start with /resources
+14. Adjust JAWR bundling so that bundled JS and CSS files start with /resources
     NOTE:  This will allow the bundled JS and bundled CSS files get through Spring Security
     
     Edit the jawr.properties so that the bundle ids start with /bundles
@@ -647,11 +693,44 @@ Procedure
     
     
     
-14.  Add this line to the top of *every* JSP page  (even those that are included)
+15.  Add this line to the top of *every* JSP page  (even those that are included)
        <%@ page session="false" %>
        
    
+   
  
-
-        
+16.  Adjust your WelcomeController.mainPage() method so that it pulls UserInfo
+     from the SpringContextHolder:
+     
+        /**********************************************************************
+         * mainPage()
+         *
+         * The user browsed to the /welcome page
+         *  1) Get a userinfo object setup
+         *  2) Forward the user to the welcome.jsp page
+         ***********************************************************************/
+        @RequestMapping(value="/welcome")
+        public ModelAndView mainPage( Model aModel )
+        {
+            logger.debug("mainPage() started");
+    
+            // Create a modelAndView object
+            ModelAndView mav = new ModelAndView();
+    
+            // Show the welcome.jsp page
+            mav.setViewName("welcome.jsp");
+    
+            // Get the UserInfo object from Spring Security
+            // NOTE:  UserInfo is created in MyDaoAuthenticationProvider.authenticate()
+            MyAuthentication myAuth = (MyAuthentication) SecurityContextHolder.getContext().getAuthentication();
+            UserInfo userInfo = myAuth.getUserInfo();
+    
+            // Add the userInfo information to the view
+            mav.addObject("userInfo", userInfo);
+    
+            logger.debug("mainPage() finished");
+            return mav;
+        }
+    
+            
              
