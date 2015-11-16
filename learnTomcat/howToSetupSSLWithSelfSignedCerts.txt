@@ -1,0 +1,198 @@
+How to Setup SSL in Tomcat using a Self-Signed Cert
+---------------------------------------------------
+
+Assumptions:
+ A) You have a Tomcat setup   [see howToSetupTomcat7.txt]
+ B) You want to create your own self-signed JKS certs for your Tomcat
+ C) You have a JAVA JDK [that includes keytool]
+ 
+
+References
+----------
+http://docs.oracle.com/cd/E19798-01/821-1751/ghlgv/index.html
+
+
+Procedures
+----------
+ 1. Open a DOS window with keytool in its path
+    a. Press <Start><Run>CMD
+ 
+    b. Make sure keytool is in your path
+       DOS> keytool
+ 
+        Key and Certificate Management Tool
+        
+        Commands:
+        
+         -certreq            Generates a certificate request
+         -changealias        Changes an entry's alias
+         -delete             Deletes an entry
+         -exportcert         Exports certificate
+         -genkeypair         Generates a key pair
+         -genseckey          Generates a secret key
+         -gencert            Generates certificate from a certificate request
+         -importcert         Imports a certificate or a certificate chain
+         -importkeystore     Imports one or all entries from another keystore
+         -keypasswd          Changes the key password of an entry
+         -list               Lists entries in a keystore
+         -printcert          Prints the content of a certificate
+         -printcertreq       Prints the content of a certificate request
+         -printcrl           Prints the content of a CRL file
+         -storepasswd        Changes the store password of a keystore
+        
+        Use "keytool -command_name -help" for usage of command_name
+        
+    
+    If you do *NOT* see this then, add keytool to your path
+    ASSUPTION:  You have java jdk 1.7.0.60 installed in C:\Program Files\Java\jdk1.7.0_60
+    
+       CMD> set PATH=%PATH%;C:\Program Files\Java\jdk1.7.0_60\bin
+       
+       
+       
+       
+ 2. Generate the certificate in the keystore file, keystore.jks
+    DOS> mkdir c:\tools\certs
+    DOS> cd /d c:\tools\certs
+    DOS> keytool -genkey -alias KEYSTORE_ALIAS -keyalg RSA -keypass changeit -storepass changeit -keystore keystore.jks 
+   
+         What is your first and last name?                    John Smith
+         What is the name of your organizational unit?        bogus
+         What is the name of your organization?               whatever.com
+         What is the name of your City or Locality?           Boston
+         What is the name of your State or Province?          MA
+         What is the two-letter country code for this unit?   US    
+         Is CN=John Smith, OU=bogus, O=whatever.com, L=Boston, ST=MA, C=US correct?  Yes
+         -- Now, you have this file:  keystore.jks
+         
+         
+         
+ 3. Export the generated certificate to the server.crt
+    DOS> keytool -export -alias KEYSTORE_ALIAS -storepass changeit  -file server.crt -keystore keystore.jks
+         -- Now, you have this file:  server.crt
+   
+   
+   
+ 4. Create the myTruststore.jks truststore file and add the certificate to the truststore
+    DOS> keytool -import -v -trustcacerts -alias KEYSTORE_ALIAS  -file server.crt -keystore myTruststore.jks  -keypass changeit  
+         Enter keystore password:        changeit
+         Re-enter new password:          changeit
+         Trust this certificate? [no]:   yes
+         -- Now, you have this file:  myTruststore.jks
+         
+         
+
+ 5. Setup an SSL Connector in Tomcat to listen on port 8443
+    a. Add this connector to your <TOMCAT-HOME>/conf/server.xml
+    
+      <Connector port="8443" 
+                 protocol="org.apache.coyote.http11.Http11Protocol"
+                 maxThreads="150" 
+                 SSLEnabled="true" 
+                 scheme="https" 
+                 secure="true"
+                 clientAuth="false" 
+                 sslProtocol="TLS" 
+                 keystoreFile="c:/tools/certs/keystore.jks" 
+                 keystorePass="changeit"
+                 keystoreType="JKS"
+                 truststoreFile="c:/tools/certs/myTruststore.jks"
+                 truststorePass="changeit"
+                 truststoreType="JKS"
+                 keyAlias="KEYSTORE_ALIAS"
+          />
+
+    b. Restart your Tomcat
+       a) Run the shutdown.bat script
+       b) Run the startup.bat script
+       
+       
+    c. Attempt to connect to your Tomcat manager using port 8443:
+       1) Open a web browser
+       2) Connect to https://localhost:8443/manager
+          If using Firefox, you will get a warning saying "This Connection is Untrusted"
+          -- Click "I Understand the Risks"
+          -- Press "Add Exception..."
+          -- Click "Confirm Security Exception"
+          
+          
+          
+          
+
+How to display contents of keystore
+-----------------------------------
+Display contents of keystore.jks
+   DOS> cd /d c:\tools\certs
+   DOS> keytool -list -v  -keystore keystore.jks -storepass changeit
+          
+        Keystore type: JKS
+        Keystore provider: SUN
+        
+        Your keystore contains 1 entry
+        
+        Alias name: keystore_alias
+        Creation date: Oct 11, 2015
+        Entry type: PrivateKeyEntry
+        Certificate chain length: 1
+        Certificate[1]:
+        Owner: CN=John Smith, OU=bogus, O=whatever.com, L=Boston, ST=MA, C=US
+        Issuer: CN=John Smith, OU=bogus, O=whatever.com, L=Boston, ST=MA, C=US
+        Serial number: 6bdc9974
+        Valid from: Sun Oct 11 19:15:23 EDT 2015 until: Sat Jan 09 18:15:23 EST 2016
+        Certificate fingerprints:
+                 MD5:  33:7A:7C:35:7E:88:FA:FC:93:96:12:E4:C6:1B:76:2B
+                 SHA1: BC:A5:12:09:5D:5B:FD:08:C5:DB:36:74:DE:2A:CF:1C:9A:C2:E6:4C
+                 SHA256: D0:02:C4:43:59:65:B5:F6:9A:DE:80:65:66:F0:5F:BE:07:8D:0C:38:AD:EB:41:AF:9F:59:7C:24:6B:06:85:E9
+                 Signature algorithm name: SHA256withRSA
+                 Version: 3
+        
+        Extensions:
+        
+        #1: ObjectId: 2.5.29.14 Criticality=false
+        SubjectKeyIdentifier [
+        KeyIdentifier [
+        0000: DC DA BC DA 33 86 11 A9   A1 12 A6 EE E6 09 D7 24  ....3..........$
+        0010: 87 20 1E FF                                        . ..
+        ]
+        ]
+        
+        
+        
+        
+How to display contents of truststore
+-------------------------------------
+Display contents of myTruststore.jks
+   DOS> cd /d c:\tools\certs
+   DOS> keytool -list -v  -keystore myTruststore.jks -storepass changeit  
+
+        Keystore type: JKS
+        Keystore provider: SUN
+        
+        Your keystore contains 1 entry
+        
+        Alias name: keystore_alias
+        Creation date: Oct 11, 2015
+        Entry type: trustedCertEntry
+        
+        Owner: CN=John Smith, OU=bogus, O=whatever.com, L=Boston, ST=MA, C=US
+        Issuer: CN=John Smith, OU=bogus, O=whatever.com, L=Boston, ST=MA, C=US
+        Serial number: 6bdc9974
+        Valid from: Sun Oct 11 19:15:23 EDT 2015 until: Sat Jan 09 18:15:23 EST 2016
+        Certificate fingerprints:
+                 MD5:  33:7A:7C:35:7E:88:FA:FC:93:96:12:E4:C6:1B:76:2B
+                 SHA1: BC:A5:12:09:5D:5B:FD:08:C5:DB:36:74:DE:2A:CF:1C:9A:C2:E6:4C
+                 SHA256: D0:02:C4:43:59:65:B5:F6:9A:DE:80:65:66:F0:5F:BE:07:8D:0C:38:AD:EB:41:AF:9F:59:7C:24:6B:06:85:E9
+                 Signature algorithm name: SHA256withRSA
+                 Version: 3
+        
+        Extensions:
+        
+        #1: ObjectId: 2.5.29.14 Criticality=false
+        SubjectKeyIdentifier [
+        KeyIdentifier [
+        0000: DC DA BC DA 33 86 11 A9   A1 12 A6 EE E6 09 D7 24  ....3..........$
+        0010: 87 20 1E FF                                        . ..
+        ]
+        ]
+
+          
