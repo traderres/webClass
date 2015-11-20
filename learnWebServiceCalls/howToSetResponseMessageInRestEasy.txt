@@ -1,0 +1,175 @@
+How to Set the Response Message in a Spring MVC Rest Call
+----------------------------------------------------------
+
+References
+----------
+https://docs.jboss.org/resteasy/docs/1.1.GA/userguide/html/Using__Path_and__GET___POST__etc..html
+https://dzone.com/articles/resteasy-spring
+
+
+
+Example
+--------
+ 1. Add the resteasy dependencies
+       <dependency>
+          <groupId>org.jboss.resteasy</groupId>
+          <artifactId>resteasy-spring</artifactId>
+          <version>3.0.4.Final</version>
+       </dependency>
+       
+       <dependency>
+          <groupId>org.jboss.resteasy</groupId>
+          <artifactId>resteasy-jaxrs</artifactId>
+          <version>3.0.4.Final</version>
+       </dependency>
+       
+       <dependency>
+          <groupId>org.jboss.resteasy</groupId>
+          <artifactId>resteasy-servlet-initializer</artifactId>
+          <version>3.0.4.Final</version>
+       </dependency>
+       
+        
+ 2. Modify your web.xml
+
+        <!-- R E S T E A S Y        C O N F I G U R A T I O N -->
+        <listener>
+            <!-- This listener should be registered before any other listener -->
+            <listener-class>org.jboss.resteasy.plugins.server.servlet.ResteasyBootstrap</listener-class>
+        </listener>
+    
+        <listener>
+            <listener-class>org.jboss.resteasy.plugins.spring.SpringContextLoaderListener</listener-class>
+        </listener>
+    
+        <context-param>
+            <param-name>resteasy.servlet.mapping.prefix</param-name>
+            <param-value>/rest</param-value>
+        </context-param>
+    
+        <servlet>
+            <servlet-name>Resteasy</servlet-name>
+            <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
+        </servlet>
+    
+        <servlet-mapping>
+            <servlet-name>Resteasy</servlet-name>
+            <url-pattern>/rest/*</url-pattern>
+        </servlet-mapping>
+
+ 
+ 3. Add a SampleRestService
+ 
+        package app1.rest;
+        
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.stereotype.Component;
+        import org.springframework.util.StringUtils;
+        
+        import javax.ws.rs.GET;
+        import javax.ws.rs.Path;
+        import javax.ws.rs.Produces;
+        import javax.ws.rs.QueryParam;
+        import javax.ws.rs.core.MediaType;
+        import javax.ws.rs.core.Response;
+        
+        /**
+         * Created by adam on 11/19/2015.
+         */
+        @Component
+        @Path("/sample")
+        public class SampleRestService
+        {
+            private static final Logger logger = LoggerFactory.getLogger(SampleRestService.class);
+        
+            public SampleRestService()
+            {
+                logger.debug("SampleRestService called");
+            }
+        
+            /***************************************************************************
+             * add()   EndPoint
+             ****************************************************************************/
+            @GET
+            @Path("/add")
+            @Produces(MediaType.TEXT_HTML)
+            public Response add(@QueryParam("name") String aName)
+            {
+                logger.debug("add() started  aName={}", aName);
+        
+                try
+                {
+        
+                    if ( StringUtils.endsWithIgnoreCase(aName, "bad"))
+                    {
+                        throw new RuntimeException("Something bad happened!!");
+                    }
+        
+                    // Do something and is succeeds.  So, return 200 and a success message
+                    String sMessage = "I successfully added this: " + aName;
+                    return Response.ok().entity(sMessage).build();
+                }
+                catch (Exception e)
+                {
+                    String sMessage = getFormattedMessageFromException(e);
+                    return Response.serverError().type(MediaType.APPLICATION_XML_TYPE).entity(sMessage).build();
+                }
+            }
+        
+            /***************************************************************************
+             * getFormattedMessageFromException()
+             ****************************************************************************/
+            private String getFormattedMessageFromException(Exception aException)
+            {
+                StringBuilder sbMessage = new StringBuilder();
+        
+                String sStackTrace = getStackTraceAsString(aException);
+        
+                sbMessage.append("Message: ")
+                         .append(aException.getMessage())
+                         .append("\n\n")
+                         .append("Cause: ")
+                         .append(aException.getCause())
+                         .append("\n\n")
+                         .append("StackTrace:\n")
+                         .append(sStackTrace);
+        
+                return sbMessage.toString();
+            }
+        
+        
+        
+            /***************************************************************************
+             * getStackTraceAsString()
+             ****************************************************************************/
+            public String getStackTraceAsString(Exception aException)
+            {
+                StringBuilder sb = new StringBuilder();
+                for (StackTraceElement element : aException.getStackTrace()) {
+                    sb.append(element.toString());
+                    sb.append("\n");
+                }
+                return sb.toString();
+            }
+        
+        
+        }
+  
+  
+  4. If you are using Spring Security, then adjust it so that /rest calls get through
+     Modify LoginSecurityConfig.configure() so that it looks like this:
+     
+         /**************************************************************************************
+         * configure()
+         ***************************************************************************************/
+        @Override
+        public void configure(WebSecurity web) throws Exception
+        {
+            // Allow requests to resources and bundles to get through
+            web.ignoring()
+                .antMatchers("/resources/**")
+                .antMatchers("/rest/**")
+                .regexMatchers(".*/bundles/.*");
+        }
+                
