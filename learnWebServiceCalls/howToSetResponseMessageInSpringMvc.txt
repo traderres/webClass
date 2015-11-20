@@ -1,0 +1,129 @@
+How to Set the Response Message in a Spring MVC Rest Call
+----------------------------------------------------------
+
+References
+----------
+http://stackoverflow.com/questions/9767952/how-to-add-parameters-to-httpurlconnection-using-post
+
+
+
+
+
+Example
+-------
+ 1. If you have Spring Security setup, then let /rest/ calls go through
+    Modify the LoginSecurityConfig.configure() method
+    
+        /**************************************************************************************
+         * configure()
+         ***************************************************************************************/
+        @Override
+        public void configure(WebSecurity web) throws Exception
+        {
+            // Allow requests to resources and bundles to get through
+            web.ignoring()
+                .antMatchers("/resources/**")
+                .antMatchers("/rest/**")
+                .regexMatchers(".*/bundles/.*");
+        }  
+        
+          
+ 
+ 2. Create this class:  SampleRestController
+    Right-click on /src/main/java/app1/controllers -> New Class -> SampleRestController
+    
+    
+        package app1.controllers;
+        
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.http.HttpStatus;
+        import org.springframework.http.ResponseEntity;
+        import org.springframework.util.StringUtils;
+        import org.springframework.web.bind.annotation.RequestMapping;
+        import org.springframework.web.bind.annotation.RequestMethod;
+        import org.springframework.web.bind.annotation.RequestParam;
+        import org.springframework.web.bind.annotation.RestController;
+        
+        /**
+         * Created by adam on 11/19/2015.
+         */
+        @RestController
+        public class SampleRestController
+        {
+            private static final Logger logger = LoggerFactory.getLogger(SampleRestController.class);
+        
+        
+            /***************************************************************************
+             * add()   EndPoint
+             ****************************************************************************/
+            @RequestMapping(value="/rest/add", method = RequestMethod.GET)
+            public ResponseEntity<?> add(@RequestParam("name") String aName)
+            {
+                logger.debug("doSomething() started  aName={}", aName);
+        
+                try
+                {
+                    if ( StringUtils.endsWithIgnoreCase(aName, "bad"))
+                    {
+                        // Simulate exception
+                        throw new RuntimeException("Something bad happened!!");
+                    }
+        
+                    // Method succeeds
+                    
+                    // So, return 200 and a success message
+                    String sMessage = "I successfully added this: " + aName;
+                    return new ResponseEntity<String>(sMessage, HttpStatus.OK);
+                }
+                catch (Exception e)
+                {
+                    String sMessage = getFormattedMessageFromException(e);
+                    return new ResponseEntity<String>(sMessage, HttpStatus.INTERNAL_SERVER_ERROR);
+                }
+            }
+        
+        
+            /***************************************************************************
+             * getFormattedMessageFromException()
+             ****************************************************************************/
+            private String getFormattedMessageFromException(Exception aException)
+            {
+                StringBuilder sbMessage = new StringBuilder();
+        
+                String sStackTrace = getStackTraceAsString(aException);
+        
+                sbMessage.append("Message: ")
+                         .append(aException.getMessage())
+                         .append("\n\n")
+                         .append("Cause: ")
+                         .append(aException.getCause())
+                         .append("\n\n")
+                         .append("StackTrace:\n")
+                         .append(sStackTrace);
+        
+                return sbMessage.toString();
+            }
+        
+        
+        
+            /***************************************************************************
+             * getStackTraceAsString()
+             ****************************************************************************/
+            public String getStackTraceAsString(Exception aException)
+            {
+                StringBuilder sb = new StringBuilder();
+                for (StackTraceElement element : aException.getStackTrace()) {
+                    sb.append(element.toString());
+                    sb.append("\n");
+                }
+                return sb.toString();
+            }
+        
+        
+        }
+            
+        
+        
+ 
+    
