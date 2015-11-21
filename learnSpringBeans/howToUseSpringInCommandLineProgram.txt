@@ -10,70 +10,239 @@ References
 ----------
  
  
+ 
 Procedure
 ---------
  1. Create a main java program
+    [see learnJava / howToCreateJavaCommandLineProgramUsingIntellijMaven.txt]
+    NOTES:
+       Call the application springApp
+       Follow steps 1 through 5
+       
+      
+           
  
+ 2. Update the dependencies to your pom.xml 
+    Your pom.xml should only have these dependencies
  
- 
- 2. Add to your pom.xml the spring core and spring-context dependencies
- 
+        <!-- Spring Core -->
         <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-core</artifactId>
-            <version>4.1.1.RELEASE</version>
+          <groupId>org.springframework</groupId>
+          <artifactId>spring-core</artifactId>
+          <version>4.1.1.RELEASE</version>
+          <exclusions>
+            <exclusion>
+              <groupId>commons-logging</groupId>
+              <artifactId>commons-logging</artifactId>
+            </exclusion>
+          </exclusions>
         </dependency>
-
+    
+        <!-- Spring Context -->
         <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-context</artifactId>
-            <version>4.1.1.RELEASE</version>
+          <groupId>org.springframework</groupId>
+          <artifactId>spring-context</artifactId>
+          <version>4.1.1.RELEASE</version>
+        </dependency>
+    
+        <!-- Spring sends logging to Java Common Logging.  But, this will send this logging to SLF4J -->
+        <dependency>
+          <groupId>org.slf4j</groupId>
+          <artifactId>jcl-over-slf4j</artifactId>
+          <version>1.7.5</version>
+        </dependency>
+    
+        <!-- Include a log4j implementation called logback-classic -->
+        <dependency>
+          <groupId>ch.qos.logback</groupId>
+          <artifactId>logback-classic</artifactId>
+          <version>1.0.13</version>
+        </dependency>
+    
+        <dependency>
+          <groupId>junit</groupId>
+          <artifactId>junit</artifactId>
+          <version>3.8.1</version>
+          <scope>test</scope>
         </dependency>
  
  
- 3. Create a spring-beans.xml file
- 
-     <beans xmlns="http://www.springframework.org/schema/beans"
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:schemaLocation="http://www.springframework.org/schema/beans
-        http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
-    
-        <bean id="helloBean" class="com.mkyong.core.HelloWorld">
-            <property name="name" value="Mkyong" />
-        </bean>
-    
-    </beans>
- 
- 
- 
- 
- 4. Create your spring bean class
+ 3. Create a package called stuff
+    Browse to /src/main/java -> Right-click -> New -> Package
+    Name:  stuff
 
-    public class HelloWorld
-     {
-        private String name;
-    
-        public void setName(String name) {
-            this.name = name;
-        }
-    
-        public void printHello() {
-            System.out.println("Spring 3 : Hello ! " + name);
-        }
-    }
 
- 
- 
- 5. Create your main program:  App
- 
-     public class App
-      {
-     
-        public static void main(String[] args) 
+  
+ 4. Create this class:  BogusClass
+    Browse to /src/main/java/stuff -> New -> Java Class
+    Name:  Stuff
+    
+    Copy this to your BogusClass
+    
+        package stuff;
+        
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        
+        /**
+         * Created by adam on 11/21/2015.
+         */
+        public class BogusClass
         {
-            ApplicationContext context = new ClassPathXmlApplicationContext(
-                    "spring-beans.xml");
-    
-            HelloWorld obj = (HelloWorld) context.getBean("helloBean");
-            obj.printHello();
+            private static final Logger logger = LoggerFactory.getLogger(BogusClass.class);
+        
+            private String name;
+        
+            public BogusClass()
+            {
+                logger.debug("BogusClass() Constructor called");
+            }
+        
+            public void setName(String aName)
+            {
+                logger.debug("setName()  called with aName={}", aName);
+                this.name = aName;
+            }
+        
+            public void displayName()
+            {
+                logger.debug("displayName()  called with this.name={}", this.name);
+                System.out.println("Name is this:  " + this.name);
+            }
+        
         }
+
+
+
+
+ 5. Create this class:  App
+    Browse to /src/main/java/stuff -> New -> Java Class
+    Name: App
+    
+    Copy this to your App.java class
+            
+        package stuff;
+        
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.context.ApplicationContext;
+        import org.springframework.context.support.ClassPathXmlApplicationContext;
+        
+        /**
+         * Created by adam on 11/21/2015.
+         */
+        public class App
+        {
+            private static final Logger logger = LoggerFactory.getLogger(App.class);
+        
+            public static void main( String[] args )
+            {
+                logger.debug("main() started.");
+        
+                // Create the spring context
+                //  1) Read spring-beans.xml
+                //  2) Instantiate the spring beans
+                ApplicationContext context = new ClassPathXmlApplicationContext("spring-beans.xml");
+        
+                // Get a reference to the bogus Bean
+                BogusClass bogus = (BogusClass) context.getBean("bogusBean");
+                bogus.displayName();
+        
+                logger.debug("main() finished.");
+            }
+        }
+
+
+
+ 
+ 6. Create this file:  spring-beans.xml file
+    Right-click on /src/main/resources/ -> Right-click -> New -> File:
+    Filename:  spring-beans.xml
+    
+        <beans xmlns="http://www.springframework.org/schema/beans"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:schemaLocation="http://www.springframework.org/schema/beans
+                http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
+        
+            <bean id="bogusBean" class="stuff.BogusClass">
+                <property name="name" value="John" />
+            </bean>
+        
+        </beans>
+
+
+ 
+  7. Update your logback.xml so your "stuff" and "org.springframework" packages have debug-level set to DEBUG 
+     This will cause Spring to show you what it is doing
+     
+     
+        <?xml version="1.0" encoding="windows-1252" ?>
+        <!DOCTYPE project>
+        
+        <configuration debug="false">
+            <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+                <encoder>
+                    <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+                </encoder>
+            </appender>
+        
+            <logger name="org.springframework" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+        
+            <logger name="stuff" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+        
+            <root level="INFO">
+                <appender-ref ref="CONSOLE"/>
+            </root>
+        
+        </configuration>
+ 
+ 
+  8. Test it
+     a. Set a breakpoint on the first line of your main()
+     b. Right-click on /src/main/java/stuff/App -> Debug 'App.main()'
+
+     You should see this output:
+         
+        11/21/2015 15:21:33 DEBUG stuff.App main() started.
+        11/21/2015 15:21:34 DEBUG org.springframework.core.env.StandardEnvironment Adding [systemProperties] PropertySource with lowest search precedence
+        11/21/2015 15:21:34 DEBUG org.springframework.core.env.StandardEnvironment Adding [systemEnvironment] PropertySource with lowest search precedence
+        11/21/2015 15:21:34 DEBUG org.springframework.core.env.StandardEnvironment Initialized StandardEnvironment with PropertySources [systemProperties,systemEnvironment]
+        11/21/2015 15:21:34 INFO  org.springframework.context.support.ClassPathXmlApplicationContext Refreshing org.springframework.context.support.ClassPathXmlApplicationContext@72391879: startup date [Sat Nov 21 15:21:34 EST 2015]; root of context hierarchy
+        11/21/2015 15:21:34 DEBUG org.springframework.core.env.StandardEnvironment Adding [systemProperties] PropertySource with lowest search precedence
+        11/21/2015 15:21:34 DEBUG org.springframework.core.env.StandardEnvironment Adding [systemEnvironment] PropertySource with lowest search precedence
+        11/21/2015 15:21:34 DEBUG org.springframework.core.env.StandardEnvironment Initialized StandardEnvironment with PropertySources [systemProperties,systemEnvironment]
+        11/21/2015 15:21:34 INFO  org.springframework.beans.factory.xml.XmlBeanDefinitionReader Loading XML bean definitions from class path resource [spring-beans.xml]
+        11/21/2015 15:21:34 DEBUG org.springframework.beans.factory.xml.DefaultDocumentLoader Using JAXP provider [com.sun.org.apache.xerces.internal.jaxp.DocumentBuilderFactoryImpl]
+        11/21/2015 15:21:34 DEBUG org.springframework.beans.factory.xml.PluggableSchemaResolver Loading schema mappings from [META-INF/spring.schemas]
+        11/21/2015 15:21:34 DEBUG org.springframework.beans.factory.xml.PluggableSchemaResolver Loaded schema mappings: {http://www.springframework.org/schema/util/spring-util.xsd=org/springframework/beans/factory/xml/spring-util-4.1.xsd, http://www.springframework.org/schema/jee/spring-jee-3.2.xsd=org/springframework/ejb/config/spring-jee-3.2.xsd, http://www.springframework.org/schema/beans/spring-beans-4.1.xsd=org/springframework/beans/factory/xml/spring-beans-4.1.xsd, http://www.springframework.org/schema/beans/spring-beans-3.1.xsd=org/springframework/beans/factory/xml/spring-beans-3.1.xsd, http://www.springframework.org/schema/task/spring-task.xsd=org/springframework/scheduling/config/spring-task-4.1.xsd, http://www.springframework.org/schema/cache/spring-cache.xsd=org/springframework/cache/config/spring-cache-4.1.xsd, http://www.springframework.org/schema/aop/spring-aop-3.0.xsd=org/springframework/aop/config/spring-aop-3.0.xsd, http://www.springframework.org/schema/task/spring-task-3.1.xsd=org/springframework/scheduling/config/spring-task-3.1.xsd, http://www.springframework.org/schema/aop/spring-aop-2.0.xsd=org/springframework/aop/config/spring-aop-2.0.xsd, http://www.springframework.org/schema/aop/spring-aop-4.0.xsd=org/springframework/aop/config/spring-aop-4.0.xsd, http://www.springframework.org/schema/task/spring-task-4.1.xsd=org/springframework/scheduling/config/spring-task-4.1.xsd, http://www.springframework.org/schema/tool/spring-tool-2.5.xsd=org/springframework/beans/factory/xml/spring-tool-2.5.xsd, http://www.springframework.org/schema/beans/spring-beans.xsd=org/springframework/beans/factory/xml/spring-beans-4.1.xsd, http://www.springframework.org/schema/jee/spring-jee-2.5.xsd=org/springframework/ejb/config/spring-jee-2.5.xsd, http://www.springframework.org/schema/tool/spring-tool-3.1.xsd=org/springframework/beans/factory/xml/spring-tool-3.1.xsd, http://www.springframework.org/schema/tool/spring-tool-4.1.xsd=org/springframework/beans/factory/xml/spring-tool-4.1.xsd, http://www.springframework.org/schema/aop/spring-aop.xsd=org/springframework/aop/config/spring-aop-4.1.xsd, http://www.springframework.org/schema/jee/spring-jee-3.1.xsd=org/springframework/ejb/config/spring-jee-3.1.xsd, http://www.springframework.org/schema/context/spring-context-3.2.xsd=org/springframework/context/config/spring-context-3.2.xsd, http://www.springframework.org/schema/jee/spring-jee-4.1.xsd=org/springframework/ejb/config/spring-jee-4.1.xsd, http://www.springframework.org/schema/util/spring-util-3.2.xsd=org/springframework/beans/factory/xml/spring-util-3.2.xsd, http://www.springframework.org/schema/beans/spring-beans-2.0.xsd=org/springframework/beans/factory/xml/spring-beans-2.0.xsd, http://www.springframework.org/schema/beans/spring-beans-4.0.xsd=org/springframework/beans/factory/xml/spring-beans-4.0.xsd, http://www.springframework.org/schema/lang/spring-lang-3.2.xsd=org/springframework/scripting/config/spring-lang-3.2.xsd, http://www.springframework.org/schema/beans/spring-beans-3.0.xsd=org/springframework/beans/factory/xml/spring-beans-3.0.xsd, http://www.springframework.org/schema/cache/spring-cache-3.2.xsd=org/springframework/cache/config/spring-cache-3.2.xsd, http://www.springframework.org/schema/task/spring-task-3.0.xsd=org/springframework/scheduling/config/spring-task-3.0.xsd, http://www.springframework.org/schema/task/spring-task-4.0.xsd=org/springframework/scheduling/config/spring-task-4.0.xsd, http://www.springframework.org/schema/context/spring-context-2.5.xsd=org/springframework/context/config/spring-context-2.5.xsd, http://www.springframework.org/schema/tool/spring-tool-3.0.xsd=org/springframework/beans/factory/xml/spring-tool-3.0.xsd, http://www.springframework.org/schema/util/spring-util-2.5.xsd=org/springframework/beans/factory/xml/spring-util-2.5.xsd, http://www.springframework.org/schema/tool/spring-tool-2.0.xsd=org/springframework/beans/factory/xml/spring-tool-2.0.xsd, http://www.springframework.org/schema/lang/spring-lang.xsd=org/springframework/scripting/config/spring-lang-4.1.xsd, http://www.springframework.org/schema/tool/spring-tool-4.0.xsd=org/springframework/beans/factory/xml/spring-tool-4.0.xsd, http://www.springframework.org/schema/lang/spring-lang-2.5.xsd=org/springframework/scripting/config/spring-lang-2.5.xsd, http://www.springframework.org/schema/aop/spring-aop-3.2.xsd=org/springframework/aop/config/spring-aop-3.2.xsd, http://www.springframework.org/schema/context/spring-context-4.1.xsd=org/springframework/context/config/spring-context-4.1.xsd, http://www.springframework.org/schema/jee/spring-jee-3.0.xsd=org/springframework/ejb/config/spring-jee-3.0.xsd, http://www.springframework.org/schema/jee/spring-jee-2.0.xsd=org/springframework/ejb/config/spring-jee-2.0.xsd, http://www.springframework.org/schema/context/spring-context-3.1.xsd=org/springframework/context/config/spring-context-3.1.xsd, http://www.springframework.org/schema/jee/spring-jee-4.0.xsd=org/springframework/ejb/config/spring-jee-4.0.xsd, http://www.springframework.org/schema/util/spring-util-3.1.xsd=org/springframework/beans/factory/xml/spring-util-3.1.xsd, http://www.springframework.org/schema/lang/spring-lang-3.1.xsd=org/springframework/scripting/config/spring-lang-3.1.xsd, http://www.springframework.org/schema/util/spring-util-4.1.xsd=org/springframework/beans/factory/xml/spring-util-4.1.xsd, http://www.springframework.org/schema/cache/spring-cache-4.1.xsd=org/springframework/cache/config/spring-cache-4.1.xsd, http://www.springframework.org/schema/lang/spring-lang-4.1.xsd=org/springframework/scripting/config/spring-lang-4.1.xsd, http://www.springframework.org/schema/cache/spring-cache-3.1.xsd=org/springframework/cache/config/spring-cache-3.1.xsd, http://www.springframework.org/schema/context/spring-context.xsd=org/springframework/context/config/spring-context-4.1.xsd, http://www.springframework.org/schema/jee/spring-jee.xsd=org/springframework/ejb/config/spring-jee-4.1.xsd, http://www.springframework.org/schema/aop/spring-aop-2.5.xsd=org/springframework/aop/config/spring-aop-2.5.xsd, http://www.springframework.org/schema/beans/spring-beans-3.2.xsd=org/springframework/beans/factory/xml/spring-beans-3.2.xsd, http://www.springframework.org/schema/aop/spring-aop-3.1.xsd=org/springframework/aop/config/spring-aop-3.1.xsd, http://www.springframework.org/schema/task/spring-task-3.2.xsd=org/springframework/scheduling/config/spring-task-3.2.xsd, http://www.springframework.org/schema/context/spring-context-4.0.xsd=org/springframework/context/config/spring-context-4.0.xsd, http://www.springframework.org/schema/aop/spring-aop-4.1.xsd=org/springframework/aop/config/spring-aop-4.1.xsd, http://www.springframework.org/schema/context/spring-context-3.0.xsd=org/springframework/context/config/spring-context-3.0.xsd, http://www.springframework.org/schema/tool/spring-tool.xsd=org/springframework/beans/factory/xml/spring-tool-4.1.xsd, http://www.springframework.org/schema/util/spring-util-3.0.xsd=org/springframework/beans/factory/xml/spring-util-3.0.xsd, http://www.springframework.org/schema/util/spring-util-2.0.xsd=org/springframework/beans/factory/xml/spring-util-2.0.xsd, http://www.springframework.org/schema/lang/spring-lang-3.0.xsd=org/springframework/scripting/config/spring-lang-3.0.xsd, http://www.springframework.org/schema/util/spring-util-4.0.xsd=org/springframework/beans/factory/xml/spring-util-4.0.xsd, http://www.springframework.org/schema/lang/spring-lang-2.0.xsd=org/springframework/scripting/config/spring-lang-2.0.xsd, http://www.springframework.org/schema/cache/spring-cache-4.0.xsd=org/springframework/cache/config/spring-cache-4.0.xsd, http://www.springframework.org/schema/lang/spring-lang-4.0.xsd=org/springframework/scripting/config/spring-lang-4.0.xsd, http://www.springframework.org/schema/tool/spring-tool-3.2.xsd=org/springframework/beans/factory/xml/spring-tool-3.2.xsd, http://www.springframework.org/schema/beans/spring-beans-2.5.xsd=org/springframework/beans/factory/xml/spring-beans-2.5.xsd}
+        11/21/2015 15:21:34 DEBUG org.springframework.beans.factory.xml.PluggableSchemaResolver Found XML schema [http://www.springframework.org/schema/beans/spring-beans-3.0.xsd] in classpath: org/springframework/beans/factory/xml/spring-beans-3.0.xsd
+        11/21/2015 15:21:34 DEBUG org.springframework.beans.factory.xml.DefaultBeanDefinitionDocumentReader Loading bean definitions
+        11/21/2015 15:21:34 DEBUG org.springframework.beans.factory.xml.XmlBeanDefinitionReader Loaded 1 bean definitions from location pattern [spring-beans.xml]
+        11/21/2015 15:21:34 DEBUG org.springframework.context.support.ClassPathXmlApplicationContext Bean factory for org.springframework.context.support.ClassPathXmlApplicationContext@72391879: org.springframework.beans.factory.support.DefaultListableBeanFactory@3354037e: defining beans [bogusBean]; root of factory hierarchy
+        11/21/2015 15:21:34 DEBUG org.springframework.context.support.ClassPathXmlApplicationContext Unable to locate MessageSource with name 'messageSource': using default [org.springframework.context.support.DelegatingMessageSource@41de474b]
+        11/21/2015 15:21:34 DEBUG org.springframework.context.support.ClassPathXmlApplicationContext Unable to locate ApplicationEventMulticaster with name 'applicationEventMulticaster': using default [org.springframework.context.event.SimpleApplicationEventMulticaster@28cc23a]
+        11/21/2015 15:21:34 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Pre-instantiating singletons in org.springframework.beans.factory.support.DefaultListableBeanFactory@3354037e: defining beans [bogusBean]; root of factory hierarchy
+        11/21/2015 15:21:34 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Creating shared instance of singleton bean 'bogusBean'
+        11/21/2015 15:21:34 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Creating instance of bean 'bogusBean'
+        11/21/2015 15:21:34 DEBUG stuff.BogusClass BogusClass() Constructor called
+        11/21/2015 15:21:34 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Eagerly caching bean 'bogusBean' to allow for resolving potential circular references
+        11/21/2015 15:21:34 DEBUG stuff.BogusClass setName()  called with aName=John
+        11/21/2015 15:21:34 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Finished creating instance of bean 'bogusBean'
+        11/21/2015 15:21:34 DEBUG org.springframework.context.support.ClassPathXmlApplicationContext Unable to locate LifecycleProcessor with name 'lifecycleProcessor': using default [org.springframework.context.support.DefaultLifecycleProcessor@34451d62]
+        11/21/2015 15:21:34 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Returning cached instance of singleton bean 'lifecycleProcessor'
+        11/21/2015 15:21:34 DEBUG org.springframework.core.env.PropertySourcesPropertyResolver Searching for key 'spring.liveBeansView.mbeanDomain' in [systemProperties]
+        11/21/2015 15:21:34 DEBUG org.springframework.core.env.PropertySourcesPropertyResolver Searching for key 'spring.liveBeansView.mbeanDomain' in [systemEnvironment]
+        11/21/2015 15:21:34 DEBUG org.springframework.core.env.PropertySourcesPropertyResolver Could not find key 'spring.liveBeansView.mbeanDomain' in any property source. Returning [null]
+        11/21/2015 15:21:34 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Returning cached instance of singleton bean 'bogusBean'
+        11/21/2015 15:21:34 DEBUG stuff.BogusClass displayName()  called with this.name=John
+        Name is this:  John
+        11/21/2015 15:21:34 DEBUG stuff.App main() finished.
+
+     
+     
+        
+        
