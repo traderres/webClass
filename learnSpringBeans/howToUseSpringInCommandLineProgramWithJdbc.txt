@@ -1,0 +1,325 @@
+How Setup a Spring in a Command Line Java Program with JDBC Connection Pool
+---------------------------------------------------------------------------
+
+Assumptions:
+ A) You have a command-line java program
+ B) You want your main to instantiate a spring context
+ C) One of your spring beans is a JDBC Connection Pool
+ D) You are talking with a mysql database
+ E) You want to use C3P0 as the connection pool mechanism 
+
+Procedure
+---------
+ 1. Create a main java program
+    [see learnJava / howToCreateJavaCommandLineProgramUsingIntellijMaven.txt]
+    NOTES:
+       Call the application springApp
+       Follow steps 1 through 5
+       
+           
+ 
+ 2. Update the dependencies to include Spring, Spring-JDBC, mysql driver, and the C3P0 connection pool
+    Your pom.xml should only have these dependencies
+ 
+        <!-- Spring Core -->
+        <dependency>
+          <groupId>org.springframework</groupId>
+          <artifactId>spring-core</artifactId>
+          <version>4.1.1.RELEASE</version>
+          <exclusions>
+            <exclusion>
+              <groupId>commons-logging</groupId>
+              <artifactId>commons-logging</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+    
+        <dependency>
+          <groupId>org.springframework</groupId>
+          <artifactId>spring-context</artifactId>
+          <version>4.1.1.RELEASE</version>
+        </dependency>
+    
+        <!-- Include Spring JDBC libraries -->
+        <dependency>
+          <groupId>org.springframework</groupId>
+          <artifactId>spring-jdbc</artifactId>
+          <version>4.1.1.RELEASE</version>
+        </dependency>
+    
+        <!-- Spring sends logging to Java Common Logging.  But, this will send this loggin to SLF4J -->
+        <dependency>
+          <groupId>org.slf4j</groupId>
+          <artifactId>jcl-over-slf4j</artifactId>
+          <version>1.7.5</version>
+        </dependency>
+    
+        <!-- Include a log4j implementation called logback-classic -->
+        <dependency>
+          <groupId>ch.qos.logback</groupId>
+          <artifactId>logback-classic</artifactId>
+          <version>1.0.13</version>
+        </dependency>
+    
+        <!-- Add the dependency for your mysql driver -->
+        <dependency>
+          <groupId>mysql</groupId>
+          <artifactId>mysql-connector-java</artifactId>
+          <version>5.1.32</version>
+        </dependency>
+    
+        <!-- Add the dependency for the C3P0 connection pool classes -->
+        <dependency>
+          <groupId>com.mchange</groupId>
+          <artifactId>c3p0</artifactId>
+          <version>0.9.5.1</version>
+        </dependency>
+    
+        <dependency>
+          <groupId>junit</groupId>
+          <artifactId>junit</artifactId>
+          <version>3.8.1</version>
+          <scope>test</scope>
+        </dependency>
+ 
+ 
+ 3. Create a package called stuff
+    Browse to /src/main/java -> Right-click -> New -> Package
+    Name:  stuff
+
+
+  
+ 4. Create this class:  BogusClass
+    Browse to /src/main/java/stuff -> New -> Java Class
+    Name:  Stuff
+    
+    Copy this to your BogusClass
+    
+        package stuff;
+        
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        
+        /**
+         * Created by adam on 11/21/2015.
+         */
+        public class BogusClass
+        {
+            private static final Logger logger = LoggerFactory.getLogger(BogusClass.class);
+        
+            private String name;
+        
+            public BogusClass()
+            {
+                logger.debug("BogusClass() Constructor called");
+            }
+        
+            public void setName(String aName)
+            {
+                logger.debug("setName()  called with aName={}", aName);
+                this.name = aName;
+            }
+        
+            public void displayName()
+            {
+                logger.debug("displayName()  called with this.name={}", this.name);
+                System.out.println("Name is this:  " + this.name);
+            }
+        
+        }
+
+
+
+
+ 5. Create this class:  App
+    Browse to /src/main/java/stuff -> New -> Java Class
+    Name: App
+    
+    Copy this to your App.java class
+            
+        package stuff;
+        
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.context.ApplicationContext;
+        import org.springframework.context.support.ClassPathXmlApplicationContext;
+        
+        /**
+         * Created by adam on 11/21/2015.
+         */
+        public class App
+        {
+            private static final Logger logger = LoggerFactory.getLogger(App.class);
+        
+            public static void main( String[] args )
+            {
+                logger.debug("main() started.");
+        
+                // Create the spring context
+                //  1) Read spring-beans.xml
+                //  2) Instantiate the spring beans
+                ApplicationContext context = new ClassPathXmlApplicationContext("spring-beans.xml");
+        
+                // Get a reference to the bogus Bean
+                BogusClass bogus = (BogusClass) context.getBean("bogusBean");
+                bogus.displayName();
+        
+                // Get a reference to the DataSource (using the connection pool under the hood)
+                DataSource ds = (DataSource) context.getBean("mysqlDataSource");
+                
+                // Run a query against the database
+                JdbcTemplate jt = new JdbcTemplate(ds);
+                String sSql = "Select now()";
+                String sCurrentDateTime = jt.queryForObject(sSql, String.class);
+                logger.debug("Current Database time is {}", sCurrentDateTime);
+                
+                logger.debug("main() finished.");
+            }
+        }
+
+
+
+ 
+ 6. Create this file:  spring-beans.xml file
+    Right-click on /src/main/resources/ -> Right-click -> New -> File:
+    Filename:  spring-beans.xml
+    
+        <beans xmlns="http://www.springframework.org/schema/beans"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:schemaLocation="http://www.springframework.org/schema/beans
+                http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
+        
+            <bean id="bogusBean" class="stuff.BogusClass">
+                <property name="name" value="John" />
+            </bean>
+        
+        
+            <!-- Setup a spring bean that acts as a C3P0 Connection pool                          -->
+            <!-- NOTE:  Set destroy-method="close" so that Spring will close the connection pool  -->
+            <bean id="mysqlDataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource"  destroy-method="close">
+                <property name="driverClass"              value="com.mysql.jdbc.Driver"/>
+                <property name="jdbcUrl"                  value="jdbc:mysql://127.0.0.1:3306/world"  />
+                <property name="user"                     value="root" />
+                <property name="password"                 value="secret" />
+                <property name="initialPoolSize"          value="1" />
+                <property name="maxPoolSize"              value="15" />
+                <property name="minPoolSize"              value="1" />
+                <property name="maxIdleTime"              value="240" />
+                <property name="maxConnectionAge"         value="3600" />
+                <property name="preferredTestQuery"       value="select now() "/>
+                <property name="idleConnectionTestPeriod" value="30000" />
+            </bean>
+        </beans>
+
+
+ 
+  7. Update your logback.xml so your "stuff" and "org.springframework" packages have debug-level set to DEBUG 
+     Also, increase the debugging on the C3P0 Connection Pool class ("com.mchange") to DEBUG
+     This will cause Spring to show you what it is doing
+     
+     
+        <?xml version="1.0" encoding="windows-1252" ?>
+        <!DOCTYPE project>
+        
+        <configuration debug="false">
+            <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+                <encoder>
+                    <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+                </encoder>
+            </appender>
+        
+            <logger name="com.mchange" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+        
+            <logger name="org.springframework" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+        
+            <logger name="stuff" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+        
+            <root level="INFO">
+                <appender-ref ref="CONSOLE"/>
+            </root>
+        
+        </configuration>
+ 
+ 
+  8. Test it
+     a. Set a breakpoint on the first line of your main()
+     b. Right-click on /src/main/java/stuff/App -> Debug 'App.main()'
+
+     You should see this output:
+                 
+        11/21/2015 15:56:47 DEBUG stuff.App main() started.
+        11/21/2015 15:56:49 DEBUG org.springframework.core.env.StandardEnvironment Adding [systemProperties] PropertySource with lowest search precedence
+        11/21/2015 15:56:49 DEBUG org.springframework.core.env.StandardEnvironment Adding [systemEnvironment] PropertySource with lowest search precedence
+        11/21/2015 15:56:49 DEBUG org.springframework.core.env.StandardEnvironment Initialized StandardEnvironment with PropertySources [systemProperties,systemEnvironment]
+        11/21/2015 15:56:49 INFO  org.springframework.context.support.ClassPathXmlApplicationContext Refreshing org.springframework.context.support.ClassPathXmlApplicationContext@2e02d862: startup date [Sat Nov 21 15:56:49 EST 2015]; root of context hierarchy
+        11/21/2015 15:56:49 DEBUG org.springframework.core.env.StandardEnvironment Adding [systemProperties] PropertySource with lowest search precedence
+        11/21/2015 15:56:49 DEBUG org.springframework.core.env.StandardEnvironment Adding [systemEnvironment] PropertySource with lowest search precedence
+        11/21/2015 15:56:49 DEBUG org.springframework.core.env.StandardEnvironment Initialized StandardEnvironment with PropertySources [systemProperties,systemEnvironment]
+        11/21/2015 15:56:49 INFO  org.springframework.beans.factory.xml.XmlBeanDefinitionReader Loading XML bean definitions from class path resource [spring-beans.xml]
+        11/21/2015 15:56:49 DEBUG org.springframework.beans.factory.xml.DefaultDocumentLoader Using JAXP provider [com.sun.org.apache.xerces.internal.jaxp.DocumentBuilderFactoryImpl]
+        11/21/2015 15:56:49 DEBUG org.springframework.beans.factory.xml.PluggableSchemaResolver Loading schema mappings from [META-INF/spring.schemas]
+        11/21/2015 15:56:49 DEBUG org.springframework.beans.factory.xml.PluggableSchemaResolver Loaded schema mappings: {http://www.springframework.org/schema/tx/spring-tx-2.5.xsd=org/springframework/transaction/config/spring-tx-2.5.xsd, http://www.springframework.org/schema/aop/spring-aop-4.1.xsd=org/springframework/aop/config/spring-aop-4.1.xsd, http://www.springframework.org/schema/context/spring-context-3.1.xsd=org/springframework/context/config/spring-context-3.1.xsd, http://www.springframework.org/schema/jdbc/spring-jdbc-4.1.xsd=org/springframework/jdbc/config/spring-jdbc-4.1.xsd, http://www.springframework.org/schema/util/spring-util-3.0.xsd=org/springframework/beans/factory/xml/spring-util-3.0.xsd, http://www.springframework.org/schema/tool/spring-tool.xsd=org/springframework/beans/factory/xml/spring-tool-4.1.xsd, http://www.springframework.org/schema/aop/spring-aop-3.2.xsd=org/springframework/aop/config/spring-aop-3.2.xsd, http://www.springframework.org/schema/lang/spring-lang-4.1.xsd=org/springframework/scripting/config/spring-lang-4.1.xsd, http://www.springframework.org/schema/context/spring-context-4.0.xsd=org/springframework/context/config/spring-context-4.0.xsd, http://www.springframework.org/schema/tool/spring-tool-4.1.xsd=org/springframework/beans/factory/xml/spring-tool-4.1.xsd, http://www.springframework.org/schema/lang/spring-lang-3.2.xsd=org/springframework/scripting/config/spring-lang-3.2.xsd, http://www.springframework.org/schema/cache/spring-cache-3.2.xsd=org/springframework/cache/config/spring-cache-3.2.xsd, http://www.springframework.org/schema/jee/spring-jee-4.1.xsd=org/springframework/ejb/config/spring-jee-4.1.xsd, http://www.springframework.org/schema/jdbc/spring-jdbc-3.1.xsd=org/springframework/jdbc/config/spring-jdbc-3.1.xsd, http://www.springframework.org/schema/util/spring-util-2.0.xsd=org/springframework/beans/factory/xml/spring-util-2.0.xsd, http://www.springframework.org/schema/tool/spring-tool-3.2.xsd=org/springframework/beans/factory/xml/spring-tool-3.2.xsd, http://www.springframework.org/schema/context/spring-context.xsd=org/springframework/context/config/spring-context-4.1.xsd, http://www.springframework.org/schema/cache/spring-cache-4.1.xsd=org/springframework/cache/config/spring-cache-4.1.xsd, http://www.springframework.org/schema/aop/spring-aop-4.0.xsd=org/springframework/aop/config/spring-aop-4.0.xsd, http://www.springframework.org/schema/jee/spring-jee-3.2.xsd=org/springframework/ejb/config/spring-jee-3.2.xsd, http://www.springframework.org/schema/context/spring-context-3.0.xsd=org/springframework/context/config/spring-context-3.0.xsd, http://www.springframework.org/schema/jdbc/spring-jdbc-4.0.xsd=org/springframework/jdbc/config/spring-jdbc-4.0.xsd, http://www.springframework.org/schema/util/spring-util-2.5.xsd=org/springframework/beans/factory/xml/spring-util-2.5.xsd, http://www.springframework.org/schema/beans/spring-beans-3.2.xsd=org/springframework/beans/factory/xml/spring-beans-3.2.xsd, http://www.springframework.org/schema/aop/spring-aop-3.1.xsd=org/springframework/aop/config/spring-aop-3.1.xsd, http://www.springframework.org/schema/lang/spring-lang-4.0.xsd=org/springframework/scripting/config/spring-lang-4.0.xsd, http://www.springframework.org/schema/beans/spring-beans-4.1.xsd=org/springframework/beans/factory/xml/spring-beans-4.1.xsd, http://www.springframework.org/schema/tool/spring-tool-4.0.xsd=org/springframework/beans/factory/xml/spring-tool-4.0.xsd, http://www.springframework.org/schema/tx/spring-tx-3.2.xsd=org/springframework/transaction/config/spring-tx-3.2.xsd, http://www.springframework.org/schema/lang/spring-lang-3.1.xsd=org/springframework/scripting/config/spring-lang-3.1.xsd, http://www.springframework.org/schema/cache/spring-cache-3.1.xsd=org/springframework/cache/config/spring-cache-3.1.xsd, http://www.springframework.org/schema/jee/spring-jee-4.0.xsd=org/springframework/ejb/config/spring-jee-4.0.xsd, http://www.springframework.org/schema/jdbc/spring-jdbc-3.0.xsd=org/springframework/jdbc/config/spring-jdbc-3.0.xsd, http://www.springframework.org/schema/task/spring-task-4.1.xsd=org/springframework/scheduling/config/spring-task-4.1.xsd, http://www.springframework.org/schema/jdbc/spring-jdbc.xsd=org/springframework/jdbc/config/spring-jdbc-4.1.xsd, http://www.springframework.org/schema/tool/spring-tool-3.1.xsd=org/springframework/beans/factory/xml/spring-tool-3.1.xsd, http://www.springframework.org/schema/tx/spring-tx-4.1.xsd=org/springframework/transaction/config/spring-tx-4.1.xsd, http://www.springframework.org/schema/cache/spring-cache-4.0.xsd=org/springframework/cache/config/spring-cache-4.0.xsd, http://www.springframework.org/schema/jee/spring-jee-3.1.xsd=org/springframework/ejb/config/spring-jee-3.1.xsd, http://www.springframework.org/schema/task/spring-task-3.2.xsd=org/springframework/scheduling/config/spring-task-3.2.xsd, http://www.springframework.org/schema/beans/spring-beans-3.1.xsd=org/springframework/beans/factory/xml/spring-beans-3.1.xsd, http://www.springframework.org/schema/util/spring-util.xsd=org/springframework/beans/factory/xml/spring-util-4.1.xsd, http://www.springframework.org/schema/aop/spring-aop-3.0.xsd=org/springframework/aop/config/spring-aop-3.0.xsd, http://www.springframework.org/schema/beans/spring-beans-4.0.xsd=org/springframework/beans/factory/xml/spring-beans-4.0.xsd, http://www.springframework.org/schema/beans/spring-beans.xsd=org/springframework/beans/factory/xml/spring-beans-4.1.xsd, http://www.springframework.org/schema/tx/spring-tx-3.1.xsd=org/springframework/transaction/config/spring-tx-3.1.xsd, http://www.springframework.org/schema/lang/spring-lang-3.0.xsd=org/springframework/scripting/config/spring-lang-3.0.xsd, http://www.springframework.org/schema/context/spring-context-2.5.xsd=org/springframework/context/config/spring-context-2.5.xsd, http://www.springframework.org/schema/task/spring-task-4.0.xsd=org/springframework/scheduling/config/spring-task-4.0.xsd, http://www.springframework.org/schema/tool/spring-tool-3.0.xsd=org/springframework/beans/factory/xml/spring-tool-3.0.xsd, http://www.springframework.org/schema/tx/spring-tx-4.0.xsd=org/springframework/transaction/config/spring-tx-4.0.xsd, http://www.springframework.org/schema/aop/spring-aop-2.0.xsd=org/springframework/aop/config/spring-aop-2.0.xsd, http://www.springframework.org/schema/jee/spring-jee-3.0.xsd=org/springframework/ejb/config/spring-jee-3.0.xsd, http://www.springframework.org/schema/util/spring-util-4.1.xsd=org/springframework/beans/factory/xml/spring-util-4.1.xsd, http://www.springframework.org/schema/task/spring-task-3.1.xsd=org/springframework/scheduling/config/spring-task-3.1.xsd, http://www.springframework.org/schema/beans/spring-beans-3.0.xsd=org/springframework/beans/factory/xml/spring-beans-3.0.xsd, http://www.springframework.org/schema/jee/spring-jee.xsd=org/springframework/ejb/config/spring-jee-4.1.xsd, http://www.springframework.org/schema/aop/spring-aop-2.5.xsd=org/springframework/aop/config/spring-aop-2.5.xsd, http://www.springframework.org/schema/lang/spring-lang-2.0.xsd=org/springframework/scripting/config/spring-lang-2.0.xsd, http://www.springframework.org/schema/util/spring-util-3.2.xsd=org/springframework/beans/factory/xml/spring-util-3.2.xsd, http://www.springframework.org/schema/task/spring-task.xsd=org/springframework/scheduling/config/spring-task-4.1.xsd, http://www.springframework.org/schema/tool/spring-tool-2.0.xsd=org/springframework/beans/factory/xml/spring-tool-2.0.xsd, http://www.springframework.org/schema/tx/spring-tx-3.0.xsd=org/springframework/transaction/config/spring-tx-3.0.xsd, http://www.springframework.org/schema/lang/spring-lang-2.5.xsd=org/springframework/scripting/config/spring-lang-2.5.xsd, http://www.springframework.org/schema/jee/spring-jee-2.0.xsd=org/springframework/ejb/config/spring-jee-2.0.xsd, http://www.springframework.org/schema/tool/spring-tool-2.5.xsd=org/springframework/beans/factory/xml/spring-tool-2.5.xsd, http://www.springframework.org/schema/jee/spring-jee-2.5.xsd=org/springframework/ejb/config/spring-jee-2.5.xsd, http://www.springframework.org/schema/util/spring-util-4.0.xsd=org/springframework/beans/factory/xml/spring-util-4.0.xsd, http://www.springframework.org/schema/task/spring-task-3.0.xsd=org/springframework/scheduling/config/spring-task-3.0.xsd, http://www.springframework.org/schema/lang/spring-lang.xsd=org/springframework/scripting/config/spring-lang-4.1.xsd, http://www.springframework.org/schema/context/spring-context-3.2.xsd=org/springframework/context/config/spring-context-3.2.xsd, http://www.springframework.org/schema/util/spring-util-3.1.xsd=org/springframework/beans/factory/xml/spring-util-3.1.xsd, http://www.springframework.org/schema/beans/spring-beans-2.0.xsd=org/springframework/beans/factory/xml/spring-beans-2.0.xsd, http://www.springframework.org/schema/cache/spring-cache.xsd=org/springframework/cache/config/spring-cache-4.1.xsd, http://www.springframework.org/schema/tx/spring-tx.xsd=org/springframework/transaction/config/spring-tx-4.1.xsd, http://www.springframework.org/schema/context/spring-context-4.1.xsd=org/springframework/context/config/spring-context-4.1.xsd, http://www.springframework.org/schema/beans/spring-beans-2.5.xsd=org/springframework/beans/factory/xml/spring-beans-2.5.xsd, http://www.springframework.org/schema/tx/spring-tx-2.0.xsd=org/springframework/transaction/config/spring-tx-2.0.xsd, http://www.springframework.org/schema/jdbc/spring-jdbc-3.2.xsd=org/springframework/jdbc/config/spring-jdbc-3.2.xsd, http://www.springframework.org/schema/aop/spring-aop.xsd=org/springframework/aop/config/spring-aop-4.1.xsd}
+        11/21/2015 15:56:49 DEBUG org.springframework.beans.factory.xml.PluggableSchemaResolver Found XML schema [http://www.springframework.org/schema/beans/spring-beans-3.0.xsd] in classpath: org/springframework/beans/factory/xml/spring-beans-3.0.xsd
+        11/21/2015 15:56:49 DEBUG org.springframework.beans.factory.xml.DefaultBeanDefinitionDocumentReader Loading bean definitions
+        11/21/2015 15:56:49 DEBUG org.springframework.beans.factory.xml.XmlBeanDefinitionReader Loaded 2 bean definitions from location pattern [spring-beans.xml]
+        11/21/2015 15:56:49 DEBUG org.springframework.context.support.ClassPathXmlApplicationContext Bean factory for org.springframework.context.support.ClassPathXmlApplicationContext@2e02d862: org.springframework.beans.factory.support.DefaultListableBeanFactory@7c8b05ad: defining beans [bogusBean,mysqlDataSource]; root of factory hierarchy
+        11/21/2015 15:56:49 DEBUG org.springframework.context.support.ClassPathXmlApplicationContext Unable to locate MessageSource with name 'messageSource': using default [org.springframework.context.support.DelegatingMessageSource@1bd665a3]
+        11/21/2015 15:56:49 DEBUG org.springframework.context.support.ClassPathXmlApplicationContext Unable to locate ApplicationEventMulticaster with name 'applicationEventMulticaster': using default [org.springframework.context.event.SimpleApplicationEventMulticaster@55dbe543]
+        11/21/2015 15:56:49 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Pre-instantiating singletons in org.springframework.beans.factory.support.DefaultListableBeanFactory@7c8b05ad: defining beans [bogusBean,mysqlDataSource]; root of factory hierarchy
+        11/21/2015 15:56:49 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Creating shared instance of singleton bean 'bogusBean'
+        11/21/2015 15:56:49 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Creating instance of bean 'bogusBean'
+        11/21/2015 15:56:49 DEBUG stuff.BogusClass BogusClass() Constructor called
+        11/21/2015 15:56:51 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Eagerly caching bean 'bogusBean' to allow for resolving potential circular references
+        11/21/2015 15:56:51 DEBUG stuff.BogusClass setName()  called with aName=John
+        11/21/2015 15:56:51 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Finished creating instance of bean 'bogusBean'
+        11/21/2015 15:56:51 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Creating shared instance of singleton bean 'mysqlDataSource'
+        11/21/2015 15:56:51 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Creating instance of bean 'mysqlDataSource'
+        11/21/2015 15:56:51 INFO  com.mchange.v2.log.MLog MLog clients using slf4j logging.
+        11/21/2015 15:56:51 DEBUG com.mchange.v2.log.MLog Reading VM config for path list /com/mchange/v2/log/default-mchange-log.properties, /mchange-commons.properties, /c3p0.properties, hocon:/reference,/application,/c3p0,/, /mchange-log.properties, /
+        11/21/2015 15:56:51 DEBUG com.mchange.v2.log.MLog The configuration file for resource identifier '/mchange-commons.properties' could not be found. Skipping.
+        11/21/2015 15:56:51 DEBUG com.mchange.v2.log.MLog The configuration file for resource identifier '/c3p0.properties' could not be found. Skipping.
+        11/21/2015 15:56:51 DEBUG com.mchange.v2.log.MLog The configuration file for resource identifier 'hocon:/reference,/application,/c3p0,/' could not be found. Skipping.
+        11/21/2015 15:56:51 DEBUG com.mchange.v2.log.MLog The configuration file for resource identifier '/mchange-log.properties' could not be found. Skipping.
+        11/21/2015 15:56:51 DEBUG com.mchange.v2.cfg.MConfig The configuration file for resource identifier '/mchange-commons.properties' could not be found. Skipping.
+        11/21/2015 15:56:51 DEBUG com.mchange.v2.cfg.MConfig The configuration file for resource identifier '/mchange-log.properties' could not be found. Skipping.
+        11/21/2015 15:56:51 DEBUG com.mchange.v2.cfg.MConfig The configuration file for resource identifier 'hocon:/reference,/application,/c3p0,/' could not be found. Skipping.
+        11/21/2015 15:56:51 DEBUG com.mchange.v2.cfg.MConfig The configuration file for resource identifier '/c3p0.properties' could not be found. Skipping.
+        11/21/2015 15:56:51 INFO  com.mchange.v2.c3p0.C3P0Registry Initializing c3p0-0.9.5.1 [built 16-June-2015 00:06:36 -0700; debug? true; trace: 10]
+        11/21/2015 15:56:51 DEBUG com.mchange.v2.c3p0.management.DynamicPooledDataSourceManagerMBean MBean: com.mchange.v2.c3p0:type=PooledDataSource,identityToken=1hge1369dc5uvnwp36p6t|4f928a17,name=1hge1369dc5uvnwp36p6t|4f928a17 registered.
+        11/21/2015 15:56:51 DEBUG com.mchange.v2.c3p0.management.DynamicPooledDataSourceManagerMBean MBean: com.mchange.v2.c3p0:type=PooledDataSource,identityToken=1hge1369dc5uvnwp36p6t|4f928a17,name=1hge1369dc5uvnwp36p6t|4f928a17 unregistered, in order to be reregistered after update.
+        11/21/2015 15:56:51 DEBUG com.mchange.v2.c3p0.management.DynamicPooledDataSourceManagerMBean MBean: com.mchange.v2.c3p0:type=PooledDataSource,identityToken=1hge1369dc5uvnwp36p6t|4f928a17,name=1hge1369dc5uvnwp36p6t|4f928a17 registered.
+        11/21/2015 15:56:51 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Eagerly caching bean 'mysqlDataSource' to allow for resolving potential circular references
+        11/21/2015 15:56:51 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Finished creating instance of bean 'mysqlDataSource'
+        11/21/2015 15:56:51 DEBUG org.springframework.context.support.ClassPathXmlApplicationContext Unable to locate LifecycleProcessor with name 'lifecycleProcessor': using default [org.springframework.context.support.DefaultLifecycleProcessor@5a42baa5]
+        11/21/2015 15:56:51 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Returning cached instance of singleton bean 'lifecycleProcessor'
+        11/21/2015 15:56:51 DEBUG org.springframework.core.env.PropertySourcesPropertyResolver Searching for key 'spring.liveBeansView.mbeanDomain' in [systemProperties]
+        11/21/2015 15:56:51 DEBUG org.springframework.core.env.PropertySourcesPropertyResolver Searching for key 'spring.liveBeansView.mbeanDomain' in [systemEnvironment]
+        11/21/2015 15:56:51 DEBUG org.springframework.core.env.PropertySourcesPropertyResolver Could not find key 'spring.liveBeansView.mbeanDomain' in any property source. Returning [null]
+        11/21/2015 15:56:51 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Returning cached instance of singleton bean 'bogusBean'
+        11/21/2015 15:56:51 DEBUG stuff.BogusClass displayName()  called with this.name=John
+        Name is this:  John
+        11/21/2015 15:56:54 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Returning cached instance of singleton bean 'mysqlDataSource'
+        11/21/2015 15:56:55 DEBUG org.springframework.jdbc.core.JdbcTemplate Executing SQL query [Select now()]
+        11/21/2015 15:56:55 DEBUG org.springframework.jdbc.datasource.DataSourceUtils Fetching JDBC Connection from DataSource
+        11/21/2015 15:56:55 INFO  com.mchange.v2.c3p0.impl.AbstractPoolBackedDataSource Initializing c3p0 pool... com.mchange.v2.c3p0.ComboPooledDataSource [ acquireIncrement -> 3, acquireRetryAttempts -> 30, acquireRetryDelay -> 1000, autoCommitOnClose -> false, automaticTestTable -> null, breakAfterAcquireFailure -> false, checkoutTimeout -> 0, connectionCustomizerClassName -> null, connectionTesterClassName -> com.mchange.v2.c3p0.impl.DefaultConnectionTester, contextClassLoaderSource -> caller, dataSourceName -> 1hge1369dc5uvnwp36p6t|4f928a17, debugUnreturnedConnectionStackTraces -> false, description -> null, driverClass -> com.mysql.jdbc.Driver, extensions -> {}, factoryClassLocation -> null, forceIgnoreUnresolvedTransactions -> false, forceSynchronousCheckins -> false, forceUseNamedDriverClass -> false, identityToken -> 1hge1369dc5uvnwp36p6t|4f928a17, idleConnectionTestPeriod -> 30000, initialPoolSize -> 1, jdbcUrl -> jdbc:mysql://127.0.0.1:3306/world, maxAdministrativeTaskTime -> 0, maxConnectionAge -> 3600, maxIdleTime -> 240, maxIdleTimeExcessConnections -> 0, maxPoolSize -> 15, maxStatements -> 0, maxStatementsPerConnection -> 0, minPoolSize -> 1, numHelperThreads -> 3, preferredTestQuery -> select now() , privilegeSpawnedThreads -> false, properties -> {user=******, password=******}, propertyCycle -> 0, statementCacheNumDeferredCloseThreads -> 0, testConnectionOnCheckin -> false, testConnectionOnCheckout -> false, unreturnedConnectionTimeout -> 0, userOverrides -> {}, usesTraditionalReflectiveProxies -> false ]
+        11/21/2015 15:56:55 DEBUG com.mchange.v2.cfg.MConfig The configuration file for resource identifier '/mchange-commons.properties' could not be found. Skipping.
+        11/21/2015 15:56:55 DEBUG com.mchange.v2.cfg.MConfig The configuration file for resource identifier '/mchange-log.properties' could not be found. Skipping.
+        11/21/2015 15:56:55 DEBUG com.mchange.v2.cfg.MConfig The configuration file for resource identifier '/c3p0.properties' could not be found. Skipping.
+        11/21/2015 15:56:55 DEBUG com.mchange.v2.cfg.MConfig The configuration file for resource identifier 'hocon:/reference,/application,/c3p0,/' could not be found. Skipping.
+        11/21/2015 15:56:55 DEBUG com.mchange.v2.resourcepool.BasicResourcePool com.mchange.v2.resourcepool.BasicResourcePool@6bb7d3b0 config: [start -> 1; min -> 1; max -> 15; inc -> 3; num_acq_attempts -> 30; acq_attempt_delay -> 1000; check_idle_resources_delay -> 30000000; max_resource_age -> 3600000; max_idle_time -> 240000; excess_max_idle_time -> 0; destroy_unreturned_resc_time -> 0; expiration_enforcement_delay -> 60000; break_on_acquisition_failure -> false; debug_store_checkout_exceptions -> false; force_synchronous_checkins -> false]
+        11/21/2015 15:56:55 DEBUG com.mchange.v2.c3p0.impl.C3P0PooledConnectionPoolManager Created new pool for auth, username (masked): 'ro******'.
+        11/21/2015 15:56:55 DEBUG com.mchange.v2.resourcepool.BasicResourcePool acquire test -- pool size: 0; target_pool_size: 1; desired target? 1
+        11/21/2015 15:56:55 DEBUG com.mchange.v2.resourcepool.BasicResourcePool awaitAvailable(): [unknown]
+        11/21/2015 15:56:55 DEBUG org.springframework.jdbc.datasource.DataSourceUtils Returning JDBC Connection to DataSource
+        11/21/2015 15:56:55 DEBUG stuff.App Current Database time is 2015-11-21 15:56:55.0
+        11/21/2015 15:56:55 DEBUG stuff.App main() finished.
+             
+     
+        
+        
