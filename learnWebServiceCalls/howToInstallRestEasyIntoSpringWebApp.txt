@@ -16,7 +16,7 @@ Notes:
 
 Procedure
 ---------
- 1. Add these dependneices
+ 1. Add the Resteasy dependencies to the pom.xml
  
       <!--   R E S T E A S Y    D E P E N D E N C I E S   -->
       <dependency>
@@ -34,6 +34,8 @@ Procedure
 
 
  2. Edit your web.xml
+    NOTE:  We are going to configure the Resteasy servlet to handle all calls going to /rest
+    
     a.  Add the resteasy servlet configuration to the top of your web.xml
      
         <!-- R E S T E A S Y        C O N F I G U R A T I O N -->
@@ -79,8 +81,150 @@ Procedure
         </listener>
   
   
+ 
+ 3. Edit the MyApplicationWatcher class to extend org.jboss.resteasy.plugins.spring.SpringContextLoaderListener
+    NOTE:  Normally in a Spring MVC Web app, this class would extend  org.springframework.web.context.ContextLoaderListener
+           But, we need to extend the resteasy version so that resteasy initiates spring correctly and registers end points  
+           
+    Change the top from this:
+        public class MyApplicationWatcher extends org.springframework.web.context.ContextLoaderListener
+        
+    To this:
+        public class MyApplicationWatcher extends org.jboss.resteasy.plugins.spring.SpringContextLoaderListener
+
+
+     
+    When completed, the MyApplicationWatcher class looks like this:
+    
+        package app1.utilities;
+        
+        import javax.servlet.ServletContextEvent;
+        import javax.sql.DataSource;
+        
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.jdbc.core.JdbcTemplate;
+        
+        
+        import java.util.Properties;
+        
+        public class MyApplicationWatcher extends org.jboss.resteasy.plugins.spring.SpringContextLoaderListener
+        {
+            private static final Logger logger = LoggerFactory.getLogger( MyApplicationWatcher.class );
+        
+        
+            /***********************************************************************************
+             * contextInitialized()
+             *  1) Read the property file for this webapp
+             *  2) Initialize the Spring Context
+             *
+             * NOTE:  If a runtime exception is thrown, then the webapp will *not* startup
+             ************************************************************************************/
+            @Override
+            public void contextInitialized( ServletContextEvent aContextEvent )
+            {
+                // Get the name of the web application
+                final String sWebAppName = aContextEvent.getServletContext().getContextPath().substring(1);
+        
+                logger.debug("{} contextInitialized() started", sWebAppName);
+        
+        
+                try
+                {
+                    // I N I T I A T E      S P R I N G       C O N T E X T
+                    super.contextInitialized(aContextEvent);
+        
+                    // Verify that I can get property values
+                    verifyPropertyValues();
+        
+                    // Do additional tests
+                    verifyConnectionPool();
+                }
+                catch (Exception e)
+                {
+                    logger.error("{} WILL NOT STARTUP", sWebAppName);
+        
+                    // Throw a runtime exception so that this webapp will *not* startup
+                    RuntimeException runtimeException = new RuntimeException(e);
+                    runtimeException.setStackTrace(e.getStackTrace());
+                    throw runtimeException;
+                }
+        
+                logger.debug("{} contextInitialized() finished", sWebAppName);
+            }
+        
+        
+        
+            /***********************************************************************************
+             * contextDestroyed()
+             * The webapp is about to be shutdown
+             *   1) Shutdown any database connection pools manually
+             *   2) Shutdown the spring context
+             ************************************************************************************/
+            @Override
+            public void contextDestroyed( ServletContextEvent aContextEvent )
+            {
+                // Get the name of the web application
+                final String sWebAppName = aContextEvent.getServletContext().getContextPath().substring(1);
+        
+                logger.debug("{} contextDestroyed() started", sWebAppName);
+        
+                // S H U T D O W N     S P R I N G     C O N T E X T
+                // NOTE:  Because our JDBC connection pool is managed by spring, it should also close down
+                super.contextDestroyed(aContextEvent);
+        
+                logger.debug("{} contextDestroyed() finished", sWebAppName);
+            }
+        
+        
+        
+            /*******************************************************************************
+             * verifyPropertyValues()
+             *******************************************************************************/
+            private void verifyPropertyValues() throws Exception
+            {
+                // Get a reference to the "myProps" spring bean
+                Properties myProps = (Properties) SpringAppContextUtils.getBean("myProps");
+        
+                String sJdbcUrl = (String) myProps.getProperty("jdbc.url");
+                logger.debug("sJdbcUrl={}", sJdbcUrl);
+        
+                if (sJdbcUrl == null)
+                {
+                    throw new RuntimeException("Error in verifyPropertyValues:  This value was not found:  jdbc.url");
+                }
+            }
+        
+        
+        
+            /*******************************************************************************
+             * verifyConnectionPool()
+             *******************************************************************************/
+            private void verifyConnectionPool() throws Exception
+            {
+                logger.debug("initializeConnectionPool() started");
+        
+                // Get a reference to the mySqlDataSource bean
+                DataSource mySqlDataSource = (DataSource) SpringAppContextUtils.getBean("mysqlDataSource");
+        
+                JdbcTemplate jt = new JdbcTemplate( mySqlDataSource );
+        
+                final String sSql = "Select now()";
+        
+                // Run a query -- which initialized the connection pool
+                String sDatabaseTime = jt.queryForObject(sSql, String.class);
+        
+                logger.debug("initializeConnectionPool() finished successfully.  Database Time is {}", sDatabaseTime);
+            }
+        
+        
+        }
+        
+    
+    
+    
   
- 3. Adjust your Spring Security to let /rest calls through
+ 4. Adjust your Spring Security to let /rest calls through
     Edit LoginSecurityConfig.configure() to look like this:
     
         /**************************************************************************************
@@ -98,11 +242,11 @@ Procedure
 
         
         
- 4. Add a package: app1.rest
+ 5. Add a package: app1.rest
  
  
  
- 5. Add a class:  SampleRestService
+ 6. Add a class:  SampleRestService
          
         package app1.rest;
         
@@ -136,6 +280,9 @@ Procedure
         
             /***************************************************************************
              * add()   EndPoint
+             *
+             * To use end point, use this url:
+             *    /rest/sample/add?name=some_name
              ****************************************************************************/
             @GET
             @Path("/add")
@@ -162,6 +309,8 @@ Procedure
                     return Response.serverError().type(MediaType.APPLICATION_XML_TYPE).entity(sMessage).build();
                 }
             }
+        
+        
         
             /***************************************************************************
              * getFormattedMessageFromException()
@@ -205,7 +354,7 @@ Procedure
  
  
  
-  6. Try it:
+  7. Try it:
      a. Startup Firefox
      b. Pull Tools / HttpRequester
      
