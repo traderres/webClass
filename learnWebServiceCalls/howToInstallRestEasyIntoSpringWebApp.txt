@@ -4,7 +4,9 @@ How to Install RestEasy into an Existing Spring MVC Web App
 Assumptions:
  A) You have a Spring 4 MVC Web App
  B) You want to add RestEasy to it
-
+ C) You have a listener-class in your web.xml that calls your MyApplicationWatcher class
+ D) Your rest calls will all start with /rest
+ 
 
 Notes:
  1) If you use Spring 4, then you must use RestEasy 3.0.9.Final or later
@@ -15,29 +17,270 @@ Notes:
 Procedure
 ---------
  1. Add these dependneices
-      org.jboss.resteasy:resteasy-jaxb-provider
-      org.jboss.resteasy:resteasy-spring
-      org.jboss.resteasy:resteasy-jaxrs
-      org.jboss.resteasy:resteasy-multipart-provider
-
-
-
- 2. Setup Resteasy as a filter
-        <filter>
-           <filter-name>ResteasyFilter</filter-name>
-           <filter-class>org.jboss.resteasy.plugins.server.servlet.FilterDispatcher</filter-class>
-         </filter>
-
-        <filter-mapping>
-           <filter-name>ResteasyFilter</filter-name>
-           <url-pattern>/rest/*</url-pattern>
-        </filter-mapping>
  
-         <listener>
-             <listener-class>org.jboss.resteasy.plugins.server.servlet.ResteasyBootstrap</listener-class>
-         </listener>
+      <!--   R E S T E A S Y    D E P E N D E N C I E S   -->
+      <dependency>
+        <groupId>org.jboss.resteasy</groupId>
+        <artifactId>resteasy-jaxb-provider</artifactId>
+        <version>3.0.13.Final</version>
+      </dependency>
 
-         <listener>
-             <listener-class>org.jboss.resteasy.plugins.spring.SpringContextLoaderListener</listener-class>
-         </listener>
+      <dependency>
+        <groupId>org.jboss.resteasy</groupId>
+        <artifactId>resteasy-spring</artifactId>
+        <version>3.0.13.Final</version>
+      </dependency>
 
+
+
+ 2. Edit your web.xml
+    a.  Add the resteasy servlet configuration to the top of your web.xml
+     
+        <!-- R E S T E A S Y        C O N F I G U R A T I O N -->
+        <listener>
+            <!-- This listener should be registered *BEFORE* any other listeners -->
+            <listener-class>org.jboss.resteasy.plugins.server.servlet.ResteasyBootstrap </listener-class>
+        </listener>
+    
+        <listener>
+            <!-- Normally, resteasy uses the listener class of org.jboss.resteasy.plugins.spring.SpringContextLoaderListener
+                 But, we want to run our own MyApplicationWatcher.
+                 So, the MyApplicationWatcher class extends SpringContextLoaderListener
+            -->
+            <listener-class>app1.utilities.MyApplicationWatcher</listener-class>
+        </listener>
+    
+        <servlet>
+            <servlet-name>Resteasy</servlet-name>
+            <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
+        </servlet>
+    
+        <servlet-mapping>
+            <servlet-name>Resteasy</servlet-name>
+            <url-pattern>/rest/*</url-pattern>
+        </servlet-mapping>
+    
+        <context-param>
+            <param-name>resteasy.servlet.mapping.prefix</param-name>
+            <param-value>/rest</param-value>
+        </context-param>
+
+
+
+
+    b. Remove this from your web.xml
+    
+        <listener>
+            <description>Tell Spring where my application watcher is</description>
+            <listener-class>
+                <!-- NOTE:  This extends Spring's ContextLoaderListener -->
+                app1.utilities.MyApplicationWatcher
+            </listener-class>
+        </listener>
+  
+  
+  
+ 3. Adjust your Spring Security to let /rest calls through
+    Edit LoginSecurityConfig.configure() to look like this:
+    
+        /**************************************************************************************
+         * configure()
+         ***************************************************************************************/
+        @Override
+        public void configure(WebSecurity web) throws Exception
+        {
+            // Allow requests to resources and bundles to get through
+            web.ignoring()
+                .antMatchers("/resources/**")
+                .antMatchers("/rest/**")
+                .regexMatchers(".*/bundles/.*");
+        }
+
+        
+        
+ 4. Add a package: app1.rest
+ 
+ 
+ 
+ 5. Add a class:  SampleRestService
+         
+        package app1.rest;
+        
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.stereotype.Component;
+        import org.springframework.util.StringUtils;
+        
+        import javax.ws.rs.GET;
+        import javax.ws.rs.Path;
+        import javax.ws.rs.Produces;
+        import javax.ws.rs.QueryParam;
+        import javax.ws.rs.core.MediaType;
+        import javax.ws.rs.core.Response;
+        
+        /**
+         * Created by adam on 11/19/2015.
+         */
+        @Component
+        @Path("/sample")
+        public class SampleRestService
+        {
+            private static final Logger logger = LoggerFactory.getLogger(SampleRestService.class);
+        
+            public SampleRestService()
+            {
+                logger.debug("SampleRestService called");
+            }
+        
+        
+        
+            /***************************************************************************
+             * add()   EndPoint
+             ****************************************************************************/
+            @GET
+            @Path("/add")
+            @Produces(MediaType.TEXT_HTML)
+            public Response add(@QueryParam("name") String aName)
+            {
+                logger.debug("add() started  aName={}", aName);
+        
+                try
+                {
+        
+                    if ( StringUtils.endsWithIgnoreCase(aName, "bad"))
+                    {
+                        throw new RuntimeException("Something bad happened!!");
+                    }
+        
+                    // Do something and is succeeds.  So, return 200 and a success message
+                    String sMessage = "I successfully added this: " + aName;
+                    return Response.ok().type(MediaType.APPLICATION_XML_TYPE).entity(sMessage).build();
+                }
+                catch (Exception e)
+                {
+                    String sMessage = getFormattedMessageFromException(e);
+                    return Response.serverError().type(MediaType.APPLICATION_XML_TYPE).entity(sMessage).build();
+                }
+            }
+        
+            /***************************************************************************
+             * getFormattedMessageFromException()
+             ****************************************************************************/
+            private String getFormattedMessageFromException(Exception aException)
+            {
+                StringBuilder sbMessage = new StringBuilder();
+        
+                String sStackTrace = getStackTraceAsString(aException);
+        
+                sbMessage.append("Message: ")
+                         .append(aException.getMessage())
+                         .append("\n\n")
+                         .append("Cause: ")
+                         .append(aException.getCause())
+                         .append("\n\n")
+                         .append("StackTrace:\n")
+                         .append(sStackTrace);
+        
+                return sbMessage.toString();
+            }
+        
+        
+        
+            /***************************************************************************
+             * getStackTraceAsString()
+             ****************************************************************************/
+            public String getStackTraceAsString(Exception aException)
+            {
+                StringBuilder sb = new StringBuilder();
+                for (StackTraceElement element : aException.getStackTrace()) 
+                {
+                    sb.append(element.toString());
+                    sb.append("\n");
+                }
+                return sb.toString();
+            }
+        
+        
+        }
+ 
+ 
+ 
+  6. Try it:
+     a. Startup Firefox
+     b. Pull Tools / HttpRequester
+     
+     c. Try a call that should work successfully
+        In the HttpRequester
+        
+          URL:  https://localhost:8443/springMvcWebAppE/rest/sample/add?name=John
+          Press GET
+        
+          You should see this:
+            Status:  200 OK
+            Message:  I successfully added this: John
+        
+        
+        
+     d. Try a call that should fail
+        In the HttpRequester
+        
+          URL:  https://localhost:8443/springMvcWebAppE/rest/sample/add?name=bad
+          Press GET
+        
+          You should see this:
+            Status:  500  OK
+
+            Message: Something bad happened!!
+            
+            Cause: null
+            
+            StackTrace:
+            app1.rest.SampleRestService.add(SampleRestService.java:44)
+            sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+            sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57)
+            sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+            java.lang.reflect.Method.invoke(Method.java:606)
+            org.jboss.resteasy.core.MethodInjectorImpl.invoke(MethodInjectorImpl.java:139)
+            org.jboss.resteasy.core.ResourceMethodInvoker.invokeOnTarget(ResourceMethodInvoker.java:295)
+            org.jboss.resteasy.core.ResourceMethodInvoker.invoke(ResourceMethodInvoker.java:249)
+            org.jboss.resteasy.core.ResourceMethodInvoker.invoke(ResourceMethodInvoker.java:236)
+            org.jboss.resteasy.core.SynchronousDispatcher.invoke(SynchronousDispatcher.java:376)
+            org.jboss.resteasy.core.SynchronousDispatcher.invoke(SynchronousDispatcher.java:199)
+            org.jboss.resteasy.plugins.server.servlet.ServletContainerDispatcher.service(ServletContainerDispatcher.java:221)
+            org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher.service(HttpServletDispatcher.java:56)
+            org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher.service(HttpServletDispatcher.java:51)
+            javax.servlet.http.HttpServlet.service(HttpServlet.java:727)
+            org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:303)
+            org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:208)
+            org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:52)
+            org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:241)
+            org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:208)
+            org.sitemesh.webapp.contentfilter.ContentBufferingFilter.bufferAndPostProcess(ContentBufferingFilter.java:169)
+            org.sitemesh.webapp.contentfilter.ContentBufferingFilter.doFilter(ContentBufferingFilter.java:126)
+            org.sitemesh.webapp.SiteMeshFilter.doFilter(SiteMeshFilter.java:120)
+            org.sitemesh.config.ConfigurableSiteMeshFilter.doFilter(ConfigurableSiteMeshFilter.java:163)
+            org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:241)
+            org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:208)
+            org.springframework.security.web.FilterChainProxy.doFilterInternal(FilterChainProxy.java:207)
+            org.springframework.security.web.FilterChainProxy.doFilter(FilterChainProxy.java:176)
+            org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:344)
+            org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:261)
+            org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:241)
+            org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:208)
+            org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:220)
+            org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:122)
+            org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:501)
+            org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:171)
+            org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:103)
+            org.apache.catalina.valves.AccessLogValve.invoke(AccessLogValve.java:950)
+            org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:116)
+            org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:408)
+            org.apache.coyote.http11.AbstractHttp11Processor.process(AbstractHttp11Processor.java:1070)
+            org.apache.coyote.AbstractProtocol$AbstractConnectionHandler.process(AbstractProtocol.java:611)
+            org.apache.tomcat.util.net.JIoEndpoint$SocketProcessor.run(JIoEndpoint.java:314)
+            java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)
+            java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:615)
+            org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61)
+            java.lang.Thread.run(Thread.java:745)
+
+        
