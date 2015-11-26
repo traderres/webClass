@@ -1,13 +1,19 @@
 How to Make a Synchronous Web Service Call from Spring MVC Web App Controller
 -----------------------------------------------------------------------------
+Suppose, your back-end method that calls a web service call and needs to "wait" for a response
+    -- So, the user runs a search
+    -- The search back-end method does the following:
+         a) The search back-end makes a call to solr and *waits* for a response
+         b) The search back-end returns the result to the front-end
+    
+
 
 Assumptions
  A) You have a Spring MVC Web App
  B) You want your back-end controller to make a web service call to someone else
     -- e.g., a Solr server or some other service
  
- 
- INCOMPLETE
+
 
 References
 ----------
@@ -17,29 +23,109 @@ http://stackoverflow.com/questions/18073849/get-json-object-from-a-http-response
  
 Procedure
 ---------
- 1. Create an HttpUtils class that has methods needs to run web service calls
+ 1. Add the HttpClient dependency to your project
+    NOTE:  This is often included in others jars -- e.g., resteasy includes it
+           so, you might have to exclude from your resteasy-jaxrs or resteasy-spring dependencies
+           
+       <dependency>
+          <groupId>org.apache.httpcomponents</groupId>
+          <artifactId>httpclient</artifactId>
+          <version>4.3.6</version>
+       </dependency>           
  
  
  
- 2. Add a back-end method that calls a web service call and *waits* for a response
-    -- So, the user runs a search
-    -- The search back-end method does the following:
-         a) The search back-end makes a call to solr and *waits* for a response
-         b) The search back-end returns the result to the front-end
-    
-    
  
- 3. Add a back-end method that calls a web service does *not* wait for a response
-    Why?  Suppose you have some auditing method that you need to do on a search
-          -- So, the user runs a search
-          -- The search back-end method does the following:
-               a) The back-end makes a web service call to audit the search
-                  NOTE:  This web service call does not wait for a response
-               b) The back-end makes a call to solr and waits for a response
-               c) The back-end returns the result to the front-end
+ 2. Add a method to your SampleRestService 
+ 
+    @GET
+    @Path("/search2")
+    @Produces(MediaType.APPLICATION_JSON)
+    public String search2(@QueryParam("q") String aQuery) throws Exception
+    {
+        logger.debug("search2() aQuery={}", aQuery);
+
+        // Create the HTTP Client
+        HttpClient httpClient = HttpClientBuilder.create().build();
+
+        // Setup the GET request
+        HttpGet getRequest = new HttpGet("http://rest-service.guides.spring.io/greeting");
+
+        // Add headers to the GET request
+        getRequest.addHeader("accept", "application/json");
+
+        // Execute the request and catch response
+        HttpResponse response = httpClient.execute(getRequest);
+
+        // Check for HTTP response code
+        if (response.getStatusLine().getStatusCode() != 200)
+        {
+            throw new RuntimeException("The web service call failed: " + response.getStatusLine().getStatusCode());
+        }
+
+        String json = EntityUtils.toString(response.getEntity());
+
+        return(json);
+    }
+ 
+ 
+ 3. Verify this works:
+    1. Startup Firefox
+    2. Pull Tools / HttpRequester
+       URL:  http://localhost:8080/springMvcWebAppE/rest/sample/search2?q=stuff
+       Press Get
+ 
+       You should see this:   
+         {"id":7500,"content":"Hello, World!"}
+
+
 
  
+ 4. Add this method to your WelcomeController
+  
+    @RequestMapping(value = "/search3/{searchText}",
+            method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE,
+            headers = {"Accept=application/json"})
+    @ResponseBody
+    public String search3(@PathVariable(value="searchText") final String aSearchText) throws Exception
+    {
+        logger.debug("search3() aSearchText={}", aSearchText);
+
+        // Create the HTTP Client
+        HttpClient httpClient = HttpClientBuilder.create().build();
+
+        // Setup the GET request
+        HttpGet getRequest = new HttpGet("http://rest-service.guides.spring.io/greeting");
+
+        // Add headers to the GET request
+        getRequest.addHeader("accept", "application/json");
+
+        // Execute the request and catch response
+        HttpResponse response = httpClient.execute(getRequest);
+
+        // Check for HTTP response code
+        if (response.getStatusLine().getStatusCode() != 200)
+        {
+            throw new RuntimeException("The web service call failed: " + response.getStatusLine().getStatusCode());
+        }
+
+        String json = EntityUtils.toString(response.getEntity());
+
+        return(json);
+    }
+
 
  
+ 5. Verify it works:
+    1. Open a browser
+    2. Connect to https://localhost:8443/springMvcWebAppE/search3/stuff
+       NOTE:  If spring security is setup, you will be prompted to login first
+              Upon successful login, you will be taken to the real url
+             
+             
+       You should see this:
+       
+       {"id":7503,"content":"Hello, World!"}
+ 
 
-Syncrhonou
+ 
