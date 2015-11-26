@@ -1,25 +1,31 @@
 How to Make a Asynchronous Web Service Call from Spring MVC Web App Controller
 ------------------------------------------------------------------------------
-
+Suppose you have a back-end method that needs to make a rest call but does not need to wait
+Suppose you have some auditing method that you need to do on a search
+    -- So, the user runs a search
+    -- The search back-end method does the following:
+         a) The back-end makes a web service call to audit the search
+            NOTE:  This web service call does not wait for a response
+            or, the response can come later
+                     
+               
 Assumptions
  A) You have a Spring MVC Web App
  B) You want your back-end controller to make a web service call to someone else
     -- e.g., a Solr server or some other service
  
 
-INCOMPLETE
-
-
-
 References
 ----------
 http://stackoverflow.com/questions/18073849/get-json-object-from-a-http-response
+https://github.com/AsyncHttpClient/async-http-client
 
 
  
 Procedure
 ---------
  1. Add this dependency to your pom.xml
+ 
          <dependency>
             <groupId>com.ning</groupId>
             <artifactId>async-http-client</artifactId>
@@ -28,26 +34,38 @@ Procedure
 
  
  
+ 2. Add a method to your WelcomeController:
  
- 2. Add a back-end method that calls a web service call and *waits* for a response
-    -- So, the user runs a search
-    -- The search back-end method does the following:
-         a) The search back-end makes a call to solr and *waits* for a response
-         b) The search back-end returns the result to the front-end
+    import com.ning.http.client.AsyncHttpClient;
+    import com.ning.http.client.Response;
+    import java.util.concurrent.Future;
     
-    
- 
- 3. Add a back-end method that calls a web service does *not* wait for a response
-    Why?  Suppose you have some auditing method that you need to do on a search
-          -- So, the user runs a search
-          -- The search back-end method does the following:
-               a) The back-end makes a web service call to audit the search
-                  NOTE:  This web service call does not wait for a response
-               b) The back-end makes a call to solr and waits for a response
-               c) The back-end returns the result to the front-end
+        
+    private static String makeWebServiceCallReturnJson() throws Exception
+    {
+        AsyncHttpClient asyncHttpClient = new AsyncHttpClient();
 
- 
+        logger.debug("Making async web service call.");
 
+        // Make an async ouos web service call
+        Future<Response> f = asyncHttpClient.prepareGet("http://rest-service.guides.spring.io/greeting")
+                                            .setHeader("accept", "application/json")
+                                            .execute();
 
+        // Do something else while waiting
+        while (! f.isDone() )
+        {
+            logger.debug("Sleeping for 10 msec....");
+            Thread.sleep(10);
+        }
 
-Syncrhonou
+        // Call has finished -- so get the response
+        Response response = f.get();
+
+        String json = response.getResponseBody();
+
+        // Close the sync call
+        asyncHttpClient.closeAsynchronously();
+
+        return(json);
+    }
