@@ -41,31 +41,81 @@ Procedure
     import java.util.concurrent.Future;
     
         
-    private static String makeWebServiceCallReturnJson() throws Exception
-    {
+ 
+    private static String makeSynchronousWebServiceCallReturnJson() throws Exception
+     {
         AsyncHttpClient asyncHttpClient = new AsyncHttpClient();
+        String json = null;
 
-        logger.debug("Making async web service call.");
-
-        // Make an async ouos web service call
-        Future<Response> fResponse = asyncHttpClient.prepareGet("http://rest-service.guides.spring.io/greeting")
-                                            .setHeader("accept", "application/json")
-                                            .execute();
-
-        // Do something else while waiting
-        while (! fResponse.isDone() )
+        try
         {
-            logger.debug("Sleeping for 10 msec....");
-            Thread.sleep(10);
+            logger.debug("Making a synchronous web service call.");
+
+            // Make a sync web service call
+            // NOTE:  The .get() tells client to *wait* for a response
+            Response response = asyncHttpClient.prepareGet("http://rest-service.guides.spring.io.BAD_SITE/greeting")
+                    .setHeader("accept", "application/json")
+                    .execute()
+                    .get();
+            
+            json = response.getResponseBody();
+        }
+        catch (Exception e)
+        {
+            logger.error("Exception raised in makeSyncWebServiceCallReturnJson()", e);
+            RuntimeException re = new RuntimeException(e);
+            re.setStackTrace(e.getStackTrace());
+            throw re;
+        }
+        finally
+        {
+            // Close the async http client
+            asyncHttpClient.close();
         }
 
-        // Call has finished -- so get the response
-        Response response = fResponse.get();
+        return (json);
+    }
 
-        String json = response.getResponseBody();
 
-        // Close the sync call
-        asyncHttpClient.close();
 
-        return(json);
+    private static String makeAsynchronousWebServiceCallReturnJson() throws Exception 
+    {
+        AsyncHttpClient asyncHttpClient = new AsyncHttpClient();
+        String json = null;
+
+        try
+        {
+            logger.debug("Making async web service call.");
+
+            // Make a sync web service call but do *NOT* wait for response
+            Future<Response> fResponse = asyncHttpClient.prepareGet("http://rest-service.guides.spring.io/greeting")
+                                                .setHeader("accept", "application/json")
+                                                .execute();
+
+            // Do something else while waiting for a response
+            while (! fResponse.isDone() )
+            {
+                logger.debug("Sleeping for 10 msec....");
+                Thread.sleep(10);
+            }
+
+            // Call has finished -- so get the response
+            Response response = fResponse.get();
+
+            json = response.getResponseBody();
+        }
+        catch (Exception e)
+        {
+            logger.error("Exception raised in makeSyncWebServiceCallReturnJson()", e);
+            RuntimeException re = new RuntimeException(e);
+            re.setStackTrace(e.getStackTrace());
+            throw re;
+        }
+        finally
+        {
+            // Close the async http client
+            asyncHttpClient.close();
+        }
+
+        return (json);
     }
