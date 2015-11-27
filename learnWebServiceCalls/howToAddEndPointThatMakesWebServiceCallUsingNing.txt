@@ -1,0 +1,176 @@
+How to Add an End Point to your Spring MVC Web App that Makes a Web Service Call (using Ning)
+---------------------------------------------------------------------------------------------
+Suppose, your back-end method that calls a web service call and needs to "wait" for a response
+    -- So, the user runs a search
+    -- The search back-end method does the following:
+         a) The search back-end makes a call to solr and *waits* for a response
+         b) The search back-end returns the result to the front-end
+    
+
+
+Assumptions
+ A) You have a Spring MVC Web App
+ B) Your SampleRestService uses RestEasy to handle requests
+ C) Your WelcomeController uses Spring-Rest to handle requests
+ D) You want your back-end controller to make a web service call to someone else
+    -- e.g., a Solr server or some other service
+ 
+
+
+References
+----------
+http://stackoverflow.com/questions/18073849/get-json-object-from-a-http-response
+
+
+ 
+Procedure
+---------
+ 1. Add the ning dependency to your project
+ 
+         <dependency>
+            <groupId>com.ning</groupId>
+            <artifactId>async-http-client</artifactId>
+            <version>1.9.31</version>
+        </dependency>        
+ 
+ 
+ 
+ 
+ 2. Add a method to your SampleRestService 
+    ASSUMPTION:  Your SampleRestService uses RestEasy 
+
+
+    private static String makeSynchronousWebServiceCallReturnJson() throws Exception
+     {
+        AsyncHttpClient asyncHttpClient = new AsyncHttpClient();
+        String json = null;
+
+        try
+        {
+            logger.debug("Making a synchronous web service call.");
+
+            // Make a sync web service call
+            // NOTE:  The .get() tells client to *wait* for a response
+            Response response = asyncHttpClient.prepareGet("http://rest-service.guides.spring.io.BAD_SITE/greeting")
+                    .setHeader("accept", "application/json")
+                    .execute()
+                    .get();
+            
+            json = response.getResponseBody();
+        }
+        catch (Exception e)
+        {
+            logger.error("Exception raised in makeSyncWebServiceCallReturnJson()", e);
+            RuntimeException re = new RuntimeException(e);
+            re.setStackTrace(e.getStackTrace());
+            throw re;
+        }
+        finally
+        {
+            // Close the async http client
+            asyncHttpClient.close();
+        }
+
+        return (json);
+    }
+
+
+ 
+    @GET
+    @Path("/search2")
+    @Produces(MediaType.APPLICATION_JSON)
+    public String search2(@QueryParam("q") String aQuery) throws Exception
+    {
+        logger.debug("search2() aQuery={}", aQuery);
+
+        String json = makeSynchronousWebServiceCallReturnJson();
+
+        return(json);
+    }
+ 
+ 
+ 
+ 
+ 3. Verify this works:
+    1. Startup Firefox
+    2. Pull Tools / HttpRequester
+       URL:  http://localhost:8080/springMvcWebAppE/rest/sample/search2?q=stuff
+       Press Get
+ 
+       You should see this:   
+         {"id":7500,"content":"Hello, World!"}
+
+
+
+ 
+ 4. Add this method to your WelcomeController
+    ASSUMPTION:  Your WelcomeController uses Spring-rest
+ 
+ 
+ 
+    private static String makeSynchronousWebServiceCallReturnJson() throws Exception
+     {
+        AsyncHttpClient asyncHttpClient = new AsyncHttpClient();
+        String json = null;
+
+        try
+        {
+            logger.debug("Making a synchronous web service call.");
+
+            // Make a sync web service call
+            // NOTE:  The .get() tells client to *wait* for a response
+            Response response = asyncHttpClient.prepareGet("http://rest-service.guides.spring.io.BAD_SITE/greeting")
+                    .setHeader("accept", "application/json")
+                    .execute()
+                    .get();
+            
+            json = response.getResponseBody();
+        }
+        catch (Exception e)
+        {
+            logger.error("Exception raised in makeSyncWebServiceCallReturnJson()", e);
+            RuntimeException re = new RuntimeException(e);
+            re.setStackTrace(e.getStackTrace());
+            throw re;
+        }
+        finally
+        {
+            // Close the async http client
+            asyncHttpClient.close();
+        }
+
+        return (json);
+    }
+    
+    
+    
+    
+    @RequestMapping(value = "/search3/{searchText}",
+                    method = RequestMethod.GET,
+                    produces = MediaType.APPLICATION_JSON_VALUE,
+                    headers = {"Accept=application/json"})
+    @ResponseBody
+    public String search3(@PathVariable(value="searchText") final String aSearchText) throws Exception
+    {
+        logger.debug("search3() aSearchText={}", aSearchText);
+
+        String json = makeSynchronousWebServiceCallReturnJson();
+
+        return(json);
+    }
+
+
+ 
+ 5. Verify it works:
+    1. Open a browser
+    2. Connect to https://localhost:8443/springMvcWebAppE/search3/stuff
+       NOTE:  If spring security is setup, you will be prompted to login first
+              Upon successful login, you will be taken to the real url
+             
+             
+       You should see this:
+       
+       {"id":7503,"content":"Hello, World!"}
+ 
+
+ 
