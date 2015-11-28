@@ -1,0 +1,77 @@
+How to Make a Asynchronous Web Service Call using Ning (and SSL)
+----------------------------------------------------------------
+You want to make an asynchronous web service call using SSL.  Here's how.
+
+
+References
+----------
+https://github.com/AsyncHttpClient/async-http-client
+https://tersesystems.com/2014/01/13/fixing-the-most-dangerous-code-in-the-world/
+
+
+INCOMPLETE
+
+
+
+ 
+Procedure
+---------
+ 1. Add this dependency to your pom.xml
+ 
+         <dependency>
+            <groupId>com.ning</groupId>
+            <artifactId>async-http-client</artifactId>
+            <version>1.9.31</version>
+        </dependency>
+
+ 
+ 
+ 2. Add this method to your projetc:
+ 
+    import com.ning.http.client.AsyncHttpClient;
+    import com.ning.http.client.Response;
+    import java.util.concurrent.Future;
+    
+        
+
+    private static String makeSecureAsyncWebServiceCallReturnJson() throws Exception 
+    {
+        AsyncHttpClient asyncHttpClient = new AsyncHttpClient();
+        String json = null;
+
+        try
+        {
+            logger.debug("Making async web service call.");
+
+            // Make a sync web service call but do *NOT* wait for response
+            Future<Response> fResponse = asyncHttpClient.prepareGet("https://rest-service.guides.spring.io/greeting")
+                                                .setHeader("accept", "application/json")
+                                                .execute();
+
+            // Do something else while waiting for a response
+            while (! fResponse.isDone() )
+            {
+                logger.debug("Sleeping for 10 msec....");
+                Thread.sleep(10);
+            }
+
+            // Call has finished -- so get the response
+            Response response = fResponse.get();
+
+            json = response.getResponseBody();
+        }
+        catch (Exception e)
+        {
+            logger.error("Exception raised in makeSecureAsyncWebServiceCallReturnJson()", e);
+            RuntimeException re = new RuntimeException(e);
+            re.setStackTrace(e.getStackTrace());
+            throw re;
+        }
+        finally
+        {
+            // Close the async http client
+            asyncHttpClient.close();
+        }
+
+        return (json);
+    }
