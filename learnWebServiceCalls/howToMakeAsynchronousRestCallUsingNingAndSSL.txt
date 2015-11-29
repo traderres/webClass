@@ -31,14 +31,15 @@ Procedure
     
         
 
-    private static String makeSecureAsyncWebServiceCallReturnJson() throws Exception 
+    private static String makeSecureAsyncWebServiceCallToInvalidSite() throws Exception 
     {
          String json = null;
 
 
         // OPTIONAL:  Tell the ning client to accept any certificate  
-        //            This website https://rest-service.guides.spring.io/greeting has an invalid cert
-        //            -- In order to make this call cert, we need to tell ning to accept any cert
+        //            This website https://rest-service.guides.spring.io/greeting has an *INVALID* cert
+        //            [you will see the problem if you use a Firefox borwser and attempt to view the URL]
+        //            -- In order to make this web service call work, we need to tell ning to accept *ANY* cert
         AsyncHttpClientConfig.Builder configBuilder = new AsyncHttpClientConfig.Builder();
         configBuilder.setAcceptAnyCertificate(true);
         AsyncHttpClientConfig config = configBuilder.build();
@@ -67,7 +68,7 @@ Procedure
         }
         catch (Exception e)
         {
-            logger.error("Exception raised in makeSecureAsyncWebServiceCallReturnJson()", e);
+            logger.error("Exception raised in makeSecureAsyncWebServiceCallToInvalidSite()", e);
             RuntimeException re = new RuntimeException(e);
             re.setStackTrace(e.getStackTrace());
             throw re;
@@ -81,5 +82,52 @@ Procedure
         return (json);
     }
     
+    
+  
+  
+   private static String makeSecureAsyncWebServiceCallToValidSite() throws Exception 
+    {
+         String sResponseBody = null;
+
+
+        AsyncHttpClient asyncHttpClient = new AsyncHttpClient();
+
+        try
+        {
+            logger.debug("Making async web service call.");
+
+            // Make a sync web service call but do *NOT* wait for response
+            // NOTE:  This cert *is* valid so we do not need any additional configurations
+            Future<Response> fResponse = asyncHttpClient.prepareGet("https://rest-service.guides.spring.io/greeting")
+                                                .setHeader("accept", "application/json")
+                                                .execute();
+
+            // Do something else while waiting for a response
+            while (! fResponse.isDone() )
+            {
+                logger.debug("Sleeping for 10 msec....");
+                Thread.sleep(10);
+            }
+
+            // Call has finished -- so get the response
+            Response response = fResponse.get();
+
+            sResponseBody = response.getResponseBody();
+        }
+        catch (Exception e)
+        {
+            logger.error("Exception raised in makeSecureAsyncWebServiceCallToValidSite()", e);
+            RuntimeException re = new RuntimeException(e);
+            re.setStackTrace(e.getStackTrace());
+            throw re;
+        }
+        finally
+        {
+            // Close the async http client
+            asyncHttpClient.close();
+        }
+
+        return (sResponseBody);
+    }
     
     
