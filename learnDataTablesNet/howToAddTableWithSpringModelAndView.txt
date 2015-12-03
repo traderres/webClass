@@ -1,0 +1,210 @@
+How to Load a DataTables.Net table using a Spring MVC Model Object
+------------------------------------------------------------------
+
+Assumptions:
+ A) You have a Spring MVC Web App
+ B) You have DataTables.net installed
+ C) You are using a sitemesh3 layout.jsp page 
+    1) Your sitemesh3.xml looks like this:
+    
+        <sitemesh>
+            <mapping path="/*" decorator="/WEB-INF/jsp/layout.jsp"/>
+            <mapping path="/resources/*" exclude="true"/>
+        
+            <content-processor>
+                <tag-rule-bundle class="org.sitemesh.content.tagrules.html.Sm2TagRuleBundle" />
+            </content-processor>
+        </sitemesh>
+
+    2) Your layout.jsp page loads the javascript for DataTable.Net and jQuery
+    
+    3) Your layout.jsp page inserts "bottom javascript scripts"
+            <%-- I N S E R T        P A G E        J A V A S C R I P T     --%>
+            <sitemesh:write property="page.bottom_js"/>
+    
+       So, that any javascript inside <content tag="bottom_js">...</content>
+       will get loaded and put on the bottom of the generated page
+    
+    
+    
+    
+    
+Procedure
+---------
+ 1. Add a new Model called Stock.java
+    a. Create this filE:  /src/main/java/app1/model/Stock.java
+    
+    b. Copy this to your Stock.java
+    
+        package app1.model;
+        
+        /**
+         * Created by adam on 12/2/2015.
+         */
+        public class Stock
+        {
+            private String companyName;
+            private String symbol;
+            private int    totalShares;
+            private double sharePrice;
+            private double marketValue;
+        
+            public Stock(String aCompanyName, String aSymbol, int aTotalShares, double aSharePrice, double aMarketValue)
+            {
+                this.companyName = aCompanyName;
+                this.symbol = aSymbol;
+                this.totalShares = aTotalShares;
+                this.sharePrice = aSharePrice;
+                this.marketValue = aMarketValue;
+            }
+        
+            public void setCompanyName(String aCompanyName) { this.companyName = aCompanyName; }
+            public String getCompanyName() { return this.companyName; }
+        
+            public void setSymbol(String aSymbol) { this.symbol = aSymbol; }
+            public String getSymbol() { return this.symbol; }
+        
+            public void setTotalShares(int aTotalShares) { this.totalShares = aTotalShares; }
+            public int getTotalShares() { return totalShares; }
+        
+            public void setSharePrice(double sharePrice) { this.sharePrice = sharePrice; }
+            public double getSharePrice() { return this.sharePrice; }
+        
+            public void setMarketValue(double aMarketValue) { this.marketValue = aMarketValue; }
+            public double getMarketValue() { return this.marketValue; }
+        }
+            
+    
+    
+    
+ 2. Add a new Controller called DataTablesController.java
+    a. Create this file:  /src/main/java/app1/controllers/DataTablesController.java
+    
+    b. Copy this to your DataTablesController.java
+    
+        package app1.controllers;
+        
+        import app1.model.Stock;
+        import com.fasterxml.jackson.databind.ObjectMapper;
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.stereotype.Controller;
+        import org.springframework.ui.Model;
+        import org.springframework.web.bind.annotation.RequestMapping;
+        import org.springframework.web.servlet.ModelAndView;
+        
+        import java.util.ArrayList;
+        
+        /**
+         * Created by adam on 12/2/2015.
+         */
+        @Controller
+        public class DataTablesController
+        {
+            private final static Logger logger = LoggerFactory.getLogger(WelcomeController.class);
+        
+            private ObjectMapper mapper = new ObjectMapper();
+        
+        
+            /**********************************************************************
+             * mainPage()
+             *
+             * The user browsed to main page
+             ***********************************************************************/
+            @RequestMapping(value="/datatable/load")
+            public ModelAndView mainPage( Model aModel ) throws Exception
+            {
+                logger.debug("mainPage() started");
+        
+                // Create a modelAndView object
+                ModelAndView mav = new ModelAndView();
+        
+                // Show the datatable_page1.jsp page
+                mav.setViewName("datatable_page1.jsp");
+        
+                // Get the stock data to display
+                ArrayList<Stock> stocks = getStockData();
+        
+                // Convert the stocks to JSON
+                String sStocksAsJson = mapper.writeValueAsString(stocks);
+        
+                // Add the stock information to the view
+                mav.addObject("stocks", sStocksAsJson);
+        
+                logger.debug("mainPage() finished");
+                return mav;
+            }
+        
+        
+            private ArrayList<Stock> getStockData()
+            {
+                ArrayList<Stock> stocks = new ArrayList<Stock>();
+        
+                Stock stock1 = new Stock("Berkshire Hathaway", "BRK.B", 2700, 132.27, 357129);
+                stocks.add(stock1);
+        
+                Stock stock2 = new Stock("Wells Fargo", "WFB", 1000, 155.12, 15512);
+                stocks.add(stock2);
+        
+                Stock stock3 = new Stock("Starbucks", "SBUX", 400, 125.10, 50040);
+                stocks.add(stock3);
+        
+                return stocks;
+            }
+        
+        }
+
+
+ 3. Add a new JSP called datatable_page1.jsp
+    a. Create this file: /src/main/webapp/WEB-INF/jsp/datatable_page1.jsp
+    
+    b. Copy this to your datatable_page1.jsp
+    
+        <%@ page session="false" %>
+        
+        <%-- Include Core taglib and set contextPath --%>
+        <%@ include file="/WEB-INF/jsp/stdJspIncludes.jsp" %>
+        
+        <html>
+        
+        <head>
+            <title>Data Table Page</title>
+        </head>
+        
+        <body>
+            <h2>datatables_page1.jsp</h2>
+        
+            <table id="position" class="display"></table>
+        
+            <br/>
+            <br/>
+        
+            <content tag="bottom_js">
+                <script type="text/javascript">
+                        var gsContextPath = '${contextPath}';
+                        var stocksDataSet = ${stocks};
+        
+                        $(document).ready( function ()
+                        {
+        
+                            $('#position').DataTable(
+                            {
+                                data:   stocksDataSet,
+        
+                                columns: [
+                                    { data: 'companyName', title: 'Company Name' },
+                                    { data: 'symbol',      title: 'Symbol' },
+                                    { data: 'totalShares', title: 'Total shares',  type: 'html-num-fmt' },
+                                    { data: 'sharePrice',  title: 'Share Price',   type: 'html-num-fmt' },
+                                    { data: 'marketValue', title: 'Market Value',  type: 'html-num-fmt' }
+                                ]
+                             } );
+        
+                        } );
+        
+                 </script>
+            </content>
+        
+        </body>
+        </html>
+       
