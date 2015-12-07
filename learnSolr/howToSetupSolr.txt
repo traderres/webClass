@@ -1,49 +1,245 @@
-How to Setup Solr
------------------
+How to Setup Solr 4.10.4 on Windows
+-----------------------------------
+
+Assumptions:
+ A) You want to run Solr 4.10.4 on a Windows Computer
+ B) You want to create a Windows Service to run Solr
+
+
+
+References
+----------
+https://archive.apache.org/dist/lucene/solr/ref-guide/apache-solr-ref-guide-4.10.pdf
+https://cmanios.wordpress.com/2014/02/15/install-apache-solr-as-windows-service-using-nssm/
+
+
+Command Line Options
+--------------------
+-Dsolr.solr.home  (directory of core?)
+-Dsolr.allow.unsafe.resourceloading  (true/false)
+
 
 
 Procedures
-----------
- 1. Download Solr 4.6.1
+---------- 
+ 1. Download Solr 4.10.0
     a. Open a browser and go to http://archive.apache.org/dist/lucene/solr/
-    b. Select 4.6.1/
-    c. Select solr-4.6.1.zip
+    b. Select 4.10.4/
+    c. Select solr-4.10.4.zip
+       *or*
+       http://archive.apache.org/dist/lucene/solr/4.10.4/solr-4.10.4.zip
     d. Save it to your c:\vault
     
     
     
- 2. Install Solr 4.6.1
+ 2. Install Solr 4.10.4
     a. Browse to c:\vault
-    b. Right-click on solr-4.6.1.zip -> 7zip -> Extract files....
+    b. Right-click on solr-4.10.4.zip -> 7zip -> Extract files....
        Extract to:  c:\tools\
        
        Now, you should have these directories
-          C:\tools\solr-4.6.1\contrib
-          C:\tools\solr-4.6.1\example
-          C:\tools\solr-4.6.1\dist
-          C:\tools\solr-4.6.1\docs
+          C:\tools\solr-4.10.4\contrib
+          C:\tools\solr-4.10.4\example
+          C:\tools\solr-4.10.4\dist
+          C:\tools\solr-4.10.4\docs
           
-          
-          
-    e. Browse to c:\vault\solr-4.6.1.zip -> Right-click -> 7zip  Unzip it to your c:\tools\ directory
     c. Create a directory to hold your data:
-         c:\tools\solr-4.6.1\data\
+         c:\tools\solr-4.10.4\data\
          
          
  3. Startup Solr from the command-line
     a. Open a DOS window
     b. In the DOS window type in these commands:
-       DOS> cd /d c:\tools\solr-4.6.1\example
+       DOS> cd /d c:\tools\solr-4.10.4\example
        DOS> java -jar start.jar
        
-       *OR*
-       
-       ## DOES NOT WORK ##
-       DOS> java -jar start.jar   -Dsolr.solr.home=c:\tools\solr-4.6.1\data -Dsolr.allow.unsafe.resourceloading=true  
-
+ 
 
  4. Open the solr console
-    http://localhost:8983/solr
+    a. Open a browser
+    b. Go to http://localhost:8983/solr
     
-    You should see the Solr dashboard.  It should say version 4.6.1
+    You should see the Solr dashboard.  It should say version 4.10.4
     
+    
+ 
+
+ 5. **OPTIONAL** How to Setup a Windows Service to Run Solr
+    a. Download NSSM – the Non-Sucking Service Manager
+       1) Go to http://nssm.cc/download
+       2) Click on "Latest Release"
+          *or*
+          http://nssm.cc/release/nssm-2.24.zip
+          
+       3) Save the zip file to your c:\vault
+       4) Right-click on c:\vault\nssm-2.24.zip -> 7zip -> Extract files...
+          Extract To:  c:\tools
+       
+       
+    b. Install NSSM by adding this to your PATH:   c:\tools\nssm-2.24\win64
+       NOTE:  because we are running 64-bit windows, we use C:\tools\nssm-2.24\win64\nssm.exe
+
+       1) Open the Environment Variables in Windows by pressing <Start><Run>environment
+       2) Under "User variables for..." [on the top of this popup], 
+          Click "New..."  [if PATH already exists, then double-click on PATH and add a semicolon and append c:\tools\nssm-2.24\win64 to the end of the PATH]
+              Variable name:  PATH
+              Variable value: c:\tools\protobuf
+    
+    
+    c. Verify NSSM is in your PATH
+       1) Open a NEW DOS window in Administrative mode
+          by pressing <Start><Run>CMD and right-click on cmd.exe -> Run as Administrator 
+       
+       2) In the CMD window, type-in this:
+          CMD> nssm
+          
+          You should see this:
+            NSSM: The non-sucking service manager
+            Version 2.24 64-bit, 2014-08-31
+            Usage: nssm <option> [<args> ...]
+            
+            To show service installation GUI:
+            
+                    nssm install [<servicename>]
+            
+             . . .
+             
+    d. Create a DOS batch script that will start Solr
+       1) Open Notepad or Notepad++
+       
+       2) Copy this to your new file:
+            @echo off
+            
+            set LOG_FILE=c:\tools\solr-4.10.4\example\solrStart.log
+            
+            echo "SolrStart.log is starting" > %LOG_FILE%
+            
+            REM ** Add Java to your PATH
+            set JAVA_HOME=C:\progra~1\Java\jdk1.7.0_60
+            set PATH=%JAVA_HOME%\bin;%PATH%
+            
+            REM ** Startup Solr
+            cd "c:\tools\solr-4.10.4\example"
+            java -Xms64M -Xmx256M  -Djava.util.logging.config.file=etc/logging.properties -jar start.jar >> %LOG_FILE% 2>&1
+              
+                      
+       3) Save the file to c:\tools\solr-4.10.4\example\solrStart.bat
+       
+    
+    e. Verify that your DOS batch script works
+       a) Browse c:\tools\solr-4.10.4\example\
+       b) Double-click on your solrStart.bat script to make sure it works
+          -- You should see the solr console output
+          
+       c) Press Control-C in this window to kill it
+   
+   
+    f. Create Windows service using NSSM    
+       1) Open a NEW DOS window in Administrative mode
+          by pressing <Start><Run>CMD and right-click on cmd.exe -> Run as Administrator 
+  
+       2) In the DOS window, type-in this to create your service:
+          CMD> nssm install  Solr4.10.4  c:\tools\solr-4.10.4\example\solrStart.bat
+               Service "Solr4.10.4" installed successfully!
+               
+       3) Verify that the service exists
+          a) Press <Start><Run>Services
+             You should see a service called "Solr4.10.4"
+          
+          b) Double-click on "Solr4.10.4"
+             Set the "Startup Type" to "Manual"
+             Press Apply
+             
+       4) Start up the service
+          CMD> Net start Solr4.10.4
+          
+       5) Look at the log file
+          Edit  c:\tools\solr-4.10.4\example\solrStart.log 
+          
+          You should see    
+          
+            "SolrStart.log is starting" 
+            0    [main] INFO  org.eclipse.jetty.server.Server  – jetty-8.1.10.v20130312
+            16   [main] INFO  org.eclipse.jetty.deploy.providers.ScanningAppProvider  – Deployment monitor C:\tools\solr-4.10.4\example\contexts at interval 0
+            16   [main] INFO  org.eclipse.jetty.deploy.DeploymentManager  – Deployable added: C:\tools\solr-4.10.4\example\contexts\solr-jetty-context.xml
+            765  [main] INFO  org.eclipse.jetty.webapp.StandardDescriptorProcessor  – NO JSP Support for /solr, did not find org.apache.jasper.servlet.JspServlet
+            811  [main] INFO  org.apache.solr.servlet.SolrDispatchFilter  – SolrDispatchFilter.init()
+            811  [main] INFO  org.apache.solr.core.SolrResourceLoader  – JNDI not configured for solr (NoInitialContextEx)
+            811  [main] INFO  org.apache.solr.core.SolrResourceLoader  – solr home defaulted to 'solr/' (could not find system property or JNDI)
+            811  [main] INFO  org.apache.solr.core.SolrResourceLoader  – new SolrResourceLoader for directory: 'solr/'
+            889  [main] INFO  org.apache.solr.core.ConfigSolr  – Loading container configuration from c:\tools\solr-4.10.4\example\solr\solr.xml
+            936  [main] INFO  org.apache.solr.core.CoresLocator  – Config-defined core root directory: c:\tools\solr-4.10.4\example\solr
+            952  [main] INFO  org.apache.solr.core.CoreContainer  – New CoreContainer 1792290050
+            952  [main] INFO  org.apache.solr.core.CoreContainer  – Loading cores into CoreContainer [instanceDir=solr/]
+            952  [main] INFO  org.apache.solr.handler.component.HttpShardHandlerFactory  – Setting socketTimeout to: 0
+            952  [main] INFO  org.apache.solr.handler.component.HttpShardHandlerFactory  – Setting urlScheme to: null
+            952  [main] INFO  org.apache.solr.handler.component.HttpShardHandlerFactory  – Setting connTimeout to: 0
+            952  [main] INFO  org.apache.solr.handler.component.HttpShardHandlerFactory  – Setting maxConnectionsPerHost to: 20
+            952  [main] INFO  org.apache.solr.handler.component.HttpShardHandlerFactory  – Setting corePoolSize to: 0
+            952  [main] INFO  org.apache.solr.handler.component.HttpShardHandlerFactory  – Setting maximumPoolSize to: 2147483647
+            952  [main] INFO  org.apache.solr.handler.component.HttpShardHandlerFactory  – Setting maxThreadIdleTime to: 5
+            952  [main] INFO  org.apache.solr.handler.component.HttpShardHandlerFactory  – Setting sizeOfQueue to: -1
+            952  [main] INFO  org.apache.solr.handler.component.HttpShardHandlerFactory  – Setting fairnessPolicy to: false
+            952  [main] INFO  org.apache.solr.handler.component.HttpShardHandlerFactory  – Setting useRetries to: false
+            1217 [main] INFO  org.apache.solr.update.UpdateShardHandler  – Creating UpdateShardHandler HTTP client with params: socketTimeout=0&connTimeout=0&retry=true
+            1217 [main] INFO  org.apache.solr.logging.LogWatcher  – SLF4J impl is org.slf4j.impl.Log4jLoggerFactory
+            1217 [main] INFO  org.apache.solr.logging.LogWatcher  – Registering Log Listener [Log4j (org.slf4j.impl.Log4jLoggerFactory)]
+            1217 [main] INFO  org.apache.solr.core.CoreContainer  – Host Name: 
+            1248 [main] INFO  org.apache.solr.core.CoresLocator  – Looking for core definitions underneath c:\tools\solr-4.10.4\example\solr
+            1248 [main] INFO  org.apache.solr.core.CoresLocator  – Found core collection1 in c:\tools\solr-4.10.4\example\solr\collection1\
+            1248 [main] INFO  org.apache.solr.core.CoresLocator  – Found 1 core definitions
+            1248 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – new SolrResourceLoader for directory: 'c:\tools\solr-4.10.4\example\solr\collection1\'
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrConfig  – Adding specified lib dirs to ClassLoader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/apache-mime4j-core-0.7.2.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/apache-mime4j-dom-0.7.2.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/aspectjrt-1.6.11.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/bcmail-jdk15-1.45.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/bcprov-jdk15-1.45.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/boilerpipe-1.1.0.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/commons-compress-1.7.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/dom4j-1.6.1.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/fontbox-1.8.4.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/icu4j-53.1.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/isoparser-1.0-RC-1.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/jdom-1.0.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/jempbox-1.8.4.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/jhighlight-1.0.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/juniversalchardet-1.0.3.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/metadata-extractor-2.6.2.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/pdfbox-1.8.4.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/poi-3.10.1.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/poi-ooxml-3.10.1.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/poi-ooxml-schemas-3.10.1.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/poi-scratchpad-3.10.1.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/rome-0.9.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/tagsoup-1.2.1.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/tika-core-1.5.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/tika-parsers-1.5.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/tika-xmp-1.5.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/vorbis-java-core-0.1.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/vorbis-java-tika-0.1.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/xercesImpl-2.9.1.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/xmlbeans-2.6.0.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/xmpcore-5.1.2.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/extraction/lib/xz-1.4.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/dist/solr-cell-4.10.4.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/clustering/lib/attributes-binder-1.2.1.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/clustering/lib/carrot2-mini-3.9.0.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/clustering/lib/hppc-0.5.2.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/clustering/lib/jackson-core-asl-1.9.13.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/clustering/lib/jackson-mapper-asl-1.9.13.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding 'file:/c:/tools/solr-4.10.4/contrib/clustering/lib/mahout-collections-1.0.jar' to classloader
+            1295 [coreLoadExecutor-5-thread-1] INFO  org.apache.solr.core.SolrResourceLoader  – Adding '
+      
+       6) Verify you can get to the solr admin console:
+          Open a browser
+          Go to http://localhost:8983/solr
+             You should see the Solr dashboard.  It should say version 4.10.4    
+                
+
+       
+    **OPTIONAL** remove your Windows Service
+        CMD> nssm remove Solr4.10.4 confirm
+        Service "Solr4.10.4" removed successfully!
+        
+        
