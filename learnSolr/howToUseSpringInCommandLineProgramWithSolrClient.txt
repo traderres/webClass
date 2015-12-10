@@ -1,0 +1,444 @@
+How to Use Spring in a Command Line Java Program to inject a Solr Client
+------------------------------------------------------------------------
+
+Assumptions:
+ A) You have a command-line java program
+ B) You want your main to instantiate a spring context
+ C) One of your spring beans is an HttpClient (to access Solr)
+ D) You are talking with a Solr instance
+
+
+Procedure
+---------
+ 1. Create a main java program
+    [see learnJava / howToCreateJavaCommandLineProgramUsingIntellijMaven.txt]
+    NOTES:
+       Call the application springAppSolr
+       Follow steps 1 through 5
+       
+           
+ 
+ 2. Update the dependencies to include Spring and SolrJ
+    Your pom.xml should only have these dependencies
+ 
+        <!-- Spring Core -->
+        <dependency>
+          <groupId>org.springframework</groupId>
+          <artifactId>spring-core</artifactId>
+          <version>4.1.1.RELEASE</version>
+          <exclusions>
+            <exclusion>
+              <groupId>commons-logging</groupId>
+              <artifactId>commons-logging</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+    
+        <dependency>
+          <groupId>org.springframework</groupId>
+          <artifactId>spring-context</artifactId>
+          <version>4.1.1.RELEASE</version>
+        </dependency>
+    
+    
+        <!-- Spring sends logging to Java Common Logging.  But, this will send this loggin to SLF4J -->
+        <dependency>
+          <groupId>org.slf4j</groupId>
+          <artifactId>jcl-over-slf4j</artifactId>
+          <version>1.7.5</version>
+        </dependency>
+    
+        <!-- Include a log4j implementation called logback-classic -->
+        <dependency>
+          <groupId>ch.qos.logback</groupId>
+          <artifactId>logback-classic</artifactId>
+          <version>1.0.13</version>
+        </dependency>
+    
+        <!-- Add the dependency for your Solrj client -->
+        <dependency>
+          <groupId>org.apache.solr</groupId>
+          <artifactId>solr-solrj</artifactId>
+          <version>4.10.4</version>
+          <type>jar</type>
+        </dependency>
+    
+        <dependency>
+          <groupId>junit</groupId>
+          <artifactId>junit</artifactId>
+          <version>3.8.1</version>
+          <scope>test</scope>
+        </dependency>
+ 
+ 
+ 3. Create a package called stuff
+    Browse to /src/main/java -> Right-click -> New -> Package
+    Name:  stuff
+
+
+  
+ 4. Create this class:  BogusClass
+    Browse to /src/main/java/stuff -> New -> Java Class
+    Name:  Stuff
+    
+    Copy this to your BogusClass
+    
+        package stuff;
+        
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        
+        /**
+         * Created by adam on 11/21/2015.
+         */
+        public class BogusClass
+        {
+            private static final Logger logger = LoggerFactory.getLogger(BogusClass.class);
+        
+            private String name;
+        
+            public BogusClass()
+            {
+                logger.debug("BogusClass() Constructor called");
+            }
+        
+            public void setName(String aName)
+            {
+                logger.debug("setName()  called with aName={}", aName);
+                this.name = aName;
+            }
+        
+            public void displayName()
+            {
+                logger.debug("displayName()  called with this.name={}", this.name);
+                System.out.println("Name is this:  " + this.name);
+            }
+        
+        }
+
+
+
+
+ 5. Create this class:  App
+    Browse to /src/main/java/stuff -> New -> Java Class
+    Name: App
+    
+    Copy this to your App.java class
+            
+        package stuff;
+        
+        import org.apache.solr.client.solrj.SolrQuery;
+        import org.apache.solr.client.solrj.impl.HttpSolrServer;
+        import org.apache.solr.client.solrj.response.QueryResponse;
+        import org.apache.solr.common.SolrDocumentList;
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.context.ApplicationContext;
+        import org.springframework.context.support.AbstractApplicationContext;
+        import org.springframework.context.support.ClassPathXmlApplicationContext;
+        
+        
+        /**
+         * Created by adam on 11/21/2015.
+         */
+        public class App
+        {
+            private static final Logger logger = LoggerFactory.getLogger(App.class);
+        
+            public static void main( String[] args ) throws Exception
+            {
+                logger.debug("main() started.");
+        
+                // Create the spring context
+                //  1) Read spring-beans.xml
+                //  2) Instantiate the spring beans
+                ApplicationContext context = new ClassPathXmlApplicationContext("spring-beans.xml");
+        
+                // Register a shutdown hook so that the Spring Context is shutdown gracefully on JVM exit
+                AbstractApplicationContext ctx = (AbstractApplicationContext) context;
+                ctx.registerShutdownHook();
+        
+                // Get a reference to the bean called "bogusBean"
+                BogusClass bogus = (BogusClass) context.getBean("bogusBean");
+                bogus.displayName();
+        
+        
+                // Get a reference to the bean called "mySolrServer"
+                HttpSolrServer solrServer = (HttpSolrServer) context.getBean("mySolrServer");
+        
+                // Setup your query object
+                SolrQuery query = new SolrQuery();
+                query.setQuery("ipod");
+        
+                // The client makes a network connection and sends the query.
+                // Solr processes the query, and the response is sent and parsed into a QueryResponse.
+                QueryResponse response = solrServer.query(query);
+        
+        
+                SolrDocumentList listResults = response.getResults();
+                logger.debug("listResults.size()={}", listResults.size());
+        
+                logger.debug("main() finished.");
+                System.exit(0);
+            }
+        }
+
+
+
+ 
+ 6. Create this file:  spring-beans.xml file
+    Right-click on /src/main/resources/ -> Right-click -> New -> File:
+    Filename:  spring-beans.xml
+    
+        <beans xmlns="http://www.springframework.org/schema/beans"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:schemaLocation="http://www.springframework.org/schema/beans
+                        http://www.springframework.org/schema/beans/spring-beans-4.0.xsd">
+        
+            <bean id="bogusBean" class="stuff.BogusClass">
+                <property name="name" value="John" />
+            </bean>
+        
+            <!-- Setup a spring bean that holds the HttpSolrServer object  -->
+            <bean id="mySolrServer" class="org.apache.solr.client.solrj.impl.HttpSolrServer">
+                <constructor-arg value="http://localhost:8983/solr/collection1"/>
+            </bean>
+        
+        </beans>
+
+
+ 
+  
+ 
+  8. Test it inside the Intellij IDE
+     a. Set a breakpoint on the first line of your main()
+     b. Right-click on /src/main/java/stuff/App -> Debug 'App.main()'
+
+     You should see this output:
+        12/09/2015 22:34:58 DEBUG stuff.App main() started.
+        12/09/2015 22:34:59 DEBUG org.springframework.core.env.StandardEnvironment Adding [systemProperties] PropertySource with lowest search precedence
+        12/09/2015 22:34:59 DEBUG org.springframework.core.env.StandardEnvironment Adding [systemEnvironment] PropertySource with lowest search precedence
+        12/09/2015 22:34:59 DEBUG org.springframework.core.env.StandardEnvironment Initialized StandardEnvironment with PropertySources [systemProperties,systemEnvironment]
+        12/09/2015 22:34:59 INFO  org.springframework.context.support.ClassPathXmlApplicationContext Refreshing org.springframework.context.support.ClassPathXmlApplicationContext@16257ce0: startup date [Wed Dec 09 22:34:59 EST 2015]; root of context hierarchy
+        12/09/2015 22:34:59 DEBUG org.springframework.core.env.StandardEnvironment Adding [systemProperties] PropertySource with lowest search precedence
+        12/09/2015 22:34:59 DEBUG org.springframework.core.env.StandardEnvironment Adding [systemEnvironment] PropertySource with lowest search precedence
+        12/09/2015 22:34:59 DEBUG org.springframework.core.env.StandardEnvironment Initialized StandardEnvironment with PropertySources [systemProperties,systemEnvironment]
+        12/09/2015 22:34:59 INFO  org.springframework.beans.factory.xml.XmlBeanDefinitionReader Loading XML bean definitions from class path resource [spring-beans.xml]
+        12/09/2015 22:34:59 DEBUG org.springframework.beans.factory.xml.DefaultDocumentLoader Using JAXP provider [com.sun.org.apache.xerces.internal.jaxp.DocumentBuilderFactoryImpl]
+        12/09/2015 22:34:59 DEBUG org.springframework.beans.factory.xml.PluggableSchemaResolver Loading schema mappings from [META-INF/spring.schemas]
+        12/09/2015 22:34:59 DEBUG org.springframework.beans.factory.xml.PluggableSchemaResolver Loaded schema mappings: {http://www.springframework.org/schema/util/spring-util.xsd=org/springframework/beans/factory/xml/spring-util-4.1.xsd, http://www.springframework.org/schema/jee/spring-jee-3.2.xsd=org/springframework/ejb/config/spring-jee-3.2.xsd, http://www.springframework.org/schema/beans/spring-beans-4.1.xsd=org/springframework/beans/factory/xml/spring-beans-4.1.xsd, http://www.springframework.org/schema/beans/spring-beans-3.1.xsd=org/springframework/beans/factory/xml/spring-beans-3.1.xsd, http://www.springframework.org/schema/task/spring-task.xsd=org/springframework/scheduling/config/spring-task-4.1.xsd, http://www.springframework.org/schema/cache/spring-cache.xsd=org/springframework/cache/config/spring-cache-4.1.xsd, http://www.springframework.org/schema/aop/spring-aop-3.0.xsd=org/springframework/aop/config/spring-aop-3.0.xsd, http://www.springframework.org/schema/task/spring-task-3.1.xsd=org/springframework/scheduling/config/spring-task-3.1.xsd, http://www.springframework.org/schema/aop/spring-aop-2.0.xsd=org/springframework/aop/config/spring-aop-2.0.xsd, http://www.springframework.org/schema/aop/spring-aop-4.0.xsd=org/springframework/aop/config/spring-aop-4.0.xsd, http://www.springframework.org/schema/task/spring-task-4.1.xsd=org/springframework/scheduling/config/spring-task-4.1.xsd, http://www.springframework.org/schema/tool/spring-tool-2.5.xsd=org/springframework/beans/factory/xml/spring-tool-2.5.xsd, http://www.springframework.org/schema/beans/spring-beans.xsd=org/springframework/beans/factory/xml/spring-beans-4.1.xsd, http://www.springframework.org/schema/jee/spring-jee-2.5.xsd=org/springframework/ejb/config/spring-jee-2.5.xsd, http://www.springframework.org/schema/tool/spring-tool-3.1.xsd=org/springframework/beans/factory/xml/spring-tool-3.1.xsd, http://www.springframework.org/schema/tool/spring-tool-4.1.xsd=org/springframework/beans/factory/xml/spring-tool-4.1.xsd, http://www.springframework.org/schema/aop/spring-aop.xsd=org/springframework/aop/config/spring-aop-4.1.xsd, http://www.springframework.org/schema/jee/spring-jee-3.1.xsd=org/springframework/ejb/config/spring-jee-3.1.xsd, http://www.springframework.org/schema/context/spring-context-3.2.xsd=org/springframework/context/config/spring-context-3.2.xsd, http://www.springframework.org/schema/jee/spring-jee-4.1.xsd=org/springframework/ejb/config/spring-jee-4.1.xsd, http://www.springframework.org/schema/util/spring-util-3.2.xsd=org/springframework/beans/factory/xml/spring-util-3.2.xsd, http://www.springframework.org/schema/beans/spring-beans-2.0.xsd=org/springframework/beans/factory/xml/spring-beans-2.0.xsd, http://www.springframework.org/schema/beans/spring-beans-4.0.xsd=org/springframework/beans/factory/xml/spring-beans-4.0.xsd, http://www.springframework.org/schema/lang/spring-lang-3.2.xsd=org/springframework/scripting/config/spring-lang-3.2.xsd, http://www.springframework.org/schema/beans/spring-beans-3.0.xsd=org/springframework/beans/factory/xml/spring-beans-3.0.xsd, http://www.springframework.org/schema/cache/spring-cache-3.2.xsd=org/springframework/cache/config/spring-cache-3.2.xsd, http://www.springframework.org/schema/task/spring-task-3.0.xsd=org/springframework/scheduling/config/spring-task-3.0.xsd, http://www.springframework.org/schema/task/spring-task-4.0.xsd=org/springframework/scheduling/config/spring-task-4.0.xsd, http://www.springframework.org/schema/context/spring-context-2.5.xsd=org/springframework/context/config/spring-context-2.5.xsd, http://www.springframework.org/schema/tool/spring-tool-3.0.xsd=org/springframework/beans/factory/xml/spring-tool-3.0.xsd, http://www.springframework.org/schema/util/spring-util-2.5.xsd=org/springframework/beans/factory/xml/spring-util-2.5.xsd, http://www.springframework.org/schema/tool/spring-tool-2.0.xsd=org/springframework/beans/factory/xml/spring-tool-2.0.xsd, http://www.springframework.org/schema/lang/spring-lang.xsd=org/springframework/scripting/config/spring-lang-4.1.xsd, http://www.springframework.org/schema/tool/spring-tool-4.0.xsd=org/springframework/beans/factory/xml/spring-tool-4.0.xsd, http://www.springframework.org/schema/lang/spring-lang-2.5.xsd=org/springframework/scripting/config/spring-lang-2.5.xsd, http://www.springframework.org/schema/aop/spring-aop-3.2.xsd=org/springframework/aop/config/spring-aop-3.2.xsd, http://www.springframework.org/schema/context/spring-context-4.1.xsd=org/springframework/context/config/spring-context-4.1.xsd, http://www.springframework.org/schema/jee/spring-jee-3.0.xsd=org/springframework/ejb/config/spring-jee-3.0.xsd, http://www.springframework.org/schema/jee/spring-jee-2.0.xsd=org/springframework/ejb/config/spring-jee-2.0.xsd, http://www.springframework.org/schema/context/spring-context-3.1.xsd=org/springframework/context/config/spring-context-3.1.xsd, http://www.springframework.org/schema/jee/spring-jee-4.0.xsd=org/springframework/ejb/config/spring-jee-4.0.xsd, http://www.springframework.org/schema/util/spring-util-3.1.xsd=org/springframework/beans/factory/xml/spring-util-3.1.xsd, http://www.springframework.org/schema/lang/spring-lang-3.1.xsd=org/springframework/scripting/config/spring-lang-3.1.xsd, http://www.springframework.org/schema/util/spring-util-4.1.xsd=org/springframework/beans/factory/xml/spring-util-4.1.xsd, http://www.springframework.org/schema/cache/spring-cache-4.1.xsd=org/springframework/cache/config/spring-cache-4.1.xsd, http://www.springframework.org/schema/lang/spring-lang-4.1.xsd=org/springframework/scripting/config/spring-lang-4.1.xsd, http://www.springframework.org/schema/cache/spring-cache-3.1.xsd=org/springframework/cache/config/spring-cache-3.1.xsd, http://www.springframework.org/schema/context/spring-context.xsd=org/springframework/context/config/spring-context-4.1.xsd, http://www.springframework.org/schema/jee/spring-jee.xsd=org/springframework/ejb/config/spring-jee-4.1.xsd, http://www.springframework.org/schema/aop/spring-aop-2.5.xsd=org/springframework/aop/config/spring-aop-2.5.xsd, http://www.springframework.org/schema/beans/spring-beans-3.2.xsd=org/springframework/beans/factory/xml/spring-beans-3.2.xsd, http://www.springframework.org/schema/aop/spring-aop-3.1.xsd=org/springframework/aop/config/spring-aop-3.1.xsd, http://www.springframework.org/schema/task/spring-task-3.2.xsd=org/springframework/scheduling/config/spring-task-3.2.xsd, http://www.springframework.org/schema/context/spring-context-4.0.xsd=org/springframework/context/config/spring-context-4.0.xsd, http://www.springframework.org/schema/aop/spring-aop-4.1.xsd=org/springframework/aop/config/spring-aop-4.1.xsd, http://www.springframework.org/schema/context/spring-context-3.0.xsd=org/springframework/context/config/spring-context-3.0.xsd, http://www.springframework.org/schema/tool/spring-tool.xsd=org/springframework/beans/factory/xml/spring-tool-4.1.xsd, http://www.springframework.org/schema/util/spring-util-3.0.xsd=org/springframework/beans/factory/xml/spring-util-3.0.xsd, http://www.springframework.org/schema/util/spring-util-2.0.xsd=org/springframework/beans/factory/xml/spring-util-2.0.xsd, http://www.springframework.org/schema/lang/spring-lang-3.0.xsd=org/springframework/scripting/config/spring-lang-3.0.xsd, http://www.springframework.org/schema/util/spring-util-4.0.xsd=org/springframework/beans/factory/xml/spring-util-4.0.xsd, http://www.springframework.org/schema/lang/spring-lang-2.0.xsd=org/springframework/scripting/config/spring-lang-2.0.xsd, http://www.springframework.org/schema/cache/spring-cache-4.0.xsd=org/springframework/cache/config/spring-cache-4.0.xsd, http://www.springframework.org/schema/lang/spring-lang-4.0.xsd=org/springframework/scripting/config/spring-lang-4.0.xsd, http://www.springframework.org/schema/tool/spring-tool-3.2.xsd=org/springframework/beans/factory/xml/spring-tool-3.2.xsd, http://www.springframework.org/schema/beans/spring-beans-2.5.xsd=org/springframework/beans/factory/xml/spring-beans-2.5.xsd}
+        12/09/2015 22:34:59 DEBUG org.springframework.beans.factory.xml.PluggableSchemaResolver Found XML schema [http://www.springframework.org/schema/beans/spring-beans-4.0.xsd] in classpath: org/springframework/beans/factory/xml/spring-beans-4.0.xsd
+        12/09/2015 22:34:59 DEBUG org.springframework.beans.factory.xml.DefaultBeanDefinitionDocumentReader Loading bean definitions
+        12/09/2015 22:34:59 DEBUG org.springframework.beans.factory.xml.XmlBeanDefinitionReader Loaded 2 bean definitions from location pattern [spring-beans.xml]
+        12/09/2015 22:34:59 DEBUG org.springframework.context.support.ClassPathXmlApplicationContext Bean factory for org.springframework.context.support.ClassPathXmlApplicationContext@16257ce0: org.springframework.beans.factory.support.DefaultListableBeanFactory@6fd8c2db: defining beans [bogusBean,mySolrServer]; root of factory hierarchy
+        12/09/2015 22:34:59 DEBUG org.springframework.context.support.ClassPathXmlApplicationContext Unable to locate MessageSource with name 'messageSource': using default [org.springframework.context.support.DelegatingMessageSource@3c7d585c]
+        12/09/2015 22:34:59 DEBUG org.springframework.context.support.ClassPathXmlApplicationContext Unable to locate ApplicationEventMulticaster with name 'applicationEventMulticaster': using default [org.springframework.context.event.SimpleApplicationEventMulticaster@1e63d8ae]
+        12/09/2015 22:34:59 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Pre-instantiating singletons in org.springframework.beans.factory.support.DefaultListableBeanFactory@6fd8c2db: defining beans [bogusBean,mySolrServer]; root of factory hierarchy
+        12/09/2015 22:34:59 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Creating shared instance of singleton bean 'bogusBean'
+        12/09/2015 22:34:59 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Creating instance of bean 'bogusBean'
+        12/09/2015 22:34:59 DEBUG stuff.BogusClass BogusClass() Constructor called
+        12/09/2015 22:34:59 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Eagerly caching bean 'bogusBean' to allow for resolving potential circular references
+        12/09/2015 22:34:59 DEBUG stuff.BogusClass setName()  called with aName=John
+        12/09/2015 22:34:59 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Finished creating instance of bean 'bogusBean'
+        12/09/2015 22:34:59 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Creating shared instance of singleton bean 'mySolrServer'
+        12/09/2015 22:34:59 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Creating instance of bean 'mySolrServer'
+        12/09/2015 22:34:59 DEBUG org.apache.solr.client.solrj.impl.HttpClientUtil Creating new http client, config:maxConnections=128&maxConnectionsPerHost=32&followRedirects=false
+        12/09/2015 22:34:59 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Eagerly caching bean 'mySolrServer' to allow for resolving potential circular references
+        12/09/2015 22:34:59 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Finished creating instance of bean 'mySolrServer'
+        12/09/2015 22:34:59 DEBUG org.springframework.context.support.ClassPathXmlApplicationContext Unable to locate LifecycleProcessor with name 'lifecycleProcessor': using default [org.springframework.context.support.DefaultLifecycleProcessor@4f4127c0]
+        12/09/2015 22:34:59 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Returning cached instance of singleton bean 'lifecycleProcessor'
+        12/09/2015 22:34:59 DEBUG org.springframework.core.env.PropertySourcesPropertyResolver Searching for key 'spring.liveBeansView.mbeanDomain' in [systemProperties]
+        12/09/2015 22:34:59 DEBUG org.springframework.core.env.PropertySourcesPropertyResolver Searching for key 'spring.liveBeansView.mbeanDomain' in [systemEnvironment]
+        12/09/2015 22:34:59 DEBUG org.springframework.core.env.PropertySourcesPropertyResolver Could not find key 'spring.liveBeansView.mbeanDomain' in any property source. Returning [null]
+        12/09/2015 22:34:59 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Returning cached instance of singleton bean 'bogusBean'
+        12/09/2015 22:34:59 DEBUG stuff.BogusClass displayName()  called with this.name=John
+        Name is this:  John
+        12/09/2015 22:34:59 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Returning cached instance of singleton bean 'mySolrServer'
+        12/09/2015 22:34:59 DEBUG org.apache.http.impl.conn.PoolingClientConnectionManager Connection request: [route: {}->http://localhost:8983][total kept alive: 0; route allocated: 0 of 32; total allocated: 0 of 128]
+        12/09/2015 22:34:59 DEBUG org.apache.http.impl.conn.PoolingClientConnectionManager Connection leased: [id: 0][route: {}->http://localhost:8983][total kept alive: 0; route allocated: 1 of 32; total allocated: 1 of 128]
+        12/09/2015 22:34:59 DEBUG org.apache.http.impl.conn.DefaultClientConnectionOperator Connecting to localhost:8983
+        12/09/2015 22:34:59 DEBUG org.apache.http.client.protocol.RequestAddCookies CookieSpec selected: best-match
+        12/09/2015 22:34:59 DEBUG org.apache.http.client.protocol.RequestAuthCache Auth cache not set in the context
+        12/09/2015 22:34:59 DEBUG org.apache.http.client.protocol.RequestTargetAuthentication Target auth state: UNCHALLENGED
+        12/09/2015 22:34:59 DEBUG org.apache.http.client.protocol.RequestProxyAuthentication Proxy auth state: UNCHALLENGED
+        12/09/2015 22:34:59 DEBUG org.apache.http.impl.client.SystemDefaultHttpClient Attempt 1 to execute request
+        12/09/2015 22:34:59 DEBUG org.apache.http.impl.conn.DefaultClientConnection Sending request: GET /solr/collection1/select?q=ipod&wt=javabin&version=2 HTTP/1.1
+        12/09/2015 22:34:59 DEBUG org.apache.http.wire  >> "GET /solr/collection1/select?q=ipod&wt=javabin&version=2 HTTP/1.1[\r][\n]"
+        12/09/2015 22:34:59 DEBUG org.apache.http.wire  >> "User-Agent: Solr[org.apache.solr.client.solrj.impl.HttpSolrServer] 1.0[\r][\n]"
+        12/09/2015 22:34:59 DEBUG org.apache.http.wire  >> "Host: localhost:8983[\r][\n]"
+        12/09/2015 22:34:59 DEBUG org.apache.http.wire  >> "Connection: Keep-Alive[\r][\n]"
+        12/09/2015 22:34:59 DEBUG org.apache.http.wire  >> "[\r][\n]"
+        12/09/2015 22:34:59 DEBUG org.apache.http.headers >> GET /solr/collection1/select?q=ipod&wt=javabin&version=2 HTTP/1.1
+        12/09/2015 22:34:59 DEBUG org.apache.http.headers >> User-Agent: Solr[org.apache.solr.client.solrj.impl.HttpSolrServer] 1.0
+        12/09/2015 22:34:59 DEBUG org.apache.http.headers >> Host: localhost:8983
+        12/09/2015 22:34:59 DEBUG org.apache.http.headers >> Connection: Keep-Alive
+        12/09/2015 22:34:59 DEBUG org.apache.http.wire  << "HTTP/1.1 200 OK[\r][\n]"
+        12/09/2015 22:34:59 DEBUG org.apache.http.wire  << "Content-Type: application/octet-stream[\r][\n]"
+        12/09/2015 22:34:59 DEBUG org.apache.http.wire  << "Content-Length: 1284[\r][\n]"
+        12/09/2015 22:34:59 DEBUG org.apache.http.wire  << "[\r][\n]"
+        12/09/2015 22:34:59 DEBUG org.apache.http.impl.conn.DefaultClientConnection Receiving response: HTTP/1.1 200 OK
+        12/09/2015 22:34:59 DEBUG org.apache.http.headers << HTTP/1.1 200 OK
+        12/09/2015 22:34:59 DEBUG org.apache.http.headers << Content-Type: application/octet-stream
+        12/09/2015 22:34:59 DEBUG org.apache.http.headers << Content-Length: 1284
+        12/09/2015 22:34:59 DEBUG org.apache.http.impl.client.SystemDefaultHttpClient Connection can be kept alive indefinitely
+        12/09/2015 22:34:59 DEBUG org.apache.http.wire  << "[0x2][0xa2][0xe0].responseHeader[0xa3][0xe0]&status[0x6][0x0][0x0][0x0][0x0][0xe0]%QTime[0x6][0x0][0x0][0x0][0x0][0xe0]&params[0xa3][0xe0]!q$ipod[0xe0]"wt'javabin[0xe0]'version!2[0xe0](response[0xc][0x83]c`[0x0][0x83][0xb][0xae][0xe0]"id%IW-02[0xe0]$name>iPod & iPod Mini USB 2.0 Cable[0xe0]$manu&Belkin[0xe0])manu_id_s&belkin[0xe0]#cat[0x82]+electronics)connector[0xe0](features[0x81]?[0x2]car power adapter for iPod, white[0xe0]&weight[0x8]@[0x0][0x0][0x0][0xe0]%price[0x8]A8[0x0][0x0][0xe0]'price_c)11.50,USD[0xe0]*popularityA[0xe0]'inStock[0x2][0xe0]%store137.7752,-122.4232[0xe0]2manufacturedate_dt[0x9][0x0][0x0][0x1][0x9]j[0xfd][0xea][0x98][0xe0])_version_[0x7][0x15][0x18][0x92]5[0xdc]p[0x0][0x0][0xb][0xae][0xe9]/F8V7067-APL-KIT[0xea]?[\n]"
+        12/09/2015 22:34:59 DEBUG org.apache.http.wire  << "Belkin Mobile Power Cord for iPod w/ Dock[0xeb]&Belkin[0xec]&belkin[0xed][0x82]+electronics)connector[0xee][0x81]8car power adapter, white[0xef][0x8]@[0x80][0x0][0x0][0xf0][0x8]A[0x9f][0x99][0x9a][0xf1])19.95,USD[0xf2]A[0xf3][0x2][0xf4]245.18014,-93.87741[0xf5][0x9][0x0][0x0][0x1][0x5]r[0xe1]0[0xe8][0xf6][0x7][0x15][0x18][0x92]5[0xdc]`[0x0][0x0][0xb][0xaf][0xe9])MA147LL/A[0xea]?[0xb]Apple 60 GB iPod with Video Playback Black[0xeb]3Apple Computer Inc.[0xec]%apple[0xed][0x82]+electronics%music[0xee][0x86]<iTunes, Podcasts, Audiobooks? Stores up to 15,000 songs, 25,000 photos, or 150 hours of video?[0x1b]2.5-inch, 320x240 color TFT LCD display with LED backlight>Up to 20 hours of battery life? Plays AAC, MP3, WAV, AIFF, Audible, Apple Lossless, H.264 video?[0xc2][0x1]Notes, Calendar, Phone book, Hold button, Date display, Photo wallet, Built-in games, JPEG photo playback, Upgradeable firmware, USB 2.0 compatibility, Playback speed control, Rechargeable capability, Battery level indication[0xe0](includes<earbud headphones, USB cable[0xef][0x8]@[0xb0][0x0][0x0][0xf0][0x8]C[0xc7][0x80][0x0][0xf1]*399.00,USD[0xf2]J[0xf3][0x1][0xf4]137.7752,-100.0232[0xf5][0x9][0x0][0x0][0x1][0x6][0xe3][0xd7][0xc4][0x0][0xf6][0x7][0x15][0x18][0x92]5[0xdc][0xd0][0x0][0x0]"
+        Disconnected from the target VM, address: '127.0.0.1:49500', transport: 'socket'
+        12/09/2015 22:34:59 DEBUG org.apache.http.impl.conn.PoolingClientConnectionManager Connection [id: 0][route: {}->http://localhost:8983] can be kept alive indefinitely
+        12/09/2015 22:34:59 DEBUG org.apache.http.impl.conn.PoolingClientConnectionManager Connection released: [id: 0][route: {}->http://localhost:8983][total kept alive: 1; route allocated: 1 of 32; total allocated: 1 of 128]
+        12/09/2015 22:34:59 DEBUG stuff.App listResults.size()=3
+        12/09/2015 22:34:59 DEBUG stuff.App main() finished.
+        12/09/2015 22:34:59 INFO  org.springframework.context.support.ClassPathXmlApplicationContext Closing org.springframework.context.support.ClassPathXmlApplicationContext@16257ce0: startup date [Wed Dec 09 22:34:59 EST 2015]; root of context hierarchy
+        12/09/2015 22:34:59 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Returning cached instance of singleton bean 'lifecycleProcessor'
+        12/09/2015 22:34:59 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Destroying singletons in org.springframework.beans.factory.support.DefaultListableBeanFactory@6fd8c2db: defining beans [bogusBean,mySolrServer]; root of factory hierarchy
+        
+                
+                
+    
+    
+ 9. Run the Java JAR from the command-line
+    NOTE:  We will modify the pom.xml so that it builds two versions of the Java JAR
+     -- SpringAppSolr.jar            [smaller JAR because it will not have dependencies inside]
+     -- SpringAppSolrEverything.jar  [larger  JAR because it will have all dependencies inside]
+    
+    a. Add this to the end of your pom.xml:
+    
+       <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <version>3.1</version>
+            <configuration>
+              <source>1.7</source>
+              <target>1.7</target>
+            </configuration>
+          </plugin>
+    
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-jar-plugin</artifactId>
+            <version>2.3.2</version>
+            <configuration>
+              <!-- Set the name of the generated Java JAR filename *without* dependencies -->
+              <finalName>SpringAppSolr</finalName>
+            </configuration>
+          </plugin>
+    
+          <plugin>
+            <artifactId>maven-assembly-plugin</artifactId>
+    
+            <configuration>
+              <descriptorRefs>
+                <descriptorRef>jar-with-dependencies</descriptorRef>
+              </descriptorRefs>
+    
+              <archive>
+                <manifest>
+                  <addClasspath>true</addClasspath>
+                </manifest>
+              </archive>
+            </configuration>
+    
+            <executions>
+              <execution>
+                <id>make-assembly</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>single</goal>
+                </goals>
+                <configuration>
+                  <!-- Set the name of the generated Java JAR filename *with* dependencies -->
+                  <appendAssemblyId>false</appendAssemblyId>
+                  <finalName>SpringAppSolrEverything</finalName>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+    
+        </plugins>
+      </build>
+        
+    b. Run this command to build the two java JARs
+       DOS> cd /d C:\tools\intellij\workspace\springAppSolr
+       DOS> mvn clean package
+       
+    c. Run the Java JAR
+       DOS> java -cp ./target/springAppSolrEverything.jar stuff.App
+   
+       You should see this:
+        12/09/2015 22:36:46 DEBUG stuff.App main() started.
+        12/09/2015 22:36:46 DEBUG org.springframework.core.env.StandardEnvironment Adding [systemProperties] PropertySource with lowest search precedence
+        12/09/2015 22:36:46 DEBUG org.springframework.core.env.StandardEnvironment Adding [systemEnvironment] PropertySource with lowest search precedence
+        12/09/2015 22:36:46 DEBUG org.springframework.core.env.StandardEnvironment Initialized StandardEnvironment with PropertySources [systemProperties,systemEnvironment]
+        12/09/2015 22:36:46 INFO  org.springframework.context.support.ClassPathXmlApplicationContext Refreshing org.springframework.context.support.ClassPathXmlApplicationContext@76899322: startup date [Wed Dec 09 22:36:46 EST 2015]; root of context hierarchy
+        12/09/2015 22:36:46 DEBUG org.springframework.core.env.StandardEnvironment Adding [systemProperties] PropertySource with lowest search precedence
+        12/09/2015 22:36:46 DEBUG org.springframework.core.env.StandardEnvironment Adding [systemEnvironment] PropertySource with lowest search precedence
+        12/09/2015 22:36:46 DEBUG org.springframework.core.env.StandardEnvironment Initialized StandardEnvironment with PropertySources [systemProperties,systemEnvironment]
+        12/09/2015 22:36:46 INFO  org.springframework.beans.factory.xml.XmlBeanDefinitionReader Loading XML bean definitions from class path resource [spring-beans.xml]
+        12/09/2015 22:36:46 DEBUG org.springframework.beans.factory.xml.DefaultDocumentLoader Using JAXP provider [com.sun.org.apache.xerces.internal.jaxp.DocumentBuilderFactoryImpl]
+        12/09/2015 22:36:46 DEBUG org.springframework.beans.factory.xml.PluggableSchemaResolver Loading schema mappings from [META-INF/spring.schemas]
+        12/09/2015 22:36:46 DEBUG org.springframework.beans.factory.xml.PluggableSchemaResolver Loaded schema mappings: {http://www.springframework.org/schema/context/spring-context-3.1.xsd=org/springframework/context/config/spring-context-3.1.xsd, http://www.springframework.org/schema/lang/spring-lang.xsd=org/springframework/scripting/config/spring-lang-4.1.xsd, http://www.springframework.org/schema/lang/spring-lang-2.5.xsd=org/springframework/scripting/config/spring-lang-2.5.xsd, http://www.springframework.org/schema/cache/spring-cache-4.1.xsd=org/springframework/cache/config/spring-cache-4.1.xsd, http://www.springframework.org/schema/context/spring-context-2.5.xsd=org/springframework/context/config/spring-context-2.5.xsd, http://www.springframework.org/schema/cache/spring-cache-3.1.xsd=org/springframework/cache/config/spring-cache-3.1.xsd, http://www.springframework.org/schema/jee/spring-jee-4.0.xsd=org/springframework/ejb/config/spring-jee-4.0.xsd, http://www.springframework.org/schema/lang/spring-lang-3.2.xsd=org/springframework/scripting/config/spring-lang-3.2.xsd, http://www.springframework.org/schema/context/spring-context.xsd=org/springframework/context/config/spring-context-4.1.xsd, http://www.springframework.org/schema/task/spring-task-3.0.xsd=org/springframework/scheduling/config/spring-task-3.0.xsd, http://www.springframework.org/schema/lang/spring-lang-4.0.xsd=org/springframework/scripting/config/spring-lang-4.0.xsd, http://www.springframework.org/schema/task/spring-task-4.1.xsd=org/springframework/scheduling/config/spring-task-4.1.xsd, http://www.springframework.org/schema/jee/spring-jee-3.1.xsd=org/springframework/ejb/config/spring-jee-3.1.xsd, http://www.springframework.org/schema/context/spring-context-4.0.xsd=org/springframework/context/config/spring-context-4.0.xsd, http://www.springframework.org/schema/task/spring-task.xsd=org/springframework/scheduling/config/spring-task-4.1.xsd, http://www.springframework.org/schema/context/spring-context-3.0.xsd=org/springframework/context/config/spring-context-3.0.xsd, http://www.springframework.org/schema/cache/spring-cache-4.0.xsd=org/springframework/cache/config/spring-cache-4.0.xsd, http://www.springframework.org/schema/lang/spring-lang-3.1.xsd=org/springframework/scripting/config/spring-lang-3.1.xsd, http://www.springframework.org/schema/task/spring-task-3.2.xsd=org/springframework/scheduling/config/spring-task-3.2.xsd, http://www.springframework.org/schema/jee/spring-jee.xsd=org/springframework/ejb/config/spring-jee-4.1.xsd, http://www.springframework.org/schema/cache/spring-cache.xsd=org/springframework/cache/config/spring-cache-4.1.xsd, http://www.springframework.org/schema/context/spring-context-3.2.xsd=org/springframework/context/config/spring-context-3.2.xsd, http://www.springframework.org/schema/cache/spring-cache-3.2.xsd=org/springframework/cache/config/spring-cache-3.2.xsd, http://www.springframework.org/schema/task/spring-task-4.0.xsd=org/springframework/scheduling/config/spring-task-4.0.xsd, http://www.springframework.org/schema/jee/spring-jee-3.0.xsd=org/springframework/ejb/config/spring-jee-3.0.xsd, http://www.springframework.org/schema/jee/spring-jee-4.1.xsd=org/springframework/ejb/config/spring-jee-4.1.xsd, http://www.springframework.org/schema/jee/spring-jee-2.0.xsd=org/springframework/ejb/config/spring-jee-2.0.xsd, http://www.springframework.org/schema/jee/spring-jee-2.5.xsd=org/springframework/ejb/config/spring-jee-2.5.xsd, http://www.springframework.org/schema/lang/spring-lang-3.0.xsd=org/springframework/scripting/config/spring-lang-3.0.xsd, http://www.springframework.org/schema/task/spring-task-3.1.xsd=org/springframework/scheduling/config/spring-task-3.1.xsd, http://www.springframework.org/schema/lang/spring-lang-4.1.xsd=org/springframework/scripting/config/spring-lang-4.1.xsd, http://www.springframework.org/schema/lang/spring-lang-2.0.xsd=org/springframework/scripting/config/spring-lang-2.0.xsd, http://www.springframework.org/schema/jee/spring-jee-3.2.xsd=org/springframework/ejb/config/spring-jee-3.2.xsd, http://www.springframework.org/schema/context/spring-context-4.1.xsd=org/springframework/context/config/spring-context-4.1.xsd}
+        12/09/2015 22:36:46 DEBUG org.springframework.beans.factory.xml.DefaultBeanDefinitionDocumentReader Loading bean definitions
+        12/09/2015 22:36:46 DEBUG org.springframework.beans.factory.xml.XmlBeanDefinitionReader Loaded 2 bean definitions from location pattern [spring-beans.xml]
+        12/09/2015 22:36:46 DEBUG org.springframework.context.support.ClassPathXmlApplicationContext Bean factory for org.springframework.context.support.ClassPathXmlApplicationContext@76899322: org.springframework.beans.factory.support.DefaultListableBeanFactory@78a00025: defining beans [bogusBean,mySolrServer]; root of factory hierarchy
+        12/09/2015 22:36:46 DEBUG org.springframework.context.support.ClassPathXmlApplicationContext Unable to locate MessageSource with name 'messageSource': using default [org.springframework.context.support.DelegatingMessageSource@15573857]
+        12/09/2015 22:36:46 DEBUG org.springframework.context.support.ClassPathXmlApplicationContext Unable to locate ApplicationEventMulticaster with name 'applicationEventMulticaster': using default [org.springframework.context.event.SimpleApplicationEventMulticaster@78f394a2]
+        12/09/2015 22:36:46 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Pre-instantiating singletons in org.springframework.beans.factory.support.DefaultListableBeanFactory@78a00025: defining beans [bogusBean,mySolrServer]; root of factory hierarchy
+        12/09/2015 22:36:46 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Creating shared instance of singleton bean 'bogusBean'
+        12/09/2015 22:36:46 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Creating instance of bean 'bogusBean'
+        12/09/2015 22:36:46 DEBUG stuff.BogusClass BogusClass() Constructor called
+        12/09/2015 22:36:46 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Eagerly caching bean 'bogusBean' to allow for resolving potential circular references
+        12/09/2015 22:36:46 DEBUG stuff.BogusClass setName()  called with aName=John
+        12/09/2015 22:36:46 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Finished creating instance of bean 'bogusBean'
+        12/09/2015 22:36:46 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Creating shared instance of singleton bean 'mySolrServer'
+        12/09/2015 22:36:46 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Creating instance of bean 'mySolrServer'
+        12/09/2015 22:36:46 DEBUG org.apache.solr.client.solrj.impl.HttpClientUtil Creating new http client, config:maxConnections=128&maxConnectionsPerHost=32&followRedirects=false
+        12/09/2015 22:36:46 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Eagerly caching bean 'mySolrServer' to allow for resolving potential circular references
+        12/09/2015 22:36:46 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Finished creating instance of bean 'mySolrServer'
+        12/09/2015 22:36:46 DEBUG org.springframework.context.support.ClassPathXmlApplicationContext Unable to locate LifecycleProcessor with name 'lifecycleProcessor': using default [org.springframework.context.support.DefaultLifecycleProcessor@2e3130c4]
+        12/09/2015 22:36:46 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Returning cached instance of singleton bean 'lifecycleProcessor'
+        12/09/2015 22:36:46 DEBUG org.springframework.core.env.PropertySourcesPropertyResolver Searching for key 'spring.liveBeansView.mbeanDomain' in [systemProperties]
+        12/09/2015 22:36:46 DEBUG org.springframework.core.env.PropertySourcesPropertyResolver Searching for key 'spring.liveBeansView.mbeanDomain' in [systemEnvironment]
+        12/09/2015 22:36:46 DEBUG org.springframework.core.env.PropertySourcesPropertyResolver Could not find key 'spring.liveBeansView.mbeanDomain' in any property source. Returning [null]
+        12/09/2015 22:36:46 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Returning cached instance of singleton bean 'bogusBean'
+        12/09/2015 22:36:46 DEBUG stuff.BogusClass displayName()  called with this.name=John
+        Name is this:  John
+        12/09/2015 22:36:46 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Returning cached instance of singleton bean 'mySolrServer'
+        12/09/2015 22:36:46 DEBUG org.apache.http.impl.conn.PoolingClientConnectionManager Connection request: [route: {}->http://localhost:8983][total kept alive: 0; route allocated: 0 of 32; total allocated: 0 of 128]
+        12/09/2015 22:36:46 DEBUG org.apache.http.impl.conn.PoolingClientConnectionManager Connection leased: [id: 0][route: {}->http://localhost:8983][total kept alive: 0; route allocated: 1 of 32; total allocated: 1 of 128]
+        12/09/2015 22:36:46 DEBUG org.apache.http.impl.conn.DefaultClientConnectionOperator Connecting to localhost:8983
+        12/09/2015 22:36:46 DEBUG org.apache.http.client.protocol.RequestAddCookies CookieSpec selected: best-match
+        12/09/2015 22:36:46 DEBUG org.apache.http.client.protocol.RequestAuthCache Auth cache not set in the context
+        12/09/2015 22:36:46 DEBUG org.apache.http.client.protocol.RequestTargetAuthentication Target auth state: UNCHALLENGED
+        12/09/2015 22:36:46 DEBUG org.apache.http.client.protocol.RequestProxyAuthentication Proxy auth state: UNCHALLENGED
+        12/09/2015 22:36:46 DEBUG org.apache.http.impl.client.SystemDefaultHttpClient Attempt 1 to execute request
+        12/09/2015 22:36:46 DEBUG org.apache.http.impl.conn.DefaultClientConnection Sending request: GET /solr/collection1/select?q=ipod&wt=javabin&version=2 HTTP/1.1
+        12/09/2015 22:36:46 DEBUG org.apache.http.wire  >> "GET /solr/collection1/select?q=ipod&wt=javabin&version=2 HTTP/1.1[\r][\n]"
+        12/09/2015 22:36:46 DEBUG org.apache.http.wire  >> "User-Agent: Solr[org.apache.solr.client.solrj.impl.HttpSolrServer] 1.0[\r][\n]"
+        12/09/2015 22:36:46 DEBUG org.apache.http.wire  >> "Host: localhost:8983[\r][\n]"
+        12/09/2015 22:36:46 DEBUG org.apache.http.wire  >> "Connection: Keep-Alive[\r][\n]"
+        12/09/2015 22:36:46 DEBUG org.apache.http.wire  >> "[\r][\n]"
+        12/09/2015 22:36:46 DEBUG org.apache.http.headers >> GET /solr/collection1/select?q=ipod&wt=javabin&version=2 HTTP/1.1
+        12/09/2015 22:36:46 DEBUG org.apache.http.headers >> User-Agent: Solr[org.apache.solr.client.solrj.impl.HttpSolrServer] 1.0
+        12/09/2015 22:36:46 DEBUG org.apache.http.headers >> Host: localhost:8983
+        12/09/2015 22:36:46 DEBUG org.apache.http.headers >> Connection: Keep-Alive
+        12/09/2015 22:36:46 DEBUG org.apache.http.wire  << "HTTP/1.1 200 OK[\r][\n]"
+        12/09/2015 22:36:46 DEBUG org.apache.http.wire  << "Content-Type: application/octet-stream[\r][\n]"
+        12/09/2015 22:36:46 DEBUG org.apache.http.wire  << "Content-Length: 1284[\r][\n]"
+        12/09/2015 22:36:46 DEBUG org.apache.http.wire  << "[\r][\n]"
+        12/09/2015 22:36:46 DEBUG org.apache.http.impl.conn.DefaultClientConnection Receiving response: HTTP/1.1 200 OK
+        12/09/2015 22:36:46 DEBUG org.apache.http.headers << HTTP/1.1 200 OK
+        12/09/2015 22:36:46 DEBUG org.apache.http.headers << Content-Type: application/octet-stream
+        12/09/2015 22:36:46 DEBUG org.apache.http.headers << Content-Length: 1284
+        12/09/2015 22:36:46 DEBUG org.apache.http.impl.client.SystemDefaultHttpClient Connection can be kept alive indefinitely
+        12/09/2015 22:36:46 DEBUG org.apache.http.wire  << "[0x2][0xa2][0xe0].responseHeader[0xa3][0xe0]&status[0x6][0x0][0x0][0x0][0x0][0xe0]%QTime[0x6][0x0][0x0][0x0][0x0][0xe0]&params[0xa3][0xe0]!q$ipod[0xe0]"wt'javabin[0xe0]'version!2[0xe0](response[0xc][0x83]c`[0x0][0x83][0xb][0xae][0xe0]"id%IW-02[0xe0]$name>iPod & iPod Mini USB 2.0 Cable[0xe0]$manu&Belkin[0xe0])manu_id_s&belkin[0xe0]#cat[0x82]+electronics)connector[0xe0](features[0x81]?[0x2]car power adapter for iPod, white[0xe0]&weight[0x8]@[0x0][0x0][0x0][0xe0]%price[0x8]A8[0x0][0x0][0xe0]'price_c)11.50,USD[0xe0]*popularityA[0xe0]'inStock[0x2][0xe0]%store137.7752,-122.4232[0xe0]2manufacturedate_dt[0x9][0x0][0x0][0x1][0x9]j[0xfd][0xea][0x98][0xe0])_version_[0x7][0x15][0x18][0x92]5[0xdc]p[0x0][0x0][0xb][0xae][0xe9]/F8V7067-APL-KIT[0xea]?[\n]"
+        12/09/2015 22:36:46 DEBUG org.apache.http.wire  << "Belkin Mobile Power Cord for iPod w/ Dock[0xeb]&Belkin[0xec]&belkin[0xed][0x82]+electronics)connector[0xee][0x81]8car power adapter, white[0xef][0x8]@[0x80][0x0][0x0][0xf0][0x8]A[0x9f][0x99][0x9a][0xf1])19.95,USD[0xf2]A[0xf3][0x2][0xf4]245.18014,-93.87741[0xf5][0x9][0x0][0x0][0x1][0x5]r[0xe1]0[0xe8][0xf6][0x7][0x15][0x18][0x92]5[0xdc]`[0x0][0x0][0xb][0xaf][0xe9])MA147LL/A[0xea]?[0xb]Apple 60 GB iPod with Video Playback Black[0xeb]3Apple Computer Inc.[0xec]%apple[0xed][0x82]+electronics%music[0xee][0x86]<iTunes, Podcasts, Audiobooks? Stores up to 15,000 songs, 25,000 photos, or 150 hours of video?[0x1b]2.5-inch, 320x240 color TFT LCD display with LED backlight>Up to 20 hours of battery life? Plays AAC, MP3, WAV, AIFF, Audible, Apple Lossless, H.264 video?[0xc2][0x1]Notes, Calendar, Phone book, Hold button, Date display, Photo wallet, Built-in games, JPEG photo playback, Upgradeable firmware, USB 2.0 compatibility, Playback speed control, Rechargeable capability, Battery level indication[0xe0](includes<earbud headphones, USB cable[0xef][0x8]@[0xb0][0x0][0x0][0xf0][0x8]C[0xc7][0x80][0x0][0xf1]*399.00,USD[0xf2]J[0xf3][0x1][0xf4]137.7752,-100.0232[0xf5][0x9][0x0][0x0][0x1][0x6][0xe3][0xd7][0xc4][0x0][0xf6][0x7][0x15][0x18][0x92]5[0xdc][0xd0][0x0][0x0]"
+        12/09/2015 22:36:46 DEBUG org.apache.http.impl.conn.PoolingClientConnectionManager Connection [id: 0][route: {}->http://localhost:8983] can be kept alive indefinitely
+        12/09/2015 22:36:46 DEBUG org.apache.http.impl.conn.PoolingClientConnectionManager Connection released: [id: 0][route: {}->http://localhost:8983][total kept alive: 1; route allocated: 1 of 32; total allocated: 1 of 128]
+        12/09/2015 22:36:46 DEBUG stuff.App listResults.size()=3
+        12/09/2015 22:36:46 DEBUG stuff.App main() finished.
+        12/09/2015 22:36:46 INFO  org.springframework.context.support.ClassPathXmlApplicationContext Closing org.springframework.context.support.ClassPathXmlApplicationContext@76899322: startup date [Wed Dec 09 22:36:46 EST 2015]; root of context hierarchy
+        12/09/2015 22:36:46 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Returning cached instance of singleton bean 'lifecycleProcessor'
+        12/09/2015 22:36:46 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Destroying singletons in org.springframework.beans.factory.support.DefaultListableBeanFactory@78a00025: defining beans [bogusBean,mySolrServer]; root of factory hierarchy
+               
+        
