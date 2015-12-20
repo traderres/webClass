@@ -82,9 +82,7 @@ Procedure
             {
                 // Allow requests to resources to get through
                 web.ignoring()
-                    .antMatchers("/resources/**")
-                    .antMatchers("/bundleJS/**")
-                    .antMatchers("/bundleCSS/**");
+                    .antMatchers("/resources/**");
             }
         
         
@@ -291,62 +289,14 @@ Procedure
  
  
  
- 8. Adjust JAWR bundling so that bundled JS and CSS files start with /resources
-    NOTE:  This will allow the bundled JS and bundled CSS files get through Spring Security
-    
-    Edit the jawr.properties so that the bundle ids start with /bundles
-    
-    a. Change this line:
-            jawr.js.bundle.jbad.id=/id/jquery.boostrap.angular.datatables.js      
-       To this:
-            jawr.js.bundle.jbad.id=/bundles/jquery.boostrap.angular.datatables.js
-       
  
-    b. Change this line:
-            jawr.css.bundle.jbad_css.id=/id/jquery.boostrap.angular.datatables.css
-       To this:
-            jawr.css.bundle.jbad_css.id=/bundles/jquery.boostrap.angular.datatables.css
+  8. Tell Spring-Security to let the bundled JS and CSS files through
+     ASSUMPTION:  Your jawrServlets are mapped to /bundleCSS and /bundleJS 
+     [see howToBundleJsAndCssUsingJawr.txt]
+     
+    a. Modify the LoginSecurityConfig class so that requests with /bundles/ in it get through
        
-       
- 
-    When completed, your jawr.properties should look like this:
-    
-        ####################################################################################
-        #
-        # jawr.properties
-        #
-        # Set jawr.debug.on=true  and files are *not* bundled   (development mode)
-        # Set jawr.debug.on=false and files are bundled         (production mode)
-        ####################################################################################
-        jawr.debug.on=false
-        jawr.gzip.on=false
-        jawr.strict.mode=true
-        
-        jawr.use.bundle.mapping=true
-        
-        # Define a bundle that holds jQuery, bootstrap, Angular, DataTales.net  (jbad)
-        # NOTE:  The bundle id must end with .js
-        jawr.js.bundle.jbad.id=/bundles/jquery.boostrap.angular.datatables.js
-        jawr.js.bundle.jbad.mappings=/resources/jquery-1.11.3/jquery-1.11.3.min.js,/resources/bootstrap-3.3.4/js/bootstrap.min.js,/resources/angular-1.3.16/angular.min.js,/resources/DataTables-1.10.9/media/js/jquery.dataTables.min.js
-        
-        # Define a CSS bundle
-        jawr.css.bundle.jbad_css.id=/bundles/jquery.boostrap.angular.datatables.css
-        jawr.css.bundle.jbad_css.mappings=/resources/bootstrap-3.3.4/css/bootstrap.min.css,/resources/bootstrap-3.3.4/css/bootstrap-theme.min.css,/resources/DataTables-1.10.9/media/css/jquery.dataTables.min.css         
-        
-
-    c. Change your layout.jsp so that the src="/id/..." becomes src="/bundles/..."
-  
-            <%-- I N S E R T       C S S     B U N D L E     --%>
-            <jwr:style src="/bundles/jquery.boostrap.angular.datatables.css"/>
-       
-            <%-- L O A D    J A V A S C R I P T     B U N D L E            --%>
-            <jwr:script src="/bundles/jquery.boostrap.angular.datatables.js" />
-
-
-
-    d. Modify the LoginSecurityConfig class so that requests with /bundles/ in it get through
-       
-       Change this method to lookl ike this:
+       Change this method so it looks like this:
        
         /**************************************************************************************
          * configure()
@@ -354,13 +304,14 @@ Procedure
         @Override
         public void configure(WebSecurity web) throws Exception
         {
-            // Allow requests to resources to get through
+            // Allow requests to resources, bundleJS, and bundleCSS to get through
             web.ignoring()
                 .antMatchers("/resources/**")
-                .regexMatchers(".*/bundles/.*");
+                .antMatchers("/bundleJS/**")
+                .antMatchers("/bundleCSS/**");
         }
-    
-    
+
+
     
     
  9.  Add this line to the top of *every* JSP page  (even those that are included)
