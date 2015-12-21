@@ -7,6 +7,7 @@ Procedure
  1. Create a command-line java program called sparkApp
  
  2. Add the Spark dependencies to your pom.xml
+ 
       <dependency>
          <groupId>org.apache.spark</groupId>
          <artifactId>spark-core_2.10</artifactId>
@@ -44,4 +45,104 @@ Procedure
          <version>2.3.0</version>
       </dependency>
       
+      
+ 3. Add a test driver class
+      
+      @Test
+      public void sumNumbers()
+      {
+        logger.debug("sumNumbers() started");
+        
+        SparkConf conf = new SparkConf().setMaster("local[1]").setAppName("sparkApp");
+        JavaSparkContext sc = new JavaSparkContext(conf);
+        
+        
+        List<Integer> data = Arrays.asList(1, 2, 3, 4, 5);
+        JavaRDD<Integer> distData = sc.parallelize(data);
+        
+        
+        // Call the reduce() to sum up the values
+        int iCalculatedSum = distData.reduce(new Function2<Integer, Integer, Integer>()
+        {
+           public Integer call(Integer a, Integer b)
+            {
+              logger.debug("call()  a={}  b={}", a, b);
+              return a + b;
+            }
+        });
+
+       // Total = n*(n+1) / 2   
+       int iExpectedTotal = (data.size() * data.size() + 1 / 2;
+       
+       // shutdown the context
+       sc.stop();
+       
+       assert(iExpectedTotal == iCalculatedSum);
+       
+       logger.debug("sumNumbers() finished");
+    }
+    
+  
+  4. Add another method called wordCountOfFile()
+  
+      @Test
+      public void wordCountOfFile()
+      {
+         SparkConf conf = new SparkConf().setMaster("local[1]").setAppName("sparkApp");
+         JavaSparkContext sc = new JavaSparkContext(conf);
+         
+         String sInputFilePath = getClass().getResource("/testdata.txt").getPath();
+         JavaRDD<String> linesOfFile = sc.textFile(sInputFilePath);
+         
+         JavaRDD<Integer> lineLengths = linesOfFile.map(new Function<String, Integer>() {
+             public Integer call(String aLine) 
+             {
+               logger.debug("lineLengths.map()  aLine={}  returns={}", aLine, aLine.length() );
+               return aLine.length();
+             }
+         });
+         
+         // sum up the line lengths
+         int iTotalCharacterCount = lineLengths.reduce(new Function2<Integer, Integer, Integer>() {
+            public Integer call(Integer a, Integer b)
+             {
+                logger.debug("lineLengths.reduce()  a={}  b={}  runningTotal={}", a, b, a+b);
+                return a+b;
+             }
+         });
+         
+         
+         assert(iTotalCharacterCount == 101);
+         
+         
+         // Setup a map of wordCounts-per-line
+         javaRDD<Integer> lineWordCounts = linesOfFile.map(new Function<String, Integer>() {
+           public Integer call(String aLine)
+           {
+             int iWordCountForThisLine=0;
+             
+             if ((aLine != null) && (aLine.length() > 0)
+             {
+                iWordCountForThisLine = aLine.split("[\\s,]").length;
+              }
+    
+            logger.debug("lineWordCounts.map()  aLine={}  returns={}", aLikne, iWordCountForThisLine);
+            return iWordCountForThisLine;
+           }
+         });
+         
+         
+         // Call the reducer to sum up the word counts
+         int iTotalWC = lineWordCounts.reduce(new Function2<Integer, Integer, Integer>() {
+            public Integer call(Integer a, Integer b)
+            {
+               logger.debug("reduce()  a={} b={}  runningTotal={}", a, b, a+b)
+               return a+b;
+            }   
+         });
+         
+         assert(iTotalWC = 502);
+         
+         sc.stop();
+      }
       
