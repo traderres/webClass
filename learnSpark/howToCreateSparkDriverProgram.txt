@@ -5,144 +5,254 @@ How to Create a Spark Driver Program
 Procedure
 ---------
  1. Create a command-line java program called sparkApp
+    [see learnJava / howToCreateJavaCommandLineProgramUsingIntellijMaven.txt]
+    NOTES:
+       Call the application sparkApp1
+       Follow steps 1 through 5
  
- 2. Add the Spark dependencies to your pom.xml
  
-      <dependency>
-         <groupId>org.apache.spark</groupId>
-         <artifactId>spark-core_2.10</artifactId>
-         <version>1.2.X or something?  </version>
-         <scope>provided</scope>
+ 2. Remove the logback.xml file
+ 
+ 3. Create this file:  log4j.xml    [in src/main/resources/ directory]
+    NOTES:
+      -- Hadoop uses log4j so we must, too...
+          
+    a. Browse to src/main/resources
+    b. Right-click on classes -> New -> Other... -> Search for file
+       filename:  log4j.xml
          
-         <exclusions>
-            <!-- Spark comes with log4j implementation -- but I want to use logback instead -->
-            <exclusion>
-               <groupId>org.sl4j</groupId>
-               <artifactId>slf4j-log4j12</artifactId>
-            </exclusion>
-         </exclusions>
-      </dependency>
-      
-      
-      <dependency>
-         <groupId>org.apache.hadoop</groupId>
-         <artifactId>hadoop-client</artifactId>
-         <version>2.4.0</version>
-         <scope>provided</scope>
-         
-          <exclusions>
-            <!-- The Hadoop-client comes with log4j implementation -- but I want to use logback instead -->
-            <exclusion>
-               <groupId>org.sl4j</groupId>
-               <artifactId>slf4j-log4j12</artifactId>
-            </exclusion>
-         </exclusions>
-      </dependency>
-      
-      <dependency>
-         <groupId>com.fasterxml.jackson.core</groupId>
-         <artifactId>jackson-databind</artifactId>
-         <version>2.3.0</version>
-      </dependency>
-      
-      
- 3. Add a test driver class
-      
-      @Test
-      public void sumNumbers()
-      {
-        logger.debug("sumNumbers() started");
+        <?xml version="1.0" encoding="UTF-8" ?>
+        <!DOCTYPE log4j:configuration SYSTEM "log4j.dtd">
         
+        <log4j:configuration xmlns:log4j="http://jakarta.apache.org/log4j/">
+            <appender name="CONSOLE" class="org.apache.log4j.ConsoleAppender">
+                <param name="Target" value="System.out"/>
+                <layout class="org.apache.log4j.PatternLayout">
+                    <param name="ConversionPattern" value="%d{MM/dd/yyyy HH:mm:ss} %-5p %t %c %m%n"/>
+                </layout>
+            </appender>
+        
+        
+            <logger name="org.apache.hadoop" additivity="false">
+                <level value="debug" />
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+        
+        
+            <logger name="sparkApp" additivity="false">
+                <level value="debug" />
+                <appender-ref ref="CONSOLE" />
+            </logger>
+        
+            <root>
+                <priority value="debug" />
+                <appender-ref ref="CONSOLE" />
+            </root>
+
+        </log4j:configuration>
+ 
+ 
+ 
+ 4. Add the Spark, Hadoop, and log4j dependencies to your pom.xml
+
+        <dependency>
+          <groupId>org.apache.spark</groupId>
+          <artifactId>spark-core_2.10</artifactId>
+          <version>1.5.2</version>
+          <scope>provided</scope>
+    
+          <exclusions>
+            <exclusion>
+               <!-- Spark comes with slf4j-log4j12 implementation but I want to use my slf4j version instead -->
+               <groupId>org.slf4j</groupId>
+               <artifactId>*</artifactId>
+            </exclusion>
+    
+            <exclusion>
+               <!-- Spark comes with log4j implementation but I want to use logback instead -->
+               <groupId>log4j</groupId>
+               <artifactId>log4j</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+    
+    
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-client</artifactId>
+          <version>2.4.0</version>
+          <scope>provided</scope>
+    
+          <exclusions>
+            <!-- Hadoop-client comes with slf4j-log4j12 implementation but I want to use my slf4j version instead -->
+            <exclusion>
+              <groupId>org.slf4j</groupId>
+              <artifactId>slf4j-log4j12</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+    
+        <dependency>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-databind</artifactId>
+          <version>2.4.4</version>
+        </dependency>
+    
+    
+        <dependency>
+          <!-- Hadoop uses log4j so use SLF4j w/log4j bridge -->
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
+          <version>1.7.12</version>
+        </dependency>
+          
+      
+ 
+ 5. Add a testData.txt file
+    a. Right-click on /src/test/resources -> New File
+    b. Filename:  testData.txt
+    c. Copy this to your testData.txt
+    
+        this is my file
+        with the word this listed twice
+        And it has Adam Adam Adam many times
+    
+      
+      
+ 6. Add a test driver class
+    a. Right-click on test/java -> New Package -> sparkApp
+    b. Right-click on /src/test/java/sparkApp -> New Java Class
+    c. Filename:  AppTest
+    
+    d. Copy this to your AppTest
+         
+        package sparkApp;
+        
+        import org.apache.spark.SparkConf;
+        import org.apache.spark.api.java.JavaRDD;
+        import org.apache.spark.api.java.JavaSparkContext;
+        import org.apache.spark.api.java.function.Function;
+        import org.apache.spark.api.java.function.Function2;
+        import org.junit.Test;
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        
+        import java.io.Serializable;
+        import java.util.Arrays;
+        import java.util.List;
+        
+        /**
+         * Created by adam on 12/21/2015.
+         */
+        public class AppTest implements Serializable
+        {
+            private static final Logger logger = LoggerFactory.getLogger(AppTest.class);
+        
+            @Test
+            public void sumNumbers()
+            {
+                logger.debug("sumNumbers() started");
+        
+                SparkConf conf = new SparkConf().setMaster("local[1]").setAppName("sparkApp");
+                JavaSparkContext sc = new JavaSparkContext(conf);
+        
+        
+                List<Integer> data = Arrays.asList(1, 2, 3, 4, 5);
+                JavaRDD<Integer> distData = sc.parallelize(data);
+        
+        
+                // Call the reduce() to sum up the values
+                int iCalculatedSum = distData.reduce(new Function2<Integer, Integer, Integer>()
+                {
+                    public Integer call(Integer a, Integer b)
+                    {
+                        logger.debug("call()  a={}  b={}", a, b);
+                        return a + b;
+                    }
+                });
+        
+                // Total = n*(n+1) / 2
+                int iExpectedTotal = (data.size() * (data.size() + 1)) / 2;
+        
+                // shutdown the context
+                sc.stop();
+        
+                assert(iExpectedTotal == iCalculatedSum);
+        
+                logger.debug("sumNumbers() finished");
+            }
+        
+        
+        }
+        
+        
+  
+  7. Add another method called wordCountOfFile()
+  
+    @Test
+    public void wordCountOfFile()
+    {
+        logger.debug("wordCountOfFile() started.");
+
         SparkConf conf = new SparkConf().setMaster("local[1]").setAppName("sparkApp");
         JavaSparkContext sc = new JavaSparkContext(conf);
-        
-        
-        List<Integer> data = Arrays.asList(1, 2, 3, 4, 5);
-        JavaRDD<Integer> distData = sc.parallelize(data);
-        
-        
-        // Call the reduce() to sum up the values
-        int iCalculatedSum = distData.reduce(new Function2<Integer, Integer, Integer>()
-        {
-           public Integer call(Integer a, Integer b)
+
+        String sInputFilePath = getClass().getResource("/testdata.txt").getPath();
+        JavaRDD<String> linesOfFile = sc.textFile(sInputFilePath);
+
+        JavaRDD<Integer> lineLengths = linesOfFile.map(new Function<String, Integer>() {
+            public Integer call(String aLine)
             {
-              logger.debug("call()  a={}  b={}", a, b);
-              return a + b;
+                logger.debug("lineLengths.map()  aLine={}  returns={}", aLine, aLine.length());
+                return aLine.length();
             }
         });
 
-       // Total = n*(n+1) / 2   
-       int iExpectedTotal = (data.size() * data.size() + 1 / 2;
-       
-       // shutdown the context
-       sc.stop();
-       
-       assert(iExpectedTotal == iCalculatedSum);
-       
-       logger.debug("sumNumbers() finished");
-    }
-    
-  
-  4. Add another method called wordCountOfFile()
-  
-      @Test
-      public void wordCountOfFile()
-      {
-         SparkConf conf = new SparkConf().setMaster("local[1]").setAppName("sparkApp");
-         JavaSparkContext sc = new JavaSparkContext(conf);
-         
-         String sInputFilePath = getClass().getResource("/testdata.txt").getPath();
-         JavaRDD<String> linesOfFile = sc.textFile(sInputFilePath);
-         
-         JavaRDD<Integer> lineLengths = linesOfFile.map(new Function<String, Integer>() {
-             public Integer call(String aLine) 
-             {
-               logger.debug("lineLengths.map()  aLine={}  returns={}", aLine, aLine.length() );
-               return aLine.length();
-             }
-         });
-         
-         // sum up the line lengths
-         int iTotalCharacterCount = lineLengths.reduce(new Function2<Integer, Integer, Integer>() {
-            public Integer call(Integer a, Integer b)
-             {
-                logger.debug("lineLengths.reduce()  a={}  b={}  runningTotal={}", a, b, a+b);
-                return a+b;
-             }
-         });
-         
-         
-         assert(iTotalCharacterCount == 101);
-         
-         
-         // Setup a map of wordCounts-per-line
-         javaRDD<Integer> lineWordCounts = linesOfFile.map(new Function<String, Integer>() {
-           public Integer call(String aLine)
-           {
-             int iWordCountForThisLine=0;
-             
-             if ((aLine != null) && (aLine.length() > 0)
-             {
-                iWordCountForThisLine = aLine.split("[\\s,]").length;
-              }
-    
-            logger.debug("lineWordCounts.map()  aLine={}  returns={}", aLikne, iWordCountForThisLine);
-            return iWordCountForThisLine;
-           }
-         });
-         
-         
-         // Call the reducer to sum up the word counts
-         int iTotalWC = lineWordCounts.reduce(new Function2<Integer, Integer, Integer>() {
+        // sum up the line lengths
+        int iTotalCharacterCount = lineLengths.reduce(new Function2<Integer, Integer, Integer>() {
             public Integer call(Integer a, Integer b)
             {
-               logger.debug("reduce()  a={} b={}  runningTotal={}", a, b, a+b)
-               return a+b;
-            }   
-         });
-         
-         assert(iTotalWC = 502);
-         
-         sc.stop();
-      }
-      
+                logger.debug("lineLengths.reduce()  a={}  b={}  runningTotal={}", a, b, a+b);
+                return a+b;
+            }
+        });
+
+
+        assert(iTotalCharacterCount == 82);
+
+
+        // Setup a map of wordCounts-per-line
+        JavaRDD<Integer> lineWordCounts = linesOfFile.map(new Function<String, Integer>() {
+            public Integer call(String aLine)
+            {
+                int iWordCountForThisLine=0;
+
+                if ((aLine != null) && (aLine.length() > 0))
+                {
+                    iWordCountForThisLine = aLine.split("[\\s,]").length;
+                }
+
+                logger.debug("lineWordCounts.map()  aLine={}  returns={}", aLine, iWordCountForThisLine);
+                return iWordCountForThisLine;
+            }
+        });
+
+
+        // Call the reducer to sum up the word counts
+        int iTotalWordCount = lineWordCounts.reduce(new Function2<Integer, Integer, Integer>() {
+            public Integer call(Integer a, Integer b)
+            {
+                logger.debug("reduce()  a={} b={}  runningTotal={}", a, b, a+b);
+                return a+b;
+            }
+        });
+
+        assert(iTotalWordCount == 18);
+
+        sc.stop();
+
+        logger.debug("wordCountOfFile() finished.");
+    }
+
+
+ 8. Set a breakpoint on the methods and test it.
