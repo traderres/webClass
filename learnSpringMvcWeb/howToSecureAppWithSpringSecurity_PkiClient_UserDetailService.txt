@@ -1,0 +1,414 @@
+How to Secure a Spring MVC Web App using PKI Client Authentication
+------------------------------------------------------------------
+
+
+Assumptions:
+ A) You have a Spring MVC web app
+ B) You want to use Spring Security to authenticate
+ C) Your users will use PKI authentication (no passwords)
+
+ 
+Procedures
+----------
+ 1. Setup your own Root Certificate Authority
+    [see learnSSL / howToUseYourCertAuthority_InitialSetup.txt]
+   
+   
+   
+ 2. Generate your own Client Certificate
+    [see learnSSL / howToUseYourCertAuthority_MakeClientCert.txt]
+    
+    
+    
+ 3. Generate your own Server Certificate
+   [see learnSSL / howToUseYourCertAuthority_MakeServerCert.txt]
+   
+      
+
+ 4. Update your Tomcat configuration so that it demands PKI client authentication from browser
+    Edit your Tomcat's server.xml
+    
+    a.  Set clientAuth="true"
+    b.  Set the keystoreFile=....
+    c.  Set the keystorePass=....
+    d.  Set the truststoreFile=....
+    e.  Set the    truststorePass
+    
+    When you are done, your connector should look something like this:
+    
+         <Connector port="8443" 
+                 protocol="org.apache.coyote.http11.Http11Protocol"
+                 maxThreads="150" 
+                 SSLEnabled="true" 
+                 scheme="https" 
+                 secure="true"
+                 clientAuth="true" 
+                 sslProtocol="TLS" 
+                 keystoreFile="c:/tools/certs/keystore.jks" 
+                 keystorePass="changeit"
+                 keystoreType="JKS"
+                 truststoreFile="c:/tools/certs/myTruststore.jks"
+                 truststorePass="changeit"
+                 truststoreType="JKS"
+                 keyAlias="KEYSTORE_ALIAS"
+          />   
+
+
+ 
+
+ 5. Add the dependencies to your web app's pom.xml file
+ 
+       <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-web</artifactId>
+            <version>4.0.3.RELEASE</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-config</artifactId>
+            <version>4.0.3.RELEASE</version>
+        </dependency>
+ 
+ 
+ 
+ 6. Create this file:  logging.properties
+    Create it in /src/main/resources/
+    
+        org.apache.catalina.core.ContainerBase.[Catalina].level = FINE
+        org.apache.catalina.core.ContainerBase.[Catalina].handlers = java.util.logging.ConsoleHandler
+ 
+ 
+ 
+ 7. Make sure your web.xml has a listener or ApplicationWatcher class
+ 
+      <listener>
+         <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+      </listener>
+  
+ 
+ 
+ 8. Create this package:  app1.security
+    NOTE:  The remaining classes will be created inside app1.security
+     
+     
+     
+ 9. Create this class:  UserInfo
+ 
+        package app1.security;
+        
+        import org.springframework.security.core.GrantedAuthority;
+        import org.springframework.security.core.userdetails.UserDetails;
+        
+        import java.io.Serializable;
+        import java.util.Collection;
+        import java.util.List;
+        
+        /**
+         * Created by adam on 1/6/2016.
+         */
+        public class UserInfo implements UserDetails, Serializable
+        {
+            private String username;
+            private List<GrantedAuthority> grantedAuthorities;
+        
+        
+            public UserInfo(String aUsername, List<GrantedAuthority> aGrantedAuthorities)
+            {
+                this.username = aUsername;
+                this.grantedAuthorities = aGrantedAuthorities;
+            }
+        
+        
+            public Collection<? extends GrantedAuthority> getAuthorities() {
+                return this.grantedAuthorities;
+            }
+        
+            public String getPassword() {
+                return null;
+            }
+        
+            public String getUsername() {
+                return this.username;
+            }
+        
+            public boolean isAccountNonExpired() {
+                return true;
+            }
+        
+            public boolean isAccountNonLocked() {
+                return true;
+            }
+        
+            public boolean isCredentialsNonExpired() {
+                return true;
+            }
+        
+            public boolean isEnabled() {
+                return true;
+            }
+        
+        }
+
+
+10. Create this class:  SubjectX509PrincipalExtractor
+ 
+        package app1.security;
+        
+        import org.springframework.security.web.authentication.preauth.x509.X509PrincipalExtractor;
+        
+        import java.security.cert.X509Certificate;
+        
+        /**
+         * Created by adam on 1/6/2016.
+         */
+        public class SubjectX509PrincipalExtractor implements X509PrincipalExtractor
+        {
+        
+            public Object extractPrincipal(X509Certificate aClientCert)
+            {
+                Object principal = aClientCert.getSubjectX500Principal().getName();
+                return principal;
+            }
+        
+        }
+                      
+              
+
+11. Create this class:  SpringSecurityInitializer
+
+        package app1.security;
+        
+        import org.springframework.security.web.context.AbstractSecurityWebApplicationInitializer;
+        
+        
+        /*****************************************************************************************
+         * Created by adam on 11/12/2015.
+         *
+         * SpringSecurityInitializer class:  This is used to initialize Spring Security
+         *
+         * NOTE:  The above code is the *SAME* as defining this in the web.xml
+         *    <filter>
+         *      <filter-name>springSecurityFilterChain</filter-name>
+         *      <filter-class>org.springframework.web.filter.DelegatingFilterProxy</filter-class>
+         *    </filter>
+         *
+         *    <filter-mapping>
+         *      <filter-name>springSecurityFilterChain</filter-name>
+         *      <url-pattern>/*</url-pattern>
+         *      <dispatcher>ERROR</dispatcher>
+         *      <dispatcher>REQUEST</dispatcher>
+         *    </filter-mapping>
+         *****************************************************************************************/
+        public class SpringSecurityInitializer extends AbstractSecurityWebApplicationInitializer
+        {
+        
+        }
+
+
+ 
+12. Create this class:  MyUserDetailsService
+    NOTE:  This is the class that will actually do the authentication
+    
+    
+        package app1.security;
+        
+        import org.springframework.security.core.GrantedAuthority;
+        import org.springframework.security.core.authority.SimpleGrantedAuthority;
+        import org.springframework.security.core.userdetails.AuthenticationUserDetailsService;
+        import org.springframework.security.core.userdetails.UserDetails;
+        import org.springframework.security.core.userdetails.UsernameNotFoundException;
+        import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
+        
+        import java.util.ArrayList;
+        
+        /**
+         * Created by adam on 1/6/2016.
+         */
+        public class MyUserDetailsService implements AuthenticationUserDetailsService<PreAuthenticatedAuthenticationToken>
+        {
+        
+            public UserDetails loadUserDetails(PreAuthenticatedAuthenticationToken aToken) throws UsernameNotFoundException
+            {
+                try
+                {
+                    String sUserDN = aToken.getName();
+        
+        
+                    // Do your authentication here
+        
+                    // Create a list of granted authorities
+                    ArrayList<GrantedAuthority> grantedAuthorities = new ArrayList<GrantedAuthority>();
+                    grantedAuthorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+        
+                    // Create your UserInfo object
+                    UserInfo userInfo = new UserInfo(sUserDN, grantedAuthorities);
+                    return userInfo;
+                }
+                catch (Exception e)
+                {
+                    throw new UsernameNotFoundException("Unable to authenticate this user", e);
+                }
+            }
+        }
+
+  
+  
+  
+13. Create this class:   MyAuthenticationManager
+  
+        package app1.security;
+        
+        import org.springframework.security.authentication.AuthenticationManager;
+        import org.springframework.security.core.Authentication;
+        import org.springframework.security.core.AuthenticationException;
+        import org.springframework.stereotype.Component;
+        
+        /**
+         * Created by adam on 1/6/2016.
+         */
+        @Component
+        public class MyAuthenticationManager implements AuthenticationManager
+        {
+        
+            public Authentication authenticate(Authentication aAuth) throws AuthenticationException
+            {
+                return null;
+            }
+        }
+
+
+
+
+14. Create this class:  SpringSecurityConfig 
+    NOTE:  This class sets the *order* of spring-security operations
+    
+
+        package app1.security;
+        
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.beans.factory.annotation.Autowired;
+        import org.springframework.context.annotation.Bean;
+        import org.springframework.context.annotation.Configuration;
+        import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+        import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+        import org.springframework.security.config.annotation.web.builders.WebSecurity;
+        import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+        import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+        import org.springframework.security.config.http.SessionCreationPolicy;
+        import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationProvider;
+        import org.springframework.security.web.authentication.preauth.x509.X509AuthenticationFilter;
+        
+        /**
+         * Created by adam on 1/6/2016.
+         */
+        @Configuration
+        @EnableWebSecurity
+        public class SpringSecurityConfig extends WebSecurityConfigurerAdapter
+        {
+            private static final Logger logger = LoggerFactory.getLogger(SpringSecurityConfig.class);
+        
+            @Autowired
+            public void configureGlobal(AuthenticationManagerBuilder aAuthMgrBuilder) throws Exception
+            {
+                logger.debug("configureGlobal() started");
+        
+                super.configure(aAuthMgrBuilder);
+        
+                // Tell Spring-Security to use our authentication provider bean
+                // NOTE:  This authentication provider bean calls myUserDetailService
+                aAuthMgrBuilder.authenticationProvider(preAuthProvider() );
+        
+                logger.debug("configureGlobal() finished");
+            }
+        
+        
+            @Override
+            public void configure(HttpSecurity aHttp) throws Exception
+            {
+                logger.debug("configure() #1 started");
+        
+                // Sets the *ORDER* of what happens in security
+                //  1) Setup the session
+                //  2) Use the x509Filter to extract the principal
+                //  3) Call the authenticationProvider --> which calls the myUserDetailsService
+                //  4) Verify that certain pages have the required role
+                aHttp.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
+                        .and()
+                          .addFilter(x509Filter())
+                        .authorizeRequests()
+                          .antMatchers("/**").access("hasRole('ROLE_USER')")
+                        .and()
+                          .requiresChannel().antMatchers("/**").requiresSecure()
+                        .and()
+                          .anonymous().disable();
+        
+                logger.debug("configure() #1 finished");
+            }
+        
+        
+        
+        
+            @Override
+            public void configure(WebSecurity aWebSecurity) throws Exception
+            {
+                logger.debug("configure() #2 started");
+        
+                aWebSecurity.ignoring()
+                        .antMatchers("/resources/**");
+        
+                logger.debug("configure() #2 finished");
+           }
+        
+        
+            @Bean
+            public MyAuthenticationManager myAuthenticationManager()
+            {
+                return new MyAuthenticationManager();
+            }
+        
+        
+            @Bean
+            public SubjectX509PrincipalExtractor subjectX509PrincipalExtractor()
+            {
+                return new SubjectX509PrincipalExtractor();
+            }
+        
+            @Bean
+            public X509AuthenticationFilter x509Filter()
+            {
+                // Setup a filter that extracts the principal from the cert
+                X509AuthenticationFilter x509Filter = new X509AuthenticationFilter();
+                x509Filter.setContinueFilterChainOnUnsuccessfulAuthentication(false);
+                x509Filter.setAuthenticationManager(myAuthenticationManager());
+                x509Filter.setPrincipalExtractor(subjectX509PrincipalExtractor());
+        
+                return x509Filter;
+            }
+        
+            @Bean
+            public MyUserDetailsService myUserDetailsService()
+            {
+                return new MyUserDetailsService();
+            }
+        
+        
+            @Bean
+            public PreAuthenticatedAuthenticationProvider preAuthProvider()
+            {
+                PreAuthenticatedAuthenticationProvider preAuthProvider = new PreAuthenticatedAuthenticationProvider();
+                preAuthProvider.setPreAuthenticatedUserDetailsService(myUserDetailsService());
+                preAuthProvider.setThrowExceptionWhenTokenRejected(true);
+        
+                return preAuthProvider;
+            }
+        
+        }
+
+   
+
+Now, your code get the UserInfo object using this:
+   Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+   UserInfo userInfo = (UserInfo) auth.getPrincipal();
+   
