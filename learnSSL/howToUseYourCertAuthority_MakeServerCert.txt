@@ -11,9 +11,124 @@ Assumptions:
 Procedures
 ----------
  1. Generated the keyfile
-   
-    INCOMPLETE
+    a. Open a DOS window by pressing <Start><Run>CMD
+    b. In the DOS window, type-in these commands: 
+        CMD> mkdir c:\temp\server_cert
+        CMD> cd /d c:\temp\server_cert
+        DOS> set ALIAS=devKeystore
+        DOS> keytool -genkey -v -alias %ALIAS%  -dname "cn=$HOSTNAME, ou=Components, ou=whatever, c=US"  -keysize 2048 -keyalg RSA -sigalg MD5withRSA  -keystore myKeystore.jks -validity 1095
+             Enter keystore password:  changeit
+             Re-enter new password:    changeit
+             Enter key password for <devKeystore>   <press Enter>
+         
+        -- Now, you have created myKeystore.jks
+        
+        
+ 2. Generate a certificate signing request (for your server cert)
+    a. Open a DOS window by pressing <Start><Run>CMD
+    b. In the DOS window, type-in these commands: 
+        CMD> keytool -certreq -v -alias %ALIAS%  -keyalg RSA -sigalg MD5withRSA -keystore myKeystore.jks  -file myKeystore.csr  -validity 1095
+        Enter keystore password:      changeit
+       
+        -- Now, you have created myKeystore.csr
+        
+        
+
+ 2. Sign the Client CSR (generate server.cert.notes)
+     CMD> cd /d c:\tools\root-ca
+     CMD> openssl ca -batch -config conf/openssl.cnf -in c:\temp\server_cert\myKeystore.csr -out c:\temp\server_cert\server.cert.notes
     
-   
+     You should see this:
+            Using configuration from conf/openssl.cnf
+            Loading 'screen' into random state - done
+            Check that the request matches the signature
+            Signature ok
+            Certificate Details:
+                    Serial Number: 2 (0x2)
+                    Validity
+                        Not Before: Jan  7 04:12:04 2016 GMT
+                        Not After : Jan  6 04:12:04 2017 GMT
+                    Subject:
+                        countryName               = US
+                        organizationalUnitName    = whatever
+                        organizationalUnitName    = Components
+                        commonName                = $HOSTNAME
+                    X509v3 extensions:
+                        X509v3 Basic Constraints:
+                            CA:FALSE
+                        X509v3 Subject Key Identifier:
+                            98:2D:03:81:FE:84:64:48:B0:0F:08:63:FB:FF:94:A9:2F:F5:38:EA
+                        X509v3 Authority Key Identifier:
+                            keyid:88:98:A1:46:98:5A:5A:C0:8E:78:32:36:65:E7:D9:6B:25:49:E3:DC
+                            DirName:/C=US/ST=Virginia/L=Merrifield/O=Example Inc Root/CN=Example Inc Root CA/emailAddress=adam@zztop.com
+                            serial:E4:59:C3:2F:EF:D6:1B:05
+            
+                        Netscape CA Revocation Url:
+                            https://www.example.com/example-ca-crl.pem
+            Certificate is to be certified until Jan  6 04:12:04 2017 GMT (365 days)
+            
+            Write out database with 1 new entries
+            Data Base Updated
+            unable to write 'random state'
+     
+
+
+ 4. Extract the signed server certificate from the c:\temp\server_cert\server.cert.notes              
+    a. Open this file with notepad:  c:\temp\server_cert\server.cert.notes    
+    b. Highlight the section between  
+          -----BEGIN CERTIFICATE-----
+          
+          -----END CERTIFICATE-----
+          
+    c. Copy + Paste it into this file:  c:\temp\server_cert\server.cert
     
+  
+   
+ 5. Import the public CA file into myTruststore.jks
+    CMD> keytool -import -v -file c:\tools\root-ca\public\root.pem  -trustcacerts -alias ca -keystore c:\temp\server_cert\myTruststore.jks -storepass changeit
+
+    When prompted to "Trust this certificate?" --> enter "yes"
+ 
+    -- Now, you have created c:\temp\server_cert\myTruststore.jks
+    
+ 
+ 
+ 6. Import the public CA file into myKeystore.jks
+    CMD> keytool -import -v -file c:\tools\root-ca\public\root.pem -trustcacerts -alias ca -keystore c:\temp\server_cert\myKeystore.jks -storepass changeit
+    When prompted to "Trust this certificate?" --> enter "yes"
+
+
+
+ 7. Import the signed server certificate into myKeystore.jks
+    unix> keytool -import -v -file c:\temp\server_cert\server.cert -alias %HOSTNAME% -keystore c:\temp\server_cert\myKeystore.jks  
+    --> enter password:  changeit
+ 
+ 
+    Now, you should have these files:
+       C:\temp\server_cert\myTruststore.jks   
+       C:\temp\server_cert\myKeystore.jks
+       
+   
+    Now, you should be able to use this for your Tomcat connector
+    WARNING:  keyAlias should match the ALIAS you set at the top of this file
+    
+             <Connector port="8443" 
+                 protocol="org.apache.coyote.http11.Http11Protocol"
+                 maxThreads="150" 
+                 SSLEnabled="true" 
+                 scheme="https" 
+                 secure="true"
+                 clientAuth="true" 
+                 sslProtocol="TLS" 
+                 keystoreFile="c:/temp/server_cert/myKeystore.jks" 
+                 keystorePass="changeit"
+                 keystoreType="JKS"
+                 truststoreFile="c:/temp/server_cert/myTruststore.jks"
+                 truststorePass="changeit"
+                 truststoreType="JKS"
+                 keyAlias="devKeystore"
+            />
+         
+             
+  
           
