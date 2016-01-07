@@ -17,14 +17,14 @@ Procedures
    
  2. Generate your own Client Certificate
     [see learnSSL / howToUseYourCertAuthority_MakeClientCert.txt]
-    
-    
-    
+   
+   
+   
  3. Generate your own Server Certificate
    [see learnSSL / howToUseYourCertAuthority_MakeServerCert.txt]
    
-      
-
+   
+   
  4. Update your Tomcat configuration so that it demands PKI client authentication from browser
     Edit your Tomcat's server.xml
     
@@ -36,7 +36,7 @@ Procedures
     
     When you are done, your connector should look something like this:
     
-         <Connector port="8443" 
+            <Connector port="8443" 
                  protocol="org.apache.coyote.http11.Http11Protocol"
                  maxThreads="150" 
                  SSLEnabled="true" 
@@ -44,18 +44,17 @@ Procedures
                  secure="true"
                  clientAuth="true" 
                  sslProtocol="TLS" 
-                 keystoreFile="c:/tools/certs/keystore.jks" 
+                 keystoreFile="c:/temp/server_cert/myKeystore.jks" 
                  keystorePass="changeit"
                  keystoreType="JKS"
-                 truststoreFile="c:/tools/certs/myTruststore.jks"
+                 truststoreFile="c:/temp/server_cert/myTruststore.jks"
                  truststorePass="changeit"
                  truststoreType="JKS"
-                 keyAlias="KEYSTORE_ALIAS"
-          />   
-
-
- 
-
+                 keyAlias="devKeystore"
+            />
+   
+   
+   
  5. Add the dependencies to your web app's pom.xml file
  
        <dependency>
@@ -69,17 +68,17 @@ Procedures
             <artifactId>spring-security-config</artifactId>
             <version>4.0.3.RELEASE</version>
         </dependency>
- 
- 
- 
+   
+   
+   
  6. Create this file:  logging.properties
     Create it in /src/main/resources/
     
         org.apache.catalina.core.ContainerBase.[Catalina].level = FINE
         org.apache.catalina.core.ContainerBase.[Catalina].handlers = java.util.logging.ConsoleHandler
- 
- 
- 
+    
+   
+   
  7. Make sure your web.xml has a listener or ApplicationWatcher class
  
       <listener>
@@ -149,8 +148,9 @@ Procedures
             }
         
         }
-
-
+   
+   
+   
 10. Create this class:  SubjectX509PrincipalExtractor
  
         package app1.security;
@@ -172,9 +172,9 @@ Procedures
             }
         
         }
-                      
-              
-
+   
+   
+   
 11. Create this class:  SpringSecurityInitializer
 
         package app1.security;
@@ -273,13 +273,12 @@ Procedures
         
             public Authentication authenticate(Authentication aAuth) throws AuthenticationException
             {
-                return null;
+                return aAuth;
             }
         }
-
-
-
-
+   
+   
+   
 14. Create this class:  SpringSecurityConfig 
     NOTE:  This class sets the *order* of spring-security operations
     
@@ -406,7 +405,112 @@ Procedures
         
         }
 
-   
+
+
+
+15. Update your WelcomeController to look like this:
+
+        package app1.controllers;
+        
+        import app1.security.UserInfo;
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.security.core.Authentication;
+        import org.springframework.security.core.context.SecurityContextHolder;
+        import org.springframework.stereotype.Controller;
+        import org.springframework.ui.Model;
+        import org.springframework.web.bind.annotation.RequestMapping;
+        import org.springframework.web.servlet.ModelAndView;
+        
+        
+        @Controller
+        public class WelcomeController
+        {
+            private final static Logger logger = LoggerFactory.getLogger(WelcomeController.class);
+        
+        
+            /**********************************************************************
+             * handleDefaultPage()
+             *
+             * The user browsed to the   http://www.myserver.com/webapp
+             * So, forward the user to   http://www.myserver.com/webapp/forward
+             ***********************************************************************/
+            @RequestMapping("/")
+            public ModelAndView handleDefaultPage( Model aModel )
+            {
+                // By default, forward users to the /welcome page
+                return new ModelAndView("forward:/welcome");
+            }
+        
+        
+        
+            /**********************************************************************
+             * mainPage()
+             *
+             * The user browsed to the /welcome page
+             *  1) Get a userinfo object setup
+             *  2) Forward the user to the welcome.jsp page
+             ***********************************************************************/
+            @RequestMapping("/welcome")
+            public ModelAndView mainPage( Model aModel )
+            {
+                logger.debug("mainPage() started");
+        
+                // Create a modelAndView object
+                ModelAndView mav = new ModelAndView();
+        
+                // Show the welcome.jsp page
+                mav.setViewName("welcome.jsp");
+        
+                // Get the userInfo object from Spring-security
+                Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                UserInfo userInfo = (UserInfo) auth.getPrincipal();
+        
+        
+                // Add the userInfo information to the view
+                mav.addObject("userInfo", userInfo);
+        
+                logger.debug("mainPage() finished");
+                return mav;
+            }
+        }
+                            
+        
+        
+
+
+16. Update your welcome.jsp page to this:
+
+    <%@ include file="/WEB-INF/jsp/stdJspIncludes.jsp" %>
+    
+    <!DOCTYPE HTML>
+    
+    <html xmlns="http://www.w3.org/1999/xhtml">
+    
+    <head>
+        <title>Welcome Page</title>
+    </head>
+    
+    <body>
+    
+    <%-- S T A N D A R D       H E A D E R  --%>
+    <%@ include file="/WEB-INF/jsp/stdHeader.jsp" %>
+    
+    <h2>welcome.jsp</h2>
+    
+    <br/>
+    
+    Hello ${userInfo.username} <br/>
+    
+    
+    <br/>
+    <br/>
+    
+    <%-- S T A N D A R D       F O O T E R  --%>
+    <%@ include file="/WEB-INF/jsp/stdFooter.jsp" %>
+    
+    </body>
+    </html> 
 
 Now, your code get the UserInfo object using this:
    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
