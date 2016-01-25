@@ -64,79 +64,36 @@ Procedure
         
         }
     
-    
-    
  
- 3. Update your Welcome Controller so that it looks like this:
  
+ 3. Create a Wizard Controller
+    a. Right-click on app1 / controllers -> New Class
+       Class Name:  WizardController
+        
+    b. Copy this to your WizardController
+    
+         
         package app1.controllers;
         
+        import app1.model.FormBean;
         import org.slf4j.Logger;
         import org.slf4j.LoggerFactory;
         import org.springframework.stereotype.Controller;
-        import org.springframework.ui.Model;
+        import org.springframework.web.HttpSessionRequiredException;
         import org.springframework.web.bind.annotation.*;
         import org.springframework.web.bind.support.SessionStatus;
         import org.springframework.web.servlet.ModelAndView;
-        import app1.model.UserInfo;
-        import app1.model.FormBean;
-        
-        import javax.servlet.http.HttpServletRequest;
         import javax.servlet.http.HttpSession;
         import java.util.Random;
         
+        /**
+         * Created by adam on 1/18/2016.
+         */
         @Controller
-        @SessionAttributes("formBean")    // Tell Spring the name of the model attribute will be copied to HttpSession before rendering the view
-        public class WelcomeController
+        @SessionAttributes("formBean")    // Tell Spring the name of the model to be copied to the HttpSession before rendering a view
+        public class WizardController
         {
-            private final static Logger logger = LoggerFactory.getLogger(WelcomeController.class);
-        
-        
-        
-            /**********************************************************************
-             * handleDefaultPage()
-             *
-             * The user browsed to the   http://www.myserver.com/webapp
-             * So, forward the user to   http://www.myserver.com/webapp/forward
-             ***********************************************************************/
-            @RequestMapping("/")
-            public ModelAndView handleDefaultPage( Model aModel )
-            {
-                // By default, forward users to the /welcome page
-                return new ModelAndView("forward:/welcome");
-            }
-        
-        
-        
-            /**********************************************************************
-             * mainPage()
-             *
-             * The user browsed to the /welcome page
-             *  1) Get a userinfo object setup
-             *  2) Forward the user to the welcome.jsp page
-             ***********************************************************************/
-            @RequestMapping("/welcome")
-            public ModelAndView mainPage( Model aModel )
-            {
-                logger.debug("mainPage() started");
-        
-                // Create a modelAndView object
-                ModelAndView mav = new ModelAndView();
-        
-                // Show the welcome.jsp page
-                mav.setViewName("welcome.jsp");
-        
-                // Create a userInfo object
-                UserInfo userInfo = new UserInfo();
-                userInfo.setUserName("Adam");
-                userInfo.setIsAdministrator(true);
-        
-                // Add the userInfo information to the view
-                mav.addObject("userInfo", userInfo);
-        
-                logger.debug("mainPage() finished");
-                return mav;
-            }
+            private final static Logger logger = LoggerFactory.getLogger(WizardController.class);
         
         
             /**********************************************************************
@@ -144,8 +101,8 @@ Procedure
              *  1) Render page1.jsp
              *
              ***********************************************************************/
-            @RequestMapping("/page1")
-            public ModelAndView showPage1( HttpServletRequest aRequest, HttpSession aSession)
+            @RequestMapping("/wizard/page1")
+            public ModelAndView showPage1( HttpSession aSession)
             {
                 logger.debug("handleRequestToPage1() started");
         
@@ -166,12 +123,29 @@ Procedure
         
         
             /**********************************************************************
+             * showPage1_try3()
+             *
+             * Handle 2 cases:
+             *  1) The user typing in /wizard on the URL -- take him to the starting page
+             *  2) The user's session expires and has his POST sent to /wizard -- take him to the starting page
+             ***********************************************************************/
+            @RequestMapping(value="/wizard")
+            public ModelAndView showPage1_try3( HttpSession aSession)
+            {
+                return showPage1(aSession);
+            }
+        
+        
+        
+            /**********************************************************************
              * showPage1_try2()
+             *
+             * The user was on the 2nd page and clicked "gotoPage1"
              ***********************************************************************/
             @RequestMapping(value="/wizard", params = "gotoPage1", method=RequestMethod.POST)
-            public ModelAndView showPage1_try2( HttpServletRequest aRequest, HttpSession aSession)
+            public ModelAndView showPage1_try2(  HttpSession aSession)
             {
-                return showPage1(aRequest, aSession);
+                return showPage1(aSession);
             }
         
         
@@ -183,7 +157,7 @@ Procedure
              * 2) Render page2.jsp
              ***********************************************************************/
             @RequestMapping(value="/wizard", params = "gotoPage2", method=RequestMethod.POST)
-            public ModelAndView showPage2( @ModelAttribute FormBean aFormBean, HttpServletRequest aRequest, HttpSession aSession)
+            public ModelAndView showPage2( @ModelAttribute FormBean aFormBean, HttpSession aSession)
             {
                 logger.debug("showPage2() started");
         
@@ -202,7 +176,7 @@ Procedure
              * -- Display the Review Page
              ***********************************************************************/
             @RequestMapping(value="/wizard", params = "gotoPage3", method=RequestMethod.POST)
-            public ModelAndView showPage3( @ModelAttribute FormBean aFormBean)
+            public ModelAndView showPage3( @ModelAttribute FormBean aFormBean, HttpSession aSession)
             {
                 logger.debug("showPage3() started");
         
@@ -226,9 +200,10 @@ Procedure
              * 4) If the transaction fails, then forward the user back to the showFinalReview()
              ***********************************************************************/
             @RequestMapping(value="/wizard", params = "submitTransaction", method=RequestMethod.POST)
-            public ModelAndView submitTransaction( @ModelAttribute FormBean aFormBean, SessionStatus aStatus)
+            public ModelAndView submitTransaction( @ModelAttribute FormBean aFormBean, HttpSession aSession, SessionStatus aStatus)
             {
                 logger.debug("submitTransaction() started");
+        
         
                 try {
                     // Run some transaction to create the request
@@ -250,7 +225,7 @@ Procedure
                     // NOTE:  We redirect on purpose:  If the user clicks "refresh" on the last page, then nothing happens and no errors appear
                     ModelAndView mav = new ModelAndView();
                     mav.addObject("ticketid", iTicketid);
-                    mav.setViewName("redirect:/thankyou");
+                    mav.setViewName("redirect:/wizard/thankyou");
         
                     logger.debug("submitTransaction() finished successfully");
         
@@ -261,7 +236,7 @@ Procedure
                     logger.debug("Error in submitTransaction()", e);
         
                     // Get the error message -- and put it on the page
-                    ModelAndView mav = showPage3(aFormBean);
+                    ModelAndView mav = showPage3(aFormBean, aSession);
                     mav.addObject("errorMessage", e.getMessage());
                     return mav;
                 }
@@ -274,7 +249,7 @@ Procedure
              * -- The transaction has finished
              * -- Show the thank you page (along with the generated ticketid)
              ***********************************************************************/
-            @RequestMapping(value="/thankyou", method = RequestMethod.GET)
+            @RequestMapping(value="/wizard/thankyou", method = RequestMethod.GET)
             public ModelAndView showThankYou( @RequestParam("ticketid") String aTicketid)
             {
                 logger.debug("showThankYou() started.   aTicketid={}", aTicketid);
@@ -302,13 +277,14 @@ Procedure
             }
         
         }
-                            
+
+              
       
         
  4.  Make sure your welcome.jsp page has a link to the 1st page of the form
      So, add this to your welcome.jsp
      
-        <a href="${contextPath}/page1">Go to Page 1 of wizard</a>
+        <a href="${contextPath}/wizard">Go to Page 1 of wizard</a>
  
 
 
@@ -337,6 +313,13 @@ Procedure
         
         <br/>
         
+        <c:if test="${not empty errorMessage}">
+            <p style="display: block; background-color: #FF3232; color: #FFFFFF">
+                Error Occurred!!<br/>
+                    ${errorMessage}<br/>
+            </p>
+        </c:if>
+        
         <form action="${contextPath}/wizard" method="post">
             Enter Name:  <input name="name" type="text" placeholder="-Name-" value="${formBean.name}"> <br/>
             <input type="submit" name="gotoPage2" value="Continue to Page 2"  />
@@ -349,11 +332,11 @@ Procedure
         <%@ include file="/WEB-INF/jsp/stdFooter.jsp" %>
         
         </body>
-        </html>
-  
+        </html>  
 
 
- 5.  Create this file:  page2.jsp
+
+ 6.  Create this file:  page2.jsp
      Right-click on /src/main/webapp/WEB-INF/jsp -> New -> File
      Filename:  page2.jsp
      
@@ -392,11 +375,11 @@ Procedure
         <%@ include file="/WEB-INF/jsp/stdFooter.jsp" %>
         
         </body>
-        </html>    
+        </html> 
   
 
 
- 5.  Create this file:  page3.jsp
+ 7.  Create this file:  page3.jsp
      Right-click on /src/main/webapp/WEB-INF/jsp -> New -> File
      Filename:  page3.jsp
      
@@ -451,11 +434,11 @@ Procedure
         <%@ include file="/WEB-INF/jsp/stdFooter.jsp" %>
         
         </body>
-        </html>     
- 
+        </html>
+         
 
 
- 5.  Create this file:  page4.jsp
+ 8.  Create this file:  page4.jsp
      Right-click on /src/main/webapp/WEB-INF/jsp -> New -> File
      Filename:  page4.jsp
      
@@ -496,4 +479,103 @@ Procedure
         <%@ include file="/WEB-INF/jsp/stdFooter.jsp" %>
         
         </body>
-        </html>        
+        </html>
+ 
+                
+        
+  9. Handle the situation in which a user's session expires 
+      -- Add a method to your WizardController that will catch the HttpSessionRequiredException 
+         and forward the user to page1
+         
+                   
+        /**************************************************************
+         * handleHttpSessionRequiredException()
+         **************************************************************/
+        @ExceptionHandler( HttpSessionRequiredException.class)
+        public ModelAndView handleHttpSessionRequiredException( Exception aException,
+                                                                HttpSession aSession)
+        {
+            logger.warn("  Exception raised", aException);
+    
+            // Take the user back to page1
+            ModelAndView mavPage1 = showPage1(aSession);
+    
+            // Display an error message on page1
+            mavPage1.addObject("errorMessage",  "I'm sorry, but your session has timed-out.");
+            return mavPage1;
+        }
+ 
+                
+        
+ 10. Setup a backround timer that will keep sending requests to the WizardController
+     so the user's session should *NEVER* expire
+     
+     ASSUMPTION:  You installed jquery
+                  [See howToAddJQueryToSpringMvcAppUsingIntellij.txt]
+     
+     
+     a. Add this to page1.jsp, page2.jsp, and page3.jsp
+        NOTE:  page4.jsp does not need it because the session is cleared before viewing the last page
+     
+     
+        <%-- Load jquery --%>
+        <script src="${contextPath}/resources/jquery-1.11.3/jquery-1.11.3.min.js"></script>
+        
+        
+        <script type="text/javascript">
+            var gsContextPath = '${pageContext.request.contextPath}';
+        
+            // Assumption:  The timeout is the session timeout - 30 secs
+            // NOTE:  If session timeout is 30 min, then pageContext.request.session.maxInactiveInterval holds 1800
+            var TIMEOUT_IN_MSEC =  ${pageContext.request.session.maxInactiveInterval} * 1000 - 30000;
+        
+            function keepMeAlive()
+            {
+                var sUrl = gsContextPath + '/wizard/keepAlive';
+                console.log("Making ajax call to " + sUrl);
+        
+                $.ajax({
+                    type: 'GET',
+                    cache: false,
+                    url:   sUrl,
+                    data: '',
+                    success: function(aData, aTextStatus, aXhr)
+                    {
+                        console.log("Ajax call finished   aData=", aData);
+                    },
+                    error: function(aXhr, aTextStatus, aErrorThrown)
+                    {
+                        console.log("Ajax call errored out:  aErrorThrown=" + aErrorThrown);
+                    }
+                });
+            }
+    
+        
+        
+            $(document).ready(function()
+            {
+                console.log("calling setInterval with TIMEOUT_IN_MSEC = " + TIMEOUT_IN_MSEC);
+                window.setInterval("keepMeAlive()", TIMEOUT_IN_MSEC);
+            });
+        </script>
+            
+  
+  
+    b. Add this to the WizardController
+    
+        /**********************************************************************
+         * keepAlive()
+         * 
+         * This is a bogus handler that will acknowledge the ajax calls 
+         * to keep the session from expiring
+         ***********************************************************************/
+        @RequestMapping(value="/wizard/keepAlive", method = RequestMethod.GET)
+        @ResponseBody
+        public String keepAlive()
+        {
+            String sResponse = "hi";
+            return sResponse;
+        }
+        
+              
+            
