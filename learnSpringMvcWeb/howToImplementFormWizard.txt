@@ -6,7 +6,19 @@ Suppose you want to setup a series of web pages and have a user continue to hold
 Assumptions:
  1) You have a Spring MVC Web App
  2) You have a series of web pages that you want the user to follow
-
+ 3) Your stdJspIncludes.jsp page looks like this:
+ 
+        <%@ page session="false" language="java" contentType="text/html; charset=ISO-8859-1" pageEncoding="ISO-8859-1" %>
+        
+        <%-- Allow all JSPs to use the tag libraries --%>
+        <%@ taglib prefix='c'      uri='http://java.sun.com/jsp/jstl/core' %>
+        <%@ taglib prefix='spring' uri='http://www.springframework.org/tags' %>
+        <%@ taglib prefix='form'   uri='http://www.springframework.org/tags/form' %>
+        
+        <%-- Allow all JSPs to have the contextPath variable --%>
+        <c:set var="contextPath" value="${pageContext.request.contextPath}" />
+        
+         
  
 References
 ----------
@@ -325,16 +337,36 @@ Procedure
             </p>
         </c:if>
         
-        <form action="${contextPath}/wizard" method="post">
-            Enter Name:  <input name="name" type="text" placeholder="-Name-" value="${formBean.name}"> <br/>
-            <input type="submit" name="gotoPage2" value="Continue to Page 2"  />
-        </form>
+        <form:form action="${contextPath}/wizard" method="post">
+            <table>
+                <tr>
+                    <td>Enter Name:</td>
+                    <td><input name="name" id="name" type="text" placeholder="-Enter Name-" value="${formBean.name}"></td>
+                </tr>
+                <tr>
+                    <td>&nbsp;</td>
+                    <td><input type="submit" name="gotoPage2" value="Continue to Page 2"  /></td>
+                </tr>
+            </table>
+        </form:form>
         
         <br/>
         <br/>
         
         <%-- S T A N D A R D       F O O T E R  --%>
         <%@ include file="/WEB-INF/jsp/stdFooter.jsp" %>
+        
+        
+        <%-- Load jquery --%>
+        <script src="${contextPath}/resources/jquery-1.11.3/jquery-1.11.3.min.js"></script>
+        
+        <script type="text/javascript">
+            $(document).ready(function()
+            {
+                // Put the cursor on the enter-name textbox
+                $('#name').focus();
+            });
+        </script>
         
         </body>
         </html>  
@@ -366,12 +398,24 @@ Procedure
         
         <br/>
         
-        <form action="${contextPath}/wizard" method="post">
-            Name is ${formBean.name}<br/>
-            <input type="text" name="age" placeholder="-Enter your age-" value="${formBean.age}"><br/>
-            <input type="submit" name="gotoPage1" value="Back to Page 1"  />
-            <input type="submit" name="gotoPage3" value="Continue to Page 3"  />
-        </form>
+        <form:form action="${contextPath}/wizard" method="post">
+            <table>
+                <tr>
+                    <td>Name</td>
+                    <td>${formBean.name}</td>
+                </tr>
+                <tr>
+                    <td>Age</td>
+                    <td><input type="text" id="age" name="age" placeholder="-Enter your age-" value="${formBean.age}" onKeyPress="submitOnEnter(event)"></td>
+                </tr>
+                <tr>
+                    <td colspan='2'>
+                        <input type="submit" id="gotoPage1" name="gotoPage1" value="Back to Page 1" />&nbsp;&nbsp;
+                        <input type="submit" id="gotoPage3" name="gotoPage3" value="Continue to Page 3" />
+                    </td>
+                </tr>
+            </table>
+        </form:form>
         
         <br/>
         <br/>
@@ -379,9 +423,48 @@ Procedure
         <%-- S T A N D A R D       F O O T E R  --%>
         <%@ include file="/WEB-INF/jsp/stdFooter.jsp" %>
         
+        <%-- Load jQuery --%>
+        <script src="${contextPath}/resources/jquery-1.11.3/jquery-1.11.3.min.js"></script>
+        
+        
+        <script type="text/javascript">
+        
+            // --------------------------------------------------------------------------
+            // submitOnEnter()
+            //
+            // If the user presses Enter anywhere on the HTML page
+            //   Then submit form as if user pressed 'gotoPage3'
+            // --------------------------------------------------------------------------
+            function submitOnEnter(aEvent)
+            {
+                // Get the Ascii Keycode of the last keypress
+                var keyCode = aEvent ? (aEvent.which ? aEvent.which : aEvent.keyCode) : event.keyCode;
+        
+                if (keyCode == 13)
+                {
+                    // User pressed Enter (Ascii code 13)
+        
+                    // Simulate pressing the 'gotoPage3' button
+                    $('#gotoPage3').click();
+                    return true;
+                }
+                else
+                {
+                    // User pressed something other than enter.  So, ignore it
+                    return true;
+                }
+            }
+        
+        
+            $(document).ready(function()
+            {
+                // Put the cursor on the age textbox
+                $('#age').focus();
+            });
+        </script>
+        
         </body>
-        </html> 
-  
+        </html>
 
 
  7.  Create this file:  page3.jsp
@@ -400,7 +483,7 @@ Procedure
             <title>Page 3</title>
         </head>
         
-        <p>
+        <body>
         
         <%-- S T A N D A R D       H E A D E R  --%>
         <%@ include file="/WEB-INF/jsp/stdHeader.jsp" %>
@@ -410,10 +493,6 @@ Procedure
         <br/>
         
         Review the form
-        <p style="margin-left: 10px">
-        Name is <b>${formBean.name}</b><br/>
-        Age is  <b>${formBean.age}</b><br/>
-        </p>
         
         <c:if test="${not empty errorMessage}">
             <%-- An error appeared running the transaction --%>
@@ -423,14 +502,27 @@ Procedure
             </p>
         </c:if>
         
+        <form:form action="${contextPath}/wizard" method="post">
+            <table>
+                <tr>
+                    <td>Name</td>
+                    <td>${formBean.name}</td>
+                </tr>
+                <tr>
+                    <td>Age</td>
+                    <td>${formBean.age}</td>
+                </tr>
+                <tr>
+                    <td colspan='2'>
+                        <input type="submit" name="gotoPage2" value="Back to Edit Details" />&nbsp;&nbsp;
+                        <input type="submit" name="submitTransaction" value="Submit Request" />
+                    </td>
+                </tr>
+            </table>
+        </form:form>
         
-        <form action="${contextPath}/wizard" method="post">
-            <input type="submit" name="gotoPage2" value="Back to Edit Details"  />
-            <input type="submit" name="submitTransaction" value="Submit Request"  />
-        </form>
         
-        
-        <a href="${contextPath}/page1">Go to Page 1 of wizard</a>
+        <a href="${contextPath}/wizard">Go to Page 1 of wizard</a>
         
         <br/>
         <br/>
@@ -438,9 +530,10 @@ Procedure
         <%-- S T A N D A R D       F O O T E R  --%>
         <%@ include file="/WEB-INF/jsp/stdFooter.jsp" %>
         
+        
         </body>
         </html>
-         
+                         
 
 
  8.  Create this file:  page4.jsp
