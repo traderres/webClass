@@ -52,6 +52,8 @@ Procedure
             private String name;
             private String age;
             private int id;
+            private int occupationId;
+            private String occupationName;
         
             public FormBean()
             {
@@ -75,8 +77,15 @@ Procedure
             public String getAge() { return this.age; }
             public void setAge(String aAge) { this.age = aAge; }
         
+            public int getOccupationId() { return this.occupationId; }
+            public void setOccupationId(int aOccupationId) { this.occupationId = aOccupationId; }
+        
+            public String getOccupationName() { return this.occupationName; }
+            public void setOccupationName(String aName) { this.occupationName = aName; }
+        
         }
-    
+
+
  
  
  3. Create a Wizard Controller
@@ -85,339 +94,374 @@ Procedure
         
     b. Copy this to your WizardController
     
-package app1.controllers;
-
-import app1.model.FormBean;
-import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Controller;
-import org.springframework.validation.BindingResult;
-import org.springframework.validation.Errors;
-import org.springframework.web.HttpSessionRequiredException;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.bind.support.SessionStatus;
-import org.springframework.web.servlet.FlashMap;
-import org.springframework.web.servlet.ModelAndView;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-import org.springframework.web.servlet.support.RequestContextUtils;
-import org.springframework.web.servlet.view.RedirectView;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
-import java.util.Random;
-
-
-/**
- * Created by adam on 1/18/2016.
- */
-@SessionAttributes("formBean")    // Tell Spring the name of the model to be copied to the HttpSession before rendering a view
-@Controller
-public class WizardController
-{
-    private final static Logger logger = LoggerFactory.getLogger(WizardController.class);
-
-
-    /**********************************************************************
-     * showPage1()
-     *  1) Render page1.jsp
-     *
-     ***********************************************************************/
-    @RequestMapping(value="/wizard/page1")
-    public ModelAndView showPage1(HttpSession aSession)
-    {
-        logger.debug("handleRequestToPage1() started");
-
-        // Create a modelAndView object
-        ModelAndView mav = new ModelAndView();
-        mav.setViewName("page1.jsp");
-
-        if (aSession.getAttribute("formBean") == null)
+        package app1.controllers;
+        
+        import app1.model.FormBean;
+        import org.apache.commons.lang3.StringUtils;
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.http.HttpStatus;
+        import org.springframework.stereotype.Controller;
+        import org.springframework.validation.BindingResult;
+        import org.springframework.validation.Errors;
+        import org.springframework.web.HttpSessionRequiredException;
+        import org.springframework.web.bind.annotation.*;
+        import org.springframework.web.bind.support.SessionStatus;
+        import org.springframework.web.servlet.FlashMap;
+        import org.springframework.web.servlet.ModelAndView;
+        import org.springframework.web.servlet.support.RequestContextUtils;
+        import org.springframework.web.servlet.view.RedirectView;
+        
+        import javax.servlet.http.HttpServletRequest;
+        import javax.servlet.http.HttpSession;
+        import java.util.HashMap;
+        import java.util.Random;
+        
+        
+        /**
+         * Created by adam on 1/18/2016.
+         */
+        @SessionAttributes("formBean")    // Tell Spring the name of the model to be copied to the HttpSession before rendering a view
+        @Controller
+        public class WizardController
         {
-            // This is the first time -- so create a new FormBean
-            FormBean formBean = new FormBean();
-            mav.addObject("formBean", formBean);
-        }
-
-        logger.debug("handleRequestToPage1() finished");
-        return mav;
-    }
-
-
-    /**********************************************************************
-     * showPage1_try3()
-     *  1) The user typing in /wizard on the URL -- take him to the starting page
-     ***********************************************************************/
-    @RequestMapping(value="/wizard")
-    public String showPage1_try3( HttpSession aSession)
-    {
-        return "redirect:/wizard/page1";
-    }
-
-
-    /**********************************************************************
-     * onPage1_UserPressedContinue()
-     *
-     ***********************************************************************/
-    @RequestMapping(value="/wizard/page1/continue")
-    public ModelAndView onPage1_UserPressedContinue(@ModelAttribute("formBean") FormBean aFormBean, BindingResult aResult)
-    {
-        // Validate and cleanup form fields on page1
-        validateAndCleanupPage1(aFormBean, aResult);
-
-        if (aResult.hasErrors() )
-        {
-            // There are errors -- so show the errors back on page 1
-            ModelAndView page1 = new ModelAndView("page1.jsp");
-            page1.addObject("formBean", aFormBean);
-            return page1;
-        }
-        else
-        {
-            // There were no errors -- so continue to page2
-            ModelAndView page2 = new ModelAndView("page2.jsp");
-            page2.addObject("formBean", aFormBean);
-            return page2;
-        }
-    }
-
-
-
-    /**********************************************************************
-     * showPage2()
-     *  -- Render page2.jsp
-     ***********************************************************************/
-    @RequestMapping(value="/wizard/page2")
-    public String showPage2(@ModelAttribute FormBean aFormBean, BindingResult aResult)
-    {
-        return "page2.jsp";
-    }
-
-
-
-    /**********************************************************************
-     * onPage2_UserPressedContinue()
-     *
-     ***********************************************************************/
-    @RequestMapping(value="/wizard/page2", params = "gotoPage3")
-    public ModelAndView onPage2_UserPressedContinue(@ModelAttribute("formBean") FormBean aFormBean, BindingResult aResult)
-    {
-        logger.debug("showPage3() started");
-
-        // Validate and cleanup form fields on page2
-        validateAndCleanupPage2(aFormBean, aResult);
-
-        if (aResult.hasErrors() )
-        {
-            // There are errors -- so show the errors back on page 2
-            ModelAndView page2 = new ModelAndView("page2.jsp");
-            page2.addObject("formBean", aFormBean);
-            return page2;
-        }
-        else
-        {
-            // There were no errors -- so continue to page3
-            ModelAndView page3 = new ModelAndView("page3.jsp");
-            page3.addObject("formBean", aFormBean);
-            return page3;
-        }
-    }
-
-
-
-    /**********************************************************************
-     * onPage2_UserPressedBack()
-     *  -- So, take the user back to page1
-     ***********************************************************************/
-    @RequestMapping(value="/wizard/page2", params = "gotoPage1")
-    public String onPage2_UserPressedBack(@ModelAttribute("formBean") FormBean aFormBean)
-    {
-        logger.debug("onPage2_UserPressedBack() started");
-        return "page1.jsp";
-    }
-
-
-
-    /**********************************************************************
-     * onPage3_UserPressedSubmitTransaction()
-     * -- The user has entered clicked the form to *SUBMIT* the transaction
-     *
-     * 1) Run the transaction
-     * 2) Get the generated ticket id
-     * 3) If the transaction works, then *redirect* the user to the thank you page
-     * 4) If the transaction fails, then forward the user back to the showFinalReview()
-     ***********************************************************************/
-    @RequestMapping(value="/wizard/page3", params = "submitTransaction", method=RequestMethod.POST)
-    public ModelAndView onPage3_UserPressedSubmitTransaction( @ModelAttribute FormBean aFormBean, SessionStatus aStatus)
-    {
-        logger.debug("onPage3_UserPressedSubmitTransaction() started");
-
-
-        try {
-            // Run some transaction to create the request
-            int iRandomNumber = getRandomIntegerBetween(1,4);
-
-            if (iRandomNumber == 2)
+            private final static Logger logger = LoggerFactory.getLogger(WizardController.class);
+        
+            private HashMap<Integer, String> occupations = getOccupations();
+        
+            /**********************************************************************
+             * showPageOne()
+             *  1) The user entered in /wizard on the URL -- redirect him to the starting page
+             ***********************************************************************/
+            @RequestMapping(value="/wizard")
+            public String showPageOne( HttpSession aSession)
             {
-                // Something went wrong
-                throw new RuntimeException("Error occurred running transaction");
+                return "redirect:/wizard/page1";
             }
-
-            // The transaction worked.
-            int iTicketid = iRandomNumber * 1000;
-
-            // Remove this bean from the session (without killing the entire HttpSession)
-            aStatus.setComplete();
-
-            // Redirect the user to the thank you page (showing the ticketid)
-            // NOTE:  We redirect on purpose:  If the user clicks "refresh" on the last page, then nothing happens and no errors appear
-            ModelAndView mav = new ModelAndView();
-            mav.addObject("ticketid", iTicketid);
-            mav.setViewName("redirect:/wizard/thankyou");
-
-            logger.debug("submitTransaction() finished successfully");
-
-            return mav;
-        }
-        catch(Exception e)
-        {
-            // The transaction failed -- so take the user back to page3
-            logger.debug("Error in submitTransaction()", e);
-
-            ModelAndView page3 = new ModelAndView("page3.jsp");
-            page3.addObject("formBean", aFormBean);
-            page3.addObject("errorMessage", e.getMessage());
-            return page3;
-        }
-    }
-
-
-
-    /**********************************************************************
-     * onPage3_UserPressedBack()
-     *  -- So, take the user back to page2
-     ***********************************************************************/
-    @RequestMapping(value="/wizard/page3", params = "gotoPage2")
-    public String onPage3_UserPressedBack(@ModelAttribute("formBean") FormBean aFormBean)
-    {
-        logger.debug("onPage3_UserPressedBack() started");
-        return "page2.jsp";
-    }
-
-
-    /**********************************************************************
-     * showThankYou()
-     * -- The transaction has finished
-     * -- Show the thank you page (along with the generated ticketid)
-     ***********************************************************************/
-    @RequestMapping(value="/wizard/thankyou", method = RequestMethod.GET)
-    public ModelAndView showThankYou( @RequestParam("ticketid") String aTicketid)
-    {
-        logger.debug("showThankYou() started.   aTicketid={}", aTicketid);
-
-        // Create a modelAndView object with the ticketid
-        ModelAndView mav = new ModelAndView();
-        mav.getModelMap().addAttribute("ticketid", aTicketid);
-        mav.setViewName("page4.jsp");
-
-        logger.debug("showThankYou() finished");
-        return mav;
-    }
-
-
-
-    /**********************************************************************
-     * validateAndCleanupPage1()
-     *  1) Trim the name field
-     *  2) Validate fields on page 2 by adding errors to the Errors object
-      *
-     * NOTE:  This method changes the values of the objects that are passed-in
-     ***********************************************************************/
-    private void validateAndCleanupPage1(FormBean aFormBean, Errors aErrors)
-    {
-        // Trim the name of any extra leading, middle, or trailing spaces
-        String sCleanedName = aFormBean.getName().trim().replaceAll(" +", " ");
-        aFormBean.setName(sCleanedName);
-
-        if (StringUtils.isBlank(aFormBean.getName()))
-        {
-            // The user entered spaces or nothing for the name
-            aErrors.rejectValue("name", "unused", "You did not provide a name.");
-
-            // Clear this textbox
-            // WARNING:  If you use form:input path="name", then make sure you have value="${formbean.name}" in there to override it
-            aFormBean.setName("");
-        }
-    }
-
-
-
-    /**********************************************************************
-     * validateAndCleanupPage2()
-     *  1) Trim the age field
-     *  2) Validate fields on page 2 by adding errors to the Errors object
-     *
-     * NOTE:  This method changes the values of the objects that are passed-in
-     ***********************************************************************/
-    private void validateAndCleanupPage2(FormBean aFormBean, Errors aErrors)
-    {
-        // Trim the age of any extra leading, middle, or trailing spaces
-        String sCleanedAge = aFormBean.getAge().trim().replaceAll(" +", " ");
-        aFormBean.setAge(sCleanedAge);
-
-        if (StringUtils.isBlank(aFormBean.getAge()))
-        {
-            // The user entered spaces or nothing for the name
-            aErrors.rejectValue("age", "unused", "You did not provide an age.");
-        }
-        else if (! StringUtils.isNumeric(aFormBean.getAge()))
-        {
-            // The user entered something in the age field -- but it is not numeric
-            aErrors.rejectValue("age", "unused", "Your entered age must be a positive integer.");
-        }
-        else
-        {
-            try
+        
+        
+            /**********************************************************************
+             * showPage1()
+             *  1) State a new FormBean (if needed)
+             *  2) Render page1.jsp
+             *
+             ***********************************************************************/
+            @RequestMapping(value="/wizard/page1")
+            public ModelAndView showPage1(HttpSession aSession)
             {
-                // The user entered an integer
-                Long lAge = Long.valueOf(sCleanedAge);
-
-                if (lAge > 150)
+                logger.debug("handleRequestToPage1() started");
+        
+                // Create a modelAndView object
+                ModelAndView mav = new ModelAndView();
+                mav.setViewName("page1.jsp");
+        
+                if (aSession.getAttribute("formBean") == null)
                 {
-                    // The age is over 150
-                    aErrors.rejectValue("age", "unused", "Your entered age is too high:  It must be between 1 and 150.");
+                    // This is the first time -- so create a new FormBean
+                    FormBean formBean = new FormBean();
+                    mav.addObject("formBean", formBean);
                 }
-                else if (lAge < 1)
+        
+                // Add the occupations information to the page
+                mav.addObject("occupations", this.occupations);
+        
+                logger.debug("handleRequestToPage1() finished");
+                return mav;
+            }
+        
+        
+        
+        
+            /**********************************************************************
+             * onPage1_UserPressedContinue()
+             *
+             ***********************************************************************/
+            @RequestMapping(value="/wizard/page1/continue")
+            public ModelAndView onPage1_UserPressedContinue(@ModelAttribute("formBean") FormBean aFormBean, BindingResult aResult)
+            {
+                // Validate and cleanup form fields on page1
+                validateAndCleanupPage1(aFormBean, aResult);
+        
+                if (aResult.hasErrors() )
                 {
-                    aErrors.rejectValue("age", "unused",  "Your entered age is too low:  It must be between 1 and 150.");
+                    // There are errors -- so show the errors back on page 1
+                    ModelAndView page1 = new ModelAndView("page1.jsp");
+                    page1.addObject("formBean", aFormBean);
+                    page1.addObject("occupations", this.occupations);
+                    return page1;
+                }
+                else
+                {
+                    // There were no errors -- so continue to page2
+        
+                    // Set the occupation name value (that corresponds to the occuptationId)
+                    String sOccuptationName = this.occupations.get(aFormBean.getOccupationId());
+                    aFormBean.setOccupationName(sOccuptationName);
+        
+                    ModelAndView page2 = new ModelAndView("page2.jsp");
+                    page2.addObject("formBean", aFormBean);
+                    return page2;
+                }
+             }
+        
+        
+            /**********************************************************************
+             * showPage2()
+             *  -- Render page2.jsp
+             ***********************************************************************/
+            @RequestMapping(value="/wizard/page2")
+            public ModelAndView showPage2(@ModelAttribute FormBean aFormBean)
+            {
+                ModelAndView page2 = new ModelAndView("page2.jsp");
+                return page2;
+            }
+        
+        
+            /**********************************************************************
+             * onPage2_UserPressedContinue()
+             *
+             ***********************************************************************/
+            @RequestMapping(value="/wizard/page2", params = "gotoPage3")
+            public ModelAndView onPage2_UserPressedContinue(@ModelAttribute("formBean") FormBean aFormBean, BindingResult aResult)
+            {
+                logger.debug("showPage3() started");
+        
+                // Validate and cleanup form fields on page2
+                validateAndCleanupPage2(aFormBean, aResult);
+        
+                if (aResult.hasErrors() )
+                {
+                    // There are errors -- so show the errors back on page 2
+                    ModelAndView page2 = new ModelAndView("page2.jsp");
+                    page2.addObject("formBean", aFormBean);
+                    return page2;
+                }
+                else
+                {
+                    // There were no errors -- so continue to page3
+                    ModelAndView page3 = new ModelAndView("page3.jsp");
+                    page3.addObject("formBean", aFormBean);
+                    return page3;
                 }
             }
-            catch (Exception e)
+        
+            /**********************************************************************
+             * onPage2_UserPressedBack()
+             *  -- So, take the user back to page1
+             ***********************************************************************/
+            @RequestMapping(value="/wizard/page2", params = "gotoPage1")
+            public String onPage2_UserPressedBack(@ModelAttribute("formBean") FormBean aFormBean)
             {
-                // I could not convert the string to a long
-                aErrors.rejectValue("age", "unused", "You entered an invalid age.  It must be between 1 and 150.");
+                logger.debug("onPage2_UserPressedBack() started");
+                return "forward:/wizard/page1";
             }
-         }
-    }
+        
+        
+        
+            /**********************************************************************
+             * onPage3_UserPressedSubmitTransaction()
+             * -- The user has entered clicked the form to *SUBMIT* the transaction
+             *
+             * 1) Run the transaction
+             * 2) Get the generated ticket id
+             * 3) If the transaction works, then *redirect* the user to the thank you page
+             * 4) If the transaction fails, then forward the user back to the showFinalReview()
+             ***********************************************************************/
+            @RequestMapping(value="/wizard/page3", params = "submitTransaction", method=RequestMethod.POST)
+            public ModelAndView onPage3_UserPressedSubmitTransaction( @ModelAttribute FormBean aFormBean, SessionStatus aStatus)
+            {
+                logger.debug("onPage3_UserPressedSubmitTransaction() started");
+        
+        
+                try {
+                    // Run some transaction to create the request
+                    int iRandomNumber = getRandomIntegerBetween(1,4);
+        
+                    if (iRandomNumber == 2)
+                    {
+                        // Something went wrong
+                        throw new RuntimeException("Error occurred running transaction");
+                    }
+        
+                    // The transaction worked.
+                    int iTicketid = iRandomNumber * 1000;
+        
+                    // Remove this bean from the session (without killing the entire HttpSession)
+                    aStatus.setComplete();
+        
+                    // Redirect the user to the thank you page (showing the ticketid)
+                    // NOTE:  We redirect on purpose:  If the user clicks "refresh" on the last page, then nothing happens and no errors appear
+                    ModelAndView mav = new ModelAndView();
+                    mav.addObject("ticketid", iTicketid);
+                    mav.setViewName("redirect:/wizard/thankyou");
+        
+                    logger.debug("submitTransaction() finished successfully");
+        
+                    return mav;
+                }
+                catch(Exception e)
+                {
+                    // The transaction failed -- so take the user back to page3
+                    logger.debug("Error in submitTransaction()", e);
+        
+                    ModelAndView page3 = new ModelAndView("page3.jsp");
+                    page3.addObject("formBean", aFormBean);
+                    page3.addObject("errorMessage", e.getMessage());
+                    return page3;
+                }
+            }
+        
+        
+            /**********************************************************************
+             * onPage3_UserPressedBack()
+             *  -- So, take the user back to page2
+             ***********************************************************************/
+            @RequestMapping(value="/wizard/page3", params = "gotoPage2")
+            public String onPage3_UserPressedBack(@ModelAttribute("formBean") FormBean aFormBean)
+            {
+                logger.debug("onPage3_UserPressedBack() started");
+                return "page2.jsp";
+            }
+        
+        
+            /**********************************************************************
+             * showThankYou()
+             * -- The transaction has finished
+             * -- Show the thank you page (along with the generated ticketid)
+             ***********************************************************************/
+            @RequestMapping(value="/wizard/thankyou", method = RequestMethod.GET)
+            public ModelAndView showThankYou( @RequestParam("ticketid") String aTicketid)
+            {
+                logger.debug("showThankYou() started.   aTicketid={}", aTicketid);
+        
+                // Create a modelAndView object with the ticketid
+                ModelAndView mav = new ModelAndView();
+                mav.getModelMap().addAttribute("ticketid", aTicketid);
+                mav.setViewName("page4.jsp");
+        
+                logger.debug("showThankYou() finished");
+                return mav;
+            }
+        
+        
+        
+        
+        
+            /**********************************************************************
+             * validateAndCleanupPage1()
+             *  1) Trim the name field
+             *  2) Validate fields on page 2 by adding errors to the Errors object
+              *
+             * NOTE:  This method changes the values of the objects that are passed-in
+             ***********************************************************************/
+            private void validateAndCleanupPage1(FormBean aFormBean, Errors aErrors)
+            {
+                // Trim the name of any extra leading, middle, or trailing spaces
+                String sCleanedName = aFormBean.getName().trim().replaceAll(" +", " ");
+                aFormBean.setName(sCleanedName);
+        
+                if (StringUtils.isBlank(aFormBean.getName()))
+                {
+                    // The user entered spaces or nothing for the name
+                    aErrors.rejectValue("name", "unused", "You did not provide a name.");
+        
+                    // Clear this textbox
+                    // WARNING:  If you use form:input path="name", then make sure you have value="${formbean.name}" in there to override it
+                    aFormBean.setName("");
+                }
+        
+                if (aFormBean.getOccupationId() < 1)
+                {
+                    aErrors.rejectValue("occupationId", "unused", "You did not provide an occupation.");
+                }
+        
+            }
+        
+        
+            /**********************************************************************
+             * validateAndCleanupPage2()
+             *  1) Trim the age field
+             *  2) Validate fields on page 2 by adding errors to the Errors object
+             *
+             * NOTE:  This method changes the values of the objects that are passed-in
+             ***********************************************************************/
+            private void validateAndCleanupPage2(FormBean aFormBean, Errors aErrors)
+            {
+                // Trim the age of any extra leading, middle, or trailing spaces
+                String sCleanedAge = aFormBean.getAge().trim().replaceAll(" +", " ");
+                aFormBean.setAge(sCleanedAge);
+        
+                if (StringUtils.isBlank(aFormBean.getAge()))
+                {
+                    // The user entered spaces or nothing for the name
+                    aErrors.rejectValue("age", "unused", "You did not provide an age.");
+                }
+                else if (! StringUtils.isNumeric(aFormBean.getAge()))
+                {
+                    // The user entered something in the age field -- but it is not numeric
+                    aErrors.rejectValue("age", "unused", "Your entered age must be a positive integer.");
+                }
+                else
+                {
+                    try
+                    {
+                        // The user entered an integer
+                        Long lAge = Long.valueOf(sCleanedAge);
+        
+                        if (lAge > 150)
+                        {
+                            // The age is over 150
+                            aErrors.rejectValue("age", "unused", "Your entered age is too high:  It must be between 1 and 150.");
+                        }
+                        else if (lAge < 1)
+                        {
+                            aErrors.rejectValue("age", "unused",  "Your entered age is too low:  It must be between 1 and 150.");
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        // I could not convert the string to a long
+                        aErrors.rejectValue("age", "unused", "You entered an invalid age.  It must be between 1 and 150.");
+                    }
+                 }
+            }
+        
+        
+        
+        
+            /**************************************************************
+             * getRandomIntegerBetween()
+             **************************************************************/
+            private static int getRandomIntegerBetween(int aMinNumber, int aMaxNumber)
+            {
+                Random random = new Random();
+        
+                int randomNumber = random.nextInt(aMaxNumber - aMinNumber) + aMinNumber;
+        
+                return(randomNumber);
+            }
+        
+        
+        
+            /**********************************************************************
+             * getOccupations()
+             ***********************************************************************/
+            private HashMap<Integer, String> getOccupations()
+            {
+                HashMap<Integer, String> map = new HashMap<Integer, String>();
+        
+                map.put(1, "Teacher");
+                map.put(2, "Programmer");
+                map.put(3, "Analyst");
+                map.put(4, "Project Manager");
+        
+                return map;
+            }
+        
+        
+        
+        }
 
-
-
-
-    /**************************************************************
-     * getRandomIntegerBetween()
-     **************************************************************/
-    private static int getRandomIntegerBetween(int aMinNumber, int aMaxNumber)
-    {
-        Random random = new Random();
-
-        int randomNumber = random.nextInt(aMaxNumber - aMinNumber) + aMinNumber;
-
-        return(randomNumber);
-    }
-
-
-}
 
               
       
@@ -480,8 +524,18 @@ public class WizardController
             <table>
                 <tr>
                     <td>Enter Name:</td>
-                    <td><input type="text" name="name" id="name" placeholder="-Enter Name-" value="${formBean.name}"/></td>
+                    <td><form:input id="name" path="name" placeholder="-Enter Name-" cssErrorClass="form-error-field"/></td>
                     <td><div class="form-error-message"><form:errors path="name" cssClass="form-error-field"/></div></td>
+                </tr>
+                <tr>
+                    <td>Occupation</td>
+                    <td>
+                        <form:select path="occupationId" cssErrorClass="form-error-field">
+                            <form:option value="0">-Occuptation-</form:option>
+                            <form:options items="${occupations}" />
+                        </form:select>
+                    </td>
+                    <td><div class="form-error-message"><form:errors path="occupationId" cssClass="form-error-field"/></div></td>
                 </tr>
                 <tr>
                     <td>&nbsp;</td>
@@ -548,12 +602,18 @@ public class WizardController
             <table>
                 <tr>
                     <td>Name</td>
-                    <td><pre>"${formBean.name}"</pre></td>
+                    <td>${formBean.name}</td>
+                </tr>
+                <tr>
+                    <td>Occupation</td>
+                    <td>${formBean.occupationName}</td>
                 </tr>
                 <tr>
                     <td>Age</td>
-                    <td><input type="text" id="age" name="age" placeholder="-Enter your age-" value="${formBean.age}"
-                               onKeyPress="submitOnEnter(event)"></td>
+                    <td><form:input id="age" path="age" placeholder="-Enter Your Age-"
+                                       cssErrorClass="form-error-field"
+                                       onKeyPress="submitOnEnter(event)"/>
+                    </td>
                     <td><div class="form-error-message"><form:errors path="age" cssClass="form-error-field"/></div></td>
                 </tr>
                 <tr>
@@ -615,7 +675,6 @@ public class WizardController
         </html>
 
 
-
  7.  Create this file:  page3.jsp
      Right-click on /src/main/webapp/WEB-INF/jsp -> New -> File
      Filename:  page3.jsp
@@ -658,6 +717,10 @@ public class WizardController
                     <td>${formBean.name}</td>
                 </tr>
                 <tr>
+                    <td>Occupation</td>
+                    <td>${formBean.occupationName}</td>
+                </tr>
+                <tr>
                     <td>Age</td>
                     <td>${formBean.age}</td>
                 </tr>
@@ -681,7 +744,7 @@ public class WizardController
         
         
         </body>
-        </html> 
+        </html>
 
 
 
@@ -727,7 +790,7 @@ public class WizardController
         
         </body>
         </html>
-                
+                        
       
         
   9. Handle the situation in which a user's session expires 
@@ -760,6 +823,7 @@ public class WizardController
         
                 return rv;
             }
+
                         
         
         
