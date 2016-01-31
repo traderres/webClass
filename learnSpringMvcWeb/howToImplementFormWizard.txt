@@ -19,13 +19,14 @@ Assumptions:
         <%-- Allow all JSPs to have the contextPath variable --%>
         <c:set var="contextPath" value="${pageContext.request.contextPath}" />
 
+
          
  
 References
 ----------
 http://www.intertech.com/Blog/understanding-spring-mvc-model-and-session-attributes/
 http://stackoverflow.com/questions/17722641/spring-sessionattribute-how-to-retrieve-the-session-object-in-same-controller
-
+http://duckranger.com/2012/11/add-conversation-support-to-spring-mvc/
  
 
 Procedure
@@ -82,7 +83,6 @@ Procedure
         
             public String getOccupationName() { return this.occupationName; }
             public void setOccupationName(String aName) { this.occupationName = aName; }
-        
         }
 
 
@@ -893,5 +893,342 @@ Procedure
             return sResponse;
         }
             
-              
             
+              
+11. Fix the problem with multiple browser tabs *sharing* the same session
+    If you want the browser tabs to run in their own sessions, then implement these steps
+    
+    a. Add this package:  app1.conversationSupport       
+       Right-click on /src/main/java/app1 -> New Package
+       Package Name:   conversationSupport
+       
+    
+    b. Add this class:  ConversationalSessionAttributeStore
+       1) Right-click on conversationSupport -> New Java Class
+          Class Name:  ConversationalSessionAttributeStore
+       
+       2) Copy this to your class
+
+        package app1.conversationSupport;
+             
+        import java.util.HashMap;
+        import java.util.LinkedHashMap;
+        import java.util.Map;
+        import java.util.UUID;
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.beans.factory.InitializingBean;
+        import org.springframework.beans.factory.annotation.Autowired;
+        import org.springframework.util.Assert;
+        import org.springframework.web.bind.support.SessionAttributeStore;
+        import org.springframework.web.context.request.WebRequest;
+        import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter;
+        
+        /**
+         * This class handles how session scoped model attributes are stored and
+         * retrieved from the HttpSession. This implementation uses a timestamp to
+         * distinguish multiple command objects of the same type. This is needed for
+         * users editing the same entity on multiple tabs of a browser.
+         *
+         * Source:
+         * http://forum.springsource.org/showthread.php?95016-Using-Session-Model
+         * -Attributes-With-Multiple-Browser-Tabs-Patch
+         *
+         * Note: Conversation management was on the agenda for 3.1 then got moved to 3.2
+         * but doesn't seem like it will make it there.
+         *
+         * @author MJones
+         * @version Sep 2, 2010
+         *
+         *
+         *          Note 2: This is a modification of the code in the URL because I
+         *          don't want to use a tag lib. Therefore - my implementation creates a
+         *          conversation map on the session - to allow each conversation to have
+         *          its own store without adding the cid on the object name. In this way
+         *          - the cid and the session attributes are kept separated.
+         *
+         * @author Nimo Naamani
+         * http://duckranger.com
+         */
+        /**
+         * Created by adam on 1/30/2016.
+         */
+        public class ConversationalSessionAttributeStore implements SessionAttributeStore, InitializingBean
+        {
+            @Autowired(required = true)
+            private RequestMappingHandlerAdapter requestMappingHandlerAdapter;
+        
+            private static final Logger logger = LoggerFactory.getLogger(ConversationalSessionAttributeStore.class);
+        
+            private int keepAliveConversations = 10;
+        
+            public final static String CID_FIELD = "_cid";
+            public final static String SESSION_MAP = "sessionConversationMap";
+        
+        
+            public void storeAttribute(WebRequest request, String attributeName, Object attributeValue)
+            {
+                Assert.notNull(request, "WebRequest must not be null");
+                Assert.notNull(attributeName, "Attribute name must not be null");
+                Assert.notNull(attributeValue, "Attribute value must not be null");
+        
+                String cId = getConversationId(request);
+                if (cId == null || cId.trim().length() == 0) {
+                    cId = UUID.randomUUID().toString();
+                }
+                request.setAttribute(CID_FIELD, cId, WebRequest.SCOPE_REQUEST);
+                logger.debug("storeAttribute - storing bean reference for '{}'", attributeName);
+                store(request, attributeName, attributeValue, cId);
+            }
+        
+        
+            public Object retrieveAttribute(WebRequest request, String attributeName)
+            {
+                Assert.notNull(request, "WebRequest must not be null");
+                Assert.notNull(attributeName, "Attribute name must not be null");
+        
+                if (getConversationId(request) != null)
+                {
+                    logger.debug("retrieveAttribute - retrieving bean reference for '{}' for conversation {}", attributeName, getConversationId(request) );
+                    return getConversationStore(request, getConversationId(request)).get(attributeName);
+                } else {
+                    return null;
+                }
+            }
+        
+        
+            public void cleanupAttribute(WebRequest request, String attributeName)
+            {
+                Assert.notNull(request, "WebRequest must not be null");
+                Assert.notNull(attributeName, "Attribute name must not be null");
+        
+                logger.debug("cleanupAttribute - removing bean reference for '{}' from conversation {}", attributeName,getConversationId(request) );
+        
+                Map<String, Object> conversationStore = getConversationStore(request, getConversationId(request));
+                conversationStore.remove(attributeName);
+        
+                // Delete the conversation store from the session if empty
+                if (conversationStore.isEmpty()) {
+                    getSessionConversationsMap(request).remove(getConversationId(request));
+                }
+            }
+        
+        
+            /**
+             * Retrieve a specific conversation's map of objects from the session. Will
+             * create the conversation map if it does not exist.
+             *
+             * The conversation map is stored inside a session map - which is a map of
+             * maps. If this does not exist yet- it will be created too.
+             *
+             * @param request
+             *            - the incoming request
+             * @param conversationId
+             *            - the conversation id we are dealing with
+             * @return - the conversation's map
+             */
+            private Map<String, Object> getConversationStore(WebRequest request, String conversationId)
+            {
+        
+                Map<String, Object> conversationMap = getSessionConversationsMap(request).get(conversationId);
+                if (conversationId != null && conversationMap == null) {
+                    conversationMap = new HashMap<String, Object>();
+                    getSessionConversationsMap(request).put(conversationId, conversationMap);
+                }
+                return conversationMap;
+            }
+        
+            /**
+             * Get the session's conversations map.
+             *
+             * @param request
+             *            - the request
+             * @return - LinkedHashMap of all the conversations and their maps
+             */
+            private LinkedHashMap<String, Map<String, Object>> getSessionConversationsMap(WebRequest request)
+            {
+                @SuppressWarnings("unchecked")
+                LinkedHashMap<String, Map<String, Object>> sessionMap = (LinkedHashMap<String, Map<String, Object>>) request.getAttribute(
+                        SESSION_MAP, WebRequest.SCOPE_SESSION);
+                if (sessionMap == null) {
+                    sessionMap = new LinkedHashMap<String, Map<String, Object>>();
+                    request.setAttribute(SESSION_MAP, sessionMap, WebRequest.SCOPE_SESSION);
+                }
+                return sessionMap;
+            }
+        
+            /**
+             * Store an object on the session. If the configured maximum number of live
+             * conversations to keep is reached - clear out the oldest conversation. (If
+             * max number is configured as 0 - no removal will happen)
+             *
+             * @param request
+             *            - the web request
+             * @param attributeName
+             *            - the name of the attribute (from @SessionAttributes)
+             * @param attributeValue
+             *            - the value to store
+             */
+            private void store(WebRequest request, String attributeName, Object attributeValue, String cId)
+            {
+                LinkedHashMap<String, Map<String, Object>> sessionConversationsMap = getSessionConversationsMap(request);
+                if (keepAliveConversations > 0 && sessionConversationsMap.size() >= keepAliveConversations
+                        && !sessionConversationsMap.containsKey(cId)) {
+                    // clear oldest conversation
+                    String key = sessionConversationsMap.keySet().iterator().next();
+                    sessionConversationsMap.remove(key);
+                }
+                getConversationStore(request, cId).put(attributeName, attributeValue);
+        
+            }
+        
+            public int getKeepAliveConversations()
+            {
+                return keepAliveConversations;
+            }
+        
+            public void setKeepAliveConversations(int numConversationsToKeep)
+            {
+                keepAliveConversations = numConversationsToKeep;
+            }
+        
+            /**
+             * Helper method to get conversation id from the web request
+             *
+             * @param request
+             *            - Incoming request
+             * @return - the conversationId (note that this is a request parameter, and
+             *         only gets there on form submit)
+             */
+            private String getConversationId(WebRequest request)
+            {
+                String cid = request.getParameter(CID_FIELD);
+                if (cid == null) {
+                    cid = (String) request.getAttribute(CID_FIELD, WebRequest.SCOPE_REQUEST);
+                }
+                return cid;
+            }
+        
+            /**
+             * Required for wiring the RequestMappingHandlerAdapter
+             */
+            public void afterPropertiesSet() throws Exception
+            {
+                requestMappingHandlerAdapter.setSessionAttributeStore(this);
+            }
+        }
+
+       
+       
+    c. Add this class:  ConversationIdRequestProcessor
+       1) Right-click on conversationSupport -> New Java Class
+          Class Name:  ConversationIdRequestProcessor
+       
+       2) Copy this to your class
+            
+        package app1.conversationSupport;
+        
+        import org.springframework.web.servlet.support.RequestDataValueProcessor;
+        import javax.servlet.http.HttpServletRequest;
+        import java.util.HashMap;
+        import java.util.Map;
+        
+        /**
+         * Created by adam on 1/30/2016.
+         */
+        public class ConversationIdRequestProcessor implements RequestDataValueProcessor
+        {
+            public String processAction(HttpServletRequest request, String action, String httpMethod)
+            {
+                return action;
+            }
+        
+        
+            public String processFormFieldValue(HttpServletRequest request, String name, String value, String type)
+            {
+                return value;
+            }
+        
+            public Map<String, String> getExtraHiddenFields(HttpServletRequest request)
+            {
+        
+                Map<String, String> hiddenFields = new HashMap<String, String>();
+                if (request.getAttribute(ConversationalSessionAttributeStore.CID_FIELD) != null)
+                {
+                    // There is a Conversation ID in the Request object
+        
+                    // So, add a hidden form field with name="_cid" and value="<conversationId>"
+                    hiddenFields.put(ConversationalSessionAttributeStore.CID_FIELD,
+                            request.getAttribute(ConversationalSessionAttributeStore.CID_FIELD).toString());
+                }
+                return hiddenFields;
+            }
+        
+            public String processUrl(HttpServletRequest request, String url)
+            {
+                return url;
+            }
+        }
+
+    
+    c. Add this bean to dispatch-servlet.xml
+        
+            <bean id="conversationalSessionAttributeStore" class="app1.conversationSupport.ConversationalSessionAttributeStore">
+                <property name="keepAliveConversations" value="10"/>
+            </bean>
+        
+            <bean name="requestDataValueProcessor" class="app1.conversationSupport.ConversationIdRequestProcessor" />
+  
+  
+    d. Change the WizardController.showPage1() method
+       In order to detect if a session exists, we now look for the presence of "_cid" in the HttpServletRequest
+       
+       We change one line              
+            if (aSession.getAttribute("formBean") == null)
+            
+       To this:
+            if (aRequest.getAttribute("_cid") == null)
+              
+       
+       Here is what the revised showPage1() method should look like:
+       
+            /**********************************************************************
+             * showPage1()
+             *  1) State a new FormBean (if needed)
+             *  2) Render page1.jsp
+             ***********************************************************************/
+            @RequestMapping(value="/wizard/page1")
+            public ModelAndView showPage1(HttpServletRequest aRequest)
+            {
+                logger.debug("handleRequestToPage1()   cid={}", aRequest.getAttribute("_cid"));
+        
+                // Create a modelAndView object
+                ModelAndView mav = new ModelAndView();
+                mav.setViewName("page1.jsp");
+        
+                if (aRequest.getAttribute("_cid") == null)
+                {
+                    // There is *NO* conversationId -- so user is starting this wizard for the *FIRST* time
+        
+                    // So, create a new FormBean
+                    FormBean formBean = new FormBean();
+                    mav.addObject("formBean", formBean);
+                }
+        
+                // Add the occupations information to the page
+                mav.addObject("occupations", this.occupations);
+        
+                logger.debug("handleRequestToPage1() finished");
+                return mav;
+            }
+               
+
+
+       Now, two things should happen:
+          1) all of your JSP pages should have a hidden form field that looks like this:
+                  <input type="hidden" name="_cid" value="875017be-e9d0-4f30-afd2-8380ea4f99b5" />
+         
+          2) Separate tabs will be treated as separate sessions (for the wizard pages)
+          
+         
+        
