@@ -1,0 +1,58 @@
+How to Install an LDAP Service on CentOS 6
+-------------------------------------------
+
+References
+----------
+https://www.centos.org/docs/5/html/Deployment_Guide-en-US/s1-ldap-quickstart.html
+http://www.openldap.org/doc/admin24/quickstart.html  # Has steps to build and compile stand-alone ldap service
+http://docs.adaptivecomputing.com/viewpoint/hpc/Content/topics/1-setup/installSetup/settingUpOpenLDAPOnCentos6.htm
+
+
+Procedures
+---------- 
+ 1. Install the LDAP prackages
+    a. Open a terminal
+       unix> sudo yum install openldap            # Install LDAP support libraries
+       unix> sudo yum install openldap-servers    # Install LDAP server
+       unix> sudo yum install openldap-clients    # Install LDAP client utilities
+ 
+    b. Verify it worked
+       unix>  slapd -V
+       @(#) $OpenLDAP: slapd 2.4.40 (Nov 10 2015 09:41:16) $
+	     mockbuild@c6b8.bsys.dev.centos.org:/builddir/build/BUILD/openldap-2.4.40/openldap-2.4.40/build-servers/servers/slapd
+
+
+ 2. Generate a password hash to be used as the admin password. This password hash will be used when you create the root user for your LDAP installation. 
+    unix> slappasswd
+    New password:            p@ssw0rd
+    Re-enter new password:   p@ssw0rd
+    {SSHA}OEpFbF9IQpkO1izm0jK9FcLYGvxpO7fG
+    
+    
+ 3. Add the root user and the root user's password hash to the OpenLDAP configuration in the olcDatabase={2}bdb.ldif file. 
+    The root user will have permissions to add other users, groups, organizational units, etc.
+    unix> cd /etc/openldap/slapd.d/cn\=config
+    unix> vi olcDatabase\=\{2\}bdb.ldif
+    
+    If the olcRootPW attribute does not already exist, create it. Then set the value to be the hash you created from slappasswd. 
+    olcRootPW: {SSHA}OEpFbF9IQpkO1izm0jK9FcLYGvxpO7fG
+    
+    NOTE:  While editing this file, change the distinguished name (DN) of the olcSuffix to something appropriate. 
+           The suffix typically corresponds to your DNS domain name, and it will be appended to the DN of every other LDAP entry in your LDAP tree.
+           For example, let's say your company is called Acme Corporation, and that your domain name is "acme.com."
+           You might make the following changes to the olcDatabase={2}bdb.ldif file:
+
+              olcSuffix: dc=acme,dc=com
+              ...
+              olcRootDN: cn=Manager,dc=acme,dc=com
+              ...
+              olcRootPW: {SSHA}OEpFbF9IQpkO1izm0jK9FcLYGvxpO7fG
+              
+              
+    Do not set the cn of your root user to "root" (cn=root,dc=acme,dc=com), or OpenLDAP will have problems.
+    
+ 4. Modify the DN of the root user in the olcDatabase={1}monitor.ldif file to match the olcRootDN line in the olcDatabase={2}bdb.ldif file. 
+    unix> vi olcDatabase\=\{1\}monitor.ldif
+    
+    INCOMPLETE
+    
