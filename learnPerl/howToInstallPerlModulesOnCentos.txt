@@ -12,25 +12,28 @@ Assumptions:
 Procedure
 ---------
  1. Connect to your CentOS machine
-    unix> mkdir /opt/ppm
+ 
  
  2. Install yaml
     unix> sudo yum install perl-YAML
  
+ 
  3. Install Crypt::SSLeay
     unix> sudo yum install perl-Crypt-SSLeay
+    
     
  4. Install ExtUtils::MakeMaker
     unix> sudo yum install perl-ExtUtils-MakeMaker
     
+    
  5. Install Parse::RecDescent
     unix> sudo yum install perl-Parse-RecDescent
+ 
     
-    
- 3. Determine if CPAN is installed
+ 6. Determine if CPAN is installed
     unix> cd ~
     unix> which cpan
-    
+
     if the "which cpan" command returns 
       /usr/bin/cpan 
     Then, cpan is installed
@@ -43,14 +46,15 @@ Procedure
     unix> sudo yum install perl-CPAN
           Is this ok [y/N]:   y
     
- 3. Remove any cpan settings
+ 7. Remove any cpan settings
     unix> rm -rf ~/.cpan
 
     
- 4. Start CPAN without any default settings 
+ 8. Start CPAN without any default settings 
     unix> cpan
     
 
+    CPAN build and cache directory? [/root/.cpan]   <press Enter>
     
     Would you like me to configure as much as possible automatically? [yes]       yes <Enter>
     
@@ -59,13 +63,13 @@ Procedure
     cpan> o conf prerequisites_policy follow
     cpan> o conf build_requires_install_policy yes
  
-    # Tell CPAN to install PPMS to /opt/ppms
-    cpan> o conf makepl_arg PREFIX=/opt/ppms
-    cpan> o conf mbuildpl_arg INSTALL_BASE=/opt/ppms
-    cpan> o conf mbuild_install_arg install_base=/opt/ppms
     
     # Tell CPAN to halt on error
     cpan> o conf halt_on_failure 1
+    
+    # Tell CPAN to use sudo for make and Build
+    cpan> o conf make_install_make_command 'sudo make'
+    cpan> o conf mbuild_install_build_command 'sudo ./Build'
     
     # Commit changes
     cpan> o conf commit
@@ -73,23 +77,186 @@ Procedure
     
     
     unix> cpan
+    cpan> force install Mail::Sender
+          Specify defaults for Mail::Sender? (y/N)  N <enter>
+    
     cpan> force install Spreadsheet::WriteExcel
+    cpan> force install WWW::Mechanize
+    cpan> force install IO::Socket
+    cpan> force install IO::Socket::SSL
+          Should I do external tests?   N
+          Do you want to run external tests?  N
     cpan> quit   
 
-    # Tell CPAN where to find ExtUtils locally
-    unix> export PERL5LIB=/opt/ppms:/opt/ppms/share/perl5:/opt/ppms/lib64/perl5
-   
     
-    unix> cpan 'WWW::Mechanize'
-
+ 
+ 9. Verify that these modules work by creating a perl script that 
+    (a) talks to a website using SSL and
+    (b) sends an email
     
-    unix> cpan
-    cpan> install Bundle::CPAN
-           
+    a. Copy this program to heartbeat.pl
+    b. unix> perl heartbeat.pl
     
-    
-    
-    
+                      
+            ############################################################
+            # Filename:  heartbeat.pl
+            # Author:    Adam Resnick
+            ############################################################
+            # Purpose:
+            #   Use SSL to connect to a web page
+            #
+            # Usage
+            #   unix> perl heartbeat.pl
+            #
+            ############################################################
+            use strict;           # You must declare variables before using them
+            use warnings "all";   # Show all compile warnings
+            use diagnostics;
+            
+            use File::Basename;
+            use Time::localtime;
+            use IO::Socket::SSL qw(debug3);      # to see SSL debugging, change debug0 to debug3
+            use Crypt::SSLeay;
+            use WWW::Mechanize;
+            use Mail::Sender;
+            
+            
+            $! = 1;               # Cause standard output to flush immediately
+            
+            # Get the script name byitself
+            my $gsScriptName = basename($0);  
+            
+            my $URL = q{https://www.google.com/};
+            
+            print "$gsScriptName started as of " . ctime() . "\n";
+            
+            connectToWebPage($URL);
+            
+            sendSampleEmail();
+            
+            print "$gsScriptName finished as of " . ctime() . "\n";
+            exit(0);
+            
+            
+            
+            #######################################################
+            # connectToWebPage()
+            #
+            #######################################################
+            sub connectToWebPage
+            {
+              my ($aUrl) = @_;
+            
+              print "\nconnectToWebPage()\n\taUrl=$aUrl\n";
+            
+              # Setup WWW::Mechanize to use our cert
+              my $oMech = WWW::Mechanize->new(
+                                          SSL_verify_mode => IO::Socket::SSL::SSL_VERIFY_NONE,
+                                          verify_hostname => 0
+                                        );
+            
+              # We use eval here so that any exceptions are trapped here
+              eval { $oMech->get($aUrl); };
+            
+              if (! $oMech->success() )
+              {
+                # I could not connect to this site
+                die("I could not connect to this url:  $aUrl");
+              }
+              else
+              {
+                print "\tI successfully connected to this url\n";
+              }
+            }
+            
+            #######################################################
+            # sendSampleEmail()
+            #######################################################
+            sub sendSampleEmail
+             {
+                my $sSmtpServerName = 'smtp.gmail.com';
+                my $sFromEmail = 'adam.resnick21@gmail.com';
+                my $sToEmail = 'traderres@yahoo.com';
+                my $sSubject = 'Subject is here';
+                my $sBody = 'Hi there!';
+            
+                sendEmail($sSmtpServerName, $sFromEmail, $sToEmail, $sSubject, $sBody);
+            
+             }
+            
+            
+            #######################################################
+            # sendEmail()
+            #######################################################
+            sub sendEmail
+             {
+                my ($aSmtpServerName,
+                    $aFromEmail,
+                    $aToEmail,
+                    $aMessageSubject,
+                    $aMessageBody,
+                    $aAttachmentFileList) = @_;
+            
+                print "\nsendEmail()\n\taSmtpServerName=$aSmtpServerName\n\taFromEmail=$aFromEmail\n\taToEmail=$aToEmail\n\tsubject=$aMessageSubject\n";
+                   
+                
+                if (! $aFromEmail)
+                {
+                   die("You did not provide a 'from' email address.\n");
+                }
+                
+                if (! $aToEmail)
+                {
+                   die("You did not provide a 'to' email address.\n");
+                }
+                
+                my $sender = new Mail::Sender(
+                                  {  
+                                     from => $aFromEmail,
+                                     smtp => $aSmtpServerName
+                                  }  
+                               ) || die("I could not create the Mail::Sender Object.  Error is " . $Mail::Sender::Error . "\n");
+                  
+                if (! $aAttachmentFileList)
+                {  
+                      # Generate an email without attachments.
+                      $sender->MailMsg(
+                          {
+                              from     => $aFromEmail,
+                              to       => $aToEmail,
+                              subject  => $aMessageSubject,
+                              msg      => $aMessageBody
+                           }
+                  
+                   ) || die("I failed to send out an email message.  The error is " . $Mail::Sender::Error . "\n");
+                }
+                else
+                {
+                     # Generate an  email with attachments
+                     $sender->MailFile(
+                           {
+                              from     => $aFromEmail,
+                              to       => $aToEmail,
+                              subject  => $aMessageSubject,
+                              msg      => $aMessageBody,
+                              file     => $aAttachmentFileList
+                           }
+                  ) || die("I failed to send out an email with attachments.  The error is " . $Mail::Sender::Error . "\n");
+                }
+            
+                
+                print "\tEmail was successfully sent out.\n";
+              }
+            
+            
+                
+                
+              
+                       
+                
+                
+                
+                
     
     
     
