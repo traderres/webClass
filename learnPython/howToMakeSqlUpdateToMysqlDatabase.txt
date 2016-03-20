@@ -1,0 +1,195 @@
+How to Use Python to Make SQL Update Call to a MySql Database
+-------------------------------------------------------------
+
+Assumptions:
+ A) You have a MySql database installed  [see learnMysql / howToInstallMysqlOnWindows.txt]
+    with this connection info:
+       hostname:  localhost
+       port:      3306
+       username:  root
+       password:  secret
+       database:  world      # NOTE:  If the database is called something else, then adjust the python script
+              
+ B) You have the MySql Workbench Installed  [for running SQL calls]
+ C) You have Python 3.4 installed (32-bit)
+ D) You have PyCharm installed
+ 
+
+Procedures
+----------
+ 1. Download the Python/MySql Connector
+    a. Go to https://dev.mysql.com/downloads/connector/python/
+    b. On the "Select Platform", choose Microsoft Windows
+    c. Look for Windows (x86, 32-bit), MSI Installer Python 3.4  
+       -- Press the "Download" button
+    
+    d. Login to MySql   
+       NOTE:  This will take you to the login.oracle.home page
+       
+       Enter your username 
+       Enter your password
+       Press "Sign in"
+       
+    e. Press the "Download Now" button
+    f. Save mysql-connector-python-2.1.3-py3.4-win32.msi to your c:\vault\
+    
+    
+    
+ 2. Install the Python/MySql Connector
+    a. Run c:\vault\mysql-connector-python-2.1.3-py3.4-win32.msi
+       -- Now, you should have the mysql.connector module
+    
+       NOTE:  You should see the mysql-connector files installed to here:
+          %PYTHON_HOME%\Lib\site-packages\mysql\connector\
+
+
+ 3. Create the sampleSqlUpdate.py 
+    a. Startup PyCharm
+    b. Right-click on project1 -> New -> Python File
+       Name:  sampleSqlUpdate.py
+       
+    c. Copy this to sampleSqlUpdate.py
+       WARNING:  Do not add any leading spaces
+
+        #######################################################################
+        # Filename:  sampleSqlUpdate.py
+        # Author:    <your name>
+        #######################################################################
+        # Purpose:
+        #   To demonstrate how to run SQL insert call using a Python script
+        #
+        # Usage
+        #   DOS> py sampleSqlInsert.py
+        #
+        # Assumptions
+        #   A) py is in the PATH
+        #######################################################################
+        import os
+        import time
+        import sys
+        import mysql.connector
+        
+        gsScriptName = os.path.basename(__file__)
+        
+        # Print the date/time when this script started
+        print("%s has started as of %s." % (gsScriptName, time.strftime("%c")))
+        
+        # Connect to the MySql database using the C library (use_pure=false)
+        print("Connecting to mysql database....")
+        cnx = mysql.connector.connect(user='root',
+                                     password='secret',
+                                     host='127.0.0.1',
+                                     database='world',
+                                     use_pure=False,
+                                     autocommit=False)
+        
+        cursor = cnx.cursor()
+        
+        # Construct the SQL to get all cities records with populations under 3000 a single city record
+        sSqlSelect = "select count(name) from cities where population < 3000"
+        
+        # Execute the SQL and get the row count
+        cursor.execute(sSqlSelect)
+        cursorResult = cursor.fetchone()
+        iTotalCityRecords = cursorResult[0]
+        print("Total city records with population under 3000 is %d " % (iTotalCityRecords))
+        
+        
+        
+        # Construct the SQL to set all population records to be 4000 [where they are less than 3000]
+        sSqlUpdate = "update cities set population = 4000 where population < 3000"
+        
+        # Execute the SQL to update the records
+        cursor.execute(sSqlUpdate)
+        
+        # Commit the transaction
+        cnx.commit()
+        
+        
+        
+        
+        # Construct the SQL to get all cities records with populations under 3000 a single city record
+        sSqlSelect = "select count(name) from cities where population < 3000"
+        
+        # Execute the SQL and get the row count
+        cursorResult = cursor.execute(sSqlSelect)
+        cursorResult = cursor.fetchone()
+        iTotalCityRecords = cursorResult[0]
+        print("Total city records with population under 3000 is %d " % (iTotalCityRecords))
+        
+        
+        
+        
+        # Close the cursor
+        cursor.close()
+        
+        # Disconnect from the MySql database
+        cnx.close()
+        
+        # Print the date/time when this script finished
+        print("%s has finished as of %s." % (gsScriptName, time.strftime("%c")))
+        
+        # Python script ends here
+        sys.exit(0)
+
+
+
+ 4. Startup your Mysql Database
+    a. Press <Start><Run>services.msc
+    b. Right-click on MySQL56 -> Start
+ 
+    
+
+ 5. Create a table caleld 'cities'
+    a. Startup MySqlWorkbench
+    b. Connect to your database
+    c. Run this SQL:
+       NOTE:  By telling mysql to use engine=innodb, we allow this table to handle row-level locking transactions
+      
+    
+        create table cities
+         (
+            name varchar(100) not null,
+            population integer not null
+        ) engine=innodb;
+
+
+        insert into cities(name, population) values('Small City', 1000);      
+        insert into cities(name, population) values('Small City #2', 1005);        
+        commit;
+  
+    
+
+ 6. Attempt to run the sampleSqlUpdate.py script
+    a. Verify that the 2 records have small populations
+       Select * from Cities;
+       
+       You should see this:
+            Small City     1000
+            Small City #2  1005
+
+
+    a. Right-click on sampleSqlUpdate.py -> Run 'sampleSqlUpdate'
+    
+    b. You should see the following output
+        
+        sampleSqlUpdate.py has started as of 03/19/16 20:49:53.
+        Connecting to mysql database....
+        Total city records with population under 3000 is 2 
+        Total city records with population under 3000 is 0 
+        sampleSqlUpdate.py has finished as of 03/19/16 20:50:31.
+
+        
+    c. Verify that the 2 records were updated by running this python script
+       Select * from Cities;
+       
+       You should see this:
+            Small City     4000
+            Small City #2  4000
+
+         
+        
+
+
+
+ 
