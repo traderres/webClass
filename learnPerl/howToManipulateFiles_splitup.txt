@@ -1,0 +1,207 @@
+How to Split-up a File into Smaller Files
+-----------------------------------------
+
+Assumptions:
+ A) You have perl installed
+ B) You want to a file that you want to split-up into smaller files
+ 
+
+#########################################################################
+#  Filename:    split.pl
+#
+#  Author:      Adam Resnick
+#########################################################################
+#
+#  Purpose:                                          
+#      	Split-up a file into smaller files
+#         
+#  Design:
+#       1) Verify that the user passed-in all of the required parameters
+#		2) Determine the number of smaller files to create
+#		3) Loop through each smaller file
+#			a) open the smaller file
+#			b) write a chunk to that smaller file
+#			c) close the smaller file
+#       
+#		4) Write the last chunk to the last smaller file
+#	
+#
+# Assumptions:
+#       1) Perl installed on the computer running this script
+#
+#  Usage:
+#       1) split.pl -src="BigFile.exe" -maxSubFileSize="7m" -subFilePrefix="part" -subFileSuffix="bin"  <enter>
+#               -- this would cause the program to split up BigFile.exe into smaller files
+#				   that are no more than 7 MB.  Each smaller file starts with xyz and ends with .bin
+#				-- So, the smaller files would be part1.bin, part2.bin, part3.bin
+#
+#  Notes:
+#
+#  History:
+#       1) Created on 08/01/2001
+#########################################################################
+use strict;                  # You must declare variables before using them
+use warnings "all";          # Show any compile warnings
+use diagnostics;
+
+use Time::localtime;
+use File::Basename;
+use Getopt::Long;            
+use Cwd;
+
+my $g_scriptName = basename($0);		  # g_scriptName holds the name of this script without directories
+my $ga_sourceFilename = '';
+my $ga_subFileMaxSize = '';
+my $ga_subFilePrefix = '';
+my $ga_subFileSuffix = '';
+my $g_subFileMaxSizeInBytes;
+my $CWD = getcwd;
+my $fileCount;
+my $chunk;
+my $subFilename;
+
+# S C R I P T       S T A R T S     H E R E
+print "$g_scriptName has started at ", ctime(), "\n";
+
+
+# P A R S E     COMMAND  LINE   PARAMTERS
+# NOTE: the option src=s means that this paramter -src requires a string
+GetOptions ('src=s' => \$ga_sourceFilename,
+            'subFileMaxSize=s' => \$ga_subFileMaxSize,
+			'subFilePrefix=s' => \$ga_subFilePrefix,
+			'subFileSuffix=s' => \$ga_subFileSuffix);
+
+
+# Verify that the user entered all of the necessary command-line parameters
+verifyParameters();
+
+# Convert the user's entered maximum filesize into bytes
+$g_subFileMaxSizeInBytes = getMaximumSubFileInBytes($ga_subFileMaxSize);
+
+
+# Open the large file
+open(LARGEFILE, $ga_sourceFilename) || die "$g_scriptName: Cannot open the file $ga_sourceFilename: $!\n";
+binmode(LARGEFILE);
+
+
+#  S P L I T		U P 		T H I S		F I L E
+$fileCount = 1;
+while (read (LARGEFILE, $chunk, $g_subFileMaxSizeInBytes) == $g_subFileMaxSizeInBytes)
+ {
+	# I just read a chunk of the large file
+	# -- Now, $chunk holds that piece of information
+###	print "\tI read exactly $g_subFileMaxSizeInBytes bytes\n";
+
+	# Construct the filename of this smaller file    
+	#  -- $subFilename holds "part0001.bin"  if $ga_subFilePrefix="part" and $ga_subFileSuffix="bin"
+	#  -- it is *CRITICAL* that the part number have leading zeros.
+	#     otherwise, the combine.pl script will not combine in the correct order
+	$subFilename = sprintf("%s/%s%04d.%s", $CWD, $ga_subFilePrefix, $fileCount, $ga_subFileSuffix);
+
+	# Write this little chunk to this small file
+ 	open (SMALLFILE, ">$subFilename") or die "$g_scriptName: Cannot write to $subFilename: $!\n";
+    binmode(SMALLFILE);
+	print SMALLFILE $chunk;
+	close(SMALLFILE) || die;
+    print "\tCreating file $subFilename  ($g_subFileMaxSizeInBytes bytes)\n";
+
+	$fileCount++;
+ }
+
+
+# Is there a left over piece?
+if (length($chunk) > 0)
+ {
+	# Construct the filename of this last small piece    
+	$subFilename = sprintf("%s/%s%04d.%s", $CWD, $ga_subFilePrefix, $fileCount, $ga_subFileSuffix);
+
+	# Write this little chunk to this small file
+	open (SMALLFILE, ">$subFilename") or die "$g_scriptName: Cannot write to $subFilename: $!\n";
+	binmode(SMALLFILE);
+	print SMALLFILE $chunk;
+	close(SMALLFILE) || die;
+
+    print "\tCreating file $subFilename  (", length($chunk), " bytes)\n";
+} 
+ 
+
+
+# S C R I P T       H A S       F I N I S H E D
+print "\n$g_scriptName has finished at ", ctime(), "\n";
+
+exit 0;
+
+
+
+
+####################################################################################
+# verifyParameters()
+#       -- Verify that the passed-in sql file is not null and is readable
+####################################################################################
+sub verifyParameters
+ {
+
+    # Did the user pass-in a sql file path and name?
+    if (($ga_sourceFilename eq '')  || ($ga_subFileMaxSize eq '') || ($ga_subFilePrefix eq '') || ($ga_subFileSuffix eq ''))
+     {
+        # The user did not enter all of the parameters
+       	print "USAGE STATEMENT:\n\t$g_scriptName -src=<path and filename of BIG file>\n";
+		print "\t\t -subFileMaxSize=<max size of each sub file in kb>\n";
+		print "\t\t -subFilePrefix=<prefix for each sub file>\n";
+		print "\t\t -subFileSuffix=<suffix for each sub file>\n\n";
+        print "EXAMPLE:\n\t$g_scriptName -src=largefile.exe -subFileMaxSize=500k -subFilePrefix=part -subFileSuffix=bin\n";
+		print "\tThis will split largefile.exe into pieces no greater than 500k\n";
+		print "\tIf the file is 1200kb in size, then this will generate part1.bin, part2.bin, and part3.bin\n";
+        exit 1;
+     }
+
+
+    # Is the source file readable?
+    if (!(-r $ga_sourceFilename))
+     {
+        # No, the source file is *NOT* readable
+        print "$g_scriptName: the file $ga_sourceFilename is *NOT* readable.\n";
+        exit 2;
+     }
+
+	# Is the maximum sub file size a number (possibly ending with k or m)?
+	if (! ($ga_subFileMaxSize =~ /^\d+[KkMm]?$/ ) )
+	 {
+		# No, the maximum sub file size is invalid
+		print "$g_scriptName: the maximum sub file size of $ga_subFileMaxSize is invalid.\n";
+	 	exit 3;
+	 }
+
+	# Display pass-in parameters
+	print "\tSource file is             $ga_sourceFilename\n";
+	print "\tMax sub file size is       $ga_subFileMaxSize kb\n";
+	print "\tEach sub file starts with  $ga_subFilePrefix\n";
+	print "\tEach sub file ends with    $ga_subFileSuffix\n\n";
+  }
+
+
+#########################################################################
+# get_count()
+# 		expands byte/linecount 'k' and 'm' and checks sanity
+#########################################################################
+sub getMaximumSubFileInBytes 
+{
+	my ($aSubFileSize) = @_;
+
+	if ( $aSubFileSize =~ /^(\d+)[Kk]$/ )
+	 {
+		# The filesize given is in kilobytes (multiply * 1024)
+ 		return($1 * 1024);
+	 }
+	elsif ( $aSubFileSize =~ /^(\d+)[mM]$/ )
+	 {	
+		# The filesize given is in megabytes (multiply * 1048576)
+ 		return($1 * 1048576);
+	 }
+	else
+	 {
+		# the filesize is given in bytes (no multiplication is needed)
+		return($aSubFileSize);
+	 }
+
+}
