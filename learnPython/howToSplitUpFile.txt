@@ -1,0 +1,169 @@
+How to Split-up a File into Sub-Files
+-------------------------------------
+
+Assumptions:
+ A) You have Python 3.4 installed (32-bit)
+ B) You have PyCharm installed
+
+ 
+Procedures
+----------
+ 1. Create the parseCommandLineArgs.py 
+    a. Startup PyCharm
+    b. Right-click on project1 -> New -> Python File
+       Name:  split.py
+       
+    c. Copy this to split.py
+       WARNING:  Do not add any leading spaces
+ 
+        #######################################################################
+        # Filename:  split.py
+        # Author:    <your name>
+        #######################################################################
+        # Purpose:
+        #   Split-up a file into smaller files
+        #
+        #  Design:
+        #    1) Verify that the user passed-in all of the required parameters
+        #    2) Determine the number of smaller files to create
+        #    3) Loop through each smaller file
+        #       a) open the smaller file
+        #       b) write a chunk to that smaller file
+        #       c) close the smaller file
+        #    4) Write the last chunk to the last smaller file
+        #
+        # Usage
+        #   DOS> py split.py --src="BigFile.exe" --maxSubFileSize=7m --subFilePrefix="part" --subFileSuffix="bin"
+        #
+        # Assumptions
+        #   A) py is in the PATH
+        #######################################################################
+        import os
+        import time
+        import sys
+        import argparse
+        import re
+        
+        
+        #######################################################################
+        # getMaximumSubFileSizeInBytes()
+        #######################################################################
+        def getMaximumSubFileSizeInBytes(aSubFileSize):
+        
+            print("getMaximumSubFileInBytes()  aSubFileSize=%s" % aSubFileSize)
+        
+            m = re.match(r'^(\d+)[Bb]$', aSubFileSize)
+            if (m):
+                # The filesize given is in bytes -- no multiplication necessary
+                return int(m.group(1))
+        
+            m = re.match(r'^(\d+)[Kk]$', aSubFileSize)
+            if (m):
+                # The filesize given is in kilobytes (multiply * 1024)
+                return int(m.group(1)) * 1024
+        
+            m = re.match(r'^(\d+)[mM]$', aSubFileSize)
+            if (m):
+                # The filesize given is in megabytes (multiply * 1048576)
+                return int(m.group(1)) * 1048576
+        
+            m = re.match(r'^(\d+)[gG]$', aSubFileSize)
+            if (m):
+                # The filesize given is in gigabytes (multiply * 1073741824)
+                return int(m.group(1)) * 1073741824
+        
+            print("Error in getMaximumSubFileInBytes():  The passed-in aSubFileSize is invalid:  %s" % aSubFileSize)
+            sys.exit(1)
+        
+        
+        #######################################################################
+        # verifyCommandLineArguments()
+        #######################################################################
+        def verifyCommandLineArguments(aArgs):
+            print("verifyCommandLineArguments()")
+        
+            if not aArgs:
+                print("Error:  No arguments were provided")
+                sys.exit(1)
+        
+            elif not aArgs.src:
+                print("Error:  No --src argument was provided")
+                sys.exit(1)
+        
+            elif not aArgs.maxSubFileSize:
+                print("Error:  No --maxSubFileSize was provided")
+                sys.exit(1)
+        
+            if (os.path.isfile(aArgs.src) == False):
+                print("Error:  I could not find this file:  %s" % aArgs.src)
+                sys.exit(1)
+        
+            if (os.access(aArgs.src, os.R_OK) == False):
+                print("Error:  I found this file, but I cannot read it:  %s" % aArgs.src)
+                sys.exit(1)
+        
+        
+            print("Command-line args are valid");
+            return
+        
+        
+        # P R O G R A M         S T A R T S        H E R E
+        gsScriptName = os.path.basename(__file__)
+        gsCWD = os.getcwd()
+        
+        # Print the date/time when this script started
+        print("%s has started as of %s" % (gsScriptName, time.strftime("%c")))
+        
+        
+        # Parse Command-line arguments
+        parser = argparse.ArgumentParser(prog=gsScriptName)
+        parser.add_argument('--src')
+        parser.add_argument('--maxSubFileSize')
+        parser.add_argument('--subFilePrefix', default='part')
+        parser.add_argument('--subFileSuffix', default='bin')
+        goCommandLineArgs = parser.parse_args()
+        
+        # Verify Command-line arguments
+        verifyCommandLineArguments(goCommandLineArgs)
+        
+        # Get the size-in-bytes of the largest sub-file
+        giFileMaxSizeInBytes = getMaximumSubFileSizeInBytes(goCommandLineArgs.maxSubFileSize)
+        
+        
+        # Open the large file for binary reading
+        # NOTE:  When control leaves this block, the file is closed automatically
+        with open(goCommandLineArgs.src, "rb") as fLargeFile:
+        
+            iFileCount = 0
+            while(True):
+        
+                iFileCount = iFileCount + 1
+        
+                # Read a chunk from the large file
+                chunk = fLargeFile.read(giFileMaxSizeInBytes)
+        
+                if chunk != b"":
+                    subFilename = "%s/%s%04d.%s" % (gsCWD, goCommandLineArgs.subFilePrefix, iFileCount, goCommandLineArgs.subFileSuffix);
+        
+                    # Write this binary chunk to a file
+                    fChunkFile = open(subFilename, "wb")
+                    fChunkFile.write(chunk)
+                    fChunkFile.close()
+                    print("\tCreated this file: %s  (%d bytes)" % (subFilename, len(chunk)))
+        
+                else:
+                    # Break out of the while loop
+                    break
+        
+        
+        
+        # Print the date/time when this script finished
+        print("%s has finished as of %s" % (gsScriptName, time.strftime("%c")))
+        
+        # Python script ends here
+        sys.exit(0)
+
+
+ 2. Take a binary file (such as the myKeystore.jks) and split-it up into pieces
+  
+        
