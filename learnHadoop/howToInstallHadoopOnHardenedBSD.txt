@@ -193,9 +193,9 @@ Procedures
  5. Configure Hadoop to run in pseudo-distributed mode
     NOTE:  There can be no leading spaces bofre <?xml....>
    
-    a. Create the core-site.xml
-      unix> cd /usr/local/etc/hadoop
-      unix> vi core-site.xml
+    a. Create this file:  core-site.xml
+       unix> cd /usr/local/etc/hadoop
+       unix> vi core-site.xml
       
         <?xml version="1.0" encoding="UTF-8"?>
         <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>        
@@ -208,7 +208,7 @@ Procedures
    
    
      
-    b. Create the hdfs-site.xml
+    b. Create this file:  hdfs-site.xml
        Note:  Create namenode and datanode directory under /tank/hdfs
        Note:  Set the datanode to listen on port 50001
       
@@ -239,7 +239,7 @@ Procedures
             </configuration>
       
       
-    c. Create the yarn-site.xml
+    c. Create this file:  yarn-site.xml
        unix> cd /usr/local/etc/hadoop
        unix> vi yarn-site.xml
 
@@ -270,7 +270,7 @@ Procedures
         </configuration> 
                  
 
-    d. Create the mapred-site.xml
+    d. Create this file:  mapred-site.xml
        unix> cd /usr/local/etc/hadoop
        unix> vi mapred-site.xml
        
@@ -285,11 +285,138 @@ Procedures
              </configuration>    
     
     
-    e. Create a slaces file
+    e. Create this file:  slaves
        unix> cd /usr/local/etc/hadoop
        unix> echo localhost > slaves
        
-             
+       
+    f. Create this file:  capacity-scheduler.xml
+       unix> cd /usr/local/etc/hadoop
+       unix> vi capacity-scheduler.xml
+       
+
+     <configuration>
+     
+       <property>
+         <name>yarn.scheduler.capacity.maximum-applications</name>
+         <value>10000</value>
+         <description>
+           Maximum number of applications that can be pending and running.
+         </description>
+       </property>
+     
+       <property>
+         <name>yarn.scheduler.capacity.maximum-am-resource-percent</name>
+         <value>0.1</value>
+         <description>
+           Maximum percent of resources in the cluster which can be used to run 
+           application masters i.e. controls number of concurrent running
+           applications.
+         </description>
+       </property>
+     
+       <property>
+         <name>yarn.scheduler.capacity.resource-calculator</name>
+         <value>org.apache.hadoop.yarn.util.resource.DefaultResourceCalculator</value>
+         <description>
+           The ResourceCalculator implementation to be used to compare 
+           Resources in the scheduler.
+           The default i.e. DefaultResourceCalculator only uses Memory while
+           DominantResourceCalculator uses dominant-resource to compare 
+           multi-dimensional resources such as Memory, CPU etc.
+         </description>
+       </property>
+     
+       <property>
+         <name>yarn.scheduler.capacity.root.queues</name>
+         <value>default</value>
+         <description>
+           The queues at the this level (root is the root queue).
+         </description>
+       </property>
+     
+       <property>
+         <name>yarn.scheduler.capacity.root.default.capacity</name>
+         <value>100</value>
+         <description>Default queue target capacity.</description>
+       </property>
+     
+       <property>
+         <name>yarn.scheduler.capacity.root.default.user-limit-factor</name>
+         <value>1</value>
+         <description>
+           Default queue user limit a percentage from 0.0 to 1.0.
+         </description>
+       </property>
+     
+       <property>
+         <name>yarn.scheduler.capacity.root.default.maximum-capacity</name>
+         <value>100</value>
+         <description>
+           The maximum capacity of the default queue. 
+         </description>
+       </property>
+     
+       <property>
+         <name>yarn.scheduler.capacity.root.default.state</name>
+         <value>RUNNING</value>
+         <description>
+           The state of the default queue. State can be one of RUNNING or STOPPED.
+         </description>
+       </property>
+     
+       <property>
+         <name>yarn.scheduler.capacity.root.default.acl_submit_applications</name>
+         <value>*</value>
+         <description>
+           The ACL of who can submit jobs to the default queue.
+         </description>
+       </property>
+     
+       <property>
+         <name>yarn.scheduler.capacity.root.default.acl_administer_queue</name>
+         <value>*</value>
+         <description>
+           The ACL of who can administer jobs on the default queue.
+         </description>
+       </property>
+     
+       <property>
+         <name>yarn.scheduler.capacity.node-locality-delay</name>
+         <value>40</value>
+         <description>
+           Number of missed scheduling opportunities after which the CapacityScheduler 
+           attempts to schedule rack-local containers. 
+           Typically this should be set to number of nodes in the cluster, By default is setting 
+           approximately number of nodes in one rack which is 40.
+         </description>
+       </property>
+     
+       <property>
+         <name>yarn.scheduler.capacity.queue-mappings</name>
+         <value></value>
+         <description>
+           A list of mappings that will be used to assign jobs to queues
+           The syntax for this list is [u|g]:[name]:[queue_name][,next mapping]*
+           Typically this list will be used to map users to queues,
+           for example, u:%user:%user maps all users to queues with the same name
+           as the user.
+         </description>
+       </property>
+     
+       <property>
+         <name>yarn.scheduler.capacity.queue-mappings-override.enable</name>
+         <value>false</value>
+         <description>
+           If a queue mapping is present, will it override the value specified
+           by the user? This can be used by administrators to place jobs in queues
+           that are different than the one specified by the user.
+           The default is false.
+         </description>
+       </property>
+     
+     </configuration>
+
 
  6. Adjust the hdfs account so it can ssh to localhost [without prompting for password]
     a. Adjust the hdfs account so it has a real home directory
@@ -322,7 +449,7 @@ Procedures
 
  7. Format the Name Node
     unix> mkdir /tank/hdfs
-    unix> chown -R hdfs:hadoop /tank 
+    unix> chown -R hdfs:hadoop /tank/hdfs
     unix> su - hdfs
     unix> hdfs namenode -format
 
@@ -414,6 +541,7 @@ Procedures
     Are you sure you want to continue connecting (yes/no)?  yes
 
 
+
  9. Start MapReduce aka YARN (Resource Manager and Node Manager)
     unix> start-yarn.sh
 
@@ -428,13 +556,11 @@ Procedures
        http://localhost:8042/
        *OR*
        unix> telnet localhost 8042
- 
        
     b. Go to the Namenode's website
        http://localhost:50070  
        *OR*
        unix> telnet localhost 50070
-
 
     c. Verify that you can create a directory within your HDFS
        1) List what is in your HDFS top directory
@@ -448,7 +574,6 @@ Procedures
           unix> hadoop fs -ls /
                 Found 1 items
                 drwxr-xr-x   - hdfs supergroup          0 2016-03-28 17:38 /tmp
-
 
     d. Verify that you can create a file within your HDFS
        1) Create a file called c:\temp\stuff.txt
@@ -470,4 +595,12 @@ Procedures
 
        4) Display the content's of a file located in HDFS
           unix> hadoop fs -cat /tmp/stuff.txt
+
        
+Generate Statistics
+-------------------
+ 1. Run the teragen, terasort, and teraverify map-reduce jnobs
+    a. Generate the data
+       unix> cd /usr/local/share/hadoop/mapreduce/
+       unix> hadoop jar hadoop-mapreduce-examples-2.7.2.jar teragen 1000000 /user/hduser/terasort-input
+
