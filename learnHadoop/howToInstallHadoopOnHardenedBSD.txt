@@ -183,7 +183,14 @@ Procedures
    
    
    
- 4. Configure Hadoop to run in pseudo-distributed mode
+ 4. Verify that java can be executed
+    unix> java -version
+          openjdk version "1.7.0_95"
+          OpenJDK Runtime Environment (build 1.7.0_95-b00)
+          OpenJDK 64-Bit Server VM (build 24.95-b01, mixed mode)
+
+   
+ 5. Configure Hadoop to run in pseudo-distributed mode
     NOTE:  There can be no leading spaces bofre <?xml....>
    
     a. Create the core-site.xml
@@ -202,7 +209,7 @@ Procedures
    
      
     b. Create the hdfs-site.xml
-       Note:  Create namenode and datanode directory under /tank
+       Note:  Create namenode and datanode directory under /tank/hdfs
        Note:  Set the datanode to listen on port 50001
       
        unix> cd /usr/local/etc/hadoop
@@ -218,11 +225,11 @@ Procedures
                 </property>
                 <property>
                     <name>dfs.namenode.name.dir</name>
-                    <value>file:/tank/namenode</value>
+                    <value>file:/tank/hdfs/namenode</value>
                 </property>
                 <property>
                     <name>dfs.datanode.data.dir</name>
-                    <value>file:/tank/datanode</value>
+                    <value>file:/tank/hdfs/datanode</value>
                 </property>
 
                 <property>
@@ -278,19 +285,138 @@ Procedures
              </configuration>    
              
              
- 5. Format the Name Node
+
+ 6. Adjust the hdfs account so it can ssh to localhost [without prompting for password]
+    a. Adjust the hdfs account so it has a real home directory
+       unix> mkdir /home/hdfs
+       unix> chown -R hdfs:hadoop /home/hdfs
+       unix> pw user mod hdfs -d /home/hdfs -s /bin/sh
+   
+    b. Setup the hdfs account so it can ssh to localhost [without prompting for password
+       unix> su - hdfs
+   
+       unix> ssh-keygen -t rsa
+             Enter file in which to save the key (/home/hdfs/.ssh/id_rsa):   <press enter>
+             
+             Enter passphrase (empty for no passphrase):    <press enter>
+             Enter same passphrase again:                   <press enter>
+ 
+       unix> cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+       unix> chmod 0600 ~/.ssh/authorized_keys
+ 
+    c. Verify your key based login. 
+       NOTE:  This ssh command should *not*  ask for password but first time it will prompt for adding RSA to the list of known hosts.
+       unix> ssh localhost
+       
+       The authenticity of host 'localhost (::1)' can't be established.
+       RSA key fingerprint is 9b:35:ab:51:bc:6e:92:ff:a5:4f:2d:a9:11:d5:36:ae.
+       Are you sure you want to continue connecting (yes/no)?                    yes
+     
+      unix> exit
+
+
+ 7. Format the Name Node
+    unix> mkdir /tank/hdfs
+    unix> chown -R hdfs:hadoop /tank/hdfs 
+    unix> su - hdfs
     unix> hdfs namenode -format
 
+    You should see this:
+    
+      2016-03-28 17:22:32,389 INFO  [main] namenode.NameNode (LogAdapter.java:info(47)) - STARTUP_MSG:
+      /************************************************************
+      STARTUP_MSG: Starting NameNode
+      STARTUP_MSG:   host = row6-01.labs.g2-inc.net/10.254.30.26
+      STARTUP_MSG:   args = [-format]
+      STARTUP_MSG:   version = 2.7.2
+      STARTUP_MSG:   classpath = /usr/local/etc/hadoop:/usr/local/share/hadoop/common/lib/jsr305-3.0.0.jar:/usr/local/share/hadoop/common/lib/commons-collections-3.2.2.jar:/usr/local/share/hadoop/common/lib/hamcrest-core-1.3.jar:/usr/local/share/hadoop/common/lib/jsch-0.1.42.jar:/usr/local/share/hadoop/common/lib/stax-api-1.0-2.jar:/usr/local/share/hadoop/common/lib/commons-cli-1.2.jar:/usr/local/share/hadoop/common/lib/httpcore-4.2.5.jar:/usr/local/share/hadoop/common/lib/jackson-jaxrs-1.9.13.jar:/2.jar . . . [long list of JARs]
+      STARTUP_MSG:   build = Unknown -r Unknown; compiled by 'root' on 2016-03-17T04:49Z
+      STARTUP_MSG:   java = 1.7.0_95
+      ************************************************************/
+      2016-03-28 17:22:32,392 INFO  [main] namenode.NameNode (LogAdapter.java:info(47)) - registered UNIX signal handlers for [TERM, HUP, INT]
+      2016-03-28 17:22:32,394 INFO  [main] namenode.NameNode (NameNode.java:createNameNode(1417)) - createNameNode [-format]
+      Formatting using clusterid: CID-8c3a4f0e-171f-46a8-86d8-b1c69607eced
+      2016-03-28 17:22:33,275 INFO  [main] namenode.FSNamesystem (FSNamesystem.java:<init>(716)) - No KeyProvider found.
+      2016-03-28 17:22:33,275 INFO  [main] namenode.FSNamesystem (FSNamesystem.java:<init>(726)) - fsLock is fair:true
+      2016-03-28 17:22:33,319 INFO  [main] blockmanagement.DatanodeManager (DatanodeManager.java:<init>(239)) - dfs.block.invalidate.limit=1000
+      2016-03-28 17:22:33,319 INFO  [main] blockmanagement.DatanodeManager (DatanodeManager.java:<init>(245)) - dfs.namenode.datanode.registration.ip-hostname-check=true
+      2016-03-28 17:22:33,320 INFO  [main] blockmanagement.BlockManager (InvalidateBlocks.java:printBlockDeletionTime(71)) - dfs.namenode.startup.delay.block.deletion.sec is set to 000:00:00:00.000
+      2016-03-28 17:22:33,322 INFO  [main] blockmanagement.BlockManager (InvalidateBlocks.java:printBlockDeletionTime(76)) - The block deletion will start around 2016 Mar 28 17:22:33
+      2016-03-28 17:22:33,323 INFO  [main] util.GSet (LightWeightGSet.java:computeCapacity(354)) - Computing capacity for map BlocksMap
+      2016-03-28 17:22:33,323 INFO  [main] util.GSet (LightWeightGSet.java:computeCapacity(355)) - VM type       = 64-bit
+      2016-03-28 17:22:33,325 INFO  [main] util.GSet (LightWeightGSet.java:computeCapacity(356)) - 2.0% max memory 958.5 MB = 19.2 MB
+      2016-03-28 17:22:33,325 INFO  [main] util.GSet (LightWeightGSet.java:computeCapacity(361)) - capacity      = 2^21 = 2097152 entries
+      2016-03-28 17:22:33,342 INFO  [main] blockmanagement.BlockManager (BlockManager.java:createBlockTokenSecretManager(358)) - dfs.block.access.token.enable=false
+      2016-03-28 17:22:33,342 INFO  [main] blockmanagement.BlockManager (BlockManager.java:<init>(344)) - defaultReplication         = 1
+      2016-03-28 17:22:33,342 INFO  [main] blockmanagement.BlockManager (BlockManager.java:<init>(345)) - maxReplication             = 512
+      2016-03-28 17:22:33,344 INFO  [main] blockmanagement.BlockManager (BlockManager.java:<init>(346)) - minReplication             = 1
+      2016-03-28 17:22:33,344 INFO  [main] blockmanagement.BlockManager (BlockManager.java:<init>(347)) - maxReplicationStreams      = 2
+      2016-03-28 17:22:33,344 INFO  [main] blockmanagement.BlockManager (BlockManager.java:<init>(348)) - replicationRecheckInterval = 3000
+      2016-03-28 17:22:33,344 INFO  [main] blockmanagement.BlockManager (BlockManager.java:<init>(349)) - encryptDataTransfer        = false
+      2016-03-28 17:22:33,344 INFO  [main] blockmanagement.BlockManager (BlockManager.java:<init>(350)) - maxNumBlocksToLog          = 1000
+      2016-03-28 17:22:33,350 INFO  [main] namenode.FSNamesystem (FSNamesystem.java:<init>(746)) - fsOwner             = hdfs (auth:SIMPLE)
+      2016-03-28 17:22:33,350 INFO  [main] namenode.FSNamesystem (FSNamesystem.java:<init>(747)) - supergroup          = supergroup
+      2016-03-28 17:22:33,350 INFO  [main] namenode.FSNamesystem (FSNamesystem.java:<init>(748)) - isPermissionEnabled = true
+      2016-03-28 17:22:33,350 INFO  [main] namenode.FSNamesystem (FSNamesystem.java:<init>(759)) - HA Enabled: false
+      2016-03-28 17:22:33,352 INFO  [main] namenode.FSNamesystem (FSNamesystem.java:<init>(796)) - Append Enabled: true
+      2016-03-28 17:22:33,393 INFO  [main] util.GSet (LightWeightGSet.java:computeCapacity(354)) - Computing capacity for map INodeMap
+      2016-03-28 17:22:33,393 INFO  [main] util.GSet (LightWeightGSet.java:computeCapacity(355)) - VM type       = 64-bit
+      2016-03-28 17:22:33,393 INFO  [main] util.GSet (LightWeightGSet.java:computeCapacity(356)) - 1.0% max memory 958.5 MB = 9.6 MB
+      2016-03-28 17:22:33,393 INFO  [main] util.GSet (LightWeightGSet.java:computeCapacity(361)) - capacity      = 2^20 = 1048576 entries
+      2016-03-28 17:22:33,396 INFO  [main] namenode.FSDirectory (FSDirectory.java:<init>(235)) - ACLs enabled? false
+      2016-03-28 17:22:33,396 INFO  [main] namenode.FSDirectory (FSDirectory.java:<init>(239)) - XAttrs enabled? true
+      2016-03-28 17:22:33,396 INFO  [main] namenode.FSDirectory (FSDirectory.java:<init>(247)) - Maximum size of an xattr: 16384
+      2016-03-28 17:22:33,396 INFO  [main] namenode.NameNode (FSDirectory.java:<init>(298)) - Caching file names occuring more than 10 times
+      2016-03-28 17:22:33,403 INFO  [main] util.GSet (LightWeightGSet.java:computeCapacity(354)) - Computing capacity for map cachedBlocks
+      2016-03-28 17:22:33,403 INFO  [main] util.GSet (LightWeightGSet.java:computeCapacity(355)) - VM type       = 64-bit
+      2016-03-28 17:22:33,403 INFO  [main] util.GSet (LightWeightGSet.java:computeCapacity(356)) - 0.25% max memory 958.5 MB = 2.4 MB
+      2016-03-28 17:22:33,403 INFO  [main] util.GSet (LightWeightGSet.java:computeCapacity(361)) - capacity      = 2^18 = 262144 entries
+      2016-03-28 17:22:33,405 INFO  [main] namenode.FSNamesystem (FSNamesystem.java:<init>(5166)) - dfs.namenode.safemode.threshold-pct = 0.9990000128746033
+      2016-03-28 17:22:33,405 INFO  [main] namenode.FSNamesystem (FSNamesystem.java:<init>(5167)) - dfs.namenode.safemode.min.datanodes = 0
+      2016-03-28 17:22:33,405 INFO  [main] namenode.FSNamesystem (FSNamesystem.java:<init>(5168)) - dfs.namenode.safemode.extension     = 30000
+      2016-03-28 17:22:33,408 INFO  [main] metrics.TopMetrics (TopMetrics.java:logConf(65)) - NNTop conf: dfs.namenode.top.window.num.buckets = 10
+      2016-03-28 17:22:33,408 INFO  [main] metrics.TopMetrics (TopMetrics.java:logConf(67)) - NNTop conf: dfs.namenode.top.num.users = 10
+      2016-03-28 17:22:33,408 INFO  [main] metrics.TopMetrics (TopMetrics.java:logConf(69)) - NNTop conf: dfs.namenode.top.windows.minutes = 1,5,25
+      2016-03-28 17:22:33,409 INFO  [main] namenode.FSNamesystem (FSNamesystem.java:initRetryCache(905)) - Retry cache on namenode is enabled
+      2016-03-28 17:22:33,409 INFO  [main] namenode.FSNamesystem (FSNamesystem.java:initRetryCache(913)) - Retry cache will use 0.03 of total heap and retry cache entry expiry time is 600000 millis
+      2016-03-28 17:22:33,411 INFO  [main] util.GSet (LightWeightGSet.java:computeCapacity(354)) - Computing capacity for map NameNodeRetryCache
+      2016-03-28 17:22:33,411 INFO  [main] util.GSet (LightWeightGSet.java:computeCapacity(355)) - VM type       = 64-bit
+      2016-03-28 17:22:33,412 INFO  [main] util.GSet (LightWeightGSet.java:computeCapacity(356)) - 0.029999999329447746% max memory 958.5 MB = 294.5 KB
+      2016-03-28 17:22:33,412 INFO  [main] util.GSet (LightWeightGSet.java:computeCapacity(361)) - capacity      = 2^15 = 32768 entries
+      2016-03-28 17:22:33,457 INFO  [main] namenode.FSImage (FSImage.java:format(158)) - Allocated new BlockPoolId: BP-309118338-10.254.30.26-1459200153427
+      2016-03-28 17:22:33,484 INFO  [main] common.Storage (NNStorage.java:format(552)) - Storage directory /tank/hdfs/namenode has been successfully formatted.
+      2016-03-28 17:22:33,583 INFO  [main] namenode.NNStorageRetentionManager (NNStorageRetentionManager.java:getImageTxIdToRetain(203)) - Going to retain 1 images with txid >= 0
+      2016-03-28 17:22:33,585 INFO  [main] util.ExitUtil (ExitUtil.java:terminate(124)) - Exiting with status 0
+      2016-03-28 17:22:33,587 INFO  [Thread-1] namenode.NameNode (LogAdapter.java:info(47)) - SHUTDOWN_MSG:
+      /************************************************************
+      SHUTDOWN_MSG: Shutting down NameNode at row6-01.labs.g2-inc.net/10.254.30.26
+      ************************************************************/
 
- 6. Start HDFS (Start the Name Node and Data Node)
+
+ 8. Start HDFS (Start the Name Node and Data Node)
+    unix> su - hdfs
     unix> start-dfs.sh
+    
+    Starting namenodes on [localhost]
+    localhost: starting namenode, logging to /var/log/hadoop/hadoop-hdfs-namenode-row6-01.out
+    cat: /usr/local/etc/hadoop/slaves: No such file or directory
+    Starting secondary namenodes [0.0.0.0]
+    The authenticity of host '0.0.0.0 (0.0.0.0)' can't be established.
+    ECDSA key fingerprint is SHA256:A2vDupT1A8ZGNEuMRO0lLeYZAIciZIM+R7awySwWDjs.
+    No matching host key fingerprint found in DNS.
+    Are you sure you want to continue connecting (yes/no)?  yes
 
 
- 7. Start MapReduce aka YARN (Resource Manager and Node Manager)
+ 9. Start MapReduce aka YARN (Resource Manager and Node Manager)
     unix> start-yarn.sh
 
+    starting yarn daemons
+    starting resourcemanager, logging to /var/log/hadoop/yarn-yarn-resourcemanager-row6-01.out
+    cat: /usr/local/etc/hadoop/slaves: No such file or directory
 
- 8. Verify it is running
+
+
+10. Verify it is running
     a. Go to the NodeManager's url:
        http://localhost:8042/
         
