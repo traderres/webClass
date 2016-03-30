@@ -33,11 +33,17 @@ Procedures
 
 
 
- 3. Download & Install Hadoop 2.7.2 src
-    a. Install cmake
+ 3. Download & Install Hadoop 2.7.2 from source
+    a. Install bzip2
+       unix> sudo yum install bzip2-devel  bzip2-libs
+
+    b. Install snappy-devel
+       unix> sudo yum install snappy-devel
+  
+    c. Install cmake
        unix> sudo yum install cmake
        
-    b. Download Protobuffers 2.5.0
+    d. Download Protobuffers 2.5.0
        unix> su -
        unix> cd /opt
        unix> wget https://github.com/google/protobuf/releases/download/v2.5.0/protobuf-2.5.0.tar.gz
@@ -45,7 +51,7 @@ Procedures
        unix> rm protobuf-2.5.0.tar.gz
        unix> chown -R adam:adam /opt/protobuf-2.5.0
        
-    c. Compile Protobuffers 
+    e. Compile Protobuffers 
        unix> su - adam
        unix> cd /opt/protobuf-2.5.0
        unix> ./autogen.sh
@@ -55,17 +61,15 @@ Procedures
        unix> make install
        unix> sudo ldconfig
     
-    d. Verify that all required tools are in the PATH
+    f. Verify that all required tools are in the PATH
        unix> export PATH=${PATH}:/opt/protobuf-2.5.0/distribution/bin
        unix> protoc --version
              libprotoc 2.5.0
              
        unix> cmake --version
              cmake version 2.8.12.2
-       
-       
-           
-    e. Download Hadoop Source Code
+            
+    g. Download Hadoop Source Code
        unix> su -
        unix> cd /opt
        unix> wget http://apache.claz.org/hadoop/common/hadoop-2.7.2/hadoop-2.7.2-src.tar.gz
@@ -74,7 +78,7 @@ Procedures
        unix> chown -R adam:adam /opt/hadoop-2.7.2-src
        unix> exit
 
-    f. Compile Hadoop Source Code
+    h. Compile Hadoop Source Code
        NOTE:  We need to have protoc in the PATH
        unix> su - adam
        unix> export PATH=${PATH}:/opt/protobuf-2.5.0/distribution/bin
@@ -85,33 +89,52 @@ Procedures
              The newly built libraries should be here:
                   /opt/hadoop-2.7.2-src/hadoop-dist/target/hadoop-2.7.2/lib/native
     
-    d. Check Hadoop Native
+  
+    i. Install Hadoop 
+       unix> su - 
+       unix> cp -r /opt/hadoop-2.7.2-src/hadoop-dist/target/hadoop-2.7.2   /opt/
+       unix> chmod -R ugo+r /opt/hadoop-2.7.2
+             -- Now, hadoop is installed to /opt/hadoop-2.7.2/
+             
+             
+    j. Check Hadoop Native
+       unix> su - adam
+       unix> hadoop version
+            Hadoop 2.7.2
+            Subversion Unknown -r Unknown
+            Compiled by adam on 2016-03-30T02:49Z
+            Compiled with protoc 2.5.0
+            From source with checksum d0fda26633fa762bff87ec759ebe689c
+            This command was run using /opt/hadoop-2.7.2/share/hadoop/common/hadoop-common-2.7.2.jar
+       
+       unix> export HADOOP_OPTS=-Djava.library.path=/opt/hadoop-2.7.2/lib/native
        unix> hadoop checknative -a
 
-
-    e. Install Hadoop Native
-       unix> mv lib /usr/local/Cellar/hadoop/2.7.1/
+    
+    k. Update hadoop-env.sh with HADOOP_OPTS
        
      
-
-# cd /usr/local/hadoop_src/hadoop-2.7.2-src/hadoop-dist/target/hadoop-2.7.2/lib/
-
-# tar -cvf native_NEW.tar.gz native
-
-# cp native_NEW.tar.gz /usr/lib/hadoop/lib/
-
-# cd /usr/lib/hadoop/lib/
-
-# tar -cvf native_ORIGINAL.tar.gz native
-
-# rm -rf native
-
-# tar -xvf native_NEW.tar.gz
+    How to fix libjvm.so not found
+    ------------------------------
+    unix> cd /opt/hadoop-2.7.2/lib/native
+    unix> ldd ./libhadoop.so.1.0.0 
+            linux-vdso.so.1 =>  (0x00007ffc109dd000)
+            libdl.so.2 => /lib64/libdl.so.2 (0x00007feff66a9000)
+            libjvm.so => not found
+            libc.so.6 => /lib64/libc.so.6 (0x00007feff6314000)
+            /lib64/ld-linux-x86-64.so.2 (0x000000395d000000)
+    
+    unix> locate libjvm.so
+            /usr/java/jdk1.7.0_55/jre/lib/amd64/server/libjvm.so
+    
+    
+    unix> sudo ln -s /usr/java/jdk1.7.0_55/jre/lib/amd64/server/libjvm.so /lib64/libjvm.so
      
        
+        
        
        
-    b. Setup environment variables
+  4. Update your environment      
        unix> vi ~/.bashrc
        
        NOTE:  Add these to your ~/.bashrc
@@ -138,7 +161,7 @@ Procedures
 
 
 
- 4. Create a hadoop account so it can ssh to localhost [without prompting for password]
+ 5. Create a hadoop account so it can ssh to localhost [without prompting for password]
     a. Create a new user:  hadoop
        unix> su -
        unix> adduser hadoop --home /home/hadoop --create-home --system
@@ -193,7 +216,7 @@ Procedures
 
        
 
- 5. Configure Hadoop to run in pseudo-distributed mode
+ 6. Configure Hadoop to run in pseudo-distributed mode
     NOTE:  We are setting hadoop's temp directory
     
     a. Create this file:  core-site.xml
@@ -337,7 +360,7 @@ Procedures
        
 
 
- 6. Format the Name Node
+ 7. Format the Name Node
     unix> su -
     unix> rm -rf /tank/hadoop
     unix> mkdir -p /tank/hadoop
@@ -422,7 +445,7 @@ Procedures
 
 
 
- 7. Start HDFS (Start the Name Node and Data Node)
+ 8. Start HDFS (Start the Name Node and Data Node)
     unix> su - hadoop
     unix> start-dfs.sh
     
@@ -440,7 +463,7 @@ Procedures
 
 
 
- 8. Start MapReduce aka YARN (Resource Manager and Node Manager)
+ 9. Start MapReduce aka YARN (Resource Manager and Node Manager)
     unix> start-yarn.sh
 
     starting yarn daemons
@@ -449,12 +472,12 @@ Procedures
 
 
 
- 9. Start the History server [that listens on port 19888]
+10. Start the History server [that listens on port 19888]
     unix> mr-jobhistory-daemon.sh --config $HADOOP_HOME/etc/hadoop start historyserver
 
 
 
-10. Verify it is running
+11. Verify it is running
     a. Go to the NodeManager's url:
        http://localhost:8042/
        *OR*
