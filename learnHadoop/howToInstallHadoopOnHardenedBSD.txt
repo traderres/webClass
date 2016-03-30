@@ -332,12 +332,16 @@ Procedures
                  
 
     d. Create this file:  mapred-site.xml
+       NOTE:  mapreduce.map.memory.mb=2925          # RAM-per-Container = 2925   (this is the upper memory limit Hadoop allocates to mapper)
+       NOTE:  mapreduce.reduce.memory.mb=40960      # 2 *RAM-per-Container = 5850.  But, decided to make it 40 GB or 40960
+       NOTE:  mapreduce.map.java.opts=2340          # 0.8 * RAM-per-Container = .8 * 2925 = 2340  (heap size for a mapper)
+       NOTE:  mapreduce.reduce.java.opts=9360       # 0.8 * 2 * RAM-per-Container = 0.8 * 2 * 2925 = 4680  * (fudge factor of 2) = 9360
+       
        unix> cd /usr/local/etc/hadoop
        unix> vi mapred-site.xml
-       
              <?xml version="1.0"?>
              <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
-             
+
              <configuration>
                 <property>
                    <name>mapreduce.framework.name</name>
@@ -346,9 +350,25 @@ Procedures
                 <property>
                    <name>yarn.app.mapreduce.am.staging-dir</name>
                    <value>/user</value>
-                   <description>The staging dir (inside HDFS) that is used while submitting jobs</description>
                 </property>
-             </configuration>    
+                <property>
+                   <name>mapreduce.map.memory.mb</name>
+                   <value>2925</value>
+                </property>
+                <property>
+                   <name>mapreduce.reduce.memory.mb</name>
+                   <value>40960</value>
+                </property>
+                <property>
+                   <name>mapreduce.map.java.opts</name>
+                   <value>2340</value>
+                </property>
+                <property>
+                   <name>mapreduce.reduce.java.opts</name>
+                   <value>9360</value>
+                </property>
+             </configuration>
+
     
     
     e. Create this file:  slaves
@@ -623,7 +643,7 @@ Procedures
 
 10. **OPTIONAL** Start the History server [that listens on port 19888]
     The History Server keeps job counter statistics for executed job
-    unix> mr-jobhistory-daemon.sh --config $HADOOP_HOME/etc/hadoop start historyserver
+    unix> mr-jobhistory-daemon.sh --config /usr/local/etc/hadoop start historyserver
 
 
 
@@ -686,7 +706,7 @@ Benchmark your HDFS with teragen
  
     b. Generate 1 trillion records to sort
        unix> cd /usr/local/share/hadoop/mapreduce/
-       unix> hadoop jar hadoop-mapreduce-examples-2.7.2.jar teragen 10000000000  /terasort-input
+       unix> hadoop jar hadoop-mapreduce-examples-2.7.2.jar teragen 10000000000  /terasort-input  | tee /tmp/teragenCounters.txt
  
        NOTE:  The parameter supplied to TeraGen is 10 billion (10,000,000,000) and not 1 trillion.
               The reason is that the first parameter specifies the number of rows of input data to generate
@@ -706,7 +726,7 @@ Benchmark your HDFS with teragen
   
     c. Sort the input data
        unix> cd /usr/local/share/hadoop/mapreduce/
-       unix> hadoop jar hadoop-mapreduce-examples-2.7.2.jar terasort   /terasort-input  /terasort-output
+       unix> hadoop jar hadoop-mapreduce-examples-2.7.2.jar terasort   /terasort-input  /terasort-output | tee /tmp/terasortCounters.txt
 
              W A I T     6 +    H O U R S 
 
@@ -753,6 +773,6 @@ How to Kill a Hadoop Job via Command-Line
  
 How to Stop Everything
 ----------------------
-unix> mr-jobhistory-daemon.sh --config $HADOOP_HOME/etc/hadoop stop historyserver
+unix> mr-jobhistory-daemon.sh --config /usr/local/etc/hadoop stop historyserver
 unix> stop-all.sh
 
