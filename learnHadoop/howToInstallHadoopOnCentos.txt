@@ -1,0 +1,651 @@
+How to Install Hadoop on CentOS 6
+---------------------------------
+
+Assumptions:
+ A) You are root
+ B) Your operating system is CentOS 6
+ C) You want to setup Hadoop on the computer
+ D) You want your hadoop to run out of this directory:  /tank/hadoop
+ E) You want hadoop to use 4 cores and up to 4 GB of RAM
+ 
+ 
+References
+----------
+http://www.michael-noll.com/blog/2011/04/09/benchmarking-and-stress-testing-an-hadoop-cluster-with-terasort-testdfsio-nnbench-mrbench/
+http://stackoverflow.com/questions/31733313/how-to-best-run-hadoop-on-single-machine
+http://stackoverflow.com/questions/19943766/hadoop-unable-to-load-native-hadoop-library-for-your-platform-warning
+
+ 
+Procedures
+----------
+ 1. Uninstall open-JDK
+    NOTE:  If you have Java JDK that you are happy with, then skip to the next step 
+   
+    a. Open a terminal
+       unix> sudo yum search openjdk
+             java-1.6.0-openjdk
+             java-1.7.0-openjdk
+             java-1.8.0-openjdk
+    
+       unix> sudo yum remove java-1.6.0-openjdk
+       unix> sudo yum remove java-1.7.0-openjdk
+       unix> sudo yum remove java-1.8.0-openjdk
+       
+       # Search for any other RPM jdk packages
+       unix> sudo rpm -q jdk
+       
+             Case #1: 
+               If you see something this:
+                  jdk-1.7.0_55-fcs.i586
+                  jdk-1.7.0_55-fcs.x86_64
+               Then uninstall these java jdk packages (using rpm -e)
+                  unix> rpm -e jdk-1.7.0_55-fcs.i586
+                  unix> rpm -e jdk-1.7.0_55-fcs.x86_64
+            
+             Case #2: 
+               If you see this:
+                   package jdk is not installed
+               Then, there are no other Sun JDKs installed -- so continue
+
+
+ 2. Download & Install Java 8.0.73
+    a. Download Java JDK to your c:\vault
+       On your Windows box, download jdk-8u73-linux-x64.rpm
+       1) Go to http://www.oracle.com/technetwork/java/javase/downloads/java-archive-javase8-2177648.html
+       2) Browse to Java SE Development Kit 8u73
+       3) Click Accept License Agreement
+       4) Click on jdk-8u73-linux-x64.rpm
+       5) Save it to your c:\vault
+              
+       # Copy the jdk linux x64 rpm to your /opt
+       unix> cd /opt
+       unix> sudo cp /media/sf_vault/jdk-8u73-linux-x64.rpm  .
+       
+       # Install the Java jdk 8.0.73
+       unix> sudo rpm -ivh jdk-8u73-linux-x64.rpm
+   
+       # Verify it worked
+       unix> java -version
+       
+       You should see this:
+             java version "1.8.0_73"
+             Java(TM) SE Runtime Environment (build 1.8.0_73-b02)
+             Java HotSpot(TM) 64-Bit Server VM (build 25.73-b02, mixed mode)
+
+
+
+ 3. Download & Install Java 7.0.55
+    a. Download Java JDK to your c:\vault
+       On your Windows box, download jdk-7u55-linux-x64.rpm
+       1) Go to http://www.oracle.com/technetwork/java/javase/downloads/java-archive-downloads-javase7-521261.html
+       2) Click on Java SE Development Kit 7u55
+       3) Click Accept License Agreement
+       4) Click on jdk-7u55-linux-x64.rpm
+       5) Save it to your c:\vault
+              
+       # Copy the jdk linux x64 rpm to your /opt
+       unix> cd /opt
+       unix> sudo cp /media/sf_vault/jdk-7u55-linux-x64.rpm  .
+       
+       # Install the Java jdk 7.0.55
+       unix> sudo rpm -ivh --force jdk-7u55-linux-x64.rpm
+
+
+
+ 4. Setup your .bashrc to use Java 1.7 or 1.8
+    a. If you want your profile to use Java 1.7  
+       unix> vi ~/.bashrc
+      
+         # Setup JAVA_HOME to use Java 1.7 and add it to the path
+         export JAVA_HOME=/usr/java/jdk1.7.0_55
+         export PATH=${JAVA_HOME}/bin:$PATH
+
+       # Verify it worked
+       unix> source ~/.bashrc
+       unix> java -version
+       
+       You should see this:
+             java version "1.7.0_55"
+             Java(TM) SE Runtime Environment (build 1.7.0_55-b13)
+             Java HotSpot(TM) 64-Bit Server VM (build 24.55-b03, mixed mode)
+      
+     
+      
+     b. If you want your profile to use Java 1.8 
+        unix> vi ~/.bashrc
+      
+          # Setup JAVA_HOME to use Java 1.8 and add it to the path
+          export JAVA_HOME=/usr/java/jdk1.8.0_73
+          export PATH=${JAVA_HOME}/bin:$PATH
+
+        # Verify it worked
+        unix> source ~/.bashrc
+        unix> java -version
+       
+        You should see this:
+             java version "1.8.0_73"
+             Java(TM) SE Runtime Environment (build 1.8.0_73-b02)
+             Java HotSpot(TM) 64-Bit Server VM (build 25.73-b02, mixed mode)
+             
+
+
+ 4. Verify that java can be executed
+    unix> java -version
+          openjdk version "1.7.0_95"
+          OpenJDK Runtime Environment (build 1.7.0_95-b00)
+          OpenJDK 64-Bit Server VM (build 24.95-b01, mixed mode)
+             
+
+
+ 5. Download & Install Hadoop 2.7.2 binaries for CentOS
+    a. Download & Install Hadoop
+       unix> su -
+       unix> cd /opt
+       unix> wget http://apache.claz.org/hadoop/common/hadoop-2.7.2/hadoop-2.7.2.tar.gz
+       unix> tar zxvf hadoop-2.7.2.tar.gz
+       unix> rm hadoop-2.7.2.tar.gz
+       unix> exit
+       
+    b. Setup environment variables
+       unix> vi ~/.bashrc
+       
+       NOTE:  Add these to your ~/.bashrc
+
+       export HADOOP_HOME=/opt/hadoop-2.7.2
+       export HADOOP_INSTALL=$HADOOP_HOME
+       export HADOOP_MAPRED_HOME=$HADOOP_HOME
+       export HADOOP_COMMON_HOME=$HADOOP_HOME
+       export HADOOP_HDFS_HOME=$HADOOP_HOME
+       export YARN_HOME=$HADOOP_HOME
+       export HADOOP_COMMON_LIB_NATIVE_DIR=$HADOOP_HOME/lib/native
+       export PATH=$PATH:$HADOOP_HOME/sbin:$HADOOP_HOME/bin
+   
+    c. Verify that the hadoop command is found in your PATH
+       1) Open a new terminal
+       2) Run these commands
+          unix> hadoop version
+                Hadoop 2.7.2
+                Subversion https://git-wip-us.apache.org/repos/asf/hadoop.git -r b165c4fe8a74265c792ce23f546c64604acf0e41
+                Compiled by jenkins on 2016-01-26T00:08Z
+                Compiled with protoc 2.5.0
+                From source with checksum d0fda26633fa762bff87ec759ebe689c
+                This command was run using /opt/hadoop-2.7.2/share/hadoop/common/hadoop-common-2.7.2.jar
+
+
+
+ 6. Create a hadoop account so it can ssh to localhost [without prompting for password]
+    a. Create a new user:  hadoop
+       unix> su -
+       unix> adduser hadoop --home /home/hadoop --create-home --system
+       unix> passwd hadoop
+
+
+    b. Setup the hadoop account so it can ssh to localhost [without prompting for password]\
+       unix> su - hadoop
+   
+       unix> ssh-keygen -t rsa
+             Enter file in which to save the key (/home/hadoop/.ssh/id_rsa):   <press enter>
+             
+             Enter passphrase (empty for no passphrase):    <press enter>
+             Enter same passphrase again:                   <press enter>
+ 
+       unix> cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+       unix> chmod 0600 ~/.ssh/authorized_keys
+ 
+ 
+    c. Verify that hadoop can ssh to localhost without prompting for a password
+       NOTE:  This ssh command should *not*  ask for password but first time it will prompt for adding RSA to the list of known hosts.
+       unix> ssh localhost
+       
+       The authenticity of host 'localhost (::1)' can't be established.
+       RSA key fingerprint is 9b:35:ab:51:bc:6e:92:ff:a5:4f:2d:a9:11:d5:36:ae.
+       Are you sure you want to continue connecting (yes/no)?                    yes
+     
+
+    d. Add HADOOP to the hadoop user's path
+       unix> vi /home/hadoop/.bashrc
+       
+       NOTE:  Add these to the hadoop's ~/.bashrc
+
+       export HADOOP_HOME=/opt/hadoop-2.7.2
+       export HADOOP_INSTALL=$HADOOP_HOME
+       export HADOOP_MAPRED_HOME=$HADOOP_HOME
+       export HADOOP_COMMON_HOME=$HADOOP_HOME
+       export HADOOP_HDFS_HOME=$HADOOP_HOME
+       export YARN_HOME=$HADOOP_HOME
+       export HADOOP_COMMON_LIB_NATIVE_DIR=$HADOOP_HOME/lib/native
+       export PATH=$PATH:$HADOOP_HOME/sbin:$HADOOP_HOME/bin
+       
+       # Setup JAVA_HOME to use Java 1.7 and add it to the path
+       export JAVA_HOME=/usr/java/jdk1.7.0_55
+       export PATH=${JAVA_HOME}/bin:$PATH
+
+
+    e. Make sure the hadoop account has permission to write to /opt/hadoop-2.7.2/logs/
+       unix> su - 
+       unix> mkdir -p /opt/hadoop-2.7.2/logs
+       unix> chown -R hadoop:hadoop /opt/hadoop-2.7.2/logs
+
+       
+
+ 7. Configure Hadoop to run in pseudo-distributed mode
+    NOTE:  We are setting hadoop's temp directory
+    
+    a. Create this file:  core-site.xml
+       unix> cd /opt/hadoop-2.7.2/etc/hadoop
+       unix> vi core-site.xml
+      
+        <?xml version="1.0" encoding="UTF-8"?>
+        <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>        
+            <configuration>
+                <property>
+                    <name>fs.defaultFS</name>
+                    <value>hdfs://localhost:9000</value>
+                </property>
+                <property>
+                    <name>hadoop.tmp.dir</name>
+                    <value>/tank/hadoop/tmp</value>
+                </property>
+            </configuration>
+   
+     
+    b. Edit this file:  hdfs-site.xml
+       Note:  Create namenode and datanode directory under /tank/hadoop
+       Note:  Set the datanode to listen on port 50001
+      
+       unix> cd /opt/hadoop-2.7.2/etc/hadoop
+       unix> vi hdfs-site.xml
+      
+           
+       <?xml version="1.0" encoding="UTF-8"?>
+       <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+            <configuration>
+                <property>
+                    <name>dfs.replication</name>
+                    <value>1</value>
+                </property>
+                <property>
+                    <name>dfs.namenode.name.dir</name>
+                    <value>/tank/hadoop/namenode</value>
+                </property>
+                <property>
+                    <name>dfs.datanode.data.dir</name>
+                    <value>/tank/hadoop/datanode</value>
+                </property>
+
+                <property>
+                    <name>dfs.datanode.address</name>
+                    <value>localhost:50001</value>
+                </property>
+                
+            </configuration>
+      
+      
+    c. Edit this file:  yarn-site.xml
+       NOTE:  yarn.nodemanager.resource.memory-mb=4096 MB (or 4 GB) -- that is a ceiling on how much memory hadoop will use
+       NOTE:  yarn.nodemanager.resource.cpu-vcores=4  (to use 4 of the total 4 cores)
+       NOTE:  yarn.scheduler.minimum-allocation-mb=1024 so that Hadoop only allocates 4 vcores (4096/4 = 1024)
+       
+       unix> cd /opt/hadoop-2.7.2/etc/hadoop
+       unix> vi yarn-site.xml
+
+        <?xml version="1.0"?>
+         <configuration>
+            <property>
+               <name>yarn.nodemanager.aux-services</name>
+               <value>mapreduce_shuffle</value>
+            </property>
+            <property>
+               <name>yarn.nodemanager.aux-services.mapreduce.shuffle.class</name>
+               <value>org.apache.hadoop.mapred.ShuffleHandler</value>
+            </property>
+           <property>
+               <name>yarn.nodemanager.resource.memory-mb</name>
+               <value>4096</value>
+            </property>
+            <property>
+               <name>yarn.scheduler.minimum-allocation-mb</name>
+               <value>1024</value>
+            </property>
+            <property>
+               <name>yarn.scheduler.maximum-allocation-mb</name>
+               <value>4096</value>
+            </property>
+            <property>
+               <name>yarn.nodemanager.resource.cpu-vcores</name>
+               <value>4</value>
+            </property>
+            <property>
+               <name>yarn.scheduler.minimum-allocation-vcores</name>
+               <value>1</value>
+            </property>
+            <property>
+               <name>yarn.scheduler.increment-allocation-vcores</name>
+               <value>1</value>
+            </property>
+            <property>
+               <name>yarn.scheduler.maximum-allocation-vcores</name>
+               <value>4</value>
+            </property>
+            <property>
+               <name>yarn.application.classpath</name>
+               <value>
+                    $HADOOP_HOME/etc/hadoop,
+                    $HADOOP_HOME/share/hadoop/common/*,
+                    $HADOOP_HOME/share/hadoop/common/lib/*,
+                    $HADOOP_HOME/share/hadoop/mapreduce/*,
+                    $HADOOP_HOME/share/hadoop/mapreduce/lib/*,
+                    $HADOOP_HOME/share/hadoop/hdfs/*,
+                    $HADOOP_HOME/share/hadoop/hdfs/lib/*,          
+                    $HADOOP_HOME/share/hadoop/yarn/*,
+                    $HADOOP_HOME/share/hadoop/yarn/lib/*
+               </value>
+            </property>
+        </configuration> 
+                 
+
+    d. Edit this file:  mapred-site.xml
+       unix> cd /opt/hadoop-2.7.2/etc/hadoop
+       unix> cp mapred-site.xml.template mapred-site.xml
+       unix> vi mapred-site.xml
+       
+             <?xml version="1.0"?>
+             <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+             
+             <configuration>
+                <property>
+                   <name>mapreduce.framework.name</name>
+                   <value>yarn</value>
+                </property>
+                <property>
+                   <name>yarn.app.mapreduce.am.staging-dir</name>
+                   <value>/user</value>
+                   <description>The staging dir (inside HDFS) that is  used while submitting jobs.</description>
+                </property>
+             </configuration>    
+    
+    
+    e. Create this file:  slaves
+       unix> cd /opt/hadoop-2.7.2/etc/hadoop
+       unix> echo localhost > slaves
+       
+       
+
+
+ 7. Format the Name Node
+    unix> su -
+    unix> rm -rf /tank/hadoop
+    unix> mkdir -p /tank/hadoop
+    unix> chown -R hadoop:hadoop /tank/hadoop
+    
+    unix> su - hadoop
+    unix> hdfs namenode -format
+
+    You should see this:
+    
+    16/03/29 19:42:42 INFO namenode.NameNode: STARTUP_MSG: 
+    /************************************************************
+    STARTUP_MSG: Starting NameNode
+    STARTUP_MSG:   host = centosVM/127.0.0.1
+    STARTUP_MSG:   args = [-format]
+    STARTUP_MSG:   version = 2.7.2
+    STARTUP_MSG:   classpath = /opt/hadoop-2.7.2/etc/hadoop:/opt/hadoop-2.7.2/share/hadoop/common/lib/apacheds-kerberos-codec-2.0.0-M15.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/htrace-core-3.1.0-incubating.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/hadoop-annotations-2.7.2.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/jackson-mapper-asl-1.9.13.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/jaxb-api-2.2.2.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/hamcrest-core-1.3.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/jackson-jaxrs-1.9.13.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/xz-1.0.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/jaxb-impl-2.2.3-1.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/commons-codec-1.4.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/commons-httpclient-3.1.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/gson-2.2.4.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/avro-1.7.4.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/jsr305-3.0.0.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/servlet-api-2.5.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/hadoop-auth-2.7.2.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/stax-api-1.0-2.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/slf4j-api-1.7.10.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/jsch-0.1.42.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/httpclient-4.2.5.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/commons-io-2.4.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/log4j-1.2.17.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/commons-beanutils-1.7.0.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/xmlenc-0.52.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/commons-collections-3.2.2.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/java-xmlbuilder-0.4.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/paranamer-2.3.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/jersey-server-1.9.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/zookeeper-3.4.6.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/commons-net-3.1.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/commons-math3-3.1.1.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/netty-3.6.2.Final.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/jettison-1.1.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/jets3t-0.9.0.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/commons-beanutils-core-1.8.0.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/snappy-java-1.0.4.1.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/asm-3.2.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/jersey-core-1.9.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/guava-11.0.2.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/curator-framework-2.7.1.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/commons-digester-1.8.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/jackson-xc-1.9.13.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/apacheds-i18n-2.0.0-M15.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/slf4j-log4j12-1.7.10.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/mockito-all-1.8.5.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/api-asn1-api-1.0.0-M20.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/jersey-json-1.9.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/commons-cli-1.2.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/curator-recipes-2.7.1.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/httpcore-4.2.5.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/jsp-api-2.1.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/commons-compress-1.4.1.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/curator-client-2.7.1.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/commons-logging-1.1.3.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/api-util-1.0.0-M20.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/activation-1.1.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/junit-4.11.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/jetty-6.1.26.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/protobuf-java-2.5.0.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/jackson-core-asl-1.9.13.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/jetty-util-6.1.26.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/commons-lang-2.6.jar:/opt/hadoop-2.7.2/share/hadoop/common/lib/commons-configuration-1.6.jar:/opt/hadoop-2.7.2/share/hadoop/common/hadoop-common-2.7.2.jar:/opt/hadoop-2.7.2/share/hadoop/common/hadoop-nfs-2.7.2.jar:/opt/hadoop-2.7.2/share/hadoop/common/hadoop-common-2.7.2-tests.jar:/opt/hadoop-2.7.2/share/hadoop/hdfs:/opt/hadoop-2.7.2/share/hadoop/hdfs/lib/htrace-core-3.1.0-incubating.jar:/opt/hadoop-2.7.2/share/hadoop/hdfs/lib/jackson-mapper-asl-1.9.13.jar:/opt/hadoop-2.7.2/share/hadoop/hdfs/lib/commons-codec-1.4.jar:/opt/hadoop-2.7.2/share/hadoop/hdfs/lib/jsr305-3.0.0.jar:/opt/hadoop-2.7.2/share/hadoop/hdfs/lib/servlet-api-2.5.jar:/opt/hadoop-2.7.2/share/hadoop/hdfs/lib/commons-io-2.4.jar:/opt/hadoop-2.7.2/share/hadoop/hdfs/lib/log4j-1.2.17.jar:/opt/hadoop-2.7.2/share/hadoop/hdfs/lib/xmlenc-0.52.jar:/opt/hadoop-2.7.2/share/hadoop/hdfs/lib/jersey-server-1.9.jar:/opt/hadoop-2.7.2/share/hadoop/hdfs/lib/commons-daemon-1.0.13.jar:/opt/hadoop-2.7.2/share/hadoop/hdfs/lib/netty-3.6.2.Final.jar:/opt/hadoop-2.7.2/share/hadoop/hdfs/lib/asm-3.2.jar:/opt/hadoop-2.7.2/share/hadoop/hdfs/lib/jersey-core-1.9.jar:/opt/hadoop-2.7.2/share/hadoop/hdfs/lib/guava-11.0.2.jar:/opt/hadoop-2.7.2/share/hadoop/hdfs/lib/commons-cli-1.2.jar:/opt/hadoop-2.7.2/share/hadoop/hdfs/lib/xercesImpl-2.9.1.jar:/opt/hadoop-2.7.2/share/hadoop/hdfs/lib/commons-logging-1.1.3.jar:/opt/hadoop-2.7.2/share/hadoop/hdfs/lib/xml-apis-1.3.04.jar:/opt/hadoop-2.7.2/share/hadoop/hdfs/lib/jetty-6.1.26.jar:/opt/hadoop-2.7.2/share/hadoop/hdfs/lib/protobuf-java-2.5.0.jar:/opt/hadoop-2.7.2/share/hadoop/hdfs/lib/jackson-core-asl-1.9.13.jar:/opt/hadoop-2.7.2/share/hadoop/hdfs/lib/jetty-util-6.1.26.jar:/opt/hadoop-2.7.2/share/hadoop/hdfs/lib/leveldbjni-all-1.8.jar:/opt/hadoop-2.7.2/share/hadoop/hdfs/lib/commons-lang-2.6.jar:/opt/hadoop-2.7.2/share/hadoop/hdfs/lib/netty-all-4.0.23.Final.jar:/opt/hadoop-2.7.2/share/hadoop/hdfs/hadoop-hdfs-nfs-2.7.2.jar:/opt/hadoop-2.7.2/share/hadoop/hdfs/hadoop-hdfs-2.7.2.jar:/opt/hadoop-2.7.2/share/hadoop/hdfs/hadoop-hdfs-2.7.2-tests.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/jackson-mapper-asl-1.9.13.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/jaxb-api-2.2.2.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/jackson-jaxrs-1.9.13.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/xz-1.0.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/jaxb-impl-2.2.3-1.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/commons-codec-1.4.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/guice-servlet-3.0.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/jsr305-3.0.0.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/servlet-api-2.5.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/stax-api-1.0-2.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/commons-io-2.4.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/log4j-1.2.17.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/commons-collections-3.2.2.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/jersey-server-1.9.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/zookeeper-3.4.6.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/javax.inject-1.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/guice-3.0.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/netty-3.6.2.Final.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/jettison-1.1.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/asm-3.2.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/jersey-core-1.9.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/guava-11.0.2.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/jersey-client-1.9.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/aopalliance-1.0.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/jackson-xc-1.9.13.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/jersey-json-1.9.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/commons-cli-1.2.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/commons-compress-1.4.1.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/commons-logging-1.1.3.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/jersey-guice-1.9.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/activation-1.1.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/jetty-6.1.26.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/protobuf-java-2.5.0.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/jackson-core-asl-1.9.13.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/jetty-util-6.1.26.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/leveldbjni-all-1.8.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/commons-lang-2.6.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/lib/zookeeper-3.4.6-tests.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/hadoop-yarn-server-sharedcachemanager-2.7.2.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/hadoop-yarn-server-nodemanager-2.7.2.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/hadoop-yarn-api-2.7.2.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/hadoop-yarn-server-web-proxy-2.7.2.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/hadoop-yarn-server-tests-2.7.2.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/hadoop-yarn-client-2.7.2.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/hadoop-yarn-applications-distributedshell-2.7.2.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/hadoop-yarn-applications-unmanaged-am-launcher-2.7.2.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/hadoop-yarn-server-applicationhistoryservice-2.7.2.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/hadoop-yarn-common-2.7.2.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/hadoop-yarn-server-resourcemanager-2.7.2.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/hadoop-yarn-server-common-2.7.2.jar:/opt/hadoop-2.7.2/share/hadoop/yarn/hadoop-yarn-registry-2.7.2.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/lib/hadoop-annotations-2.7.2.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/lib/jackson-mapper-asl-1.9.13.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/lib/hamcrest-core-1.3.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/lib/xz-1.0.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/lib/guice-servlet-3.0.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/lib/avro-1.7.4.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/lib/commons-io-2.4.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/lib/log4j-1.2.17.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/lib/paranamer-2.3.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/lib/jersey-server-1.9.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/lib/javax.inject-1.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/lib/guice-3.0.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/lib/netty-3.6.2.Final.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/lib/snappy-java-1.0.4.1.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/lib/asm-3.2.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/lib/jersey-core-1.9.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/lib/aopalliance-1.0.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/lib/commons-compress-1.4.1.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/lib/jersey-guice-1.9.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/lib/junit-4.11.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/lib/protobuf-java-2.5.0.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/lib/jackson-core-asl-1.9.13.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/lib/leveldbjni-all-1.8.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/hadoop-mapreduce-client-core-2.7.2.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/hadoop-mapreduce-client-shuffle-2.7.2.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/hadoop-mapreduce-client-app-2.7.2.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/hadoop-mapreduce-client-hs-2.7.2.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/hadoop-mapreduce-examples-2.7.2.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/hadoop-mapreduce-client-jobclient-2.7.2.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/hadoop-mapreduce-client-common-2.7.2.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/hadoop-mapreduce-client-hs-plugins-2.7.2.jar:/opt/hadoop-2.7.2/share/hadoop/mapreduce/hadoop-mapreduce-client-jobclient-2.7.2-tests.jar:/opt/hadoop-2.7.2/contrib/capacity-scheduler/*.jar
+    STARTUP_MSG:   build = https://git-wip-us.apache.org/repos/asf/hadoop.git -r b165c4fe8a74265c792ce23f546c64604acf0e41; compiled by 'jenkins' on 2016-01-26T00:08Z
+    STARTUP_MSG:   java = 1.7.0_55
+    ************************************************************/
+    16/03/29 19:42:42 INFO namenode.NameNode: registered UNIX signal handlers for [TERM, HUP, INT]
+    16/03/29 19:42:42 INFO namenode.NameNode: createNameNode [-format]
+    16/03/29 19:42:43 WARN util.NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+    16/03/29 19:42:44 WARN common.Util: Path /tank/hadoop/namenode should be specified as a URI in configuration files. Please update hdfs configuration.
+    16/03/29 19:42:44 WARN common.Util: Path /tank/hadoop/namenode should be specified as a URI in configuration files. Please update hdfs configuration.
+    Formatting using clusterid: CID-430a0170-ccf5-4520-8123-94108c904655
+    16/03/29 19:42:44 INFO namenode.FSNamesystem: No KeyProvider found.
+    16/03/29 19:42:44 INFO namenode.FSNamesystem: fsLock is fair:true
+    16/03/29 19:42:45 INFO blockmanagement.DatanodeManager: dfs.block.invalidate.limit=1000
+    16/03/29 19:42:45 INFO blockmanagement.DatanodeManager: dfs.namenode.datanode.registration.ip-hostname-check=true
+    16/03/29 19:42:45 INFO blockmanagement.BlockManager: dfs.namenode.startup.delay.block.deletion.sec is set to 000:00:00:00.000
+    16/03/29 19:42:45 INFO blockmanagement.BlockManager: The block deletion will start around 2016 Mar 29 19:42:45
+    16/03/29 19:42:45 INFO util.GSet: Computing capacity for map BlocksMap
+    16/03/29 19:42:45 INFO util.GSet: VM type       = 64-bit
+    16/03/29 19:42:45 INFO util.GSet: 2.0% max memory 889 MB = 17.8 MB
+    16/03/29 19:42:45 INFO util.GSet: capacity      = 2^21 = 2097152 entries
+    16/03/29 19:42:45 INFO blockmanagement.BlockManager: dfs.block.access.token.enable=false
+    16/03/29 19:42:45 INFO blockmanagement.BlockManager: defaultReplication         = 1
+    16/03/29 19:42:45 INFO blockmanagement.BlockManager: maxReplication             = 512
+    16/03/29 19:42:45 INFO blockmanagement.BlockManager: minReplication             = 1
+    16/03/29 19:42:45 INFO blockmanagement.BlockManager: maxReplicationStreams      = 2
+    16/03/29 19:42:45 INFO blockmanagement.BlockManager: replicationRecheckInterval = 3000
+    16/03/29 19:42:45 INFO blockmanagement.BlockManager: encryptDataTransfer        = false
+    16/03/29 19:42:45 INFO blockmanagement.BlockManager: maxNumBlocksToLog          = 1000
+    16/03/29 19:42:45 INFO namenode.FSNamesystem: fsOwner             = hadoop (auth:SIMPLE)
+    16/03/29 19:42:45 INFO namenode.FSNamesystem: supergroup          = supergroup
+    16/03/29 19:42:45 INFO namenode.FSNamesystem: isPermissionEnabled = true
+    16/03/29 19:42:45 INFO namenode.FSNamesystem: HA Enabled: false
+    16/03/29 19:42:45 INFO namenode.FSNamesystem: Append Enabled: true
+    16/03/29 19:42:45 INFO util.GSet: Computing capacity for map INodeMap
+    16/03/29 19:42:45 INFO util.GSet: VM type       = 64-bit
+    16/03/29 19:42:45 INFO util.GSet: 1.0% max memory 889 MB = 8.9 MB
+    16/03/29 19:42:45 INFO util.GSet: capacity      = 2^20 = 1048576 entries
+    16/03/29 19:42:45 INFO namenode.FSDirectory: ACLs enabled? false
+    16/03/29 19:42:45 INFO namenode.FSDirectory: XAttrs enabled? true
+    16/03/29 19:42:45 INFO namenode.FSDirectory: Maximum size of an xattr: 16384
+    16/03/29 19:42:45 INFO namenode.NameNode: Caching file names occuring more than 10 times
+    16/03/29 19:42:45 INFO util.GSet: Computing capacity for map cachedBlocks
+    16/03/29 19:42:45 INFO util.GSet: VM type       = 64-bit
+    16/03/29 19:42:45 INFO util.GSet: 0.25% max memory 889 MB = 2.2 MB
+    16/03/29 19:42:45 INFO util.GSet: capacity      = 2^18 = 262144 entries
+    16/03/29 19:42:45 INFO namenode.FSNamesystem: dfs.namenode.safemode.threshold-pct = 0.9990000128746033
+    16/03/29 19:42:45 INFO namenode.FSNamesystem: dfs.namenode.safemode.min.datanodes = 0
+    16/03/29 19:42:45 INFO namenode.FSNamesystem: dfs.namenode.safemode.extension     = 30000
+    16/03/29 19:42:45 INFO metrics.TopMetrics: NNTop conf: dfs.namenode.top.window.num.buckets = 10
+    16/03/29 19:42:45 INFO metrics.TopMetrics: NNTop conf: dfs.namenode.top.num.users = 10
+    16/03/29 19:42:45 INFO metrics.TopMetrics: NNTop conf: dfs.namenode.top.windows.minutes = 1,5,25
+    16/03/29 19:42:45 INFO namenode.FSNamesystem: Retry cache on namenode is enabled
+    16/03/29 19:42:45 INFO namenode.FSNamesystem: Retry cache will use 0.03 of total heap and retry cache entry expiry time is 600000 millis
+    16/03/29 19:42:45 INFO util.GSet: Computing capacity for map NameNodeRetryCache
+    16/03/29 19:42:45 INFO util.GSet: VM type       = 64-bit
+    16/03/29 19:42:45 INFO util.GSet: 0.029999999329447746% max memory 889 MB = 273.1 KB
+    16/03/29 19:42:45 INFO util.GSet: capacity      = 2^15 = 32768 entries
+    16/03/29 19:42:46 INFO namenode.FSImage: Allocated new BlockPoolId: BP-1391072287-127.0.0.1-1459294965994
+    16/03/29 19:42:46 INFO common.Storage: Storage directory /tank/hadoop/namenode has been successfully formatted.
+    16/03/29 19:42:46 INFO namenode.NNStorageRetentionManager: Going to retain 1 images with txid >= 0
+    16/03/29 19:42:46 INFO util.ExitUtil: Exiting with status 0
+    16/03/29 19:42:46 INFO namenode.NameNode: SHUTDOWN_MSG: 
+    /************************************************************
+    SHUTDOWN_MSG: Shutting down NameNode at centosVM/127.0.0.1
+    ************************************************************/
+
+
+
+ 8. Start HDFS (Start the Name Node and Data Node)
+    unix> su - hadoop
+    unix> start-dfs.sh
+    
+    16/03/29 19:46:17 WARN util.NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+    Starting namenodes on [localhost]
+    localhost: starting namenode, logging to /opt/hadoop-2.7.2/logs/hadoop-hadoop-namenode-centosVM.out
+    localhost: starting datanode, logging to /opt/hadoop-2.7.2/logs/hadoop-hadoop-datanode-centosVM.out
+    Starting secondary namenodes [0.0.0.0]
+    The authenticity of host '0.0.0.0 (0.0.0.0)' can't be established.
+    RSA key fingerprint is db:94:41:dd:d9:03:c5:67:38:04:87:2c:25:75:53:d6.
+    Are you sure you want to continue connecting (yes/no)? yes
+    0.0.0.0: Warning: Permanently added '0.0.0.0' (RSA) to the list of known hosts.
+    0.0.0.0: starting secondarynamenode, logging to /opt/hadoop-2.7.2/logs/hadoop-hadoop-secondarynamenode-centosVM.out
+    16/03/29 19:46:38 WARN util.NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+
+
+
+ 9. Start MapReduce aka YARN (Resource Manager and Node Manager)
+    unix> start-yarn.sh
+
+    starting yarn daemons
+    starting resourcemanager, logging to /opt/hadoop-2.7.2/logs/yarn-hadoop-resourcemanager-centosVM.out
+    localhost: starting nodemanager, logging to /opt/hadoop-2.7.2/logs/yarn-hadoop-nodemanager-centosVM.out
+
+
+10. Start the History server [that listens on port 19888]
+    unix> mr-jobhistory-daemon.sh --config $HADOOP_HOME/etc/hadoop start historyserver
+    
+
+11. Verify it is running
+    a. Go to the NodeManager's url:
+       http://localhost:8042/
+       *OR*
+       unix> telnet localhost 8042    # you should be connected
+       
+    b. Go to the Namenode's website
+       http://localhost:50070  
+       *OR*
+       unix> telnet localhost 50070   # you should be connected
+
+    c. Go to the Hadoop-Application site
+       http://localhost:8088
+       *OR*
+       unix> telnet localhost 8088    # you should be connected
+       
+    c. Verify that you can create a directory within your HDFS
+       1) List what is in your HDFS top directory
+          unix> hadoop fs -ls /    
+                NOTE:  It should display nothing
+         
+       2) Create a directory called /tmp in HDFS
+          unix> hadoop fs -mkdir /tmp
+       
+       3) List what is in your HDFS top directory
+          unix> hadoop fs -ls /
+                Found 1 items
+                drwxr-xr-x   - hdfs supergroup          0 2016-03-28 17:38 /tmp
+
+    d. Verify that you can create a file within your HDFS
+       1) Create a file called c:\temp\stuff.txt
+          unix> echo "Hello There" > /tmp/stuff.txt
+          
+       2) Use the hadoop command-line to insert this file into your HDFS
+          unix> hadoop fs -put /tmp/stuff.txt /tmp/stuff.txt   
+ 
+          unix> hadoop fs -ls /tmp
+                Found 1 items
+                -rw-r--r--   1 hdfs supergroup         12 2016-03-28 17:41 /tmp/stuff.txt
+ 
+       3) Use the hadoop command-line to pull the HDFS file and copt to your local file system
+          unix> hadoop fs -get /tmp/stuff.txt /tmp/stuff2.txt
+          
+          NOTE:  The /tmp/stuff.txt and /tmp/stuff2.txt files should be identical
+          unix> diff /tmp/stuff.txt /tmp/stuff2.txt
+
+       4) Display the content's of a file located in HDFS
+          unix> hadoop fs -cat /tmp/stuff.txt
+
+       5) Delete the /tmp directory located in the HDFS
+          unix> hadoop fs -rm -r -f /tmp
+          
+          
+
+  
+
+
+       
+Benchmark your HDFS with teragen
+--------------------------------
+ 1. Run the teragen, terasort, and teraverify map-reduce jobs
+    
+    a. Delete the teragen directories within HDFS
+       unix> hadoop fs -rm -r -f /terasort-input /terasort-output /terasort-validate
+
+    b. Generate 100 million records to sort
+       unix> cd /opt/hadoop-2.7.2/share/hadoop/mapreduce
+       unix> hadoop jar hadoop-mapreduce-examples-2.7.2.jar teragen 1000000  /terasort-input
+             
+       NOTE:  The parameter supplied to TeraGen is 1000,000 (not 100 million).
+              The reason is that the first parameter specifies the number of rows of input data to generate
+               -- Each input data has a size of 100 bytes
+               -- 1000,000 * 100 = 100 million bytes.
+ 
+              
+             Feel free to look at the job status using this url:
+                http://localhost:8088/cluster/apps/RUNNING
+                
+  
+       unix> hadoop fs -ls /
+             -- You should see a /terasort-input directory
+
+  
+    b. Sort the input data
+       unix> cd /usr/local/share/hadoop/mapreduce/
+       unix> hadoop jar hadoop-mapreduce-examples-2.7.2.jar terasort   /terasort-input  /terasort-output
+
+             W A I T   
+
+       IMPORTANT:  Grab the counters from this unix terminal
+                   NOTE:  If this unix terminal is lost, you can get the statics from the job history server
+       
+
+       unix> hadoop fs -ls /
+             -- You should see a /terasort-input directory
+             -- You should see a /terasort-output directory
+
+
+    c. **OPTIONAL** Validate that the data was actually sorted
+       unix> cd /usr/local/share/hadoop/mapreduce/
+       unix> hadoop jar hadoop-mapreduce-examples-2.7.2.jar teravalidate    /terasort-output   /terasort-validate
+
+
+    d. Get the job counters for this job
+       a. Go to the job history page:
+             http://localhost:19888/jobhistory/            
+       b. Click on the job ID of the job that is called 'TeraSort' -- e.g., job_1459299673699_0002
+       c. Click on 'Counters on the left'
+          *OR*
+          Go to http://localhost:19888/jobhistory/job/job_1459299673699_0002
+          
+        
+
+  
+
+
+How to Kill a Hadoop Job via Command-Line
+-----------------------------------------
+ unix> yarn application -list
+       -- Look for the applicationid
+       
+ unix> yarn application -kill <application-Id>
+ 
+
+
+ 
+ 
+How to Solve Warning:  util.NativeCodeLoader: Unable to load native-hadoop library for your platform
+----------------------------------------------------------------------------------------------------
+SYMPTOM:  I get this warning when running the hadoop commands
+    unix> hadoop fs -ls /
+    16/03/29 19:54:29 WARN util.NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+    
+    
+REAL PROBLEM: 
+    Your Centos comes with GNU libc 2.12
+    Your hadoop binaries were compiled with GNU libc 2.14
+    
+    
+    # Run the ldd command to see the problem          
+    unix> ldd /opt/hadoop-2.7.2/lib/native/libhadoop.so.1.0.0
+    
+        /opt/hadoop-2.7.2/lib/native/libhadoop.so.1.0.0: /lib64/libc.so.6: version `GLIBC_2.14' not found (required by /opt/hadoop-2.7.2/lib/native/libhadoop.so.1.0.0)
+        linux-vdso.so.1 =>  (0x00007fff473a4000)
+        libdl.so.2 => /lib64/libdl.so.2 (0x00007f93d5adb000)
+        libc.so.6 => /lib64/libc.so.6 (0x00007f93d5746000)
+        /lib64/ld-linux-x86-64.so.2 (0x000000395d000000)
+    
+    # Run ldd --version to see the version of GNU libc on your box (2.12)
+    unix> ldd --version
+    ldd (GNU libc) 2.12
+    Copyright (C) 2010 Free Software Foundation, Inc.
+    This is free software; see the source for copying conditions.  There is NO
+    warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+    Written by Roland McGrath and Ulrich Drepper.
+
+
+
+SOLUTIONS:
+ 1) Ignore the warning
+ 2) Compile hadoop binaries
+ 
