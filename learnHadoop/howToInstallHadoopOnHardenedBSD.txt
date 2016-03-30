@@ -4,7 +4,9 @@ How to Install Hadoop on Hardened BSD
 Assumptions:
  A) You are root
  B) Your operating system is Hardened BSD
- C) You want to setup a HDFS on the computer
+ C) You want to setup a Hadoop on the computer
+ D) You want your hadoop to run out of this directory:  /tank/hadoop
+ E) You want hadoop to use 35 cores and up to 100 GB of RAM
  
  
 References
@@ -256,6 +258,8 @@ Procedures
       
       
     c. Create this file:  yarn-site.xml
+       ASSUMPTION:  I assume that my computer has 100 GB of RAM and 35 cores!!!
+       
        NOTE:  yarn.nodemanager.resource.memory-mb=100 GB or 102400 MB
        NOTE:  yarn.nodemanager.resource.cpu-vcores=35  (to use 35 or the 40 cores)
        NOTE:  yarn.scheduler.minimum-allocation-mb=2925 so that Hadoop only allocates 35 vcores (102400/2925 = 35)
@@ -340,7 +344,8 @@ Procedures
                 </property>
                 <property>
                    <name>yarn.app.mapreduce.am.staging-dir</name>
-                   <value>/tank/hdfs/yarn-staging</value>
+                   <value>/user</value>
+                   <description>The staging dir (inside HDFS) that is used while submitting jobs</description>
                 </property>
              </configuration>    
     
@@ -615,7 +620,14 @@ Procedures
 
 
 
-10. Verify it is running
+10. **OPTIONAL** Start the History server [that listens on port 19888]
+    The History Server keeps job counter statistics for executed job
+    unix> mr-jobhistory-daemon.sh --config $HADOOP_HOME/etc/hadoop start historyserver
+
+          
+
+
+11. Verify it is running
     a. Go to the NodeManager's url:
        http://localhost:8042/
        *OR*
@@ -659,15 +671,27 @@ Procedures
        4) Display the content's of a file located in HDFS
           unix> hadoop fs -cat /tmp/stuff.txt
 
+       5) Delete the /tmp directory located in the HDFS
+          unix> hadoop fs -rm -r -f /tmp
+
 
        
 Benchmark your HDFS with teragen
 --------------------------------
- 1. Run the teragen, terasort, and teraverify map-reduce jnobs
+ 1. Run the teragen, terasort, and teraverify map-reduce jobs
  
-    a. Generate the TeraSort input data 
+    a. Delete the teragen directories within HDFS
+       unix> hadoop fs -rm -r -f /terasort-input /terasort-output /terasort-validate
+ 
+    b. Generate 1 trillion records to sort
        unix> cd /usr/local/share/hadoop/mapreduce/
        unix> hadoop jar hadoop-mapreduce-examples-2.7.2.jar teragen 10000000000  /terasort-input
+ 
+       NOTE:  The parameter supplied to TeraGen is 10 billion (10,000,000,000) and not 1 trillion.
+              The reason is that the first parameter specifies the number of rows of input data to generate
+               -- Each input data has a size of 100 bytes
+               -- 10 billion * 100 = 1 trillion bytes.
+ 
       
              W A I T     9 0  +    M I N U T E S 
              
@@ -675,88 +699,40 @@ Benchmark your HDFS with teragen
                 http://serverHostName:8088/cluster/apps/RUNNING
                 
   
-        2016-03-28 20:16:54,187 INFO  [main] mapreduce.Job (Job.java:monitorAndPrintJob(1367)) -  map 100% reduce 0%
-        2016-03-28 20:17:36,851 INFO  [main] mapreduce.Job (Job.java:monitorAndPrintJob(1378)) - Job job_1459204659843_0005 completed successfull y
-        2016-03-28 20:17:36,977 INFO  [main] mapreduce.Job (Job.java:monitorAndPrintJob(1385)) - Counters: 31
-                File System Counters
-                        FILE: Number of bytes read=0
-                        FILE: Number of bytes written=236808
-                        FILE: Number of read operations=0
-                        FILE: Number of large read operations=0
-                        FILE: Number of write operations=0
-                        HDFS: Number of bytes read=173
-                        HDFS: Number of bytes written=1000000000000
-                        HDFS: Number of read operations=8
-                        HDFS: Number of large read operations=0
-                        HDFS: Number of write operations=4
-                Job Counters
-                        Launched map tasks=2
-                        Other local map tasks=2
-                        Total time spent by all maps in occupied slots (ms)=10543513
-                        Total time spent by all reduces in occupied slots (ms)=0
-                        Total time spent by all map tasks (ms)=10543513
-                        Total vcore-milliseconds taken by all map tasks=10543513
-                        Total megabyte-milliseconds taken by all map tasks=10796557312
-                Map-Reduce Framework
-                        Map input records=10000000000
-                        Map output records=10000000000
-                        Input split bytes=173
-                        Spilled Records=0
-                        Failed Shuffles=0
-                        Merged Map outputs=0
-                        GC time elapsed (ms)=153100
-                        CPU time spent (ms)=0
-                        Physical memory (bytes) snapshot=0
-                        Virtual memory (bytes) snapshot=0
-                        Total committed heap usage (bytes)=305135616
-                org.apache.hadoop.examples.terasort.TeraGen$Counters
-                        CHECKSUM=3028416809717741100
-                File Input Format Counters
-                        Bytes Read=0
-                File Output Format Counters
-                        Bytes Written=1000000000000
-
-  
-             
-       NOTE:  The parameter supplied to TeraGen is 10 billion (10,000,000,000) and not 1 trillion.
-              The reason is that the first parameter specifies the number of rows of input data to generate
-               -- Each input data has a size of 100 bytes
-               -- 10 billion * 100 = 1 trillion bytes.
-      
        unix> hadoop fs -ls /
              -- You should see a /terasort-input directory
 
   
-    b. Sort the input data
+    c. Sort the input data
        unix> cd /usr/local/share/hadoop/mapreduce/
        unix> hadoop jar hadoop-mapreduce-examples-2.7.2.jar terasort   /terasort-input  /terasort-output
 
              W A I T     6 +    H O U R S 
+
+       IMPORTANT:  Grab the counters from this unix terminal
+                   NOTE:  If this unix terminal is lost, you can get the statics from the job history server
+
 
        unix> hadoop fs -ls /
              -- You should see a /terasort-input directory
              -- You should see a /terasort-output directory
 
 
-    c. Validate that the data was actually sorted
+    d. **OPTIONAL** Validate that the data was actually sorted
        unix> cd /usr/local/share/hadoop/mapreduce/
        unix> hadoop jar hadoop-mapreduce-examples-2.7.2.jar teravalidate    /terasort-output   /terasort-validate
 
 
-    d. Look at the statistics for this job
-       unix> hadoop job -history all /terasort-output
+    e. Get the job counters for this job
+       NOTE:  This step requires the History Server
+       a. Go to the job history page:
+             http://localhost:19888/jobhistory/            
+       b. Click on the job ID of the job that is called 'TeraSort' -- e.g., job_1459299673699_0002
+       c. Click on 'Counters on the left'
+          *OR*
+          Go to http://localhost:19888/jobhistory/job/job_1459299673699_0002
 
 
-    e. **OPTIONAL** Cleanup:  Delete the created HDFS directories
-       unix> hadoop fs -rm -r -f /terasort-input /terasort-output /terasort-validate
-
-
-
-NOTE:  If you kill your sort job, then you must delete the /terasort-output directory before restarting
---------------------------------------------------------------------------------------------------------
-unix> hadoop fs -rm -r -f /terasort-output    # terasort-output
-unix> cd /usr/local/share/hadoop/mapreduce/
-unix> hadoop jar hadoop-mapreduce-examples-2.7.2.jar terasort   /terasort-input  /terasort-output   # Restart job
 
 
 
