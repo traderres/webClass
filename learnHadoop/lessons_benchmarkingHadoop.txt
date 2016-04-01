@@ -1,0 +1,47 @@
+Lessons from Benchmarking Hadoop (to run teragen on 1 trillion bytes)
+---------------------------------------------------------------------
+
+After spending a few days trying to make Hadoop run teragen faster on 1 trillion bytes,
+I realized some lessons:
+
+Lessons
+-------
+ 1) Run htop to see if your processes are using swap space
+ 
+ 2) Originally we had set vcores to 100+
+    Mapper = 6.0 hours, Reducer = unknown 
+    -- The load-average on the server was hitting 120  [the server has 40 cores so it was running 3 times capacity]
+    -- And, the mappers would take 6 hours to run
+    
+ 3) Changing vcores to 35 and giving each one 3000 MB helped  [having a load-average of 40 on a 40-core server is great!]
+    Mapper = 5.0 hours, Reducer = unknown 
+    -- The load-average on the server was averaging 40
+    -- And, the mappers would take 5 hours to run
+    -- The server was not running so hot
+    
+ 4) Telling hadoop to use 10 reducers and giving each one 100,000 MB improved the reducer time from 30 hours to 11 hours
+    Mapper = 5.5 hours, Reducer = 11 hours, Total time is 16.5 hours
+    My guess is that hadoop was limited to 140000 MB of RAM so would run each reducer in series
+    mapreduce.job.reduces=35           (default is 1)
+    mapreduce.reduce.memory.mb=100000
+
+ 5) Telling hadoop to use 35 reducers and giving each one 4000 MB improved the reducer time from 11 hours to 3 hours
+    Mapper = 5.5 hours, Reducer = 5.5 hours, Total time is 11 hours
+     mapreduce.job.reduces=35           (default is 1)
+     mapreduce.reduce.memory.mb=4000
+
+ 
+Best settings:
+  mapreduce.map.memory.mb=4000
+  mapreduce.reduce.memory.mb=4000
+  mapreduce.reduce.cpu.vcores=35
+  mapreduce.job.reduces=35
+
+  yarn.nodemanager.resource.memory-mb=140000
+  yarn.scheduler.minimum-allocation-mb=4000
+  yarn.scheduler.maximum-allocation-mb=140000  
+  yarn.nodemanager.resource.cpu-vcores=35
+  yarn.scheduler.maximum-allocation-vcores=35
+
+
+35 cores * 4000 = 140,000
