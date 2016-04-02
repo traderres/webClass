@@ -36,23 +36,57 @@ Lessons
  7) Switching (in the capacity-scheduler.xml) yarn.scheduler.capacity.resource-calculator to org.apache.hadoop.yarn.util.resource.DominantResourceCalculator slowed things down a lot.  The reducer would not run in parallel.  I would avoid this and stick with the DefaultResourceCalculator.
     NOTE:  Look at the yarn-yarn-resourcemanager-row6-01.out log file to verify that DominantResourceCalculator is being used 
  
+ 8) Setting mapreduce.reduce.speculative=false helps [because hadoop will not attempt to restart long-running reducer tasks in the hope that one will finish first]
+    NOTE:  This should be true on a real multi-node system
+    
+ 9) Setting mapreduce.job.reduce.slowstart.completedmaps=.95  [default is .05] helped alot
+    95% of the mappers finished before reducers started
+    Greatly increased runtime ona single-node hadoop setup
+    
+10) Setting mapreduce.job.running.map.limit=33 reduced the number of simultaneous mappers [from 39] to 33
+    When there were 39 mappers running, the box ran hot [load average of the 50s and 60s].  On a 40-core box
+    You really want the load average to be closer to 40.  Decreasing this number from 39 to 33
+    reduced the load average to the 40s.
  
  
-Best settings:
+ 
+Best settings to sort 1 trillion bytes on a single box with 192 GB of RAM and 40 cores
+--------------------------------------------------------------------------------------
+
+
+  yarn-site.xml
+  -------------
+  yarn.nodemanager.aux-services=mapreduce_shuffle
+  yarn.nodemanager.aux-services.mapreduce.shuffle.class=org.apache.hadoop.mapred.ShuffleHandler
+  yarn.nodemanager.resource.memory-mb=160000
+  yarn.scheduler.minimum-allocation-mb=1000
+  yarn.scheduler.maximum-allocation-mb=160000
+  yarn.nodemanager.resource.cpu-vcores=35
+  yarn.scheduler.minimum-allocation-vcores=1
+  yarn.scheduler.increment-allocation-vcores=1
+  yarn.scheduler.maximum-allocation-vcores=35
+     
+            
+  mapred-site.xml
+  ---------------
+  mapreduce.framework.name=yarn
+  yarn.app.mapreduce.am.staging-dir=/user
   mapreduce.map.memory.mb=4000
   mapreduce.reduce.memory.mb=4000
-  mapreduce.reduce.cpu.vcores=35
-  mapreduce.job.reduces=35
-
-  yarn.nodemanager.resource.memory-mb=140000
-  yarn.scheduler.minimum-allocation-mb=4000
-  yarn.scheduler.maximum-allocation-mb=140000  
-  yarn.nodemanager.resource.cpu-vcores=35
-  yarn.scheduler.maximum-allocation-vcores=35
-  yarn.scheduler.capacity.resource-calculator=org.apache.hadoop.yarn.util.resource.DefaultResourceCalculator
-
+  mapreduce.reduce.cpu.vcores=25
+  mapreduce.job.reduces=25
+  mapreduce.reduce.speculative=false
+  mapreduce.job.reduce.slowstart.completedmaps=.95
+  mapreduce.job.running.map.limit=33
+  
+  
 Why use 35 vcores?  Because the sys admin told me I could use 35 of the 40 CPUs
 Why use 140,000 MB?  Because the sys admin told me I could use 136 GB of RAM (out of 192 GB)
 Why set the allocation to 4000?  Because 35 * 4000 = 140,000
+
+
+Why mapreduce.reduce.speculative=false?  Because it turns-off hadoop's attempts to restart slow-running jobs [makes things run faster]
+Why mapreduce.job.reduce.slowstart.completedmaps=.95?  So, that 95% of mappers will be finished before reducers start
+Why mapreduce.job.running.map.limit=33?  Because the server ran hot [load-average of 50s] when this was default [which was 39 mappers].  So, decreasing this to 33 caused the load-average to be in the 40s [which is great for a 40-core box]
 
 
