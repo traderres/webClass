@@ -1,0 +1,150 @@
+How to Display Headers in your Web page
+---------------------------------------
+
+Assumptions
+ A) You have a SpringMvcWebApp up and running
+ B) You have a WelcomeController
+ C) You have a welcome.jsp paeg
+ 
+
+Procedures
+----------
+ 1. Update your WelcomeController.java to provide header information
+    a. Edit your WelcomeController.java
+    b. Copy this to your WelcomeController
+         
+       package app1.controllers;
+       
+       import org.slf4j.Logger;
+       import org.slf4j.LoggerFactory;
+       import org.springframework.stereotype.Controller;
+       import org.springframework.ui.Model;
+       import org.springframework.web.bind.annotation.RequestMapping;
+       import org.springframework.web.servlet.ModelAndView;
+       import app1.model.UserInfo;
+       
+       import javax.servlet.http.HttpServletRequest;
+       import java.util.Enumeration;
+       import java.util.HashMap;
+       import java.util.Map;
+       
+       
+       @Controller
+       public class WelcomeController
+       {
+           private final static Logger logger = LoggerFactory.getLogger(WelcomeController.class);
+       
+       
+           /**********************************************************************
+            * handleDefaultPage()
+            *
+            * The user browsed to the   http://www.myserver.com/webapp
+            * So, forward the user to   http://www.myserver.com/webapp/forward
+            ***********************************************************************/
+           @RequestMapping("/")
+           public ModelAndView handleDefaultPage( Model aModel )
+           {
+               // By default, forward users to the /welcome page
+               return new ModelAndView("forward:/welcome");
+           }
+       
+       
+       
+           /**********************************************************************
+            * mainPage()
+            *
+            * The user browsed to the /welcome page
+            *  1) Get a userinfo object setup
+            *  2) Forward the user to the welcome.jsp page
+            ***********************************************************************/
+           @RequestMapping("/welcome")
+           public ModelAndView mainPage(Model aModel, HttpServletRequest aRequest)
+           {
+               logger.debug("mainPage() started");
+       
+               // Create a modelAndView object
+               ModelAndView mav = new ModelAndView();
+       
+               // Show the welcome.jsp page
+               mav.setViewName("welcome.jsp");
+       
+               // Create a userInfo object
+               UserInfo userInfo = new UserInfo();
+               userInfo.setUserName("Adam");
+               userInfo.setIsAdministrator(true);
+       
+               // Add the userInfo information to the view
+               mav.addObject("userInfo", userInfo);
+               mav.addObject("useragent", getUserAgent(aRequest));
+               mav.addObject("headers", getHeadersInfo(aRequest));
+       
+               logger.debug("mainPage() finished");
+               return mav;
+           }
+       
+       
+           private String getUserAgent(HttpServletRequest aRequest) 
+           {
+               return aRequest.getHeader("user-agent");
+           }
+       
+       
+           public Map<String, String> getHeadersInfo(HttpServletRequest aRequest) 
+           {
+               Map<String, String> map = new HashMap<String, String>();
+       
+               Enumeration headerNames = aRequest.getHeaderNames();
+               while (headerNames.hasMoreElements()) {
+                   String key = (String) headerNames.nextElement();
+                   String value = aRequest.getHeader(key);
+                   map.put(key, value);
+               }
+               return map;
+           }
+       
+       }
+       
+
+ 2. Update your welcome.jsp to display header information
+    a. Edit your /src/main/webapp/WEB-INF/jsp/welcome.jsp
+    b. Copy this to your welcome.jsp
+      
+       <%@ include file="/WEB-INF/jsp/stdJspIncludes.jsp" %>
+       
+       <!DOCTYPE HTML>
+       
+       <html xmlns="http://www.w3.org/1999/xhtml">
+       
+       <head>
+           <title>Welcome Page</title>
+       </head>
+       
+       <body>
+       
+       <%-- S T A N D A R D       H E A D E R  --%>
+       <%@ include file="/WEB-INF/jsp/stdHeader.jsp" %>
+       
+       <h2>welcome.jsp</h2>
+       <br/>
+       
+       Hello ${userInfo.userName} <br/>
+       Are you an administrator: ${userInfo.isAdministrator }
+       <br/>
+       
+       <pre>
+       User-Agent is ${useragent}
+       
+       
+       Headers
+       <c:forEach var="entry" items="${headers}">
+           Key: <c:out value="${entry.key}"/>  Value: <c:out value="${entry.value}"/>
+       </c:forEach>
+       </pre>
+       
+       <%-- S T A N D A R D       F O O T E R  --%>
+       <%@ include file="/WEB-INF/jsp/stdFooter.jsp" %>
+       
+       </body>
+       </html>
+       
+       
