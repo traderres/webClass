@@ -54,4 +54,155 @@ Procedures
  4. Install secondary-namenode
     unix> sudo yum clean all; sudo yum install hadoop-hdfs-secondarynamenode
     
+    Now, you should have these services here:
+       /etc/init.d/hadoop-hdfs-namenode
+       /etc/init.d/hadoop-hdfs-secondarynamenode
+       /etc/init.d/hadoop-mapreduce-historyserver
+       /etc/init.d/hadoop-yarn-proxyserver
+       /etc/init.d/hadoop-yarn-resourcemanager
+       
+
+ 5. Configure Hadoop to run in pseudo-distributed mode
+    NOTE:  We are setting hadoop's temp directory
+    
+    a. Edit this file:  core-site.xml
+       unix> cd /etc/hadoop/conf
+       unix> vi core-site.xml
+      
+        <?xml version="1.0" encoding="UTF-8"?>
+        <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>        
+            <configuration>
+                <property>
+                    <name>fs.defaultFS</name>
+                    <value>hdfs://localhost:9000</value>
+                </property>
+                <property>
+                    <name>hadoop.tmp.dir</name>
+                    <value>/tank/hadoop/tmp</value>
+                </property>
+            </configuration>
+   
+     
+    b. Edit this file:  hdfs-site.xml
+       Note:  Create namenode and datanode directory under /tank/hadoop
+       Note:  Set the datanode to listen on port 50001
+      
+       unix> cd /etc/hadoop/config
+       unix> cp hdfs-site.xml hdfs-site.xml.ORIG
+       unix> vi hdfs-site.xml
+      
+           
+       <?xml version="1.0" encoding="UTF-8"?>
+       <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+            <configuration>
+                <property>
+                    <name>dfs.replication</name>
+                    <value>1</value>
+                </property>
+                <property>
+                    <name>dfs.namenode.name.dir</name>
+                    <value>/tank/hadoop/namenode</value>
+                </property>
+                <property>
+                    <name>dfs.datanode.data.dir</name>
+                    <value>/tank/hadoop/datanode</value>
+                </property>
+
+                <property>
+                    <name>dfs.datanode.address</name>
+                    <value>localhost:50001</value>
+                </property>
+                
+            </configuration>
+      
+      
+    c. Edit this file:  yarn-site.xml
+       NOTE:  yarn.nodemanager.resource.memory-mb=4096 MB (or 4 GB) -- that is a ceiling on how much memory hadoop will use
+       NOTE:  yarn.nodemanager.resource.cpu-vcores=4  (to use 4 of the total 4 cores)
+       NOTE:  yarn.scheduler.minimum-allocation-mb=1024 so that Hadoop only allocates 4 vcores (4096/4 = 1024)
+       
+       unix> cd /etc/hadoop/conf
+       unix> vi yarn-site.xml
+
+        <?xml version="1.0"?>
+         <configuration>
+            <property>
+               <name>yarn.nodemanager.aux-services</name>
+               <value>mapreduce_shuffle</value>
+            </property>
+            <property>
+               <name>yarn.nodemanager.aux-services.mapreduce.shuffle.class</name>
+               <value>org.apache.hadoop.mapred.ShuffleHandler</value>
+            </property>
+           <property>
+               <name>yarn.nodemanager.resource.memory-mb</name>
+               <value>4096</value>
+            </property>
+            <property>
+               <name>yarn.scheduler.minimum-allocation-mb</name>
+               <value>1024</value>
+            </property>
+            <property>
+               <name>yarn.scheduler.maximum-allocation-mb</name>
+               <value>4096</value>
+            </property>
+            <property>
+               <name>yarn.nodemanager.resource.cpu-vcores</name>
+               <value>4</value>
+            </property>
+            <property>
+               <name>yarn.scheduler.minimum-allocation-vcores</name>
+               <value>1</value>
+            </property>
+            <property>
+               <name>yarn.scheduler.increment-allocation-vcores</name>
+               <value>1</value>
+            </property>
+            <property>
+               <name>yarn.scheduler.maximum-allocation-vcores</name>
+               <value>4</value>
+            </property>
+            <property>
+               <name>yarn.application.classpath</name>
+               <value>
+                    $HADOOP_HOME/etc/hadoop,
+                    $HADOOP_HOME/share/hadoop/common/*,
+                    $HADOOP_HOME/share/hadoop/common/lib/*,
+                    $HADOOP_HOME/share/hadoop/mapreduce/*,
+                    $HADOOP_HOME/share/hadoop/mapreduce/lib/*,
+                    $HADOOP_HOME/share/hadoop/hdfs/*,
+                    $HADOOP_HOME/share/hadoop/hdfs/lib/*,          
+                    $HADOOP_HOME/share/hadoop/yarn/*,
+                    $HADOOP_HOME/share/hadoop/yarn/lib/*
+               </value>
+            </property>
+        </configuration> 
+                 
+
+    d. Create this file:  mapred-site.xml
+       unix> cd /opt/hadoop-2.7.2/etc/hadoop
+       unix> cp mapred-site.xml.template mapred-site.xml
+       unix> vi mapred-site.xml
+       
+             <?xml version="1.0"?>
+             <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+             
+             <configuration>
+                <property>
+                   <name>mapreduce.framework.name</name>
+                   <value>yarn</value>
+                </property>
+                <property>
+                   <name>yarn.app.mapreduce.am.staging-dir</name>
+                   <value>/user</value>
+                   <description>The staging dir (inside HDFS) that is  used while submitting jobs.</description>
+                </property>
+             </configuration>    
+    
+    
+    e. Create this file:  slaves
+       unix> cd /opt/hadoop-2.7.2/etc/hadoop
+       unix> echo localhost > slaves
+       
+ 
     
