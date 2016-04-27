@@ -1,0 +1,45 @@
+How to Add an Existing LDAP User to an Existing LDAP Group
+----------------------------------------------------------
+
+
+Procedures
+----------
+ 1. putty to server that runs openLdap
+    putty 192.168.140.3
+   
+ 2. See what groups the user 'noauthuser' belongs to
+    unix> export PA='my_password_is_here'
+    unix> ldapsearch -v -D 'cn=LDAPAdmin,ou=People,dc=rdk4,dc=mil' -w $PA -H ldaps://localhost:636 -LLL uid=noauthuser memberOf
+
+    ldap_initialize( ldaps://localhost:636/??base ) 
+    filter: uid=noauthuser
+    requesting: memberOf
+    dn: uid=noauthuser,ou=C3People,dc=rdk4,dc=mil
+    memberOf: cn=USA,ou=Authorizations,dc=rdk4,dc=mil
+
+
+   
+ 3. Create ldif file to add user to the group called DPG
+    unix> vi addToGroup.ldif
+    # addToGroup.ldif
+  	# Add the user 'noauthuser' to this group
+  	dn: cn=DPG,ou=DPG,ou=DPG,ou=ATEC,ou=ARMY,ou=C3Groups,dc=rdk4,dc=mil
+  	changetype: modify
+  	add: member
+  	member: uid=noauthuser,ou=C3People,dc=rdk4,dc=mil
+
+   
+ 4. Apply the LDAP change
+    unix> ldapmodify -v -D 'cn=LDAPAdmin,ou=People,dc=rdk4,dc=mil' -w $PA -H ldaps://localhost:636 -f addToGroup.ldif
+
+   
+ 5. Verify it works by running an ldapsearch and getting all of the groups that this user belongs to
+    unix> ldapsearch -v -D 'cn=LDAPAdmin,ou=People,dc=rdk4,dc=mil' -w $PA -H ldaps://localhost:636 -LLL uid=noauthuser memberOf
+
+    ldap_initialize( ldaps://localhost:636/??base )
+    filter: uid=noauthuser
+    requesting: memberOf
+    dn: uid=noauthuser,ou=C3People,dc=rdk4,dc=mil
+    memberOf: cn=USA,ou=Authorizations,dc=rdk4,dc=mil
+    memberOf: cn=DPG,ou=DPG,ou=DPG,ou=ATEC,ou=ARMY,ou=C3Groups,dc=rdk4,dc=mil
+   
