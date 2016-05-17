@@ -1,0 +1,73 @@
+How to Advance Time with Loading Cache and FakeTicker
+-----------------------------------------------------
+
+Suppose, you want to make sure that your LoadingCache actually calls load() after a 20-minute refreshAfterWrite() time period.
+Suppose, you want to make sure that your LoadingCache actually calls load() after a 60-minute expireAfterWrite() time period
+Solution:  Use the FakeTicker class
+
+Procedure
+---------
+ 1. Create your FakeTicker class
+    NOTE:  Ticker is an Abstract class so you have to extend it
+    
+      public class FakeTicker extends Ticker
+      {
+          private final AtomicLong nanos = new AtomicLong();
+      
+          /** Advances the ticker value by {@code time} in {@code timeUnit}. */
+          public FakeTicker advance(long time, TimeUnit timeUnit) {
+              nanos.addAndGet(timeUnit.toNanos(time));
+              return this;
+          }
+      
+          @Override
+          public long read() {
+              long value = nanos.getAndAdd(0);
+              System.out.println("FakeTicker.read() is called with value=" + value);
+              return value;
+          }
+      }
+
+ 2. Add your FakeTicker 
+     
+      FakeTicker fakeTicker = new FakeTicker();
+      
+      // Setup a LoadingCache
+      //  1) Call load() after 10 minutes
+      //  2) Use .refreshAfterWrite() causes get() to return stale value if refresh-in-progress [which is fine]
+      //  3) Use .expireAfterWrite()  causes get() to return null        if refresh-in-progress
+      LoadingCache<String, ConsuleDetail> cache = CacheBuilder.newBuilder()
+              .refreshAfterWrite(10, TimeUnit.MINUTES)
+              .ticker(fakeTicker)
+              .build
+        (
+              new CacheLoader<String, ConsuleDetail>()
+              {
+  
+                  @Override
+                  public ConsuleDetail load(String aServiceTag)
+                  {
+                      logger.debug("Calling load()   aServiceTag={}", aServiceTag);
+  
+                      HashMap<String, ConsuleDetail> hmap = getHashMapFromConsulEndPoint();
+                      return hmap.get(aServiceTag);
+                  }
+              }
+        );
+            
+        // Pre-populate the cache
+        cache.asMap().putAll(  getHashMapFromConsulEndPoint() );
+            
+        // Lookup this value
+        ConsuleDetail cd1 =  cache.getIfPresent("depot");
+
+        // Advance the clock by 11 minutes     
+        fakeTicker.advance(11, TimeUnit.MINUTES);
+
+        // Lookup this value in the cache
+        // NOTE:  Because the refresh period is 10 minute, the cacheLoader should call load()
+        ConsuleDetail cd2 = cache.getIfPresent("depot")
+
+
+
+
