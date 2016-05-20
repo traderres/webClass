@@ -1,0 +1,46 @@
+Sample Wrapper Script to run a Java JAR File
+--------------------------------------------
+
+
+#!/bin/bash -x
+##############################################################################
+# Filename:  updateRoutes.sh
+#
+# Purpose:   Ensure that only one instance of the java updateRoutes.jar runs at-a-time
+#
+# Usage:
+#   unix> cd /path/to/this/script
+#   unix> dos2unix updateRoutes.sh updateRoutes.sh  # Remove DOS \r\ns
+#   unix> chmod ugo+x updateRoutes.sh               # Make this script executable
+#   unix> ./updateRoutes.sh                         # Run the script
+#
+# History:
+#   Create Date:  05/19/2016
+##############################################################################
+processName="updateRoutes"
+processIdFilePath=/tmp/${processName}.pid
+ROUTES_FILE_PATH=/opt/jetty/apps/openig/.openig/config/routes.json
+
+
+if [ ! -f $processIdFilePath ]; then
+   # I could not find the processID file so run the program
+
+   # Change over to the directory that contains the JAR file
+   cd /opt/updateRoutes
+
+   # Run the Java JAR in the background, appending stdout and sterr to the log file
+   java -cp ./updateRoutes.jar openig.CompareRouteFileToConsul $ROUTES_FILE_PATH >> updateRoutes.log 2>&1 &
+
+   # Get the process id of the running program
+   processId=$!
+
+   # Put the process id in a tmp file
+   echo $processId > $processIdFilePath
+
+   # Wait for this program to finish
+   wait $processId
+
+   # The program has finished so remove the processID file
+   rm -f $processIdFilePath
+ fi
+
