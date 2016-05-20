@@ -1,0 +1,150 @@
+How to Add Extra Manifest Information to your JAR file
+------------------------------------------------------
+
+If you want to add maven info or any specific field to your MANIFEST.MF file, here's
+
+Procedure
+---------
+ 1. Create a simple Java JAR project that would create a JAR-with-dependencies and JAR-without-dependencies 
+    [see learnJava / howToCreateJavaCommandLineProgramUsingIntellijMaven.txt]
+    
+ 
+ 2. Add the maven-jar-plugin to your pom.xml
+          <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>2.3.2</version>
+                <configuration>
+                    <!-- Set the name of the generated Java JAR filename *without* dependencies -->
+                    <finalName>addNumbers</finalName>
+                </configuration>
+            </plugin>
+
+
+ 3. Add the <archive>...</archive> into a <configuration>...</configuration> section
+    to tell the plugin to add additional Manifest inf      
+
+      <!-- Create a timestamp variable that holds the current date-time -->
+      <maven.build.timestamp.format>MM/dd/yyyy HH:mm:ss zzzz</maven.build.timestamp.format>
+      <timestamp>${maven.build.timestamp}</timestamp>
+  
+   
+       <archive>
+            <manifest>
+                <addClasspath>true</addClasspath>
+                <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
+            </manifest>
+            <manifestEntries>
+                <!-- Add timestamp entry to the Manifest file -->
+                <Build-timestamp>${timestamp}</Build-timestamp>
+            </manifestEntries>
+        </archive>
+
+
+       So, your <build>...</build> should look like this:
+       
+      <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.1</version>
+                <configuration>
+                    <source>1.7</source>
+                    <target>1.7</target>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>2.3.2</version>
+                <configuration>
+                    <!-- Set the name of the generated Java JAR filename *without* dependencies -->
+                    <finalName>addNumbersWithoutDependencies</finalName>
+
+                    <archive>
+                        <!-- Add Extra Manifest info to the JAR that has is missing dependencies -->
+                        <manifest>
+                            <addClasspath>true</addClasspath>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                            <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
+                        </manifest>
+                        <manifestEntries>
+                            <!-- Add timestamp entry to the Manifest file -->
+                            <Build-timestamp>${timestamp}</Build-timestamp>
+                        </manifestEntries>
+                    </archive>
+
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+
+                <configuration>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+
+                    <archive>
+                        <manifest>
+                            <addClasspath>true</addClasspath>
+                        </manifest>
+                    </archive>
+                </configuration>
+
+                <executions>
+                    <execution>
+                        <id>make-assembly</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                        <configuration>
+                            <!-- Set the name of the generated Java JAR filename *with* dependencies -->
+                            <appendAssemblyId>false</appendAssemblyId>
+                            <finalName>addNumbers</finalName>
+
+                            <archive>
+                                <!-- Add Extra Manifest info to the JAR that has no dependencies -->
+                                <manifest>
+                                    <addClasspath>true</addClasspath>
+                                    <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                                    <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
+                                </manifest>
+                                <manifestEntries>
+                                    <!-- Add timestamp entry to the Manifest file -->
+                                    <Build-timestamp>${timestamp}</Build-timestamp>
+                                </manifestEntries>
+                            </archive>
+
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+        </plugins>
+    </build>
+    
+    
+  4. Run mvn clean package
+  
+  5. Open the jar files with 7-zip
+     a. Right-click on the JAR files -> 7zip -> Open Archive
+     b. Browse to META-INF 
+     c. Double-click on MANIFEST.MF
+     
+        -- You should see this:
+           Manifest-Version: 1.0
+           Archiver-Version: Plexus Archiver
+           Created-By: Apache Maven
+           Built-By: adam.resnick
+           Build-Jdk: 1.8.0_45
+           Specification-Title: addNumbers
+           Specification-Version: 1.0-SNAPSHOT
+           Implementation-Title: addNumbers
+           Implementation-Version: 1.0-SNAPSHOT
+           Implementation-Vendor-Id: numbers
+           Build-timestamp: 05/20/2016 16:32:30 Coordinated Universal Time
+
