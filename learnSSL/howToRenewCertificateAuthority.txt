@@ -77,7 +77,7 @@ Certificate:
     Notice the subject line:
        Subject: C=US, ST=Maryland, L=Annapolis Junction, O=MyOrg, CN=Fake Root CA/emailAddress=adam@zztop.com
        
-
+ 
  2. Create a new Certificate Signing Request (using the original RSA private key from expired Root CA)
     DOS> cd /d c:\tools\root-ca\
     DOS> openssl req -new -key private\root.pem -out newcsr.csr
@@ -92,20 +92,26 @@ Certificate:
          A challenge password:           <Press Enter>
          An optional company name:       <Press Enter>
 
-    **EASIER WAY TO GENERATE CSR**
+    **EASIER WAY TO GENERATE CSR WITHOUT ANSWERING QUESTIONS**
     Create a new Certificate Signing Request by pulling details directly out of old CA
     DOS> cd /d c:\tools\root-ca
-    DOS> openssl x509 -x509toreq -in public\root.pem -signkey private\root.pem -out newcsr.csr
-    
+    DOS> openssl x509 -x509toreq -in public\root.pem -signkey private\root.pem -out renewCA.csr
+ 
+ 
+ 3. Get the serial number of the old cert (as a hexadecimal)
+    DOS> openssl x509 -in public\root.pem -noout -text 
+         . . .
+         Serial Number: 9959120013602542824 (0x8a35e6e2fe4354e8)
 
          
- 3. Sign the CSR for another 3650 days (using the original RSA private key from expired Root CA)
+ 4. Sign the CSR for another 3650 days (using the original RSA private key from expired Root CA)
+    NOTE:  Put the old serial number into the new root CA
     DOS> cd /d c:\tools\root-ca\
-    DOS> openssl x509 -req -days 3650 -in newcsr.csr -signkey private\root.pem -out public\newroot.pem
-    DOS> rm newcsr.csr
+    DOS> openssl x509 -req -days 3650 -in renewCA.csr -signkey private\root.pem -out public\newroot.pem   -set_serial 0x8a35e6e2fe4354e8
+    DOS> rm renewCA.csr
     
     
- 4. Verify that both the old and new CAs have the same modulus
+ 5. Verify that both the old and new CAs have the same modulus
     DOS> cd /d c:\tools\root-ca\
     DOS> openssl x509 -in public\newroot.pem -noout -modulus
     Modulus=F29DE311858FA822B465D1EFA0A3B88D6C9B4C73281EF2B6CB0AD1A2AA672360AB1DE3F3393C32456537775506E56C0F69482A5D04EE34351503D
@@ -121,10 +127,49 @@ CBA646D651EA9BE898DA45E0FEAF29926BBCAA09C02E35489C2ADFCBAC54B6AEC3E4CA280D75BA71
 01041408CB8E4D40133E20B4D1BF1A454D8C79A6CE181BC3128627AFB1A35CF4C6A502386ED4836906CDABE1AEA6E330B0C4E35B689B186437B8C0DAB84C1
 7DE45B7DF913FAC8C7A7
 
- 5. Install the new root CA
+
+ 5. Verify that the new root CA still works with older-signed certs
+    DOS> openssl verify -CAfile c:\tools\root-ca\public\newroot.pem -verbose c:\temp\client_cert\client.cert
+
+    You should see this:
+    c:\temp\client_cert\client.cert: OK
+    
+
+ 6. Install the new root CA
     DOS> cd /d c:\tools\root-ca\public
     DOS> copy root.pem root.pem.expired
-    DOS> copy newroot.pem root.pem
+    DOS> move newroot.pem root.pem
 
- 6. Verify that the new root CA still works with older-signed certs
-    DOS> openssl verify -CAfile c:\tools\root-ca\public\root.pem -verbose c:\temp\client_cert\client.cert
+
+
+
+
+How to renew CA cert with c3 extensions
+---------------------------------------
+ 1. Create a new Certificate Signing Request by pulling details directly out of old CA
+    DOS> cd /d c:\tools\root-ca
+    DOS> openssl x509 -x509toreq -in public\root.pem -signkey private\root.pem -out renewedselfsignedca.csr
+ 
+ 2. Create this file:  renewedselfsignedca.conf
+    DOS> copy con renewedselfsignedca.conf
+[ v3_ca ]
+basicConstraints= CA:TRUE
+subjectKeyIdentifier= hash
+authorityKeyIdentifier= keyid:always,issuer:always
+<Press F6 + Press Enter>
+
+ 3. Get the serial number of the old cert (as a hexadecimal)
+    DOS> openssl x509 -in public\root.pem -noout -text 
+         . . .
+         Serial Number: 9959120013602542824 (0x8a35e6e2fe4354e8)
+         
+         
+ 4. Use the old RSA private key to create a new root CA
+    NOTE:  The -set_serial needs the old hexadecimal value
+    DOS> openssl x509 -req -days 1095 -in renewedselfsignedca.csr -signkey private\root.pem
+        -out public\newroot.pem  -extfile renewedselfsignedca.conf -extensions v3_ca  -set_serial 0x8a35e6e2fe4354e8
+
+ 5. Install the new root ca
+    DOS> copy public\root.pem  public\root.pem.expired
+    DOS> move public\newroot.pem public\root.pem
+    
