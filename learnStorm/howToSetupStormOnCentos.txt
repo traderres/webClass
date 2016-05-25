@@ -16,6 +16,7 @@ References
 ----------
 http://storm.apache.org/releases/current/Setting-up-a-Storm-cluster.html
 http://zookeeper.apache.org/doc/r3.3.3/zookeeperStarted.html#sc_InstallingSingleMode
+https://rayed.com/wordpress/?p=1496
 
 
 Procedure
@@ -92,43 +93,135 @@ Procedure
         unix> bin/zkServer.sh stop
 
      
-     f. Setup a Supervisory process to monitor ZooKeeper
-        1) Use Yum to Install supevisord service
-           unix> rpm -Uvh http://download.fedoraproject.org/pub/epel/6/i386/epel-release-6-8.noarch.rpm
-           unix> yum install supervisor
+  2. Setup a Supervisory process to monitor ZooKeeper
+     a. Use Yum to Install supevisord service
+        unix> rpm -Uvh http://download.fedoraproject.org/pub/epel/6/i386/epel-release-6-8.noarch.rpm
+        unix> yum install supervisor
     
-    
-           *or*
+        *or*
            
-            easy_install supervisor
+        easy_install supervisor    # to get the most recent version
 
-
-        2) Edit the /etc/supervisord.conf file and *ADD* this section to the end of it:
+     b. Create the supervisor log directory
+        unix> mkdir -p /var/log/supervisord
+        
+        
+     c. Edit the /etc/supervisord.conf file 
            unix> vi /etc/supervisord.conf
-           
-          [program:zookeeper]
-          command=/opt/zookeeper-3.4.8/bin/zkServer.sh start-foreground
-          autostart=true
-          autorestart=true
-          startsecs=1
-          startretries=999
-          redirect_stderr=false
-          stdout_logfile=/var/log/zookeeper-out
-          stdout_logfile_maxbytes=10MB
-          stdout_logfile_backups=10
-          stdout_events_enabled=true
-          stderr_logfile=/var/log/zookeeper-err
-          stderr_logfile_maxbytes=100MB
-          stderr_logfile_backups=10
-          stderr_events_enabled=true
+          
+                [unix_http_server]
+                file=/tmp/supervisor.sock                       ; path to your socket file
+                
+                [supervisord]
+                logfile=/var/log/supervisord/supervisord.log    ; supervisord log file
+                logfile_maxbytes=50MB                           ; maximum size of logfile before rotation
+                logfile_backups=10                              ; number of backed up logfiles
+                loglevel=error                                  ; info, debug, warn, trace
+                pidfile=/var/run/supervisord.pid                ; pidfile location
+                nodaemon=false                                  ; run supervisord as a daemon
+                minfds=1024                                     ; number of startup file descriptors
+                minprocs=200                                    ; number of process descriptors
+                user=root                                       ; default user
+                childlogdir=/var/log/supervisord/               ; where child log files will live
+                
+                [rpcinterface:supervisor]
+                supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
+                
+                [supervisorctl]
+                serverurl=unix:///tmp/supervisor.sock         ; use a unix:// URL  for a unix socket
+                
+                
+                [program:zookeeper]
+                command=/opt/zookeeper-3.4.8/bin/zkServer.sh start-foreground
+                autostart=true
+                autorestart=true
+                startsecs=1
+                startretries=999
+                redirect_stderr=false
+                stdout_logfile=/var/log/zookeeper-out
+                stdout_logfile_maxbytes=10MB
+                stdout_logfile_backups=10
+                stdout_events_enabled=true
+                stderr_logfile=/var/log/zookeeper-err
+                stderr_logfile_maxbytes=100MB
+                stderr_logfile_backups=10
+                stderr_events_enabled=true
 
-       3) Install the supervisor python module
-          unix> pip --version
-                pip 8.1.2 from /usr/local/lib/python2.7/site-packages/pip-8.1.2-py2.7.egg (python 2.7)
+      d. Start the supervisord service manually (which starts the ZooKeeper service)
+         NOTE:  Make sure the zookeeper service has not been started here
+             
+              unix> supervisord -c /etc/supervisord.conf
+              unix> supervisorctl
+                    zookeeper              RUNNING   pid 10608, uptime 0:00:06
 
-          unix> pip install supervisor
+      e. Setup a supervisord service so that it runs every time you restart your centos machine
+         unix> vi /etc/rc.d/init.d/supervisord
 
-              
-        4) Start the supervisord service (which starts the ZooKeeper service)
-           unix> chkconfig supervisord on
-           unix> service supervisord start
+                #!/bin/sh
+                #
+                # /etc/rc.d/init.d/supervisord
+                #
+                # Supervisor is a client/server system that
+                # allows its users to monitor and control a
+                # number of processes on UNIX-like operating
+                # systems.
+                #
+                # chkconfig: - 64 36
+                # description: Supervisor Server
+                # processname: supervisord
+                
+                # Source init functions
+                . /etc/rc.d/init.d/functions
+                
+                prog="supervisord"
+                
+                prefix="/usr/"
+                exec_prefix="${prefix}"
+                prog_bin="${exec_prefix}/bin/supervisord"
+                PIDFILE="/var/run/$prog.pid"
+                
+                start()
+                {
+                       echo -n $"Starting $prog: "
+                       daemon $prog_bin --pidfile $PIDFILE
+                       [ -f $PIDFILE ] && success $"$prog startup" || failure $"$prog startup"
+                       echo
+                }
+                
+                stop()
+                {
+                       echo -n $"Shutting down $prog: "
+                       [ -f $PIDFILE ] && killproc $prog || success $"$prog shutdown"
+                       echo
+                }
+                
+                case "$1" in
+                
+                 start)
+                   start
+                 ;;
+                
+                 stop)
+                   stop
+                 ;;
+                
+                 status)
+                       status $prog
+                 ;;
+                
+                 restart)
+                   stop
+                   start
+                 ;;
+                
+                 *)
+                   echo "Usage: $0 {start|stop|restart|status}"
+                 ;;
+                
+                esac
+  
+          unix> chmod ugo+x /etc/rc.d/init.d/supervisord
+          unix> chkconfig --add supervisord   # Add the service
+          unix> chkconfig supervisord on      # Set the service to turn-on on restart
+          unix> service supervisord start     
+          
