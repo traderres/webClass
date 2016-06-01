@@ -1,0 +1,276 @@
+How to Read Property Values Into Web Application Context
+--------------------------------------------------------
+
+ASSUMPTIONS:
+ A) You do not want to use Spring to read-in property values
+ B) You want to manually store your property values in the Application Context
+ 
+ 
+
+
+Procedures
+----------
+1) Create a text file in WEB-INF -> classes 
+   Right-click on WEB-INF -> classse -> New -> File
+   Filename: app1.properties
+   
+   Copy this into your app1.properties file
+   
+   
+###########################################################################
+# app1.properties
+#
+# Any line that starts with a '#' is a comment
+###########################################################################
+application.mode=development
+app2.url=http://google.com/
+
+
+
+
+
+2) Tell Tomcat where your listener class will be 
+   Add this to your web.xml
+
+    <!-- Declare the application context which is loaded on startup and shared by all web context (Spring DispatcherServlet) -->
+    <listener>
+        <description>Tell Spring where my application watcher is</description>
+        <listener-class>
+            <!-- NOTE:  This extends Spring's ContextLoaderListener -->
+            app1.utility.MyApplicationWatcher
+        </listener-class>
+    </listener>
+
+    
+    
+3) Create a new class:  MyApplicationWatcher.java
+   a) Right-click on mywebapp1 -> new -> Class
+   
+   b) Package: app1.utility 
+      Name:    MyApplicationWatcher
+      Press "Finish"
+     
+        package app1.utility;
+        
+        import java.io.InputStream;
+        import java.util.Properties;
+        import java.util.Set;
+        import javax.servlet.ServletContext;
+        import javax.servlet.ServletContextEvent;
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.web.context.ContextLoaderListener;
+        
+        public class MyApplicationWatcher extends ContextLoaderListener
+        {
+            private static final Logger logger = LoggerFactory.getLogger( MyApplicationWatcher.class );
+            
+            
+            /***********************************************************************************
+             * contextInitialized()
+             *  1) Read the property file for this webapp
+             *  2) Initialize the Spring Context
+             *  
+             * NOTE:  If a runtime exception is thrown, then the webapp will *not* startup
+             ************************************************************************************/
+            @Override
+            public void contextInitialized( ServletContextEvent aContextEvent )
+            {
+                // Get the name of the web application
+                final String sWebAppName = aContextEvent.getServletContext().getContextPath().substring(1);
+                
+                logger.debug("{} contextInitialized() started", sWebAppName);
+                
+                
+                try
+                {
+                    // Read the property values into the application context
+                    loadConfigPropertiesIntoAppContext( "app1.properties", aContextEvent.getServletContext() );
+                    
+                    // I N I T I A T E      S P R I N G       C O N T E X T
+                    super.contextInitialized( aContextEvent );
+                    
+                    // Do additional tests
+                }
+                catch (Exception e)
+                {
+                    logger.error("{} WILL NOT STARTUP", sWebAppName);
+                    
+                    // Throw a runtime exception so that this webapp will *not* startup
+                    RuntimeException runtimeException = new RuntimeException(e);
+                    runtimeException.setStackTrace(e.getStackTrace());
+                    throw runtimeException;
+                }
+                
+                logger.debug("{} contextInitialized() finished", sWebAppName);
+        
+                
+            }
+            
+            
+            /***********************************************************************************
+             * contextDestroyed()
+             * The webapp is about to be shutdown
+              ************************************************************************************/
+            @Override
+            public void contextDestroyed( ServletContextEvent aContextEvent )
+            {
+                // Get the name of the web application
+                final String sWebAppName = aContextEvent.getServletContext().getContextPath().substring(1);
+                
+                logger.debug("{} contextDestroyed() started", sWebAppName);
+                
+                logger.debug("{} contextDestroyed() finished", sWebAppName);
+            }
+            
+            
+            
+            /***********************************************************************************
+             * loadConfigPropertiesIntoAppContext()
+             * 
+             * Read-in the property values and store them in the Application Scope
+             * -- JSPs can pull values out using ${applicationScope['application.mode']}
+             * 
+             * -- Java classes can read values using this code:
+             *      @Resource
+             *      private ServletContext servletContext;
+             *      . . .
+             *      String sAppMode = (String) this.servletContext.getAttribute("application.mode");
+             ************************************************************************************/
+            private void loadConfigPropertiesIntoAppContext(String aFilename, ServletContext aServletContext) throws Exception
+            {
+                logger.debug("loadConfigPropertiesIntoAppContext() started....reading from file {}", aFilename);
+        
+                // Extract the key/values from the file and put them into a props object
+                Properties props = new Properties();
+                InputStream iostream = Thread.currentThread().getContextClassLoader().getResourceAsStream( aFilename );
+                props.load(iostream);
+                
+                // Verify that all *required* properties are found
+                String[] requiredProperties = { "application.mode" };
+                
+                // Get a list of all property names found in the app file
+                Set<String> allPropertyNamesInAppFile = props.stringPropertyNames();
+                
+                // Look for *missing* required application properties
+                StringBuilder sbErrorMessage = new StringBuilder();
+                boolean isRequiredPropertyMissing = false;
+                for (String sRequiredPropertyName: requiredProperties)
+                {
+                    if ( ! allPropertyNamesInAppFile.contains( sRequiredPropertyName))
+                    {
+                        // This required property is *missing* from the app file
+                        isRequiredPropertyMissing = true;
+                        sbErrorMessage.append(sRequiredPropertyName + " ");
+                    }
+                }
+        
+                if ( isRequiredPropertyMissing==true )
+                {
+                    // One or more required properties are missing!!
+                    throw new Exception( "Required application properties are missing: " + sbErrorMessage.toString());
+                }
+        
+                
+                
+                
+                // Look for *empty* required application properties
+                StringBuilder sbErrorMessage2 = new StringBuilder();
+                boolean isRequiredPropertyEmpty = false;
+                for (String sRequiredPropertyName: requiredProperties)
+                {
+                    
+                    if ( props.getProperty(sRequiredPropertyName).length() == 0)
+                    {
+                        // This required property in found but is *empty* within the app file
+                        isRequiredPropertyEmpty = true;
+                        sbErrorMessage2.append(sRequiredPropertyName + " ");
+                    }
+                }
+        
+                if ( isRequiredPropertyEmpty==true )
+                {
+                    // One or more required properties are empty!!
+                    throw new Exception( "Required application properties are empty: " + sbErrorMessage2.toString());
+                }
+        
+                
+                
+                 // Loop throu all of the properties, storing them in the Application Context
+                 for (String sPropertyName: allPropertyNamesInAppFile)
+                 {
+                     // Store this property in the application context
+                     aServletContext.setAttribute( sPropertyName, props.getProperty(sPropertyName));
+                 }
+                     
+                logger.debug("loadConfigPropertiesIntoAppContext() finished.");
+            }
+        }
+        
+        
+
+
+
+
+How to get property values stored in the Application Scope?
+-----------------------------------------------------------
+A) In your jsp page, you can pull them out using this format
+       ${applicationScope['<my property name>']}
+       
+   So, if you want to display the value for the property called 'application.mode',
+   you would add this to your JSP page
+       <div style="border: 1px solid black">
+          application.mode =  ${applicationScope['application.mode']}   
+        </div>
+       
+        
+B) In your back-end java code, you can pull-out the values using this code:
+      @Resource
+      private ServletContext servletContext;
+     
+      String sAppMode = (String) this.servletContext.getAttribute("application.mode");
+ 
+ 
+C) In your back-end java code (if you are using Spring) you can do this
+   a) Pass-in the HttpServletRequest 
+   b) Use this code to get the value for 'application.mode'
+  
+        ServletContext servletContext = aRequest.getServletContext();
+        String sAppMode = (String) servletContext.getAttribute("application.mode");
+        
+ 
+ 
+ 
+ 
+        @Controller
+        public class WelcomeController 
+        {
+            private final static Logger logger = LoggerFactory.getLogger(WelcomeController.class);
+            
+         
+            /**********************************************************************
+             * settingsShow()
+             * 
+             ***********************************************************************/
+            @RequestMapping(value="/settings", method=RequestMethod.GET)
+            public ModelAndView settingsShow( Model aModel, HttpServletRequest  aRequest)
+            {
+                logger.debug("settingsShow() started");
+                        
+                // Create a modelAndView object
+                ModelAndView mav = new ModelAndView();
+                
+                // Show the welcome.jsp page
+                mav.setViewName("settings.jsp");
+                
+                ServletContext servletContext = aRequest.getServletContext();
+                String sAppMode = (String) servletContext.getAttribute("application.mode");
+                logger.debug("application.mode={}", sAppMode);
+                
+                
+                    
+                logger.debug("settingsShow() finished");
+                return mav;
+            }
+        
+        }
