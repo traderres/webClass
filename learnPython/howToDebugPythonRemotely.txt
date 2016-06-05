@@ -1,0 +1,100 @@
+How to Debug Python Script Remotely (using PyCharm Professional)
+----------------------------------------------------------------
+PyCharm (or your ide of choice) acts as the "server" and your application is the "client"; 
+  -- So start the server first (by starting-up the PyCharm IDE in 'debug' mode)
+  -- Then, start the client - which is some code with the settrace statement in it. 
+  -- When your python code hits the settrace it connects to the server (your PyCharm IDE) 
+     and starts feeding it the debug data.
+     
+
+References
+----------
+http://stackoverflow.com/questions/6989965/how-do-i-start-up-remote-debugging-with-pycharm
+
+
+Assumptions:
+ A) You have a Windows box running Pycharm Professional 
+ B) You have a CentOS server [with a python script to debug]
+ 
+
+Procedure
+---------
+ 1. Install pydevd on your Windows box
+    a. pip install pydevd
+    
+    
+ 2. Start your "server" first (So, on your local windows box, tell Pycharm to run in 'Debug' mode)
+    a. Startup Pycharm Professional
+    b. Copy the remote python script to your local Windows PyCharm IDE
+    c. Set a breakpoint in the script
+    
+ 2. Configure your debug server:  Setup your local PyCharm Professional IDE Debug Configuration
+    a. Pull Run / Edit Configurations....
+    b. Press the + -> Python Remote Debug
+       Name:  remote-python
+       Local host name:  192.168.1.2    #  use the IP address of your Windows host.  Do not use localhost>
+       Port:             5000
+       Path mapping:     
+       press OK
+
+ 3. Start your debug server
+    Pull Run / Debug 'remote-python'
+    
+    You should see this in your PyCharm Console:
+        Starting debug server at port 5000
+        Use the following code to connect to the debugger:
+        import pydevd
+        pydevd.settrace('192.168.1.2 ', port=5000, stdoutToServer=True, stderrToServer=True)
+        Waiting for process connection...
+
+         
+ 4. Configure your CentOS box to work in remote debug mode
+    NOTE:  On my windows box, I installed Pycharm to the default location of 
+              C:\Program Files (x86)\JetBrains\PyCharm 2016.1.4\
+           So, the pycharm-debug.egg file is herE:
+              C:\Program Files (x86)\JetBrains\PyCharm 2016.1.4\debug-eggs\pycharm-debug.egg
+              
+    a. Upload this pycharm-debug.egg file to your CentOS box to somewhere in your path (/opt/anaconda2/bin
+       So, upload C:\Program Files (x86)\JetBrains\PyCharm 2016.1.4\debug-eggs\pycharm-debug.egg to /home/adam/api-dependancies/pycharm-debug.egg
+    
+    
+    b. Add this to your python script
+       This is needed so that this python script get find the .egg file
+            import sys
+            sys.path.append('/home/adam/api-dependancies/pycharm-debug.egg')
+   
+    c. Add this to your python script on your CentOS server (after the sys.path.append call)
+         pydevd.settrace('192.168.1.2 ', port=5000, stdoutToServer=True, stderrToServer=True)
+
+    d. On your CentOS box, install pydevd
+       unix> pip install pydevd
+       unix> conda list | grep pydevd
+       pydevd                    0.0.6                     <pip>
+
+       
+
+ 5. Open-up port 5000 on your CentOS box  (or turn-off iptables)
+    unix> sudo -s
+    unix> iptables -I INPUT -p tcp -m tcp --dport 5000 -j ACCEPT
+    unix> service iptables save
+    unix> service iptables restart 
+    
+    
+ 
+ 6. Execute the python script on your CentOS box
+    unix> cd /home/adam/pycharmProjects/pythonScripts
+    unix> pythong initializeEsIndex.py
+ 
+ 
+ 7. Switch back to your Windows Box, running PyCharm
+    -- You should see the message
+         /home/adam/pycharmProjects/pythonScripts/<my script> can't be found in project
+         
+     a. Check "Remember for debug session"
+     b. Press "Download"
+     
+     -- Now, you should see your script and a breakpoint
+     
+     
+    -- Now, your debugger should be at your breakpoint
+    
