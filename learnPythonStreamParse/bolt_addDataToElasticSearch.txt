@@ -1,19 +1,29 @@
 How to Createa Bolt that will add Data to ElasticSearch
 -------------------------------------------------------
 
+References
+----------
+https://pypi.python.org/pypi/elasticsearch/2.3.0
+https://bitquabit.com/post/having-fun-python-and-elasticsearch-part-1/
+
+
+
 Assumptions:
  A) You have installed StreamParse  [see howToInstallStreamParseOnCentos.txt]
  B) You have created a streamparse project here:
        /home/adam/pycharmProjects/wordcount/
  C) You installed Anaconda2 to this directory:
-       /opt/anaconda2/
-             
- 
+       /opt/anaconda2/             
+
+
 Procedure
 ---------
  1. Setup a local ElasticSearch instance 
-    [see learnElasticSearch / howToInstallElasticSearchOnCentos.txt]
+    [see learnElasticSearch / howToInstallElasticSearchOnCentosUsingRpm.txt]
     
+
+ 
+
     
  2. Install the ElasticSearch python module
     a. Install the module
@@ -31,15 +41,69 @@ Procedure
        You should see the following output:
             elasticsearch             2.3.0                     <pip>
   
-      
- 
- 3. Create an index in ElasticSearch to hold some records
+        
+  3. Run a python script to initialize the index within ElasticSearch
     a. Startup your local ElasticSearch instance
-       unix> cd /opt/elasticsearch-1.7.0/bin
-       unix> ./elasticsearch
- 
- 
+       unix> sudo service elasticsearch start
+    
+    b. Create this python script to initialize the index
+       unix> cd /tmp
+       unix> vi initializeEsIndex.py
+                   
+            #######################################################################
+            # Filename:  initializeEsIndex.py
+            # Author:    <your name>
+            #######################################################################
+            # Purpose:
+            #   Connect to a local ElasticSearch instance, create an index, and add a record
+            #
+            # Usage
+            #   DOS> python initializeEsIndex.py
+            #
+            # Assumptions
+            #   A) python is in the PATH
+            #   B) elasticsearch module is installed
+            #   C) ElasticSearch instance is running on localhost:9200
+            #######################################################################
+            import os
+            import time
+            from datetime import datetime
+            from elasticsearch import Elasticsearch
+            
+            
+            gsScriptName = os.path.basename(__file__)
+            print("%s started as of %s." % (gsScriptName, time.strftime("%c")))
+            
+            
+            # Connect to the ElasticSearch at localhost:9200
+            es = Elasticsearch(hosts=[{'host': 'localhost', 'port': 9200}], use_ssl=False)
+            
+            # Create an index in elasticsearch, ignore status code 400 (index already exists)
+            res = es.indices.create(index='my-index', ignore=400)
+            print res
+            
+            # Add a record to show datetimes will be serialized
+            res = es.index(index="my-index", doc_type="test-type", id=42, body={"any": "data", "timestamp": datetime.now()})
+            print res
+            
+            # Get the record to show that date/time will not deserialized
+            res = es.get(index="my-index", doc_type="test-type", id=42)['_source']
+            print res
+            
+            
+            
+            print("%s finished of %s." % (gsScriptName, time.strftime("%c")))
+            exit(0)
+     
+        
+        # Run the script to initialize the index
+        unix> python initializeEsIndex.py        
+    
+    
  4. Add a bolt to the wordcount project that will add records to elasticsearch
     
     
+    
  5. Run the wordcount for 30 seconds
+ 
+ 
