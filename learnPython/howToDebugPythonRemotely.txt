@@ -14,48 +14,84 @@ http://stackoverflow.com/questions/6989965/how-do-i-start-up-remote-debugging-wi
 
 Assumptions:
  A) You have a Windows box running Pycharm Professional 
- B) You have a CentOS server [with a python script to debug]
+ B) You have a Windows box with Putty installed
+ C) You have a CentOS server [with a python script to debug]
  
 
 Procedure
 ---------
  1. Install pydevd on your Windows box
-    a. pip install pydevd
+    a. Open a DOS Window by pressing <Start><Run>CMD
+    b. Within the DOS window, type-in this:
+       DOS> pip install pydevd
+
+
+
+ 2. Create a new Pycharm Project called "remoteDebug"
+    a. Startup PyCharm
+    b. If an existing project appears, pull File -> Close Project
+    c. Press "Create New Project"
+    d. In the next screen,
+       Select "Pure Python"
+       Location:  c:\tools\PycharmProjects\remoteDebug
+       Press "Create"
+         
+    e. Create this file:  remoteScript
+       1)  Right-click on remoteDebug -> New -> Python File
+           Name:  remoteScript.py
     
-    
- 2. Start your "server" first (So, on your local windows box, tell Pycharm to run in 'Debug' mode)
-    a. Startup Pycharm Professional
-    b. Copy the remote python script to your local Windows PyCharm IDE
-    c. Set a breakpoint in the script
-    
- 2. Configure your debug server:  Setup your local PyCharm Professional IDE Debug Configuration
+       2)  Copy this to your remoteScript.py file    
+            #######################################################################
+            # Filename:  remoteScript.py
+            # Author:    <your name>
+            #######################################################################
+            # Purpose:
+            #   Verify that you can remotely debug using PyCharm Professional
+            #
+            # Usage
+            #   DOS> python remoteScript.py
+            #
+            # Assumptions
+            #   A) python is in the PATH
+            #######################################################################
+            import os
+            import time
+                    
+            
+            gsScriptName = os.path.basename(__file__)
+            print("%s started as of %s." % (gsScriptName, time.strftime("%c")))
+            
+            x = 5000
+            x = x + 2
+            print("x=%d" % x)
+            
+            
+            print("%s finished of %s." % (gsScriptName, time.strftime("%c")))
+            exit(0)
+        
+
+
+ 3. Configure the debug server (on your local Windows Box)
+    NOTE:  Your local Windows box does not necessarily have to have a copy of the python script
     a. Pull Run / Edit Configurations....
     b. Press the + -> Python Remote Debug
        Name:  remote-python
-       Local host name:  192.168.1.2    #  use the IP address of your Windows host.  Do not use localhost>
-       Port:             5000
-       Path mapping:     
+       Local host name:  192.168.1.2    #  use the IP address of your Windows box.  Do not use localhost>
+       Port:             5000     
        press OK
 
- 3. Start your debug server
-    Pull Run / Debug 'remote-python'
-    
-    You should see this in your PyCharm Console:
-        Starting debug server at port 5000
-        Use the following code to connect to the debugger:
-        import pydevd
-        pydevd.settrace('192.168.1.2 ', port=5000, stdoutToServer=True, stderrToServer=True)
-        Waiting for process connection...
-
+ 
          
- 4. Configure your CentOS box to work in remote debug mode
-    NOTE:  On my windows box, I installed Pycharm to the default location of 
-              C:\Program Files (x86)\JetBrains\PyCharm 2016.1.4\
-           So, the pycharm-debug.egg file is herE:
-              C:\Program Files (x86)\JetBrains\PyCharm 2016.1.4\debug-eggs\pycharm-debug.egg
+ 4. Configure your CentOS so that it can find the pycharm egg file
               
-    a. Upload this pycharm-debug.egg file to your CentOS box to somewhere in your path (/opt/anaconda2/bin
+    a. Upload this pycharm-debug.egg file to your CentOS box
+       NOTE:  On my windows box, I installed Pycharm to the default location of 
+                C:\Program Files (x86)\JetBrains\PyCharm 2016.1.4\
+              So, the pycharm-debug.egg file is herE:
+                C:\Program Files (x86)\JetBrains\PyCharm 2016.1.4\debug-eggs\pycharm-debug.egg
+ 
        So, upload C:\Program Files (x86)\JetBrains\PyCharm 2016.1.4\debug-eggs\pycharm-debug.egg to /home/adam/api-dependancies/pycharm-debug.egg
+    
     
     b. On your CentOS box, install pydevd
        unix> pip install pydevd
@@ -64,7 +100,7 @@ Procedure
 
        
 
- 5. Open-up port 5000 on your CentOS box  (or turn-off iptables)
+ 5. Open-up port 5000 on your CentOS box  (or turn-off the iptables service)
     unix> sudo -s
     unix> iptables -I INPUT -p tcp -m tcp --dport 5000 -j ACCEPT
     unix> service iptables save
@@ -72,12 +108,10 @@ Procedure
     
     
  
- 6. Modify the python script on your CentOS box to enable remote debugging
-    # Add the 4 lines to configure remote debugging
+ 6. Modify the python script on your Windows box by adding the 4 lines
+    Now, your remoteScript.py should look like this:
     
-    unix> cd /home/adam/pycharmProjects/pythonScripts
-    unix> vi remoteScript.py
-    
+     
         #######################################################################
         # Filename:  remoteScript.py
         # Author:    <your name>
@@ -95,7 +129,7 @@ Procedure
         import time
         
         
-        # E N A B L E       R E M O T E       D E B U G G I N G
+        # E N A B L E      R E M O T E     D E B U G G I N G
         import sys
         import pydevd
         sys.path.append('/home/adam/api-dependancies/pycharm-debug.egg')
@@ -105,29 +139,68 @@ Procedure
         gsScriptName = os.path.basename(__file__)
         print("%s started as of %s." % (gsScriptName, time.strftime("%c")))
         
-        
-        
-        print("%s finished of %s." % (gsScriptName, time.strftime("%c")))
-        exit(0)
-    
+        x = 5000
+        x = x + 2
+        print("x=%d" % x)
  
+ 
+ 
+ 7. Set a breakpiont in your Windows Box by clicking in the margin
+    NOTE:  The breakpoint has to be *after* pydevd.settrace()....
+    
+        
+ 
+ 8. Upload the remoteScript.py to your CentOS box 
+    NOTE:  the python script will actually *run* on the CentOS box
+    a. Open a DOS window by pressing <Start><Run>CMD
+    b. In the DOS window, type-in these commands:
+       DOS> cd "C:\Program Files (x86)\PuTTY"
+       DOS> psftp <IP or hostname of Centos BOX>
+            login as:  <unix account on Centos Box>
+            Password:  <unix account password>
+            
+       psftp> put c:\tools\PycharmProjects\remoteDebug\remoteScript.py /home/adam/pycharmProjects/pythonScripts/remoteScript.py
+       
+       
+       NOTES:
+         1) Keep this window open
+         2) To upload again, press the up-arrow and then press <Enter>
+         
 
- 7. Execute the python script on your CentOS box
+
+ 9. Start your debug server
+    1. In PyCharm, Pull Run / Debug 'remote-python'
+    
+    You should see this in your PyCharm Console:
+        Starting debug server at port 5000
+        Use the following code to connect to the debugger:
+        import pydevd
+        pydevd.settrace('192.168.1.2 ', port=5000, stdoutToServer=True, stderrToServer=True)
+        Waiting for process connection...
+    
+    
+            
+10. Execute the python script on your CentOS box
     unix> cd /home/adam/pycharmProjects/pythonScripts
     unix> python remoteScript.py
 
  
  
- 8. Switch back to your Windows Box, running PyCharm
-    -- You should see the message
-         /home/adam/pycharmProjects/pythonScripts/<my script> can't be found in project
-         
-     a. Check "Remember for debug session"
-     b. Press "Download"
-     
+11. Switch back to your Windows Box, running PyCharm     
      -- Now, you should see your script and a breakpoint
+     -- Press F8 to step over
+        
+
+
+12. Stop the debug server within PyCharm
+    a. In Pycharm, Pull Run / Stop 'remote-python'
      
-     
+ 
+ 
+
+Now, make a change in your local Windows box and repeat steps 7-12
+
+ 
 
 Better:  Have your python script look for the presence of an environment variable
 ---------------------------------------------------------------------------------
