@@ -1,0 +1,198 @@
+How to Debug Python Script Remotely (using Eclipse PyDev)
+----------------------------------------------------------
+Follow these procedures to use your local Eclipse PyDev environment to debug a python script
+that runs on a remote CentOS unix box.     
+     
+
+Assumptions:
+ A) You have a Windows box running Eclipse
+ B) You have installed the PyDev plugin  [see howtoDebugPythonUsingEclipse.txt]
+ B) You have Putty installed             [we will use psftp to upload/download files]
+ C) You have a CentOS server             [with a python script to debug]
+ 
+
+Procedure
+---------
+ 1. Install pydevd on your local Windows box
+    a. Open a DOS Window by pressing <Start><Run>CMD
+    b. Within the DOS window, type-in this:
+       DOS> pip install pydevd
+
+
+
+ 2. Create a new Eclipse Project called "remoteDebug"
+    a. Startup Eclipse
+    b. Pull File -> New -> Project.... 
+    c. In the "Select a wizard", 
+       Browse to PyDev -> PyDev Proejct
+       Press Next
+    c. In the "PyDev Project" screen
+         Project name:  remoteDebug
+         Intepreter:    c:\tools\anaconda2\python.exe
+                        **NOTE** use <default interpreter> if you did not install Anaconda2
+         Press Next
+    d. In the "References projects"
+       Press Finish
+    
+    e. In the "Open Associated Perspective"
+       Check "Remember my decision
+       Press "Yes"
+       
+  
+  
+ 3. Create this script:  remoteScript.py 
+    a. Right-click on PythonScripts -> New -> File:
+       Filename:  testScript.py
+        
+    b. Create this file:  remoteScript
+       1)  Right-click on remoteDebug -> New -> Python File
+           Name:  remoteScript.py
+    
+       2)  Copy this to your remoteScript.py file    
+            #######################################################################
+            # Filename:  remoteScript.py
+            # Author:    <your name>
+            #######################################################################
+            # Purpose:
+            #   Verify that you can remotely debug using PyCharm Professional
+            #
+            # Usage
+            #   DOS> python remoteScript.py
+            #
+            # Assumptions
+            #   A) python is in the PATH
+            #######################################################################
+            import os
+            import time
+                    
+            
+            gsScriptName = os.path.basename(__file__)
+            print("%s started as of %s." % (gsScriptName, time.strftime("%c")))
+            
+            x = 5000
+            x = x + 2
+            print("x=%d" % x)
+            
+            print("%s finished of %s." % (gsScriptName, time.strftime("%c")))
+            exit(0)
+    
+    
+       3) Remove any leading spaces from the file
+          a) Pull Edit / Select All
+          b) Press Shift-Tab a few times (until all leading spaces are gone
+          c) Press Control-S to save the file
+
+
+
+ 4. Configure the debug server (on your local Windows Box) to listen on port 5000
+    a. Pull Windows -> Preferences
+    b. Browse to PyDev -> Run/Debug
+       Connect timeout for debugger  60000    (to the debugger to wait 60 seconds before timing out)
+       Port for remote debugger:     5000
+       Press OK
+ 
+
+       
+ 5. Open-up port 5000 on your CentOS box  (or turn-off the iptables service)
+    unix> sudo -s
+    unix> iptables -I INPUT -p tcp -m tcp --dport 5000 -j ACCEPT
+    unix> service iptables save
+    unix> service iptables restart 
+    
+    
+ 
+ 6. Modify the python script on your Windows box by adding these 2 lines
+        import pydevd
+        pydevd.settrace('192.168.1.2 ', port=5000, stdoutToServer=True, stderrToServer=True)
+  
+    Now, your remoteScript.py should look like this:
+    NOTE:  The 192.168.1.2 IP address is the address of your *local* windows box running Eclipse
+     
+        #######################################################################
+        # Filename:  remoteScript2.py
+        # Author:    <your name>
+        #######################################################################
+        # Purpose:
+        #   Verify that you can remotely debug using PyCharm Professional
+        #
+        # Usage
+        #   DOS> python remoteScript2.py
+        #
+        # Assumptions
+        #   A) python is in the PATH
+        #######################################################################
+        import os
+        import time
+        
+        
+        # E N A B L E      R E M O T E     D E B U G G I N G
+        import pydevd
+        pydevd.settrace('192.168.1.2 ', port=5000, stdoutToServer=True, stderrToServer=True)
+        
+        
+        gsScriptName = os.path.basename(__file__)
+        print("%s started as of %s." % (gsScriptName, time.strftime("%c")))
+        
+        x = 5000
+        x = x + 2
+        print("x=%d" % x)
+        
+        print("%s finished as of %s." % (gsScriptName, time.strftime("%c")))
+        exit(0)
+ 
+ 
+ 7. Upload the remoteScript.py to your CentOS box (using psftp)
+    NOTE:  the python script will actually *run* on the CentOS box
+    a. Open a DOS window by pressing <Start><Run>CMD
+    b. In the DOS window, type-in these commands:
+       DOS> cd "C:\Program Files (x86)\PuTTY"
+       DOS> psftp <IP or hostname of Centos BOX>
+            login as:  <unix account on Centos Box>
+            Password:  <unix account password>
+            
+       psftp> put c:\tools\eclipse\workspace\remoteDebug\remoteScript.py /home/adam/pycharmProjects/remoteScript.py
+       
+       
+       NOTES:
+         1) Keep this window open
+         2) To upload again, press the up-arrow and then press <Enter>
+  
+
+ 
+ 
+ 
+ 8. Start the PyDev Remote Debugger (so it listens on port 5000)
+    NOTE:  There is no shortcut for this [which is really stupid!]
+    a. Switch to the "Debug" perspective (by pressing Debug in the upper right corner)
+       Or Pull Windows -> Perspective -> Open Perspective -> Other... -> Debug
+       
+    b. Click on the icon that has the hint "PyDev:  Start the PyDev Server"
+       NOTE:  The icon is probably in between the "Refactoring" and "Navigate" menubar option
+       
+       
+       In the console, you should see this:
+       Debug Server at port: 5000
+       
+       This means your Eclipse IDE is now listening on port 5000
+       
+
+    
+            
+10. Execute the python script on your CentOS box
+    unix> cd /home/adam/pycharmProjects/pythonScripts
+    unix> python remoteScript.py
+
+ 
+ 
+11. Switch back to your Windows Box, running Eclipse     
+     -- Now, you should see your script and a breakpoint
+     -- Press F6 to step over
+        
+
+
+NOTE:  If you try to change your script in Eclipse and get a "Save Problems" error
+       then, you need to
+        a) shutdown your PyDev Debugger
+        b) Close-up your psftp window
+        
+    
