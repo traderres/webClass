@@ -1,0 +1,241 @@
+How to Debug StreamParse Python Bolts using Pycharm Professional
+----------------------------------------------------------------
+
+Assumptions:
+ A) You want to debug a StreamParse bolt and step through the code
+ B) You are running StreamParse on a remote centOS unix server
+ C) You are editing your code on your local Windows box (running Pycharm Professional)
+ D) You have putty installed on your local Windows box
+ 
+NOTES:
+ A) The anaconda2 version of Python includes Python 2.7.11 and 250+ python modules
+    So, by installing, it you get a ton of python modules
+ B) You need to install anaconda2 on the box that has Pycharm Professional so that
+    Pycharm can tell you if you are missing modules
+    
+    
+
+Procedure
+---------
+ 1. Install Anaconda2 on your local Windows box
+    NOTE:  Because this is Windows, you will have to uninstall any previous versions of Python
+    [see learnPythonDataScience / howToInstallAnacondaLibsOnWindows.txt]
+
+
+ 2. Install the streamparse module on your local Windows box
+    a. Open a DOS window by pressing <Start><Run>CMD
+    b. Type-in these commands:
+    
+       # Verify that you are using the pip that comes with anaconda
+       DOS> pip --version
+       pip 8.1.1 from c:\tools\anaconda2\lib\site-packages (python 2.7)
+    
+       # Use the anaconda pip to install StreamParse
+       DOS> pip install streamparse
+      
+       # Verify that it was installed
+       DOS> conda list streamparse
+       # packages in environment at c:\tools\anaconda2:
+       #
+       streamparse               2.1.4                     <pip>
+
+
+ 3. Install Pycharm professional on your local Windows box
+    [see learnPython / howToDebugPythonUsingPycharmOnWindows.txt]
+
+
+ 4. Make sure Pycharm is using your Anaconda-version of Python
+    a. Startup Pycharm
+    b. If a project opens, then pull File -> Close Project
+    c. Click on Configure -> Settings
+       Select "Project Interpreter" [on the left]
+       Project Interpreter:  select c:\tools\anaconda2\python.exe 2.7.11
+       
+       NOTE:  If you do not see that option, 
+              then 
+                1) Press the gear symbol -> Add Local
+                2) Browse to where you installed your anaconda2 version of python.exe
+          
+    d. Press OK
+       -- Now, Pycharm will be able to recognize if a module is found or not.
+       
+    e. Close Pycharm
+
+
+ 5. Install lein on your remote CentOS unix box
+    a. Download the lein unix script and put is in a place that's in the path -- e.g., /sbin
+       unix> sudo -s
+       unix> cd /sbin
+       unix> wget https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein
+       unix> chmod ugo+x ./lein
+       
+    b. Run lein
+       NOTE:  You need to havea java in your PATH
+       unix> lein
+       Downloading Leiningen to /home/adam/.lein/self-installs/leiningen-2.6.1-standalone.jar now...
+       
+    c. Verify that lein is up to date
+       unix> lein version
+       Leiningen 2.6.1 on Java 1.8.0_73 Java HotSpot(TM) 64-Bit Server VM
+
+
+ 6. Install Anaconda2 on your remote CentOS unix server
+    [see learnPythonDataScience / howToInstallAnacondaLibsOnCentos.txt]
+
+
+ 7. Install the streamparse python module on your remote centOS unix server
+    a. Open a terminal
+    b. Type-in these commands
+       
+       # Verify that you are using the pip that comes with anaconda
+       unix> pip --version
+       pip 8.1.1 from /opt/anaconda2/lib/python2.7/site-packages (python 2.7)
+    
+       # Use the anaconda pip to install StreamParse
+       unix> pip install streamparse
+      
+       # Verify that it was installed
+       DOS> conda list streamparse
+       # packages in environment at /opt/anaconda2:
+       #
+       streamparse               2.1.4                     <pip>
+    
+
+
+  8. Configure your remote CentOS box so that it can find the pycharm egg file
+     
+     a. Create the directory
+        unix> mkdir -p /home/adam/api-dependancies
+     
+     b. Upload this pycharm-debug.egg file to your CentOS box
+        NOTE:  On my windows box, I installed Pycharm to the default location of 
+                  C:\Program Files (x86)\JetBrains\PyCharm 2016.1.4\
+               So, the pycharm-debug.egg file is herE:
+                  C:\Program Files (x86)\JetBrains\PyCharm 2016.1.4\debug-eggs\pycharm-debug.egg
+ 
+       So, upload C:\Program Files (x86)\JetBrains\PyCharm 2016.1.4\debug-eggs\pycharm-debug.egg to /home/adam/api-dependancies/pycharm-debug.egg
+       
+       
+     
+  9. Create a wordcount project on your remote CentOS box
+     unix> cd /home/adam/pycharmProjects
+     unix> sparse quickstart wordcount
+     
+     -- Now, you should have the wordcount project located here:
+        /home/adam/pycharmProjects/wordcount/
+        
+  
+ 10. Modify the wordcount.py bolt so that a breakpoint is kicked-off in the process() method
+     unix> cd wordcount/src/bolts
+     
+     # Make a copy of the original wordcount.py
+     unix> cp wordcount.py wordcount.py.ORIG
+     
+     # Modify the wordcount.py to enable remote debugging
+     unix> vi wordcount.py
+              
+        from __future__ import absolute_import, print_function, unicode_literals
+        
+        from collections import Counter
+        from streamparse.bolt import Bolt
+        
+        import sys
+        import pydevd
+        import os
+        
+        
+        class WordCounter(Bolt):
+        
+            def initialize(self, conf, ctx):
+                # Tell Python where your pycharm-debug.egg file is located
+                sys.path.append('/home/adam/api-dependancies/pycharm-debug.egg')
+                self.counts = Counter()
+        
+            def process(self, tup):
+                self.log("process() started")
+        
+                # E N A B L E      R E M O T E     D E B U G G I N G
+                pydevd.settrace('192.168.1.2 ', port=5000, stdoutToServer=True, stderrToServer=True, patch_multiprocessing=True)
+        
+                word = tup.values[0]
+                self.counts[word] += 1
+                self.emit([word, self.counts[word]])
+                self.log('process() finished:  word=%s: count=%d' % (word, self.counts[word]))
+             
+             
+11. Download the entire wordcount project from your remote CentOS box to your local windows box
+    
+    # Tar-up the entire project to a single tar file
+    unix> cd /home/adam/pycharmProjects
+    unix> tar cf wordcount.tar wordcount
+    unix> chmod ugo+r wordcount.tar
+          -- Now, the project is here:
+             /home/adam/pycharmProjects/wordcount.tar
+             
+    
+    # Use psftp to townload the wordcount.tar file from your CentOS box to your windows box
+    DOS> cd "C:\Program Files (x86)\PuTTY"
+    DOS> psftp <IP or hostname of Centos BOX>
+         login as:  <unix account on Centos Box>
+         Password:  <unix account password>
+            
+    psftp> get /home/adam/pycharmProjects/wordcount.tar  c:\tools\PycharmProjects\wordcount.tar
+    psftp> quit
+           -- Now, you should have this file  c:\tools\PycharmProjects\wordcount.tar
+    
+    # Use 7-zip to extract wordcount.tar
+    Browse to c:\tools\PycharmProjects\
+    Right-click on wordcount.tar -> 7zip -> Extract to here
+    
+      
+       
+      
+12. Open-up the wordcount project on your local Windows box using Pycharm
+    a. Startup Pycharm Professional
+    b. If a project opens, Pull File -> Close Project
+    c. On the PyCharm welcome screen, press Open
+    d. Browse to  c:\tools\PycharmProjects\wordcount
+       Press OK   
+    e. If you get a warning about Python Versions Compatibility, press No
+   
+   
+13. Configure the pycharm debug server (on your local Windows Box)
+    a. Pull Run / Edit Configurations....
+    b. Press the + -> Python Remote Debug
+       Name:             remote-streamparse
+       Local host name:  192.168.1.2    #  use the IP address of your Windows box.  Do not use localhost>
+       Port:             5000     
+       press OK
+
+
+14. Startup your Pycharm debug server
+    a. Pull Run / Debug 'remote-streamparse'
+
+
+15. Run your streamparse on your centos Unix server
+    unix> cd /home/adam/pycharmProjects/wordcount
+    unix> sparse run
+
+
+16. Switch back to your Pycharm IDE
+    If you get a warning that the wordcount.py cannot be found
+    Press "Auto-detect" path mapping settings 
+    
+    In the "Select Local File for the File From Remote Host"
+      -- Select c:\tools\PycharmProjects\temp\wordcount\src\bolts\wordcount.py
+         press OK
+         
+    Your breakpoint should be highlighted
+    Press F8 to step over your breakpoints
+    
+    Click on the "Debugger" tab to see variables
+    
+
+
+WARNING:  
+  1) You might have to kill your stream parse process on your unix server:
+          unix> ps -ef | grep wordcount | grep -v grep    # list the wordcount processes  
+          unix> kill -9  `ps -ef | grep wordcount | grep -v grep | awk '{print $2}' `
+          
+  2) You *must* start the debug server (in Pycharm) 1st and start-up streamprocess *2nd*     
+ 
