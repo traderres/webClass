@@ -1,5 +1,5 @@
-How to Add a Record to an ElasticSearch Instance
-------------------------------------------------
+How to Search for Records in an ElasticSearch Instance
+-------------------------------------------------------
 
 Assumptions:
  A) You have python installed locally
@@ -25,19 +25,19 @@ Procedures
 
     
  4. Startup PyCharm (or your favorite IDE)
-    a. Create this file:  addRecordToElasticSearch2.py
+    a. Create this file:  searchElasticSearch.py
     
-    b. Copy this to your addRecordToElasticSearch2.py
+    b. Copy this to your searchElasticSearch.py
     
         #######################################################################
-        # Filename:  addRecordToElasticSearch2.py
+        # Filename:  searchElasticSearch.py
         # Author:    <your name>
         #######################################################################
         # Purpose:
-        #   Connect to a local ElasticSearch instance, create an index, and add a record
+        #   Add records to ElasticSearch and attempt to search for them
         #
         # Usage
-        #   DOS> python addRecordToElasticSearch2.py
+        #   DOS> python addRecordsAndSearchElasticSearch.py
         #
         # Assumptions
         #   A) python is in the PATH
@@ -48,6 +48,7 @@ Procedures
         import time
         from datetime import datetime
         from elasticsearch import Elasticsearch
+        import json
         
         gsScriptName = os.path.basename(__file__)
         print("%s started as of %s." % (gsScriptName, time.strftime("%c")))
@@ -59,24 +60,51 @@ Procedures
         res = es.indices.create(index='my-index', ignore=400)
         print res
         
-        # Setup the document record
-        doc = {
+        # Setup the document record #1
+        doc1 = {
             'author': 'John Smith',
             'text': 'Using python to talk to ElasticSearch is cool.',
             'timestamp': datetime.now(),
+            'title':  'Python Chapter 1'
         }
         
         # Add a record to ElasticSearch  (ElasticSearch will generate the unique ID)
         # NOTE:  if res['created'] == true, then the record was created
-        res = es.index(index="my-index", doc_type="test-type", id=None, body=doc)
+        res = es.index(index="my-index", doc_type="test-type", id=None, body=doc1)
         print res
         
-        recordId = res['_id']
-        print("Record created with an id of %s\n" % recordId)
         
-        # Get the record from ElasticSearch using this id
-        res = es.get(index="my-index", doc_type="test-type", id=recordId)
+        # Setup the document record #2
+        doc2 = {
+            'author': 'George Washington',
+            'text': 'I like using the Chrome plugin to query ElasticSearch.',
+            'timestamp': datetime.now(),
+            'title': 'Python Chapter 2'
+        }
+        
+        # Add a record to ElasticSearch  (ElasticSearch will generate the unique ID)
+        # NOTE:  if res['created'] == true, then the record was created
+        res = es.index(index="my-index", doc_type="test-type", id=None, body=doc2)
         print res
+        
+        # Search the index
+        res = es.search(index="my-index", q='author: "George"')
+        hits = res['hits']['hits']
+        if not hits:
+            print("No hits were found")
+        else:
+            print("I found some hits")
+        
+            # Display the *raw* json info that came back from Elastic Search
+            print json.dumps(res, indent=4)
+        
+            # Loop through the list of results
+            for hit in hits:
+                print('id=%s  Score=%s   Author=%s   text=%s  title=%s' % (hit['_id'],
+                                                                           hit['_score'],
+                                                                           hit['_source']['author'],
+                                                                           hit['_source']['text'],
+                                                                           hit['_source']['title']))
         
         print("%s finished of %s." % (gsScriptName, time.strftime("%c")))
         exit(0)
@@ -85,15 +113,125 @@ Procedures
  5. Step through your code with a debugger
     a. Set a breakpiont on a line in the script
     b. Debug the script
-       In Pycharm, Right-click on your python script -> Debug 'addRecordToElasticSearch.py'
+       In Pycharm, Right-click on your python script -> Debug 'searchElasticSearch.py'
     
        The console should show this:
         
-        addRecordToElasticSearch2.py started as of 06/12/16 18:03:40.
-        {u'status': 400, u'error': u'IndexAlreadyExistsException[[my-index] already exists]'}
-        {u'_type': u'test-type', u'_id': u'AVVGpEr4cqW9Z16GuNkz', u'created': True, u'_version': 1, u'_index': u'my-index'}
-        Record created with an id of AVVGpEr4cqW9Z16GuNkz
-        
-        {u'_type': u'test-type', u'_source': {u'text': u'Using python to talk to ElasticSearch is cool.', u'author': u'John Smith', u'timestamp': u'2016-06-12T18:03:40.152000'}, u'_index': u'my-index', u'_version': 1, u'found': True, u'_id': u'AVVGpEr4cqW9Z16GuNkz'}
-        addRecordToElasticSearch2.py finished of 06/12/16 18:03:40.       
+            searchElasticSearch.py started as of 06/12/16 18:16:49.
+            {u'status': 400, u'error': u'IndexAlreadyExistsException[[my-index] already exists]'}
+            {u'_type': u'test-type', u'_id': u'AVVGsFoDVZe4SJi8uAcy', u'created': True, u'_version': 1, u'_index': u'my-index'}
+            {u'_type': u'test-type', u'_id': u'AVVGsFoPVZe4SJi8uAcz', u'created': True, u'_version': 1, u'_index': u'my-index'}
+            I found some hits
+            {
+                "hits": {
+                    "hits": [
+                        {
+                            "_score": 1.3116325, 
+                            "_type": "test-type", 
+                            "_id": "AVVGrcBPVZe4SJi8uAct", 
+                            "_source": {
+                                "text": "I like using the Chrome plugin to query ElasticSearch.", 
+                                "author": "George Washington", 
+                                "timestamp": "2016-06-12T18:13:59.647000", 
+                                "title": "Python Chapter 2"
+                            }, 
+                            "_index": "my-index"
+                        }, 
+                        {
+                            "_score": 1.3116325, 
+                            "_type": "test-type", 
+                            "_id": "AVVGq52BcqW9Z16GuNk3", 
+                            "_source": {
+                                "text": "I like using the Chrome plugin to query ElasticSearch.", 
+                                "author": "George Washington", 
+                                "timestamp": "2016-06-12T18:11:38.916000", 
+                                "title": "Python Chapter 2"
+                            }, 
+                            "_index": "my-index"
+                        }, 
+                        {
+                            "_score": 0.8784157, 
+                            "_type": "test-type", 
+                            "_id": "AVVGrKpfVZe4SJi8uAcr", 
+                            "_source": {
+                                "text": "I like using the Chrome plugin to query ElasticSearch.", 
+                                "author": "George Washington", 
+                                "timestamp": "2016-06-12T18:12:48.862000", 
+                                "title": "Python Chapter 2"
+                            }, 
+                            "_index": "my-index"
+                        }, 
+                        {
+                            "_score": 0.8048013, 
+                            "_type": "test-type", 
+                            "_id": "AVVGqJ9wcqW9Z16GuNk1", 
+                            "_source": {
+                                "text": "I like using the Chrome plugin to query ElasticSearch.", 
+                                "author": "George Washington", 
+                                "timestamp": "2016-06-12T18:08:23.548000", 
+                                "title": "Python Chapter 2"
+                            }, 
+                            "_index": "my-index"
+                        }, 
+                        {
+                            "_score": 0.8048013, 
+                            "_type": "test-type", 
+                            "_id": "AVVGr9CUVZe4SJi8uAcx", 
+                            "_source": {
+                                "text": "I like using the Chrome plugin to query ElasticSearch.", 
+                                "author": "George Washington", 
+                                "timestamp": "2016-06-12T18:16:15.252000", 
+                                "title": "Python Chapter 2"
+                            }, 
+                            "_index": "my-index"
+                        }, 
+                        {
+                            "_score": 0.625, 
+                            "_type": "test-type", 
+                            "_id": "AVVGq_MTcqW9Z16GuNk5", 
+                            "_source": {
+                                "text": "I like using the Chrome plugin to query ElasticSearch.", 
+                                "author": "George Washington", 
+                                "timestamp": "2016-06-12T18:12:01.305000", 
+                                "title": "Python Chapter 2"
+                            }, 
+                            "_index": "my-index"
+                        }, 
+                        {
+                            "_score": 0.625, 
+                            "_type": "test-type", 
+                            "_id": "AVVGri3XVZe4SJi8uAcv", 
+                            "_source": {
+                                "text": "I like using the Chrome plugin to query ElasticSearch.", 
+                                "author": "George Washington", 
+                                "timestamp": "2016-06-12T18:14:28.054000", 
+                                "title": "Python Chapter 2"
+                            }, 
+                            "_index": "my-index"
+                        }
+                    ], 
+                    "total": 7, 
+                    "max_score": 1.3116325
+                }, 
+                "_shards": {
+                    "successful": 5, 
+                    "failed": 0, 
+                    "total": 5
+                }, 
+                "took": 10, 
+                "timed_out": false
+            }
+            
+            id=AVVGrcBPVZe4SJi8uAct  Score=1.3116325   Author=George Washington   text=I like using the Chrome plugin to query ElasticSearch.  title=Python Chapter 2
+            id=AVVGq52BcqW9Z16GuNk3  Score=1.3116325   Author=George Washington   text=I like using the Chrome plugin to query ElasticSearch.  title=Python Chapter 2
+            id=AVVGq_MTcqW9Z16GuNk5  Score=0.8048013   Author=George Washington   text=I like using the Chrome plugin to query ElasticSearch.  title=Python Chapter 2
+            id=AVVGri3XVZe4SJi8uAcv  Score=0.8048013   Author=George Washington   text=I like using the Chrome plugin to query ElasticSearch.  title=Python Chapter 2
+            id=AVVGqJ9wcqW9Z16GuNk1  Score=0.8048013   Author=George Washington   text=I like using the Chrome plugin to query ElasticSearch.  title=Python Chapter 2
+            id=AVVGr9CUVZe4SJi8uAcx  Score=0.8048013   Author=George Washington   text=I like using the Chrome plugin to query ElasticSearch.  title=Python Chapter 2
+            id=AVVGrKpfVZe4SJi8uAcr  Score=0.8048013   Author=George Washington   text=I like using the Chrome plugin to query ElasticSearch.  title=Python Chapter 2
+            id=AVVGsFoPVZe4SJi8uAcz  Score=0.8048013   Author=George Washington   text=I like using the Chrome plugin to query ElasticSearch.  title=Python Chapter 2
+            searchElasticSearch.py finished of 06/12/16 18:23:14.
+            
+
+
            
