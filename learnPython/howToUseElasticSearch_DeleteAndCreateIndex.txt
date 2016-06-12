@@ -1,0 +1,164 @@
+How to Delete and Create an Index in an ElasticSearch Instance
+--------------------------------------------------------------
+
+Assumptions:
+ A) You have python installed locally
+ 
+
+Procedures
+----------
+ 1. Download & Install ElasticSearch on your local windows box
+    [see learnElasticSearch / howToInstallElasticSearchOnWindows.txt]
+
+    
+ 2. Startup your ElasticSearch instance
+    a. Open a DOS window by pressing <Start><Run>CMD
+    b. In the DOS window, type-in this:
+       DOS> cd c:\tools\elasticsearch-1.7.0\bin
+       DOS> elasticsearch.bat
+
+    
+ 3. Install the elasticsearch module (using pip)
+    a. Open a DOS window by pressing <Start><Run>CMD
+    b. In the DOS window, type-in this:
+       DOS> pip install elasticsearch
+
+    
+ 4. Startup PyCharm (or your favorite IDE)
+    a. Create this file:  deleteAndCreateIndex.py
+    
+    b. Copy this to your deleteAndCreateIndex.py
+    
+        #######################################################################
+        # Filename:  deleteAndCreateIndex.py
+        # Author:    <your name>
+        #######################################################################
+        # Purpose:
+        #   Delete an ElasticSearch index, create an index, and add some records
+        #
+        # Usage
+        #   DOS> python deleteAndCreateIndex.py
+        #
+        # Assumptions
+        #   A) python is in the PATH
+        #   B) elasticsearch module is installed
+        #   C) ElasticSearch instance is running on localhost:9200
+        #######################################################################
+        import os
+        import time
+        from datetime import datetime
+        from elasticsearch import Elasticsearch
+        import json
+        
+        gsScriptName = os.path.basename(__file__)
+        print("%s started as of %s." % (gsScriptName, time.strftime("%c")))
+        
+        # Connect to the ElasticSearch at localhost:9200
+        es = Elasticsearch(hosts=[{'host': 'localhost', 'port': 9200}], use_ssl=False)
+        
+        # Delete this index in elasticsearch, ignore status code 404 and 404
+        res = es.indices.delete(index='my-index', ignore=[400, 404])
+        print res
+        
+        # Create an index in elasticsearch, ignore status code 400 (which means that an index already exists)
+        res = es.indices.create(index='my-index', ignore=400)
+        print res
+        
+        # Setup the document record #1
+        doc1 = {
+            'author': 'John Smith',
+            'text': 'Using python to talk to ElasticSearch is cool.',
+            'timestamp': datetime.now(),
+            'title': 'Python Chapter 1'
+        }
+        
+        # Add a record to ElasticSearch  (ElasticSearch will generate the unique ID)
+        # NOTE:  if res['created'] == true, then the record was created
+        res = es.index(index="my-index", doc_type="test-type", id=None, body=doc1)
+        print res
+        
+        # Setup the document record #2
+        doc2 = {
+            'author': 'George Washington',
+            'text': 'I like using the Chrome plugin to query ElasticSearch.',
+            'timestamp': datetime.now(),
+            'title': 'Python Chapter 2'
+        }
+        
+        # Add a record to ElasticSearch  (ElasticSearch will generate the unique ID)
+        # NOTE:  if res['created'] == true, then the record was created
+        res = es.index(index="my-index", doc_type="test-type", id=None, body=doc2)
+        print res
+        
+        # Explicitly refresh the index (marking prior operations completed)
+        res = es.indices.refresh(index="my-index")
+        print res
+        
+        # Search the index
+        res = es.search(index="my-index", q='author: "George"')
+        hits = res['hits']['hits']
+        if not hits:
+            print("No hits were found")
+        else:
+            print("I found some hits")
+        
+            # Display the *raw* json info that came back from Elastic Search
+            print json.dumps(res, indent=4)
+        
+            # Loop through the list of results
+            for hit in hits:
+                print('id=%s  Score=%s   Author=%s   text=%s  title=%s' % (hit['_id'],
+                                                                           hit['_score'],
+                                                                           hit['_source']['author'],
+                                                                           hit['_source']['text'],
+                                                                           hit['_source']['title']))
+        
+        print("%s finished of %s." % (gsScriptName, time.strftime("%c")))
+        exit(0)
+
+
+ 5. Step through your code with a debugger
+    a. Set a breakpiont on a line in the script
+    b. Debug the script
+       In Pycharm, Right-click on your python script -> Debug 'searchElasticSearch.py'
+    
+       The console should show this:
+        
+        deleteAndCreateIndex.py started as of 06/12/16 19:44:08.
+        {u'acknowledged': True}
+        {u'acknowledged': True}
+        {u'_type': u'test-type', u'_id': u'AVVHAEee7mkC7GilGTY4', u'created': True, u'_version': 1, u'_index': u'my-index'}
+        {u'_type': u'test-type', u'_id': u'AVVHAEl07mkC7GilGTY5', u'created': True, u'_version': 1, u'_index': u'my-index'}
+        {u'_shards': {u'successful': 5, u'failed': 0, u'total': 10}}
+        I found some hits
+        {
+            "hits": {
+                "hits": [
+                    {
+                        "_score": 0.19178301, 
+                        "_type": "test-type", 
+                        "_id": "AVVHAEl07mkC7GilGTY5", 
+                        "_source": {
+                            "text": "I like using the Chrome plugin to query ElasticSearch.", 
+                            "author": "George Washington", 
+                            "timestamp": "2016-06-12T19:44:09.075000", 
+                            "title": "Python Chapter 2"
+                        }, 
+                        "_index": "my-index"
+                    }
+                ], 
+                "total": 1, 
+                "max_score": 0.19178301
+            }, 
+            "_shards": {
+                "successful": 5, 
+                "failed": 0, 
+                "total": 5
+            }, 
+            "took": 5, 
+            "timed_out": false
+        }
+        id=AVVHAEl07mkC7GilGTY5  Score=0.19178301   Author=George Washington   text=I like using the Chrome plugin to query ElasticSearch.  title=Python Chapter 2
+        deleteAndCreateIndex.py finished of 06/12/16 19:44:13.
+
+           
