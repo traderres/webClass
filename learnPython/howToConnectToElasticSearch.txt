@@ -1,0 +1,96 @@
+How to Connect with an ElasticSearch Instance
+---------------------------------------------
+
+Assumptions:
+ A) You have python installed locally
+ 
+
+Procedures
+----------
+ 1. Download & Install ElasticSearch on your local windows box
+    [see learnElasticSearch / howToInstallElasticSearchOnWindows.txt]
+
+    
+ 2. Startup your ElasticSearch instance
+    a. Open a DOS window by pressing <Start><Run>CMD
+    b. In the DOS window, type-in this:
+       DOS> cd c:\tools\elasticsearch-1.7.0\bin
+       DOS> elasticsearch.bat
+
+    
+ 3. Install the elasticsearch module (using pip)
+    a. Open a DOS window by pressing <Start><Run>CMD
+    b. In the DOS window, type-in this:
+       DOS> pip install elasticsearch
+
+    
+ 4. Startup PyCharm (or your favorite IDE)
+    a. Create this file:  initializeEsIndex.py
+    
+    b. Copy this to your initializeEsIndex.py
+    
+        #######################################################################
+        # Filename:  initializeEsIndex.py
+        # Author:    <your name>
+        #######################################################################
+        # Purpose:
+        #   Connect to a local ElasticSearch instance, create an index, and add a record
+        #
+        # Usage
+        #   DOS> python initializeEsIndex.py
+        #
+        # Assumptions
+        #   A) python is in the PATH
+        #   B) elasticsearch module is installed
+        #   C) ElasticSearch instance is running on localhost:9200
+        #######################################################################
+        import os
+        import time
+        from datetime import datetime
+        from elasticsearch import Elasticsearch
+        
+        
+        
+        gsScriptName = os.path.basename(__file__)
+        print("%s started as of %s." % (gsScriptName, time.strftime("%c")))
+        
+        # Connect to the ElasticSearch at localhost:9200
+        es = Elasticsearch(hosts=[{'host': 'localhost', 'port': 9200}], use_ssl=False)
+        
+        # Create an index in elasticsearch, ignore status code 400 (which means that an index already exists)
+        res = es.indices.create(index='my-index', ignore=400)
+        print res
+        
+        # Add a record to show datetimes will be serialized
+        res = es.index(index="my-index", doc_type="test-type", id=42, body={"any": "data", "timestamp": datetime.now()})
+        print res
+        
+        # Get the record to show that date/time will not deserialized
+        res = es.get(index="my-index", doc_type="test-type", id=42)['_source']
+        print res
+        
+        print("%s finished of %s." % (gsScriptName, time.strftime("%c")))
+        exit(0)
+
+    
+ 5. Step through your code with a debugger
+    a. Set a breakpiont on a line in the script
+    b. Debug the script
+       In Pycharm, Right-click on your python script -> Debug 'initializeEsIndex.py'
+    
+       The console should show this  (the first time)
+           initializeEsIndex.py started as of 06/12/16 17:48:05.
+           {u'acknowledged': True}
+           {u'_type': u'test-type', u'_id': u'42', u'created': True, u'_version': 1, u'_index': u'my-index'}
+           {u'timestamp': u'2016-06-12T17:48:18.457000', u'any': u'data'}
+           initializeEsIndex.py finished of 06/12/16 17:48:21.
+
+       The console should show this  (the second time)
+           initializeEsIndex.py started as of 06/12/16 17:48:59.
+           {u'status': 400, u'error': u'IndexAlreadyExistsException[[my-index] already exists]'}
+           {u'_type': u'test-type', u'_id': u'42', u'created': False, u'_version': 2, u'_index': u'my-index'}
+           {u'timestamp': u'2016-06-12T17:49:00.549000', u'any': u'data'}
+           initializeEsIndex.py finished of 06/12/16 17:49:00.
+           
+           
+           
