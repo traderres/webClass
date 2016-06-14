@@ -1,0 +1,556 @@
+How to Setup Test Harness (to test your bolts and spouts)
+----------------------------------------------------------
+
+Assumptions:
+ A) You have streamparse already installed
+ B) You have Anaconda2 python and modules installed
+ C) You are running streamparse from a CentOS unix server
+ 
+Procedure
+---------
+ 1. Create the wordcount quickstart project
+    unix> cd ~/pycharmProjects
+    unix> sparse quickstart wordcount
+
+ 2. Verify that the wordcount project works
+    unix> cd ~/pycharmProjects/wordcount
+    unix> sparse run
+    
+    NOTE:  Press Ctrl-C to kill it
+    
+
+ 3. Add this spout:  testdata.py
+    a. Create this file /src/bolts/spouts/testdata.py
+    b. Copy this to your testdata.py
+    
+      from __future__ import absolute_import, print_function, unicode_literals
+      
+      import itertools
+      from streamparse.spout import Spout
+      from collections import namedtuple
+      import pydevd
+      import random
+      
+      MyTuple = namedtuple("Tuple", "id component stream task values")
+      
+      
+      class TestDataSpout(Spout):
+      
+          def initialize(self, stormconf, context):
+              self.log("TestDataSpout.initialize() called")
+      
+              TOTAL_TEST_RECORD_COUNT = 5000
+              tupleList = [ ]
+      
+              # Create a list of tuples with random destination IP addresses
+              for i in range(1,TOTAL_TEST_RECORD_COUNT):
+                  destIP = random.randint(1,256)
+                  d = ({"uuid": i,
+                        "src_dot": "10.2.0.5",
+                        "dst_dot": "10.2.1." + str(destIP)
+                        })
+                  t = MyTuple("101", "somecomponent", "somestream", "sometask", d)
+                  tupleList.append(t)
+      
+              # This spout will iterate through this list of tuples forever
+              self.data = itertools.cycle(tupleList)
+      
+              self.log("TestDataSpout.initialize() finished")
+      
+          def next_tuple(self):
+              self.log("TestDataSpout.next_tuple() called")
+              dataItem = next(self.data)
+      
+              self.log("TestDataSpout.next_tuple() emits %r" % (str(dataItem)))
+              self.emit([dataItem], stream="orig")
+
+
+
+ 4. Add this bolt:  dottopip.py
+    a. Create this file:  src/bolts/dottoip.py
+    b. Copy this to the dottoip.py
+
+        from __future__ import absolute_import, print_function, unicode_literals
+        
+        from streamparse.bolt import Bolt
+        import json
+        
+        class DotToIp(Bolt):
+            def initialize(self, conf, ctx):
+        
+                self.log("DotToIp.initialize() started")
+                self.convertFields = json.loads(conf["analytics.transforms.dottoip.fields"].replace("'", '"'))
+                # self.convertFields = conf["analytics.transforms.dottoip.fields"]
+                self.log("self.convertFields=%s" % self.convertFields)
+        
+                self.stream = conf["analytics.transforms.dottoip.emitStream"]
+        
+                self.transforms = self.convertFields['transform']
+                self.log("DotToIp.initialize() finished")
+        
+        
+            def process(self, tup):
+                self.log("DotToIp.initialize() process()  tup=%s" % (str(tup)))
+        
+                try:
+                    raw = tup.values[0]['values']
+                    
+                    for srcFieldName, destFieldName in self.transforms.iteritems():
+                        srcFieldValue = str(raw[srcFieldName])
+                        raw[destFieldName] = self.ip2long(srcFieldValue)
+        
+                    self.log("DotToIp.initialize() process()  finished.  Emits=%s" % (str(raw)))
+                    self.emit([raw],self.stream)
+                    
+                except Exception as e:
+                    self.log("DotToIP Error: %s %s"%(str(e),raw[srcFieldName]),'error')
+                    
+            def ip2long(self,ip):
+                """
+                Convert an IP string to long
+                """
+                o = map(int, ip.split('.'))
+                res = (16777216 * o[0]) + (65536 * o[1]) + (256 * o[2]) + o[3]
+                self.log("ip2long()  ip=%s  returns=%s" % (ip, res))
+                return res
+        
+        
+        
+        
+        
+        if __name__ == '__main__':
+            # create a function to override the Bolt"s emit function; probably should subclass bolt in the future to support this
+            def emit(tup, stream):
+                """
+                    you can do whatever in this function you want; wrtie to stdout or to a file for example
+                    """
+                print(tup)
+        
+        
+            import collections
+            Tuple = collections.namedtuple("Tuple", "id component stream task values")
+        
+            data1 = [{
+                "dst_dot": "10.2.0.1",
+                "src_dot": "10.2.0.30"
+            }]
+            tup1 = Tuple("123", "somecomponent", "somestream", "sometask", data1)
+        
+        
+            myconf = {
+                'analytics.transforms.dottoip.emitStream':  'myEmitStream',
+                'analytics.transforms.dottoip.fields':
+                    {'transform':    {'src_dot': 'sip', 'dst_dot': 'dip'}}
+            }
+        
+            myBolt = DotToIp()
+            myBolt.emit = emit
+        
+            myBolt.initialize(myconf, None)
+        
+            myBolt.process(tup1)
+ 
+ 
+ 
+ 5. Add this bolt:  kmeans.py
+    a. Create the file /src/bolts/kmeansip.py
+    b. Copy this to the bolt
+    
+      from streamparse.bolt import BatchingBolt
+      from streamparse.bolt import Bolt
+      import json
+      import numpy as np
+      from sklearn.cluster import KMeans
+      from utils.expiringdictwithcallback import  ExpiringDictWithCallback
+      import pydevd
+      
+      
+      class KmeansIP(Bolt):
+      
+          def initialize(self, conf, ctx):
+              self.log("KmeansIP.initialize() started.")
+              self.kmeansFields = json.loads(conf["analytics.bolts.kmeansip.fields"].replace("'",'"'))
+      #        self.kmeansFields = conf["analytics.bolts.kmeansip.fields"]
+      
+              self.outStream = conf["analytics.bolts.kmeansip.outstream"]
+              self.srcName = self.kmeansFields['src']
+              self.dstName = self.kmeansFields['dst']
+              self.idName = self.kmeansFields['id']
+              self.iterator = 0
+              self.calcWindow = 10
+              self.buildBackLog = True
+              self.expired = 3600   # expired age in seconds
+              try:
+                  self.topologyMsgTimeout = 50000
+                  self.maxDictLen = 750000
+                  self.cache = ExpiringDictWithCallback(self.maxDictLen,self.topologyMsgTimeout,self.expired)
+              except Exception as e:
+                  self.log("KMeans IP Init: %s"%(str(e)),"error")
+                  
+              self.log("KmeansIP.initialize() Completed.")
+      
+          def expired(self, data):
+              self.log("KMeans IP Expired: %s" % (data))
+              pass
+      
+          def recalc(self):
+              aryTupes = []
+              for k, v in self.cache.items():
+                  aryTupes.append(v['sdp'])
+      
+              ipArrData = np.asarray(aryTupes)
+      
+              # Do the clustering
+              self.kmeans = KMeans(n_clusters=2, random_state=111)
+      
+              self.kmeans.fit(ipArrData)
+      
+              self.res = {}
+             self.clusterCount = {}
+             for i in range(0, ipArrData.shape[0]):
+      
+                  if self.kmeans.labels_[i] in self.clusterCount:
+                      self.clusterCount[self.kmeans.labels_[i]] += 1
+                  else:
+                      self.clusterCount[self.kmeans.labels_[i]] = 0
+      
+                  src = ipArrData[i][0]
+                  dst = ipArrData[i][1]
+                  if src in self.res:
+                      self.res[src][dst] = self.kmeans.labels_[i]
+                  else:
+                      self.res[src] = {}
+                      self.res[src][dst] = self.res[src][dst] = self.kmeans.labels_[i]
+      
+      
+          def doBackLog(self):
+              self.log("Kmeans Processing Backlog: Iterator: %i BackLog: %i" % (self.iterator, len(self.cache)))
+              for k, v in self.cache.items():
+                  idValue = v[self.idName]
+                  sdpValue1 = v['sdp'][0]
+                  sdpValue2 = v['sdp'][1]
+      
+                  self.formatEmit(idValue, sdpValue1, sdpValue2)
+      
+              self.buildBackLog = False
+              self.log("KmeansdoBackLog() finished")
+      
+          def formatEmit(self, id, src, dst):
+              try:
+                  try:
+                      kmeansScore = self.res[src][dst]
+                  except KeyError:
+                      self.recalc()
+                      kmeansScore = self.res[src][dst]
+      
+                  c = self.clusterCount[kmeansScore]
+                  x = self.kmeans.cluster_centers_[kmeansScore][0] - src
+                  y = self.kmeans.cluster_centers_[kmeansScore][1] - dst
+                  kmeansResult = {self.idName: id, self.srcName: src, self.dstName: dst, 'score': str(kmeansScore), 'cluster': c,
+                                  'windowcount': len(self.cache), 'x': x, 'y': y,
+                                  'cx': self.kmeans.cluster_centers_[kmeansScore][0],
+                                  'cy': self.kmeans.cluster_centers_[kmeansScore][1]}
+      
+                  # Push this data to the output stream
+                  self.emit([kmeansResult], stream=self.outStream)
+      
+                  self.log("KmeansIP.formatEmit() just emitted kmeansResult=%s" % str(KmeansIP))
+              except Exception as e:
+                  self.log("Error %s formatting emit for: %s %i %i" % (type(e), id, src, dst))
+      
+      
+          def process(self, tup):
+              self.log("KmeansIP.process() started.")
+              self.iterator += 1
+              raw = tup.values[0]
+              self.cache[self.iterator] = {self.idName: raw[self.idName], 'sdp': (raw[self.srcName], raw[self.dstName])}
+      
+              if ((self.iterator % self.calcWindow) == 0):
+                  self.recalc()
+                  if self.buildBackLog:
+                      self.doBackLog()
+                  self.formatEmit(raw[self.idName], raw[self.srcName], raw[self.dstName])
+              else:
+                  if not self.buildBackLog:
+                      self.formatEmit(raw[self.idName], raw[self.srcName], raw[self.dstName])
+      
+              self.log("KmeansIP.process() finished.")
+      
+      
+      if __name__ == "__main__":
+          def emit(tup, stream):
+              """
+                  Override the emit() method to print
+              """
+              print(tup)
+      
+      
+          # let"s build up a tuple that will work for our DC.process call;
+          # this named tuple comes from the streamparse class
+          from collections import namedtuple
+      
+          conf = {
+              'analytics.bolts.kmeansip.outstream': 'myOutputStream',
+              'analytics.bolts.kmeansip.fields': {"id": "uuid",
+                                                  "src": "sip",
+                                                  "dst": "dip"}
+          }
+      
+          # create an instance of the class to test
+          ki = KmeansIP()
+      
+          # smash the emit function with our test emit
+          ki.emit = emit
+      
+      
+          # let"s do it; remember to set the PYTHONPATH when running ex. PYTHONPATH=../../../../ python ./domaincompare.py
+          ki.initialize(conf, None)
+      
+          Tuple = namedtuple("Tuple", "id component stream task values")
+      
+          data1 = [{"uuid": "1232345",
+                    "sip": 167903262,
+                    "dip": 167903233},
+                   ]
+          t1 = Tuple("123", "somecomponent", "somestream", "sometask", data1)
+      
+          data2 = [{"uuid": "222222",
+                    "sip": 168903262,
+                    "dip": 168903233}]
+          t2 = Tuple("222", "somecomponent", "somestream", "sometask", data2)
+      
+          data3 = [{"uuid": "333333",
+                    "sip": 169903262,
+                    "dip": 169903233}]
+          t3 = Tuple("333", "somecomponent", "somestrea", "sometask", data3)
+      
+          data4 = [{"uuid": "44444",
+                    "sip": 169903266,
+                    "dip": 169903233}]
+          t4 = Tuple("333", "somecomponent", "somestrea", "sometask", data4)
+      
+          ki.process(t1)
+          ki.process(t2)
+          ki.process(t3)
+          ki.process(t4)
+
+    
+ 
+ 6. Add this bolt:  esclient.py
+    a. Create this file:  src/bolts/esclient.py
+    b. Copy this to the file:
+ 
+        from __future__ import absolute_import, print_function, unicode_literals
+        from streamparse.bolt import Bolt
+        
+        import json
+        
+        import elasticsearch
+        import logging
+        logger = logging.getLogger('elasticsearch')
+        logger.addHandler(logging.NullHandler())
+        logger = logging.getLogger('elasticsearch.trace')
+        logger.addHandler(logging.NullHandler())
+        logger = logging.getLogger('urllib3')
+        logger.addHandler(logging.NullHandler())
+        logging.getLogger('elasticsearch').setLevel(logging.CRITICAL)
+        logging.getLogger('urllib3').setLevel(logging.CRITICAL)
+        logging.getLogger('elasticsearch.trace').setLevel(logging.CRITICAL)
+        
+        import pydevd
+        
+        
+        class EsClient(Bolt):    
+            def initialize(self, conf, context):
+                 self.config(conf)
+                self.log("EsClient.initialize() finished")
+        
+            def config(self,conf):
+                try:
+                    self.es = elasticsearch.Elasticsearch()
+                    
+                    self.index = conf["analytics.bolts.esclient.index"]
+                    self.docType = conf["analytics.bolts.esclient.doctype"]
+                    self.idName = conf["analytics.bolts.esclient.id"] 
+                    self.output = json.loads(conf["analytics.bolts.esclient.output"].replace("'",'"'))
+        
+                    # Create the ElasticSearch index (if it does not exist)
+                    res = self.es.indices.create(index=self.index, ignore=400)
+                    self.log("res")
+        
+                    #mapping = self.es.indices.get_mapping(self.index, self.docType)
+                    #self.log("ES Client Mapping: %s"%(mapping))
+                except KeyError as e:
+                    self.log("ES Bolt Missing Config for: %s"%(e))
+        
+        
+            def addRecordsToElasticSearch(self,data):
+                self.log("addRecordsToElasticSearch() started")
+                id = data[self.idName]
+                
+                for key in self.output:
+                    body = {}
+                    for f in self.output[key]['fields']:
+                        # Loop through all of the fields that can be indexed
+                        if f in data:
+                            # This field was found in the tuple and was found in the list of fields to-be-added to ES
+                            # -- So, add this field to the body
+                            body[f] = data[f]
+        
+        
+                    # Add this record to ElasticSearch
+                    # res = self.es.index(index=self.index, doc_type=self.docType, id=id, body=json.dumps(body))
+                    res = self.es.index(index=self.index, doc_type=self.docType, id=id, body=json.dumps(body))
+                    self.log("Attempt to add record:  res['created']=%s" % (res['created']))
+                    self.log("addRecordsToElasticSearch() finished")
+        
+            def process(self, tup):
+                self.log("EsClient.process() started")
+                try:
+                    self.stream = tup.stream
+                    self.addRecordsToElasticSearch(tup.values[0])
+                except Exception as e:
+                    self.log("ES Bolt error: %s" % (str(e)), "error")
+        
+                self.log("EsClient.process() finished")
+ 
+ 7. Add the utils/expiringDictWithCallback.py
+      from expiringdict import ExpiringDict
+      import time
+      from collections import OrderedDict
+      
+              
+      class ExpiringDictWithCallback(ExpiringDict):
+          def __init__(self, max_len, max_age_seconds, callback=None):
+              ExpiringDict.__init__(self, max_len, max_age_seconds)
+              self.callback = callback
+      
+          def __contains__(self, key):
+              # Return True if the dict has a key, else return False.
+              try:
+                  with self.lock:
+                      item = OrderedDict.__getitem__(self, key)
+                      if time.time() - item[1] < self.max_age:
+                          return True
+                      else:
+                          if self.callback:self.callback(item[0])
+                          del self[key]
+              except KeyError:
+                  pass
+              return False
+          
+          def __getitem__(self, key, with_age=False):
+              '''
+              Return the item of the dictionary
+              Raises a KeyError if key is not in the map.
+              '''
+              with self.lock:
+                  item = OrderedDict.__getitem__(self, key)
+                  item_age = time.time() - item[1]
+                  if item_age < self.max_age:
+                      if with_age:
+                          return item[0], item_age
+                      else:
+                          return item[0]
+                  else:
+                      if self.callback: self.callback(item[0])
+                      del self[key]
+                      raise KeyError(key)
+ 
+
+ 8. Configure the topology
+    a. Make a backup of toplogies/wordcount.clj
+    b. Copy this to wordcount.clj
+    
+    (ns wordcount
+  (:use     [streamparse.specs])
+  (:gen-class))
+
+(defn wordcount [options]
+   [
+
+    ;; Define the spouts in this dictionary
+    {
+
+          ;; T E S T     D A T A     S P O U T
+         "testdata-spout" (python-spout-spec
+          options
+          "spouts.testdata.TestDataSpout"
+            {
+          	  ;;streams to output
+          	  "orig" ["orig"]
+            }
+          )
+    }
+
+    ;; Define the bolts in this dictionary
+    {
+
+        ;; D O T  - T O  - I P        B O L T
+        ;;
+        ;; Converted regular IP address (with dots as a string) to a normalized number and store them as 'sip' and 'dip' fields
+        "dottoip-bolt" (python-bolt-spec
+          options
+          {["testdata-spout" "orig"]["orig"]}
+          "transforms.dottoip.DotToIp"
+            {
+          	  ;;streams to output
+          	  "orig" ["orig"]
+            }
+          :p 1
+          :conf {
+            "analytics.transforms.dottoip.emitStream","orig"
+            "analytics.transforms.dottoip.fields","{'transform':{'src_dot':'sip','dst_dot':'dip'}}"
+            }
+         ),
+
+
+        ;; K M E A N S        I P      B O L T
+        ;;
+        ;; Perform kmeans clustering on the normalized IP address ('sip' and 'dip')
+        ;; See http://gitlab.labs.g2-inc.net/AngelFace/Analytics/wikis/kmeans.ip
+        "kmeans-bolt" (python-bolt-spec
+         options
+         {["dottoip-bolt" "orig"]["orig"]}
+         "bolts.kmeansip.KmeansIP"
+         {
+          	  ;;streams to output
+          	  "orig" ["orig"]
+         }
+         :p 1
+         :conf {
+                "analytics.bolts.kmeansip.outstream",    "orig"
+                "analytics.bolts.kmeansip.fields",      "{'id':'uuid','src':'sip','dst':'dip'}"
+               }
+         ),
+
+
+         ;; E L A S T I C      S E A R C H      B O L T
+         ;;
+         ;; Write stuff to the ElsaticSearch index called 'prevalent_syslog'
+         "esclient-bolt" (python-bolt-spec
+         options
+         {["kmeans-bolt" "orig"]["orig"]}
+         "bolts.esclient.EsClient"
+         {
+          	  ;;streams to output
+          	  "orig" ["orig"]
+          }
+          :p 1
+         :conf {
+                "analytics.bolts.esclient.index","prevalent_syslog"
+                "analytics.bolts.esclient.doctype","event"
+                "analytics.bolts.esclient.id","uuid"
+                "analytics.bolts.esclient.output","{'1':{'fields':['sip', 'dip', 'src_dot','dst_dot',
+                                                                   'prevalent_timestamp','device_id','sensor','manufacturer',
+                                                                   'model','uuid','dst_geoloc','src_geoloc','srchilbert','dsthilbert','rule_metadata','serialNumber','alert',
+                                                                   'category','alert_timestamp','protocol','classification','sid','pid','gid','rev','priority','dst_port','src_port','signature','start_time_iso'
+                                                                   ]
+                                                         }
+                                                    }"
+                }
+         )
+    }
+  ]
+)
+
