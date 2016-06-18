@@ -1,0 +1,99 @@
+How to Setup the Ubuntu VM to Talk to the Internet and your Host (using Bridge)
+-------------------------------------------------------------------------------
+Suppose your Ubuntu VM is running lots of daemons and app servers.
+Suppose you want to use the web browser from your Windows 7 host to talk to the centOS VM
+
+
+Procedure
+---------
+ 1. Power Down your Ubuntu VM
+    Press the Gear icon in the upper right corner -> Shutdown...
+    Press "Shut Down"
+    
+ 2. Open the VirtualBox Manager
+    a. Right-click on your Ubuntu VM -> Settings 
+    b. Click on the "Network" tab
+    c. Change Adapter 1 from NAT to "Bridged Adapter"
+       Press OK
+
+ 3. Power Up your Ubuntu VM
+ 
+ 4. Setup your eth0 to use DHCP
+    a. Open a Terminal
+       unix> sudo nm-connection-editor
+       
+       1) Single click on "Wired connection" and press "Edit..."
+       2) Click on the "IPv4 Settings" tab
+            Method:  Automatic (DHCP)
+            Check "Connect automatically"
+            Check "Available to all users"
+          Press "Apply..."
+          Press "Close"
+          
+       3) Restart the network service
+          unix> sudo service network-manager restart
+ 
+ 4. Get your IP address 
+    unix> ifconfig -a | grep 'inet addr'
+    inet addr:192.168.1.162  Bcast:192.168.1.255  Mask:255.255.255.0
+    inet addr:127.0.0.1  Mask:255.0.0.0
+
+    In this case, the IP address of your Ubuntu vm is 192.168.1.162
+    
+
+ 5. Adjust the iptables on your centOS VM so that ports 80, 443, 8080 and 8443 are opened-up
+    NOTE:  Use the iptables -I option to insert these rules at the top of the list
+    
+    unix> sudo -s
+    unix> iptables -I INPUT -p tcp -m tcp --dport 80 -j ACCEPT
+    unix> iptables -I INPUT -p tcp -m tcp --dport 443 -j ACCEPT
+    unix> iptables -I INPUT -p tcp -m tcp --dport 8080 -j ACCEPT
+    unix> iptables -I INPUT -p tcp -m tcp --dport 8443 -j ACCEPT
+    unix> iptables -I INPUT -p tcp -m tcp --dport 25 -j ACCEPT
+    unix> iptables-save  # to save firewall rule changes
+    unix> iptables -S    # to list the current firewall rules
+
+
+ 6. Install the Apache daemon
+    unix> sudo apt-get install apache2
+   
+    
+ 7. Verify that port 80 is opened-up
+    a. unix> grep -i listen /etc/apache2/ports.conf
+       -- You should see Listen 80
+       
+  
+ 8. Create a bogus.html file      
+    unix> sudo vi /var/www/html/bogus.html
+    
+       <html>
+        <body>
+         <h1>bogus.html</h1>
+       </body>
+      </html>
+
+
+ 9. Turn on the apache2 daemon
+    unix> sudo apache2 -k start
+   
+   
+10. Verify that your Windows host *and* your ubuntu VM can get to this IP address
+    a. unix> sudo netstat -lpn | grep apache2
+       tcp6       0      0 :::80                   :::*                    LISTEN      3855/apache2    
+      
+       If you see :::80, then apache is listening on port 80
+             
+    b. Open a web browser *in your centOS vm*
+       1) Click the firefox icon 
+       2) Go to http://192.168.1.162/bogus.html
+          -- You should see bogus.html
+         
+         
+   c. Open a web browser *in your host Windows box*
+      Go to http://192.168.1.162/bogus.html
+      -- You should see bogus.html
+      
+   d. Turn off the apache2 daemon
+      unix> sudo apache2 -k stop
+
+      
