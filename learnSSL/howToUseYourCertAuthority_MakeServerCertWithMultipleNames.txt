@@ -1,0 +1,160 @@
+How to Use Your Certificate Authority to Make a Server Cert with Multiple Names
+-------------------------------------------------------------------------------
+With a Multiple Domain Certificates you can secure many domains with only one certificate. 
+Subject Alternative Names are a X509 Version 3 (RFC 2459) extension 
+that allow an SSL certificate to specify multiple names that the certificate should match. 
+
+SubjectAltName can contain email addresses, IP addresses, regular DNS host names, etc. 
+This uses an SSL feature called SubjectAlternativeName (or SAN, for short).
+
+
+
+Assumptions:
+ A) You already have a Root Certificate Authority Created 
+    [see howToUseYourCertAuthority_InitialSetup.txt]
+ B) You want to create your own self-signed client certificate in .p12 format
+ C) You want your server certificate to have *MULTIPLE* names
+
+
+References
+----------
+http://apetec.com/support/GenerateSAN-CSR.htm
+ 
+
+
+Procedures
+----------
+ 1. Generated the keyfile
+    a. Open a DOS window by pressing <Start><Run>CMD
+    b. In the DOS window, type-in these commands: 
+        CMD> rd /s /q c:\temp\server_cert_multiple
+        CMD> mkdir c:\temp\server_cert_multiple
+        CMD> cd /d c:\temp\server_cert_multiple
+        DOS> set ALIAS=devKeystore
+        DOS> keytool -genkey -v  -ext san=dns:www.myserver1.com,dns:www.myserver2.com,dns:www.myserver3.com  -alias %ALIAS%  -dname "cn=whatever, ou=Components, ou=whatever, c=US"  -keysize 2048 -keyalg RSA -sigalg MD5withRSA  -keystore myKeystore.jks -validity 1095
+             Enter keystore password:  changeit
+             Re-enter new password:    changeit
+             Enter key password for <devKeystore>   <press Enter>
+         
+        -- Now, you have created myKeystore.jks
+        
+        
+ 2. Generate a certificate signing request (for your server cert)
+    a. Open a DOS window by pressing <Start><Run>CMD
+    b. In the DOS window, type-in these commands: 
+        CMD> keytool -certreq -v  -ext san=dns:www.myserver1.com,dns:www.myserver2.com,dns:www.myserver3.com -alias %ALIAS%  -keyalg RSA -sigalg MD5withRSA -keystore myKeystore.jks  -file myKeystore.csr  -validity 1095
+        Enter keystore password:      changeit
+       
+        -- Now, you have created myKeystore.csr
+        
+ 
+ 3. Verify that your certificate signing requests has the subject alternative names
+    CMD> openssl req -noout -text -in myKeystore.csr
+
+    You should see this:
+        Requested Extensions:
+           X509v3 Subject Alternative Name:
+               DNS:www.myserver1.com, DNS:www.myserver2.com, DNS:www.myserver3.com
+           X509v3 Subject Key Identifier:
+               F5:9B:88:1A:B9:6E:88:AA:2A:15:0F:76:57:1E:95:07:F1:49:C9:31
+               
+                             
+ 4. Sign the certificate signing requests (generate server.cert.notes)
+     CMD> cd /d c:\tools\root-ca
+     DOS> erase c:\temp\server_cert\server.cert.notes
+     CMD> openssl ca -batch -config conf/openssl.cnf -in c:\temp\server_cert_multiple\myKeystore.csr -out c:\temp\server_cert_multiple\server.cert.notes
+	    
+     You should see this:
+		Using configuration from conf/openssl.cnf
+		Loading 'screen' into random state - done
+		Check that the request matches the signature
+		Signature ok
+		Certificate Details:
+		        Serial Number: 5 (0x5)
+		        Validity
+		            Not Before: Jun 18 02:46:33 2016 GMT
+		            Not After : Jun 18 02:46:33 2017 GMT
+		        Subject:
+		            countryName               = US
+		            organizationalUnitName    = whatever
+		            organizationalUnitName    = Components
+		            commonName                = whatever
+		        X509v3 extensions:
+		            X509v3 Basic Constraints:
+		                CA:FALSE
+		            X509v3 Subject Key Identifier:
+		                F5:9B:88:1A:B9:6E:88:AA:2A:15:0F:76:57:1E:95:07:F1:49:C9:31
+		            X509v3 Authority Key Identifier:
+		                keyid:88:98:A1:46:98:5A:5A:C0:8E:78:32:36:65:E7:D9:6B:25:49:E3:DC
+		                DirName:/C=US/ST=Virginia/L=Merrifield/O=Example Inc Root/CN=Example Inc Root CA/emailAddress=adam@zztop.com
+		                serial:E4:59:C3:2F:EF:D6:1B:05
+		
+		            Netscape CA Revocation Url:
+		                https://www.example.com/example-ca-crl.pem
+		Certificate is to be certified until Jun 18 02:46:33 2017 GMT (365 days)
+		
+		Write out database with 1 new entries
+		Data Base Updated
+		unable to write 'random state'
+
+
+ 5. Extract the signed server certificate from the c:\temp\server_cert_multiple\server.cert.notes              
+    a. Open this file with notepad:  c:\temp\server_cert_multiple\server.cert.notes    
+    b. Highlight the section between  
+          -----BEGIN CERTIFICATE-----
+          
+          -----END CERTIFICATE-----
+          
+    c. Copy + Paste it into this file:  c:\temp\server_cert_multiple\server.cert
+    
+    
+   
+ 6. Import the public CA file into myTruststore.jks
+    CMD> keytool -import -v -file c:\tools\root-ca\public\root.pem  -trustcacerts -alias ca -keystore c:\temp\server_cert_multiple\myTruststore.jks -storepass changeit
+
+    When prompted to "Trust this certificate?" --> enter "yes"
+ 
+    -- Now, you have created c:\temp\server_cert_multiple\myTruststore.jks
+    
+ 
+ 
+ 7. Import the public CA file into myKeystore.jks
+    CMD> keytool -import -v -file c:\tools\root-ca\public\root.pem -trustcacerts -alias ca -keystore c:\temp\server_cert_multiple\myKeystore.jks -storepass changeit
+    When prompted to "Trust this certificate?" --> enter "yes"
+
+
+
+ 8. Import the signed server certificate into myKeystore.jks
+    DOS> keytool -import -v -file c:\temp\server_cert_multiple\server.cert -alias %ALIAS% -keystore c:\temp\server_cert_multiple\myKeystore.jks  
+    --> enter password:  changeit
+ 
+    Now, you should have these files:
+       C:\temp\server_cert_multiple\myTruststore.jks   
+       C:\temp\server_cert_multiple\myKeystore.jks
+ 
+ 
+
+ 
+         
+   
+    Now, you should be able to use this for your Tomcat connector
+    WARNING:  keyAlias should match the ALIAS you set at the top of this file
+    
+             <Connector port="8443" 
+                 protocol="org.apache.coyote.http11.Http11Protocol"
+                 maxThreads="150" 
+                 SSLEnabled="true" 
+                 scheme="https" 
+                 secure="true"
+                 clientAuth="true" 
+                 sslProtocol="TLS" 
+                 keystoreFile="c:/temp/server_cert_multiple/myKeystore.jks" 
+                 keystorePass="changeit"
+                 keystoreType="JKS"
+                 truststoreFile="c:/temp/server_cert_multiple /myTruststore.jks"
+                 truststorePass="changeit"
+                 truststoreType="JKS"
+                 keyAlias="devKeystore"
+            />
+         
+                       
