@@ -26,8 +26,7 @@ http://apetec.com/support/GenerateSAN-CSR.htm
 Procedures
 ----------
  1. Verify that you are running a Java JDK 7 or later
-    CMD> java -version
-    
+    CMD> java -version    
     java version "1.8.0_91"
 	Java(TM) SE Runtime Environment (build 1.8.0_91-b15)
 	Java HotSpot(TM) 64-Bit Server VM (build 25.91-b15, mixed mode)
@@ -36,19 +35,25 @@ Procedures
 
 
  2. Modify your ROOT-CA's openssl.cnf
-    a. enable the extensionsm by adding this to the [req] section
-       [ req ]
-       req_extensions = v3_req
+    a. Make a backup of your c:\tools\root-ca\conf\openssl.cnf
+       CMD> cd  c:\tools\root-ca\conf
+       CMD> copy openssl.cnf  openssl.cnf.ORIG
+       
+    b. Make a few changes to your openssl.cnf
+       1) enable the extensions by adding this to the [req] section
+          [ req ]
+          req_extensions = v3_req
   
-    b. add an entry in the v3_req section 
-       [ v3_req ]
-       basicConstraints = CA:FALSE
-       keyUsage = digitalSignature, nonRepudiation, keyEncipherment	
+       2) Add an entry in the v3_req section 
+          [ v3_req ]
+          basicConstraints = CA:FALSE
+          keyUsage = digitalSignature, nonRepudiation, keyEncipherment	
 	
-	c. Add an entry 
-	   [ san_env ]
-	   subjectAltName=${ENV::SAN}
+	   3) Add this entry 
+	      [ san_env ]
+	      subjectAltName=${ENV::SAN}
 
+ 
  
  3. Setup an environment variable that will hold your subject-alternative-names
     If using DOS:
@@ -59,7 +64,7 @@ Procedures
      
 
 	  
- 2. Generated the keyfile *WITH* subject alternative names of www.myserver1.com, www.myserver2.com, and www.myserver3.com
+ 4. Generated the keyfile *WITH* subject alternative names of www.myserver1.com, www.myserver2.com, and www.myserver3.com
     a. Open a DOS window by pressing <Start><Run>CMD
     b. In the DOS window, type-in these commands: 
         CMD> rd /s /q c:\temp\server_cert_multiple
@@ -74,7 +79,7 @@ Procedures
         -- Now, you have created myKeystore.jks
         
         
- 3. Generate a certificate signing request (for your server cert)
+ 5. Generate a certificate signing request (for your server cert)
     a. Open a DOS window by pressing <Start><Run>CMD
     b. In the DOS window, type-in these commands: 
         CMD> keytool -certreq -v  -ext san=%SAN%  -alias %ALIAS%  -keyalg RSA -sigalg MD5withRSA -keystore myKeystore.jks  -file myKeystore.csr  -validity 1095
@@ -83,7 +88,7 @@ Procedures
         -- Now, you have created myKeystore.csr
         
  
- 4. Verify that your certificate signing requests has the subject alternative names
+ 6. Verify that your certificate signing requests has the subject alternative names
     CMD> openssl req -noout -text -in myKeystore.csr
 
     You should see this:
@@ -95,7 +100,7 @@ Procedures
               
                             
                              
- 5. Sign the certificate signing requests (generate server.cert.notes)
+ 7. Sign the certificate signing requests (generate server.cert.notes)
     NOTE:  The end of this openssl command uses the "san_env" section of the openssl.cnf file
      CMD> cd /d c:\tools\root-ca
      CMD> erase c:\temp\server_cert_multiple\server.cert.notes
@@ -127,7 +132,7 @@ Procedures
 		
 		
 		
- 6. Extract the signed server certificate from the c:\temp\server_cert_multiple\server.cert.notes              
+ 8. Extract the signed server certificate from the c:\temp\server_cert_multiple\server.cert.notes              
     a. Open this file with notepad:  c:\temp\server_cert_multiple\server.cert.notes    
     b. Highlight the section between  
           -----BEGIN CERTIFICATE-----
@@ -138,7 +143,7 @@ Procedures
     
     
    
- 7. Import the public CA file into myTruststore.jks
+ 9. Import the public CA file into myTruststore.jks
     CMD> keytool -import -v -file c:\tools\root-ca\public\root.pem  -trustcacerts -alias ca -keystore c:\temp\server_cert_multiple\myTruststore.jks -storepass changeit
 
     When prompted to "Trust this certificate?" --> enter "yes"
@@ -147,13 +152,13 @@ Procedures
     
  
  
- 8. Import the public CA file into myKeystore.jks
+10. Import the public CA file into myKeystore.jks
     CMD> keytool -import -v -file c:\tools\root-ca\public\root.pem -trustcacerts -alias ca -keystore c:\temp\server_cert_multiple\myKeystore.jks -storepass changeit
     When prompted to "Trust this certificate?" --> enter "yes"
 
 
 
- 9. Import the signed server certificate into myKeystore.jks
+11. Import the signed server certificate into myKeystore.jks
     DOS> keytool -import -v -file c:\temp\server_cert_multiple\server.cert -alias %ALIAS% -keystore c:\temp\server_cert_multiple\myKeystore.jks  
     --> enter password:  changeit
  
@@ -162,7 +167,7 @@ Procedures
        C:\temp\server_cert_multiple\myKeystore.jks
 
 
-10. View the contents of myKeystore.jks
+12. View the contents of myKeystore.jks
     DOS> keytool -list -v -keystore  C:\temp\server_cert_multiple\myKeystore.jks
 
     You should see this:
