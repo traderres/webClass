@@ -1,16 +1,17 @@
 How to Setup Storm Cluster on Centos
 ------------------------------------
 Here's a summary of the steps for setting up a Storm cluster:
-  1. Set up a Zookeeper cluster
-  2. Setup a Supervisory process to monitor ZooKeeper
-  3. Install dependencies on Nimbus and worker machines
-  4. Download and extract a Storm release to Nimbus and worker machines
-  5. Fill in mandatory configurations into storm.yaml
-  6. Launch daemons under supervision using "storm" script and a supervisor of your choice
+  1. Set up a Zookeeper and Hadoop (using the procedures from howToSetupAccumuloQuickInstall.txt)
+  2. Install dependencies on Nimbus and worker machines
+  3. Download and extract a Storm release to Nimbus and worker machines
+  4. Fill in mandatory configurations into storm.yaml
+  5. Launch daemons under supervision using "storm" script and a supervisor of your choice
 
 
 Assumptions
  A) You have root access on your Centos
+ B) Your centOS unix box has Python installed
+ C) Your centOS unix box has Java 7 or later installed
  
 
 References
@@ -23,220 +24,125 @@ https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/De
 
 Procedure
 ---------
- 1. Setup ZooKeeper in standalone mode
-    a. Download the Zookeeper tar.gz
-       1) Go to http://zookeeper.apache.org/releases.html
-       2) Click on the current release
-       3) Click on a mirror
-       or
-       Go to http://apache.claz.org/zookeeper/current/
-       Click on the release
-       or
-       http://apache.claz.org/zookeeper/current/zookeeper-3.4.8.tar.gz
-      
+ 1. Verify that Java 7 or later is installed
+    unix> java -version
+	java version "1.7.0_55"
+	Java(TM) SE Runtime Environment (build 1.7.0_55-b13)
+	Java HotSpot(TM) 64-Bit Server VM (build 24.55-b03, mixed mode)
+    
+    
+ 2. Verify that you Python 2.6.6 or later is installed
+    unix>python --version
+    Python 2.7.11 :: Anaconda 4.0.0 (64-bit)
+
+    
+ 3. Setup ZooKeeper, Hadoop
+    [see learnAccumulo / howToSetupAccumuloQuickInstall.txt]
+  
+     
+ 4. Startup the accumulo quick install (which starts-up zookeeper, hadoop, and accumulo
+    unix> cd ~/quickinstall-home/bin
+    unix> source ./quickinstall-env
+    unix> ./qi-start
+    
+ 
+ 5. Verify that you can connect to your ZooKeeper [by default is listening on port 2181]
+    unix> cd ~/quickinstall-home/zookeeper-3.4.6/bin
+    unix> /zkCli.sh -server 127.0.0.1:2181
+    
+    You should see this:
+	Connecting to localhost:2181
+	2016-06-23 21:21:25,953 [myid:] - INFO  [main:Environment@100] - Client environment:zookeeper.version=3.4.6-1569965, built on 02/20/2014 09:09 GMT
+	2016-06-23 21:21:25,955 [myid:] - INFO  [main:Environment@100] - Client environment:host.name=centosVM
+	2016-06-23 21:21:25,955 [myid:] - INFO  [main:Environment@100] - Client environment:java.version=1.7.0_55
+	2016-06-23 21:21:25,956 [myid:] - INFO  [main:Environment@100] - Client environment:java.vendor=Oracle Corporation
+	2016-06-23 21:21:25,956 [myid:] - INFO  [main:Environment@100] - Client environment:java.home=/usr/java/jdk1.7.0_55/jre
+	2016-06-23 21:21:25,957 [myid:] - INFO  [main:Environment@100] - Client environment:java.class.path=/home/adam/quickinstall-home/zookeeper-3.4.6/bin/../build/classes:/home/adam/quickinstall-home/zookeeper-3.4.6/bin/../build/lib/*.jar:/home/adam/quickinstall-home/zookeeper-3.4.6/bin/../lib/slf4j-log4j12-1.6.1.jar:/home/adam/quickinstall-home/zookeeper-3.4.6/bin/../lib/slf4j-api-1.6.1.jar:/home/adam/quickinstall-home/zookeeper-3.4.6/bin/../lib/netty-3.7.0.Final.jar:/home/adam/quickinstall-home/zookeeper-3.4.6/bin/../lib/log4j-1.2.16.jar:/home/adam/quickinstall-home/zookeeper-3.4.6/bin/../lib/jline-0.9.94.jar:/home/adam/quickinstall-home/zookeeper-3.4.6/bin/../zookeeper-3.4.6.jar:/home/adam/quickinstall-home/zookeeper-3.4.6/bin/../src/java/lib/*.jar:/home/adam/quickinstall-home/zookeeper-3.4.6/bin/../conf:
+	2016-06-23 21:21:25,957 [myid:] - INFO  [main:Environment@100] - Client environment:java.library.path=/usr/java/packages/lib/amd64:/usr/lib64:/lib64:/lib:/usr/lib
+	2016-06-23 21:21:25,957 [myid:] - INFO  [main:Environment@100] - Client environment:java.io.tmpdir=/tmp
+	2016-06-23 21:21:25,957 [myid:] - INFO  [main:Environment@100] - Client environment:java.compiler=<NA>
+	2016-06-23 21:21:25,957 [myid:] - INFO  [main:Environment@100] - Client environment:os.name=Linux
+	2016-06-23 21:21:25,957 [myid:] - INFO  [main:Environment@100] - Client environment:os.arch=amd64
+	2016-06-23 21:21:25,957 [myid:] - INFO  [main:Environment@100] - Client environment:os.version=2.6.32-573.18.1.el6.x86_64
+	2016-06-23 21:21:25,957 [myid:] - INFO  [main:Environment@100] - Client environment:user.name=adam
+	2016-06-23 21:21:25,957 [myid:] - INFO  [main:Environment@100] - Client environment:user.home=/home/adam
+	2016-06-23 21:21:25,957 [myid:] - INFO  [main:Environment@100] - Client environment:user.dir=/home/adam/quickinstall-home/zookeeper-3.4.6/bin
+	2016-06-23 21:21:25,958 [myid:] - INFO  [main:ZooKeeper@438] - Initiating client connection, connectString=localhost:2181 sessionTimeout=30000 watcher=org.apache.zookeeper.ZooKeeperMain$MyWatcher@6a70122
+	            
+	       
+             
+ 6. Download and extract a Storm release to Nimbus and worker machines
+    a. Open a browser
+    b. Go to https://github.com/apache/storm/releases
+    c. Click on 1.0.2
+    d. Click on .tar.gz
+       Save v1.0.2.tar.gz to /opt
+       
+       *OR*
+    
        unix> sudo -s
        unix> cd /opt
-       unix> wget http://apache.claz.org/zookeeper/current/zookeeper-3.4.8.tar.gz
-       unix> tar zxvf zookeeper-3.4.8.tar.gz
-       unix> rm zookeeper-3.4.8.tar.gz
+       unix> wget https://github.com/apache/storm/archive/v1.0.2.tar.gz
     
-    b. Configure ZooKeeper to run in standalone mode
-       unix> cd /opt/zookeeper-3.4.8
-       unix> vi conf/zoo.cfg
+    e. Install Storm to the /opt
+       unix> cd /opt
+       unix> tar zxvf v1.0.2.tar.gz
+       unix> rm v1.0.2.tar.gz
+    
+    f. Give your regular user authorization to this directory:
+       unix> chown -R adam:adam /opt/storm-1.0.2 
        
-              tickTime=2000
-              dataDir=/var/zookeeper
-              clientPort=2181
+       Now, you should have these directories:
+       		/opt/storm-1.0.2/bin/
+       		/opt/storm-1.0.2/conf/
+       		/opt/storm-1.0.2/dev-tools/
+       		/opt/storm-1.0.2/docs/
+       		/opt/storm-1.0.2/examples/
+       		...
+       		
+ 7. Configure storm
+    
+    a. Setup the storm directory
+       unix> sudo -s
+       unix> mkdir /mnt/storm
+       unix> chown -R adam:adam /mnt/storm
+       unix> exit
+    
+    b. Setup the storm configuration
+       unix> cd /opt/storm-1.0.2/conf
+       unix> cp storm.yaml.example storm.yaml
+   	   unix> vi storm.yaml
+   	
+			# Tell storm to use the local zookeeper   	
+			storm.zookeeper.servers:
+		       - "127.0.0.1"
+		
+			storm.zookeeper.port: "2181"
+			storm.local.dir: "/mnt/storm"
 
-             
-        NOTES:
-          tickTime is the basic time unit in milliseconds used by ZooKeeper. It is used to do heartbeats and the minimum session timeout will be twice the tickTime.
-          dataDir is the location to store the in-memory database snapshots and, unless specified otherwise, the transaction log of updates to the database.
-          clientPort the port to listen for client connections
-
-
-    c. Startup the Zookeeper
-       unix> bin/zkServer.sh start
-            ZooKeeper JMX enabled by default
-            Using config: /opt/zookeeper-3.4.8/bin/../conf/zoo.cfg
-            Starting zookeeper ... STARTED
-
-    d. Verify that you can connect to your ZooKeeper
-       unix> bin/zkCli.sh -server 127.0.0.1:2181
-            Connecting to 127.0.0.1:2181
-            2016-05-25 14:38:16,869 [myid:] - INFO  [main:Environment@100] - Client environment:zookeeper.version=3.4.8--1, built on 02/06/2016 03:18 GMT
-            2016-05-25 14:38:16,872 [myid:] - INFO  [main:Environment@100] - Client environment:host.name=centosVm
-            2016-05-25 14:38:16,872 [myid:] - INFO  [main:Environment@100] - Client environment:java.version=1.8.0_73
-            2016-05-25 14:38:16,874 [myid:] - INFO  [main:Environment@100] - Client environment:java.vendor=Oracle Corporation
-            2016-05-25 14:38:16,874 [myid:] - INFO  [main:Environment@100] - Client environment:java.home=/usr/java/jdk1.8.0_73/jre
-            2016-05-25 14:38:16,874 [myid:] - INFO  [main:Environment@100] - Client environment:java.class.path=/opt/zookeeper-3.4.8/bin/../build/classes:/opt/zookeeper-3.4.8/bin/../build/lib/*.jar:/opt/zookeeper-3.4.8/bin/../lib/slf4j-log4j12-1.6.1.jar:/opt/zookeeper-3.4.8/bin/../lib/slf4j-api-1.6.1.jar:/opt/zookeeper-3.4.8/bin/../lib/netty-3.7.0.Final.jar:/opt/zookeeper-3.4.8/bin/../lib/log4j-1.2.16.jar:/opt/zookeeper-3.4.8/bin/../lib/jline-0.9.94.jar:/opt/zookeeper-3.4.8/bin/../zookeeper-3.4.8.jar:/opt/zookeeper-3.4.8/bin/../src/java/lib/*.jar:/opt/zookeeper-3.4.8/bin/../conf:
-            2016-05-25 14:38:16,874 [myid:] - INFO  [main:Environment@100] - Client environment:java.library.path=/usr/java/packages/lib/amd64:/usr/lib64:/lib64:/lib:/usr/lib
-            2016-05-25 14:38:16,874 [myid:] - INFO  [main:Environment@100] - Client environment:java.io.tmpdir=/tmp
-            2016-05-25 14:38:16,874 [myid:] - INFO  [main:Environment@100] - Client environment:java.compiler=<NA>
-            2016-05-25 14:38:16,874 [myid:] - INFO  [main:Environment@100] - Client environment:os.name=Linux
-            2016-05-25 14:38:16,874 [myid:] - INFO  [main:Environment@100] - Client environment:os.arch=amd64
-            2016-05-25 14:38:16,874 [myid:] - INFO  [main:Environment@100] - Client environment:os.version=2.6.32-573.18.1.el6.x86_64
-            2016-05-25 14:38:16,874 [myid:] - INFO  [main:Environment@100] - Client environment:user.name=alresni
-            2016-05-25 14:38:16,874 [myid:] - INFO  [main:Environment@100] - Client environment:user.home=/home/alresni
-            2016-05-25 14:38:16,874 [myid:] - INFO  [main:Environment@100] - Client environment:user.dir=/opt/zookeeper-3.4.8
-            2016-05-25 14:38:16,875 [myid:] - INFO  [main:ZooKeeper@438] - Initiating client connection, connectString=127.0.0.1:2181 sessionTimeout=30000 watcher=org.apache.zookeeper.ZooKeeperMain$MyWatcher@506c589e
-            Welcome to ZooKeeper!
-            2016-05-25 14:38:16,897 [myid:] - INFO  [main-SendThread(127.0.0.1:2181):ClientCnxn$SendThread@1032] - Opening socket connection to server 127.0.0.1/127.0.0.1:2181. Will not attempt to authenticate using SASL (unknown error)
-            JLine support is enabled
-            2016-05-25 14:38:16,953 [myid:] - INFO  [main-SendThread(127.0.0.1:2181):ClientCnxn$SendThread@876] - Socket connection established to 127.0.0.1/127.0.0.1:2181, initiating session
-            2016-05-25 14:38:16,966 [myid:] - INFO  [main-SendThread(127.0.0.1:2181):ClientCnxn$SendThread@1299] - Session establishment complete on server 127.0.0.1/127.0.0.1:2181, sessionid = 0x154e933f5c70003, negotiated timeout = 30000
-            
-            WATCHER::
-            
-            WatchedEvent state:SyncConnected type:None path:null
-            
-            
-     e. Stop the ZooKeeper service
-        unix> bin/zkServer.sh stop
+			nimbus.seeds: ["127.0.0.1"]
 
      
-  2. Setup a Supervisory process to monitor ZooKeeper
-     a. Use Yum to Install supevisord service
-        unix> rpm -Uvh http://download.fedoraproject.org/pub/epel/6/i386/epel-release-6-8.noarch.rpm
-        unix> yum install supervisor
+		   	supervisor.slots.ports:
+		    - 6700
+		    - 6701
+		    - 6702
+		    - 6703
+		    
+			storm.health.check.dir: "healthchecks"
+			storm.health.check.timeout.ms: 5000
+
+   	
+ 8. Launch daemons under supervision using "storm" script and a supervisor of your choice
+
+The last step is to launch all the Storm daemons. It is critical that you run each of these daemons under supervision. Storm is a fail-fast system which means the processes will halt whenever an unexpected error is encountered. Storm is designed so that it can safely halt at any point and recover correctly when the process is restarted. This is why Storm keeps no state in-process -- if Nimbus or the Supervisors restart, the running topologies are unaffected. Here's how to run the Storm daemons:
+
+    Nimbus: Run the command "bin/storm nimbus" under supervision on the master machine.
+    Supervisor: Run the command "bin/storm supervisor" under supervision on each worker machine. The supervisor daemon is responsible for starting and stopping worker processes on that machine.
+    UI: Run the Storm UI (a site you can access from the browser that gives diagnostics on the cluster and topologies) by running the command "bin/storm ui" under supervision. The UI can be accessed by navigating your web browser to http://{ui host}:8080.
+
+As you can see, running the daemons is very straightforward. The daemons will log to the logs/ directory in wherever you extracted the Storm release.  	
     
-        *or*
-           
-        easy_install supervisor    # to get the most recent version
-
-     b. Create the supervisor log directory
-        unix> mkdir -p /var/log/supervisord
-        
-        
-     c. Edit the /etc/supervisord.conf file 
-           unix> vi /etc/supervisord.conf
-          
-                [unix_http_server]
-                file=/tmp/supervisor.sock                       ; path to your socket file
-                
-                [supervisord]
-                logfile=/var/log/supervisord/supervisord.log    ; supervisord log file
-                logfile_maxbytes=50MB                           ; maximum size of logfile before rotation
-                logfile_backups=10                              ; number of backed up logfiles
-                loglevel=error                                  ; info, debug, warn, trace
-                pidfile=/var/run/supervisord.pid                ; pidfile location
-                nodaemon=false                                  ; run supervisord as a daemon
-                minfds=1024                                     ; number of startup file descriptors
-                minprocs=200                                    ; number of process descriptors
-                user=root                                       ; default user
-                childlogdir=/var/log/supervisord/               ; where child log files will live
-                
-                [rpcinterface:supervisor]
-                supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
-                
-                [supervisorctl]
-                serverurl=unix:///tmp/supervisor.sock         ; use a unix:// URL  for a unix socket
-                
-                
-                [program:zookeeper]
-                command=/opt/zookeeper-3.4.8/bin/zkServer.sh start-foreground
-                autostart=true
-                autorestart=true
-                startsecs=1
-                startretries=999
-                redirect_stderr=false
-                stdout_logfile=/var/log/zookeeper-out
-                stdout_logfile_maxbytes=10MB
-                stdout_logfile_backups=10
-                stdout_events_enabled=true
-                stderr_logfile=/var/log/zookeeper-err
-                stderr_logfile_maxbytes=100MB
-                stderr_logfile_backups=10
-                stderr_events_enabled=true
-
-      d. Start the supervisord service manually (which starts the ZooKeeper service)
-         NOTE:  Make sure the zookeeper service has not been started here
-             
-              unix> supervisord -c /etc/supervisord.conf
-              unix> supervisorctl
-                    zookeeper              RUNNING   pid 10608, uptime 0:00:06
-
-      e. Setup a supervisord service so that it runs every time you restart your centos machine
-         unix> vi /etc/rc.d/init.d/supervisord
-
-                #!/bin/sh
-                #
-                # /etc/rc.d/init.d/supervisord
-                #
-                # Supervisor is a client/server system that
-                # allows its users to monitor and control a
-                # number of processes on UNIX-like operating
-                # systems.
-                #
-                # chkconfig: - 64 36
-                # description: Supervisor Server
-                # processname: supervisord
-                
-                # Source init functions
-                . /etc/rc.d/init.d/functions
-                
-                prog="supervisord"
-                
-                prefix="/usr/local"
-                exec_prefix="${prefix}"
-                prog_bin="${exec_prefix}/bin/supervisord"
-                PIDFILE="/var/run/$prog.pid"
-
-                
-                start()
-                {
-                       echo -n $"Starting $prog: "
-                       daemon $prog_bin --pidfile $PIDFILE
-                       [ -f $PIDFILE ] && success $"$prog startup" || failure $"$prog startup"
-                       echo
-                }
-                
-                stop()
-                {
-                       echo -n $"Shutting down $prog: "
-                       [ -f $PIDFILE ] && killproc $prog || success $"$prog shutdown"
-                       echo
-                }
-                
-                case "$1" in
-                
-                 start)
-                   start
-                 ;;
-                
-                 stop)
-                   stop
-                 ;;
-                
-                 status)
-                       status $prog
-                 ;;
-                
-                 restart)
-                   stop
-                   start
-                 ;;
-                
-                 *)
-                   echo "Usage: $0 {start|stop|restart|status}"
-                 ;;
-                
-                esac
-  
-          unix> chmod ugo+x /etc/rc.d/init.d/supervisord
-          unix> chkconfig --add supervisord            # Add the service
-          unix> chkconfig supervisord off --level 234  # Do not run the service in runlevel 2-4
-          unix> chkconfig supervisord on               # Set the service to turn-on on restart
-          unix> service supervisord start     
-          
-          
-          unix> sudo -s
-          unix> export PATH=/usr/local/bin:$PATH
-          unix> supervisorctl status
-          zookeeper                        RUNNING   pid 3709, uptime 0:02:38
-
-          
-          
- 3. Install dependencies on Nimbus and worker machines
-    a. Download https://github.com/apache/storm/archive/v1.0.1.tar.gz
+    
+     Download https://github.com/apache/storm/archive/v1.0.1.tar.gz
     
