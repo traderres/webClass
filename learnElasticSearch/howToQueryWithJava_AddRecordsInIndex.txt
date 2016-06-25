@@ -4,13 +4,17 @@ How to Query using Java to Get All Records from an Index
 
 Assumptions:
  A) You have an ElasticSearch instance running (with version 2.3.3)
- B) You are using IntelliJ to create a project
+ B) Your ElasticSearch instance is listening on localhost and on port 9300
+ C) You are using IntelliJ to create a project
+
  
  
 
 Procedure
 ---------
  1. Create a Java command-line project
+ 
+ 
  
  2. Add these dependencies to your pom.xml
 
@@ -39,9 +43,33 @@ Procedure
 		          </exclusions>
 		      </dependency>
              
+
+
+ 3. Create this file:  logback.xml
+		<?xml version="1.0" encoding="windows-1252" ?>
+		<!DOCTYPE project>
+		
+		<configuration debug="false">
+		    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+		        <encoder>
+		            <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+		        </encoder>
+		    </appender>
+		
+		
+		
+		    <logger name="com.wahtever" level="DEBUG" additivity="false">
+		        <appender-ref ref="CONSOLE"/>
+		    </logger>
+		
+		    <root level="DEBUG">
+		        <appender-ref ref="CONSOLE"/>
+		    </root>
+		</configuration>
               
  
- 3. Create this class:  EsClientSingleton
+ 
+ 4. Create this class:  EsClientSingleton
     This singleton class will hold your ElasticSearch Client
 		    
 		package com.whatever;
@@ -103,19 +131,21 @@ Procedure
 		
 				
 
- 4. Create this class:  App
-		
+ 5. Create this class:  App
 		package com.whatever;
 		
 		import com.fasterxml.jackson.databind.ObjectMapper;
 		import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 		import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
+		import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+		import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 		import org.elasticsearch.action.index.IndexRequest;
 		import org.elasticsearch.action.index.IndexResponse;
 		import org.elasticsearch.action.search.SearchResponse;
 		import org.elasticsearch.client.Client;
 		import org.elasticsearch.common.settings.Settings;
 		import org.elasticsearch.common.xcontent.XContentBuilder;
+		import org.elasticsearch.index.IndexNotFoundException;
 		import org.elasticsearch.indices.IndexAlreadyExistsException;
 		import org.elasticsearch.search.SearchHit;
 		import org.slf4j.Logger;
@@ -144,16 +174,36 @@ Procedure
 		        final String ES_INDEX_NAME = "records-db";
 		
 		
+		        // A T T E M P T      T O     D E L E T E       I N D E X    (within ElasticSearch)
+		        try
+		        {
+		            DeleteIndexResponse deleteResponse = esClient.admin().indices().delete(new DeleteIndexRequest(ES_INDEX_NAME)).actionGet();
+		            if (!deleteResponse.isAcknowledged() )
+		            {
+		                logger.error("I failed to delete this index:  {}", ES_INDEX_NAME);
+		            }
+		        }
+		        catch (IndexNotFoundException notFoundException)
+		        {
+		            logger.debug("Ignoring IndexNotFoundException that was raised.");
+		        }
+		
+		
 		        // A T T E M P T      T O     C R E A T E      I N D E X    (within ElasticSearch)
-		        try {
+		        try
+		        {
 		            // Create an index called "music"
-		            logger.debug("Attempting co reate the index called '{}'....", ES_INDEX_NAME);
+		            logger.debug("Attempting create the index called '{}'....", ES_INDEX_NAME);
 		            Settings indexSettings = Settings.builder()
 		                    .put("number_of_shards", 1)
 		                    .put("number_of_replicas", 1)
 		                    .build();
 		            CreateIndexRequest indexRequest = new CreateIndexRequest(ES_INDEX_NAME, indexSettings);
 		            CreateIndexResponse res = esClient.admin().indices().create(indexRequest).actionGet();
+		            if (! res.isAcknowledged())
+		            {
+		                logger.error("I failed to create this index:  {}", ES_INDEX_NAME);
+		            }
 		        }
 		        catch (IndexAlreadyExistsException alreadyExistsException)
 		        {
@@ -222,39 +272,38 @@ Procedure
 		        SearchHit[] hits = searchResponse.getHits().getHits();
 		        logger.debug("After running search.  hits.length={}", hits.length);
 		
-		        
+		
 		        logger.debug("main() finished");
 		    }
 		}
-		   
+
          
  
- 5. Startup your local ElasticSearch Instance
+ 6. Startup your local ElasticSearch Instance
  
- 6. Run the code
+ 7. Run the code
     a. Within Intellij, right-click on the App class -> Run 'App.main()'
     
     b. You should see the following in your console:
-    
-		06/25/2016 17:23:13 DEBUG com.whatever.App main() started
-		06/25/2016 17:23:14 INFO  org.elasticsearch.plugins [Terraxia] modules [], plugins [], sites []
-		06/25/2016 17:23:14 DEBUG org.elasticsearch.threadpool [Terraxia] creating thread_pool [generic], type [cached], keep_alive [30s]
-		06/25/2016 17:23:14 DEBUG org.elasticsearch.threadpool [Terraxia] creating thread_pool [index], type [fixed], size [6], queue_size [200]
-		06/25/2016 17:23:14 DEBUG org.elasticsearch.threadpool [Terraxia] creating thread_pool [fetch_shard_store], type [scaling], min [1], size [12], keep_alive [5m]
-		06/25/2016 17:23:14 DEBUG org.elasticsearch.threadpool [Terraxia] creating thread_pool [get], type [fixed], size [6], queue_size [1k]
-		06/25/2016 17:23:14 DEBUG org.elasticsearch.threadpool [Terraxia] creating thread_pool [snapshot], type [scaling], min [1], size [3], keep_alive [5m]
-		06/25/2016 17:23:14 DEBUG org.elasticsearch.threadpool [Terraxia] creating thread_pool [force_merge], type [fixed], size [1], queue_size [null]
-		06/25/2016 17:23:14 DEBUG org.elasticsearch.threadpool [Terraxia] creating thread_pool [suggest], type [fixed], size [6], queue_size [1k]
-		06/25/2016 17:23:14 DEBUG org.elasticsearch.threadpool [Terraxia] creating thread_pool [bulk], type [fixed], size [6], queue_size [50]
-		06/25/2016 17:23:14 DEBUG org.elasticsearch.threadpool [Terraxia] creating thread_pool [warmer], type [scaling], min [1], size [3], keep_alive [5m]
-		06/25/2016 17:23:14 DEBUG org.elasticsearch.threadpool [Terraxia] creating thread_pool [flush], type [scaling], min [1], size [3], keep_alive [5m]
-		06/25/2016 17:23:14 DEBUG org.elasticsearch.threadpool [Terraxia] creating thread_pool [search], type [fixed], size [10], queue_size [1k]
-		06/25/2016 17:23:14 DEBUG org.elasticsearch.threadpool [Terraxia] creating thread_pool [fetch_shard_started], type [scaling], min [1], size [12], keep_alive [5m]
-		06/25/2016 17:23:14 DEBUG org.elasticsearch.threadpool [Terraxia] creating thread_pool [listener], type [fixed], size [3], queue_size [null]
-		06/25/2016 17:23:14 DEBUG org.elasticsearch.threadpool [Terraxia] creating thread_pool [percolate], type [fixed], size [6], queue_size [1k]
-		06/25/2016 17:23:14 DEBUG org.elasticsearch.threadpool [Terraxia] creating thread_pool [management], type [scaling], min [1], size [5], keep_alive [5m]
-		06/25/2016 17:23:14 DEBUG org.elasticsearch.threadpool [Terraxia] creating thread_pool [refresh], type [scaling], min [1], size [3], keep_alive [5m]
-		06/25/2016 17:23:14 DEBUG org.elasticsearch.common.network configuration:
+		06/25/2016 17:34:46 DEBUG com.whatever.App main() started
+		06/25/2016 17:34:46 INFO  org.elasticsearch.plugins [Yeti] modules [], plugins [], sites []
+		06/25/2016 17:34:46 DEBUG org.elasticsearch.threadpool [Yeti] creating thread_pool [generic], type [cached], keep_alive [30s]
+		06/25/2016 17:34:46 DEBUG org.elasticsearch.threadpool [Yeti] creating thread_pool [index], type [fixed], size [6], queue_size [200]
+		06/25/2016 17:34:46 DEBUG org.elasticsearch.threadpool [Yeti] creating thread_pool [fetch_shard_store], type [scaling], min [1], size [12], keep_alive [5m]
+		06/25/2016 17:34:46 DEBUG org.elasticsearch.threadpool [Yeti] creating thread_pool [get], type [fixed], size [6], queue_size [1k]
+		06/25/2016 17:34:46 DEBUG org.elasticsearch.threadpool [Yeti] creating thread_pool [snapshot], type [scaling], min [1], size [3], keep_alive [5m]
+		06/25/2016 17:34:46 DEBUG org.elasticsearch.threadpool [Yeti] creating thread_pool [force_merge], type [fixed], size [1], queue_size [null]
+		06/25/2016 17:34:46 DEBUG org.elasticsearch.threadpool [Yeti] creating thread_pool [suggest], type [fixed], size [6], queue_size [1k]
+		06/25/2016 17:34:46 DEBUG org.elasticsearch.threadpool [Yeti] creating thread_pool [bulk], type [fixed], size [6], queue_size [50]
+		06/25/2016 17:34:46 DEBUG org.elasticsearch.threadpool [Yeti] creating thread_pool [warmer], type [scaling], min [1], size [3], keep_alive [5m]
+		06/25/2016 17:34:46 DEBUG org.elasticsearch.threadpool [Yeti] creating thread_pool [flush], type [scaling], min [1], size [3], keep_alive [5m]
+		06/25/2016 17:34:46 DEBUG org.elasticsearch.threadpool [Yeti] creating thread_pool [search], type [fixed], size [10], queue_size [1k]
+		06/25/2016 17:34:46 DEBUG org.elasticsearch.threadpool [Yeti] creating thread_pool [fetch_shard_started], type [scaling], min [1], size [12], keep_alive [5m]
+		06/25/2016 17:34:46 DEBUG org.elasticsearch.threadpool [Yeti] creating thread_pool [listener], type [fixed], size [3], queue_size [null]
+		06/25/2016 17:34:46 DEBUG org.elasticsearch.threadpool [Yeti] creating thread_pool [percolate], type [fixed], size [6], queue_size [1k]
+		06/25/2016 17:34:46 DEBUG org.elasticsearch.threadpool [Yeti] creating thread_pool [management], type [scaling], min [1], size [5], keep_alive [5m]
+		06/25/2016 17:34:46 DEBUG org.elasticsearch.threadpool [Yeti] creating thread_pool [refresh], type [scaling], min [1], size [3], keep_alive [5m]
+		06/25/2016 17:34:46 DEBUG org.elasticsearch.common.network configuration:
 		
 		lo
 		        inet 127.0.0.1 netmask:255.255.255.255 scope:host
@@ -267,22 +316,22 @@ Procedure
 		        hardware 08:00:27:CB:FA:14
 		        UP MULTICAST mtu:1500 index:2
 		
-		06/25/2016 17:23:14 DEBUG org.elasticsearch.common.netty using gathering [true]
-		06/25/2016 17:23:14 DEBUG org.elasticsearch.client.transport [Terraxia] node_sampler_interval[5s]
-		06/25/2016 17:23:14 DEBUG org.elasticsearch.netty.channel.socket.nio.SelectorUtil Using select timeout of 500
-		06/25/2016 17:23:14 DEBUG org.elasticsearch.netty.channel.socket.nio.SelectorUtil Epoll-bug workaround enabled = false
-		06/25/2016 17:23:14 DEBUG org.elasticsearch.client.transport [Terraxia] adding address [{#transport#-1}{127.0.0.1}{localhost/127.0.0.1:9300}]
-		06/25/2016 17:23:14 DEBUG org.elasticsearch.transport.netty [Terraxia] connected to node [{#transport#-1}{127.0.0.1}{localhost/127.0.0.1:9300}]
-		06/25/2016 17:23:14 DEBUG org.elasticsearch.transport.netty [Terraxia] connected to node [{Wiz Kid}{m_vra2t6TiuTtRkZk0BzzQ}{192.168.1.159}{localhost/127.0.0.1:9300}]
-		06/25/2016 17:23:14 DEBUG com.whatever.App Attempting co reate the index called 'records-db'....
-		06/25/2016 17:23:14 DEBUG com.whatever.App After adding record #1. res.isCreated=true  res.getId()=1
-		06/25/2016 17:23:14 DEBUG com.whatever.App After adding record #2. res.isCreated=true  res.getId()=2
-		06/25/2016 17:23:14 DEBUG com.whatever.App After adding record #3. res.isCreated=true  res.getId()=3
-		06/25/2016 17:23:14 DEBUG com.whatever.App After adding record #4. res.isCreated=true  res.getId()=4
-		06/25/2016 17:23:14 DEBUG com.whatever.App After running search.  hits.length=0
-		06/25/2016 17:23:14 DEBUG com.whatever.App main() finished
-		    
-		
-		    
-		    
+		06/25/2016 17:34:46 DEBUG org.elasticsearch.common.netty using gathering [true]
+		06/25/2016 17:34:46 DEBUG org.elasticsearch.client.transport [Yeti] node_sampler_interval[5s]
+		06/25/2016 17:34:46 DEBUG org.elasticsearch.netty.channel.socket.nio.SelectorUtil Using select timeout of 500
+		06/25/2016 17:34:46 DEBUG org.elasticsearch.netty.channel.socket.nio.SelectorUtil Epoll-bug workaround enabled = false
+		06/25/2016 17:34:46 DEBUG org.elasticsearch.client.transport [Yeti] adding address [{#transport#-1}{127.0.0.1}{localhost/127.0.0.1:9300}]
+		06/25/2016 17:34:46 DEBUG org.elasticsearch.transport.netty [Yeti] connected to node [{#transport#-1}{127.0.0.1}{localhost/127.0.0.1:9300}]
+		06/25/2016 17:34:46 DEBUG org.elasticsearch.transport.netty [Yeti] connected to node [{Wiz Kid}{m_vra2t6TiuTtRkZk0BzzQ}{192.168.1.159}{localhost/127.0.0.1:9300}]
+		06/25/2016 17:34:48 DEBUG com.whatever.App Ignoring IndexNotFoundException that was raised.
+		06/25/2016 17:34:49 DEBUG com.whatever.App Attempting co reate the index called 'records-db'....
+		06/25/2016 17:34:58 DEBUG com.whatever.App After adding record #1. res.isCreated=true  res.getId()=1
+		06/25/2016 17:35:04 DEBUG com.whatever.App After adding record #2. res.isCreated=true  res.getId()=2
+		06/25/2016 17:35:04 DEBUG com.whatever.App After adding record #3. res.isCreated=true  res.getId()=3
+		06/25/2016 17:35:04 DEBUG com.whatever.App After adding record #4. res.isCreated=true  res.getId()=4
+		06/25/2016 17:35:08 DEBUG org.elasticsearch.common.compress.lzf using decoder[VanillaChunkDecoder] 
+		06/25/2016 17:35:08 DEBUG com.whatever.App After running search.  hits.length=4
+		06/25/2016 17:35:09 DEBUG com.whatever.App main() finished
+
+
 		   
