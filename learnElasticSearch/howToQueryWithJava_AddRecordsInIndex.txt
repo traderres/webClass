@@ -13,20 +13,40 @@ Assumptions:
 Procedure
 ---------
  1. Create a Java command-line project
- 
+    [see learnJava / howToCreateJavaCommandLineProgramUsingIntellijMaven.txt]
  
  
  2. Add these dependencies to your pom.xml
+
+      <dependency>
+          <groupId>ch.qos.logback</groupId>
+          <artifactId>logback-classic</artifactId>
+          <version>1.0.13</version>
+      </dependency>
+
+      <dependency>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava</artifactId>
+          <version>19.0</version>
+      </dependency>
 
       <dependency>
           <groupId>org.elasticsearch</groupId>
           <artifactId>elasticsearch</artifactId>
           <version>2.3.3</version>
       </dependency>
+
+      <dependency>
+          <!-- Use this to get Jackson's ObjectMapper -->
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-databind</artifactId>
+          <version>2.1.0</version>
+      </dependency>
       
       
-      WARNING:  If using ElasticSearch with Apache Storm,
-             Then, you might have to exclude the org.jboss.netty to connect to ElasticSearch properly.
+      WARNING:  
+        If running ElasticSearch *AND* using Apache Storm,
+        Then, you will need to exclude the org.jboss.netty to connect to ElasticSearch properly.
              
      		 So, your Apache Storm dependency would look like this:
 		      <dependency>
@@ -36,6 +56,12 @@ Procedure
 		          <scope>compile</scope>
 		          <exclusions>
 		               <exclusion>
+		               	  <!-- Storm comes with logback-classic.  Let's exclude it -->
+			              <exclusion>
+			                  <groupId>ch.qos.logback</groupId>
+			                  <artifactId>logback-classic</artifactId>
+			              </exclusion>
+			              
 		                  <!-- Storm comes with jboss.netty and io.netty.  This removed the jboss.netty ones -->
 		                  <groupId>org.jboss.netty</groupId>
 		                  <artifactId>netty</artifactId>
@@ -45,7 +71,10 @@ Procedure
              
 
 
- 3. Create this file:  logback.xml
+ 3. Update your logback.xml file to look like this:
+    a. Edit /src/main/resources/logback.xml
+    b. Replace your logback.xml with this:
+    
 		<?xml version="1.0" encoding="windows-1252" ?>
 		<!DOCTYPE project>
 		
@@ -70,125 +99,233 @@ Procedure
  
  
  4. Create this class:  EsClientSingleton
-    This singleton class will hold your ElasticSearch Client
+    a. Right-click on /src/main/java -> New -> Java Class
+       Name:  EsClientSingleton
+       Kind:  Class
+       Press OK
+       
+    b. Copy this to EsClientSingleton.java 
 		    
-		package com.whatever;
+			package com.whatever;
+			
+			import org.elasticsearch.client.Client;
+			import org.elasticsearch.client.transport.TransportClient;
+			import org.elasticsearch.common.transport.InetSocketTransportAddress;
+			import java.net.InetAddress;
+			
+			/**
+			 * Created by adam on 6/25/16.
+			 */
+			public enum EsClientSingleton
+			{
+			    INSTANCE;
+			
+			    private Client esClient;
+			
+			    /******************************************************************
+			     * Private EsClientSingleton Constructor
+			     * -- Do one-time initialization here
+			     *******************************************************************/
+			    private EsClientSingleton()
+			    {
+			        // The very first time this singleton is called, we will initialize the ES Client
+			        initializeEsClientNoException();
+			    }
+			
+			
+			    /******************************************************************
+			     * initializeEsClient()
+			     * -- Attempt to connect to the ElasticSearch Instance
+			     *******************************************************************/
+			    private void initializeEsClientNoException()
+			    {
+			        try {
+			            // Connect to the ElasticSearch instance using port 9300  [it's a binary protocol]
+			            // NOTE:  The java client does not connect to port 9200
+			            InetAddress addrEsHostname = InetAddress.getByName("localhost");
+			
+			            esClient = TransportClient.builder().build()
+			                    .addTransportAddress(new InetSocketTransportAddress(addrEsHostname, 9300));
+			        }
+			        catch (Exception e)
+			        {
+			            // Convert the exception to a RunTime exception
+			            RuntimeException re = new RuntimeException(e);
+			            re.setStackTrace(e.getStackTrace());
+			            throw re;
+			        }
+			
+			    }
+			
+			    public Client getEsClient()
+			    {
+			        return esClient;
+			    }
+			}
 		
-		import org.elasticsearch.client.Client;
-		import org.elasticsearch.client.transport.TransportClient;
-		import org.elasticsearch.common.transport.InetSocketTransportAddress;
-		import java.net.InetAddress;
-		
-		/**
-		 * Created by adam on 6/25/16.
-		 */
-		public enum EsClientSingleton
-		{
-		    INSTANCE;
-		
-		    private Client esClient;
-		
-		    /******************************************************************
-		     * Private EsClientSingleton Constructor
-		     * -- Do one-time initialization here
-		     *******************************************************************/
-		    private EsClientSingleton()
-		    {
-		        // The very first time this singleton is called, we will initialize the ES Client
-		        initializeEsClientNoException();
-		    }
-		
-		
-		    /******************************************************************
-		     * initializeEsClient()
-		     * -- Attempt to connect to the ElasticSearch Instance
-		     *******************************************************************/
-		    private void initializeEsClientNoException()
-		    {
-		        try {
-		            // Connect to the ElasticSearch instance using port 9300  [it's a binary protocol]
-		            // NOTE:  The java client does not connect to port 9200
-		            InetAddress addrEsHostname = InetAddress.getByName("localhost");
-		
-		            esClient = TransportClient.builder().build()
-		                    .addTransportAddress(new InetSocketTransportAddress(addrEsHostname, 9300));
-		        }
-		        catch (Exception e)
-		        {
-		            // Convert the exception to a RunTime exception
-		            RuntimeException re = new RuntimeException(e);
-		            re.setStackTrace(e.getStackTrace());
-		            throw re;
-		        }
-		
-		    }
-		
-		    public Client getEsClient()
-		    {
-		        return esClient;
-		    }
-		}
-		
-				
 
+				
  5. Create this class:  App
-		package com.whatever;
-		
-		import com.fasterxml.jackson.databind.ObjectMapper;
-		import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
-		import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
-		import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
-		import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
-		import org.elasticsearch.action.index.IndexRequest;
-		import org.elasticsearch.action.index.IndexResponse;
-		import org.elasticsearch.action.search.SearchResponse;
-		import org.elasticsearch.client.Client;
-		import org.elasticsearch.common.settings.Settings;
-		import org.elasticsearch.common.xcontent.XContentBuilder;
-		import org.elasticsearch.index.IndexNotFoundException;
-		import org.elasticsearch.indices.IndexAlreadyExistsException;
-		import org.elasticsearch.search.SearchHit;
-		import org.slf4j.Logger;
-		import org.slf4j.LoggerFactory;
-		import static org.elasticsearch.common.xcontent.XContentFactory.*;
-		
-		import java.util.HashMap;
-		import java.util.Map;
-		
-		/**
-		 * App
-		 *
-		 */
-		public class App 
-		{
-		    public static final Logger logger = LoggerFactory.getLogger(App.class);
-		
-		    public static void main( String[] args ) throws Exception
-		    {
-		        logger.debug("main() started");
-		
-		
-		        // Connect to the ElasticSearch instance and return the client
-		        Client esClient = EsClientSingleton.INSTANCE.getEsClient();
-		
-		
-				// Get information about all indices
-				// -- Get a map of key=index-name  value=index-metadata        
-		        ImmutableOpenMap<String, IndexMetaData> myIndices = esClient.admin().cluster()
-	                .prepareState().execute()
-	                .actionGet().getState()
-	                .getMetaData().indices();
-	                
-		
-		
-		        logger.debug("main() finished");
-		    }
-		}
+    a. Right-click on /src/main/java -> New -> Java Class
+       Name:  App
+       Kind:  Class
+       Press OK
+       
+    b. Copy this to App.java 
+
+			package com.whatever;
+			
+			import com.fasterxml.jackson.databind.ObjectMapper;
+			import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+			import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
+			import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+			import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
+			import org.elasticsearch.action.index.IndexRequest;
+			import org.elasticsearch.action.index.IndexResponse;
+			import org.elasticsearch.action.search.SearchResponse;
+			import org.elasticsearch.client.Client;
+			import org.elasticsearch.common.settings.Settings;
+			import org.elasticsearch.common.xcontent.XContentBuilder;
+			import org.elasticsearch.index.IndexNotFoundException;
+			import org.elasticsearch.indices.IndexAlreadyExistsException;
+			import org.elasticsearch.search.SearchHit;
+			import org.slf4j.Logger;
+			import org.slf4j.LoggerFactory;
+			import static org.elasticsearch.common.xcontent.XContentFactory.*;
+			
+			import java.util.HashMap;
+			import java.util.Map;
+			
+			/**
+			 * App
+			 *
+			 */
+			public class App 
+			{
+			    public static final Logger logger = LoggerFactory.getLogger(App.class);
+			
+			    public static void main( String[] args ) throws Exception
+			    {
+			        logger.debug("main() started");
+			
+			
+			        // Connect to the ElasticSearch instance and return the client
+			        Client esClient = EsClientSingleton.INSTANCE.getEsClient();
+			
+			        final String ES_INDEX_NAME = "records-db";
+			
+			
+			        // A T T E M P T      T O     D E L E T E       I N D E X    (within ElasticSearch)
+			        try
+			        {
+			            DeleteIndexResponse deleteResponse = esClient.admin().indices().delete(new DeleteIndexRequest(ES_INDEX_NAME)).actionGet();
+			            if (!deleteResponse.isAcknowledged() )
+			            {
+			                logger.error("I failed to delete this index:  {}", ES_INDEX_NAME);
+			            }
+			        }
+			        catch (IndexNotFoundException notFoundException)
+			        {
+			            logger.debug("Ignoring IndexNotFoundException that was raised.");
+			        }
+			
+			
+			        // A T T E M P T      T O     C R E A T E      I N D E X    (within ElasticSearch)
+			        try
+			        {
+			            // Create an index called "music"
+			            logger.debug("Attempting create the index called '{}'....", ES_INDEX_NAME);
+			            Settings indexSettings = Settings.builder()
+			                    .put("number_of_shards", 1)
+			                    .put("number_of_replicas", 1)
+			                    .build();
+			            CreateIndexRequest indexRequest = new CreateIndexRequest(ES_INDEX_NAME, indexSettings);
+			            CreateIndexResponse res = esClient.admin().indices().create(indexRequest).actionGet();
+			            if (! res.isAcknowledged())
+			            {
+			                logger.error("I failed to create this index:  {}", ES_INDEX_NAME);
+			            }
+			        }
+			        catch (IndexAlreadyExistsException alreadyExistsException)
+			        {
+			            // Ignore this exception
+			            logger.debug("Ignoring IndexAlreadyExistsException that was raised.");
+			        }
+			
+			        IndexResponse res;
+			
+			
+			        // Add Record Approach #1:  Use a HashMap
+			        Map<String, Object> jsonMap = new HashMap<String, Object>();
+			        jsonMap.put("createDate", "02/25/2016");
+			        jsonMap.put("description", "This is the description for record #1");
+			        jsonMap.put("author", "Adam");
+			
+			        // Create the record and set _type="record" and _id="1"
+			        // NOTE:  By setting the ID you can only create this record once.  Calling it multiple times does not add additional records
+			        IndexRequest indexRequest = new IndexRequest(ES_INDEX_NAME, "record", "1")
+			                                        .source(jsonMap);
+			        res = esClient.index(indexRequest).actionGet();
+			        logger.debug("After adding record #1. res.isCreated={}  res.getId()={}", res.isCreated(), res.getId());
+			
+			
+			
+			        // Add Record Approach #2:  Use a JSON string
+			        String sJson = "{  \"createDate\": \"02/26/2016\",        \"description\": \"This is the description for record #2\", \"author\": \"Ben\" }";
+			        IndexRequest indexRequest2 = new IndexRequest(ES_INDEX_NAME, "record", "2")
+			                                        .source(sJson);
+			        res = esClient.index(indexRequest2).actionGet();
+			        logger.debug("After adding record #2. res.isCreated={}  res.getId()={}", res.isCreated(), res.getId());
+			
+			
+			
+			        // Add Record Approach #3:  Use ElasticSearch helpers to generate JSON
+			        XContentBuilder builder = jsonBuilder()
+			            .startObject()
+			                .field("createDate", "02/28/2016")
+			                .field("desciption", "This is the description for record #3")
+			                .field("author",     "Justin")
+			            .endObject();
+			
+			        String sJson3 = builder.string();
+			        IndexRequest indexRequest3 = new IndexRequest(ES_INDEX_NAME, "record", "3")
+			                .source(sJson3);
+			        res = esClient.index(indexRequest3).actionGet();
+			        logger.debug("After adding record #3. res.isCreated={}  res.getId()={}", res.isCreated(), res.getId());
+			
+			
+			
+			        // Add Record Approach #4:  Serialize your object and write the object as a byte[]
+			        // NOTE:  Requires adding pom.xml dependency:   com.fasterxml.jackson.core:jackson-databind:2.1.0
+			        MyRecord myRecord = new MyRecord("03/01/2016", "This is the description for record #4", "Peter");
+			        ObjectMapper mapper = new ObjectMapper(); // create once, reuse
+			        byte[] jsonByteArray = mapper.writeValueAsBytes(myRecord);
+			        IndexRequest indexRequest4 = new IndexRequest(ES_INDEX_NAME, "record", "4")
+			                .source(jsonByteArray);
+			        res = esClient.index(indexRequest4).actionGet();
+			        logger.debug("After adding record #4. res.isCreated={}  res.getId()={}", res.isCreated(), res.getId());
+			
+			
+			
+			        // Search for the records  (you should get 4 hits)
+			        SearchResponse searchResponse =
+			                esClient.prepareSearch(ES_INDEX_NAME).setTypes("record").execute().actionGet();
+			        SearchHit[] hits = searchResponse.getHits().getHits();
+			        logger.debug("After running search.  hits.length={}", hits.length);
+			
+			
+			
+			       // esClient.admin().indices();
+			       logger.debug("main() finished");
+			    }
+			}
 
          
  
  6. Startup your local ElasticSearch Instance
- 
+    unix> sudo service elasticsearch start
+    
+    
  7. Run the code
     a. Within Intellij, right-click on the App class -> Run 'App.main()'
     
