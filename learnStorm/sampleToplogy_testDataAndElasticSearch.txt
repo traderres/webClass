@@ -1,0 +1,324 @@
+How to Setup an Apache Storm Topology Using TestData Spout, IP Normalizer, and ES bolts
+---------------------------------------------------------------------------------------
+
+INCOMPLETE
+
+
+Assumptions:
+ A) You have Java JDK already installed
+ B) You have Apache Storm installed [see howToSetupStormOnCentos.txt]
+ C) You are Apache Storm on a CentOS unix server
+
+
+References
+----------
+https://azure.microsoft.com/en-us/documentation/articles/hdinsight-storm-develop-java-topology/
+https://github.com/davidkiss/storm-twitter-word-count
+
+
+ 
+Procedure
+---------
+ 1. Verify that you have storm installed and in your path
+    unix> storm version
+
+	Running: /usr/java/jdk1.7.0_55/bin/java -client -Ddaemon.name= -Dstorm.options= -Dstorm.home=/opt/apache-storm-1.0.1 -Dstorm.log.dir=/opt/apache-storm-1.0.1/logs -Djava.library.path=/usr/local/lib:/opt/local/lib:/usr/lib -Dstorm.conf.file= -cp /opt/apache-storm-1.0.1/lib/kryo-3.0.3.jar:/opt/apache-storm-1.0.1/lib/reflectasm-1.10.1.jar:/opt/apache-storm-1.0.1/lib/minlog-1.3.0.jar:/opt/apache-storm-1.0.1/lib/clojure-1.7.0.jar:/opt/apache-storm-1.0.1/lib/log4j-core-2.1.jar:/opt/apache-storm-1.0.1/lib/servlet-api-2.5.jar:/opt/apache-storm-1.0.1/lib/log4j-slf4j-impl-2.1.jar:/opt/apache-storm-1.0.1/lib/log4j-over-slf4j-1.6.6.jar:/opt/apache-storm-1.0.1/lib/disruptor-3.3.2.jar:/opt/apache-storm-1.0.1/lib/slf4j-api-1.7.7.jar:/opt/apache-storm-1.0.1/lib/log4j-api-2.1.jar:/opt/apache-storm-1.0.1/lib/storm-core-1.0.1.jar:/opt/apache-storm-1.0.1/lib/storm-rename-hack-1.0.1.jar:/opt/apache-storm-1.0.1/lib/objenesis-2.1.jar:/opt/apache-storm-1.0.1/lib/asm-5.0.3.jar:/opt/apache-storm-1.0.1/conf org.apache.storm.utils.VersionInfo
+	Storm 1.0.1
+	URL https://git-wip-us.apache.org/repos/asf/storm.git -r b5c16f919ad4099e6fb25f1095c9af8b64ac9f91
+	Branch (no branch)
+	Compiled by tgoetz on 2016-04-29T20:44Z
+	From source with checksum 1aea9df01b9181773125826339b9587e    
+	    
+    
+ 2. Create the wordcount storm project
+    a. Startup Intellij
+       NOTE:  IF an existing Intellij project appear, then pull File / Close Project
+       
+    b. Press "Create New Project"
+       1) In the "New Project" window, 
+            a) Select Maven [on the left]
+            b) Next to Project SDK:  Select your Java JDK
+               NOTE:  If you do not see your java JDK, then
+                      Press New
+                      -- Browse to your Java JDK:  C:\Program Files\Java\jdk1.7.0_60
+                      -- Press OK
+               
+            c) Check "Create from archetype"
+            d) Select maven-archetype-quickstart
+               Press Next
+
+               
+       2) In the next screen
+          GroupId:     com.whatever
+          ArtifactId:  stormWordCount    
+          Version:     1.0-SNAPSHOT
+          Press Next
+          
+          
+       3) In the next screen,
+          Maven home directory:  /opt/apache-maven-3.3.9
+          User settings file:    Check the checkbox to "Override"
+                                 /opt/apache-maven-3.3.9/conf/settings.xml
+          Press Next                       
+                                 
+       
+       4) Project Name:      stormWordCount
+          Project Location:  /home/adam/intellijProjects/stormWordCount
+          Press Finish
+          
+       5) If you get prompted that "/home/adam/intellijProjects/stormWordCount" does not exist
+          It will be created by Intellij
+          Press OK 
+     
+       6) If you get prompted 
+          "New projects can either be opened in a new window or replace the project"
+          Press "This Window"
+          
+       7) If you are prompted 
+          Maven projects need to be imported
+          Press "Enable Auto-Import"
+          
+          Now, maven has created a simple Java JAR project
+         
+ 
+ 
+ 2. Configure Intellij preferences for this project
+    a. Turn off spell-checking
+       1) Pull File / Settings
+       2) Search for spelling
+          a) Single-click on Inspections
+          b) next to Typo -- Uncheck the checkbox
+          c) Press Apply
+          
+          
+
+ 3. In Intellij, exclude build directory
+    a. Pull File / Settings
+    b. Search for maven
+       Importing -> Uncheck exclude build directory
+      
+     
+
+ 4. Setup the Maven test directories for your Intellij project
+    a. Right-click on src/test   -> New -> Directory:    resources
+    b. Right-click on src/main   -> New -> Directory:    resources
+
+    Now, you should have this directory structure
+      src/main/java/ 
+      src/main/resources/               # Holds logback.xml used by java main program     
+      src/test/java
+      src/test/resources/               # Holds logback.xml used by unit test code
+
+
+           
+ 5. Add dependencies for logging and apache-storm
+    Your pom.xml should already have one dependency:
+      <dependencies>
+      
+        <dependency>
+          <groupId>junit</groupId>
+          <artifactId>junit</artifactId>
+          <version>3.8.1</version>
+          <scope>test</scope>
+        </dependency>
+        
+      </dependencies>
+    
+        
+        
+    Copy and paste these dependencies into your pom.xml
+    NOTE:  Add all of these dependencies should be between these tags:
+       <dependencies>
+       . . .
+       </dependencies>
+       
+     
+        <dependency>
+           <groupId>org.apache.storm</groupId>
+           <artifactId>storm-core</artifactId>
+           <version>0.9.2-incubating</version>
+           <!-- keep storm out of the jar-with-dependencies -->
+          <scope>provided</scope>
+        </dependency>        
+        
+        <dependency>
+           <groupId>org.slf4j</groupId>
+           <artifactId>slf4j-api</artifactId>
+           <version>1.7.5</version>
+        </dependency>
+        
+        <dependency>
+           <!-- Storm uses log4j so use SLF4j w/log4j bridge -->
+           <groupId>org.slf4j</groupId>
+           <artifactId>slf4j-log4j12</artifactId>
+           <version>1.7.12</version>
+       </dependency>
+
+
+
+ 6. Add the Maven plugins to build the Java JAR with all dependencies
+    NOTE:  When you run mvn clean package
+           Maven will generate two JAR files
+              ./target/stormWordCount.jar        [which has all dependencies]
+              ./target/stormWordCount_Lite.jar   [which is missing dependencies]
+    a. Edit your pom.xml
+        
+       Add the following text so that appears before the <dependencies>...</dependencies> section
+        
+           <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <version>3.1</version>
+                        <configuration>
+                            <source>1.7</source>
+                            <target>1.7</target>
+                        </configuration>
+                    </plugin>
+        
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-jar-plugin</artifactId>
+                        <version>2.3.2</version>
+                        <configuration>
+                            <!-- Set the name of the generated Java JAR filename *without* dependencies -->
+                            <finalName>${project.artifactId}_Lite</finalName>
+                        </configuration>
+                    </plugin>
+        
+                    <plugin>
+                        <artifactId>maven-assembly-plugin</artifactId>
+        
+                        <configuration>
+                            <descriptorRefs>
+                                <descriptorRef>jar-with-dependencies</descriptorRef>
+                            </descriptorRefs>
+        
+                            <archive>
+                                <manifest>
+                                    <addClasspath>true</addClasspath>
+                                    <mainClass>com.whatever.WordCountTopology</mainClass>
+                                </manifest>
+                            </archive>
+                        </configuration>
+        
+                        <executions>
+                            <execution>
+                                <id>make-assembly</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                                <configuration>
+                                    <!-- Set the name of the generated Java JAR filename *with* dependencies -->
+                                    <appendAssemblyId>false</appendAssemblyId>
+                                    <finalName>${project.artifactId}</finalName>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+        
+                </plugins>
+            </build>
+    
+
+ 7. Add the Exec Maven Plugin to allow you to easily run your topology locally
+    a. Edit your pom.xml
+    b. Add this to the <plugins>...</plugins> section
+	    
+	    <plugin>
+		  <groupId>org.codehaus.mojo</groupId>
+		  <artifactId>exec-maven-plugin</artifactId>
+		  <version>1.4.0</version>
+		 	 <executions>
+		   	 	<execution>
+		    		<goals>
+		     	 		<goal>exec</goal>
+		    		</goals>
+		   		 </execution>
+		 	 </executions>
+		 	 <configuration>
+			    <executable>java</executable>
+			    <includeProjectDependencies>true</includeProjectDependencies>
+			    <includePluginDependencies>false</includePluginDependencies>
+			    <classpathScope>compile</classpathScope>
+			    <mainClass>com.whatever.WordCountTopolog</mainClass>
+		  </configuration>
+		</plugin>
+	
+	    
+    
+ 8. Create this file:  log4j.xml
+    NOTE:  Hadoop uses log4j so we must, too.
+    
+    a. Browse to src/main/resources
+    b. Right-click on classes -> New -> Other... -> Search for file
+       filename:  log4j.xml
+       
+        <?xml version="1.0" encoding="UTF-8" ?>
+        <!DOCTYPE log4j:configuration SYSTEM "log4j.dtd">
+        
+        <log4j:configuration xmlns:log4j="http://jakarta.apache.org/log4j/">
+            <appender name="CONSOLE" class="org.apache.log4j.ConsoleAppender">
+                <param name="Target" value="System.out"/>
+                <layout class="org.apache.log4j.PatternLayout">
+                    <param name="ConversionPattern" value="%d{MM/dd/yyyy HH:mm:ss} %c %m%n"/>
+                </layout>
+            </appender>
+        
+        
+            <logger name="com.whatever" additivity="false">
+                <level value="debug" />
+                <appender-ref ref="CONSOLE" />
+            </logger>
+        
+            <root>
+                <priority value="info" />
+                <appender-ref ref="CONSOLE" />
+            </root>
+        
+        </log4j:configuration>
+   
+   
+   
+ 9. Add this spout:  MakeTestDataSpout
+    a. Pull src / main / java / com.whatever -> New -> Java Class
+       Name:  MakeTestDataSpout
+       Kind:  Class
+       press OK
+       
+		
+
+ 5. Add this bolt:  IpAddressToIntegerBolt
+		 
+ 
+ 6. Add this bolt:  kmeansClusterBolt
+     
+ 
+ 7. Add this bolt:  ElasticSearchBolt
+
+
+
+ 
+ 8. Configure the topology
+
+ 9. Turn on your ElasticSearch instance
+    NOTE:  The code in AddToElasticSearch.initialize() assumes that ElasticSearch is 
+           listening on the localhost at port 9200
+    unix> sudo service elasticsearch start
+    
+    
+           
+10. Run the topology
+
+    
+    
+    
+11. Look inside your elastic search index to see the data
+    Run this command:
+       GET /my-index/_search
+
+
+    NOTE:  To delete the index, run this command
+       DELETE /my-index/
+             
