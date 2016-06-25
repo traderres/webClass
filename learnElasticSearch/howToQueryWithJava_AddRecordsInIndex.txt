@@ -171,106 +171,14 @@ Procedure
 		        // Connect to the ElasticSearch instance and return the client
 		        Client esClient = EsClientSingleton.INSTANCE.getEsClient();
 		
-		        final String ES_INDEX_NAME = "records-db";
 		
-		
-		        // A T T E M P T      T O     D E L E T E       I N D E X    (within ElasticSearch)
-		        try
-		        {
-		            DeleteIndexResponse deleteResponse = esClient.admin().indices().delete(new DeleteIndexRequest(ES_INDEX_NAME)).actionGet();
-		            if (!deleteResponse.isAcknowledged() )
-		            {
-		                logger.error("I failed to delete this index:  {}", ES_INDEX_NAME);
-		            }
-		        }
-		        catch (IndexNotFoundException notFoundException)
-		        {
-		            logger.debug("Ignoring IndexNotFoundException that was raised.");
-		        }
-		
-		
-		        // A T T E M P T      T O     C R E A T E      I N D E X    (within ElasticSearch)
-		        try
-		        {
-		            // Create an index called "music"
-		            logger.debug("Attempting create the index called '{}'....", ES_INDEX_NAME);
-		            Settings indexSettings = Settings.builder()
-		                    .put("number_of_shards", 1)
-		                    .put("number_of_replicas", 1)
-		                    .build();
-		            CreateIndexRequest indexRequest = new CreateIndexRequest(ES_INDEX_NAME, indexSettings);
-		            CreateIndexResponse res = esClient.admin().indices().create(indexRequest).actionGet();
-		            if (! res.isAcknowledged())
-		            {
-		                logger.error("I failed to create this index:  {}", ES_INDEX_NAME);
-		            }
-		        }
-		        catch (IndexAlreadyExistsException alreadyExistsException)
-		        {
-		            // Ignore this exception
-		            logger.debug("Ignoring IndexAlreadyExistsException that was raised.");
-		        }
-		
-		        IndexResponse res;
-		
-		
-		        // Add Record Approach #1:  Use a HashMap
-		        Map<String, Object> jsonMap = new HashMap<String, Object>();
-		        jsonMap.put("createDate", "02/25/2016");
-		        jsonMap.put("description", "This is the description for record #1");
-		        jsonMap.put("author", "Adam");
-		
-		        // Create the record and set _type="record" and _id="1"
-		        // NOTE:  By setting the ID you can only create this record once.  Calling it multiple times does not add additional records
-		        IndexRequest indexRequest = new IndexRequest(ES_INDEX_NAME, "record", "1")
-		                                        .source(jsonMap);
-		        res = esClient.index(indexRequest).actionGet();
-		        logger.debug("After adding record #1. res.isCreated={}  res.getId()={}", res.isCreated(), res.getId());
-		
-		
-		
-		        // Add Record Approach #2:  Use a JSON string
-		        String sJson = "{  \"createDate\": \"02/26/2016\",        \"description\": \"This is the description for record #2\", \"author\": \"Ben\" }";
-		        IndexRequest indexRequest2 = new IndexRequest(ES_INDEX_NAME, "record", "2")
-		                                        .source(sJson);
-		        res = esClient.index(indexRequest2).actionGet();
-		        logger.debug("After adding record #2. res.isCreated={}  res.getId()={}", res.isCreated(), res.getId());
-		
-		
-		
-		        // Add Record Approach #3:  Use ElasticSearch helpers to generate JSON
-		        XContentBuilder builder = jsonBuilder()
-		            .startObject()
-		                .field("createDate", "02/28/2016")
-		                .field("desciption", "This is the description for record #3")
-		                .field("author",     "Justin")
-		            .endObject();
-		
-		        String sJson3 = builder.string();
-		        IndexRequest indexRequest3 = new IndexRequest(ES_INDEX_NAME, "record", "3")
-		                .source(sJson3);
-		        res = esClient.index(indexRequest3).actionGet();
-		        logger.debug("After adding record #3. res.isCreated={}  res.getId()={}", res.isCreated(), res.getId());
-		
-		
-		
-		        // Add Record Approach #4:  Serialize your object and write the object as a byte[]
-		        // NOTE:  Requires adding pom.xml dependency:   com.fasterxml.jackson.core:jackson-databind:2.1.0
-		        MyRecord myRecord = new MyRecord("03/01/2016", "This is the description for record #4", "Peter");
-		        ObjectMapper mapper = new ObjectMapper(); // create once, reuse
-		        byte[] jsonByteArray = mapper.writeValueAsBytes(myRecord);
-		        IndexRequest indexRequest4 = new IndexRequest(ES_INDEX_NAME, "record", "4")
-		                .source(jsonByteArray);
-		        res = esClient.index(indexRequest4).actionGet();
-		        logger.debug("After adding record #4. res.isCreated={}  res.getId()={}", res.isCreated(), res.getId());
-		
-		
-		
-		        // Search for the records  (you should get 4 hits)
-		        SearchResponse searchResponse =
-		                esClient.prepareSearch(ES_INDEX_NAME).setTypes("record").execute().actionGet();
-		        SearchHit[] hits = searchResponse.getHits().getHits();
-		        logger.debug("After running search.  hits.length={}", hits.length);
+				// Get information about all indices
+				// -- Get a map of key=index-name  value=index-metadata        
+		        ImmutableOpenMap<String, IndexMetaData> myIndices = esClient.admin().cluster()
+	                .prepareState().execute()
+	                .actionGet().getState()
+	                .getMetaData().indices();
+	                
 		
 		
 		        logger.debug("main() finished");
