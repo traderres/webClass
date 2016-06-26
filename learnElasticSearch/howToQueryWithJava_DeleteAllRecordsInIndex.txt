@@ -1,0 +1,269 @@
+How to use the Java API to Delete an Index within ElasticSearch
+---------------------------------------------------------------
+
+
+Assumptions:
+ A) You have an ElasticSearch instance running (with version 2.3.3)
+ B) Your ElasticSearch instance is running on localhost and listening on port 9300
+ C) You are using IntelliJ to create a project
+ 
+ 
+
+Procedure
+---------
+ 1. Create a Java command-line project
+    [see learnJava / howToCreateJavaCommandLineProgramUsingIntellijMaven.txt]
+ 
+ 
+ 2. Add these dependencies to your pom.xml
+
+      <dependency>
+          <groupId>ch.qos.logback</groupId>
+          <artifactId>logback-classic</artifactId>
+          <version>1.0.13</version>
+      </dependency>
+
+      <dependency>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava</artifactId>
+          <version>19.0</version>
+      </dependency>
+
+      <dependency>
+          <groupId>org.elasticsearch</groupId>
+          <artifactId>elasticsearch</artifactId>
+          <version>2.3.3</version>
+      </dependency>
+
+      
+      
+      WARNING:  
+        If running ElasticSearch *AND* using Apache Storm,
+        Then, you will need to exclude the org.jboss.netty to connect to ElasticSearch properly.
+             
+     		 So, your Apache Storm dependency would look like this:
+		      <dependency>
+		          <groupId>org.apache.storm</groupId>
+		          <artifactId>storm-core</artifactId>
+		          <version>0.9.2-incubating</version>
+		          <scope>compile</scope>
+		          <exclusions>
+		               <exclusion>
+		               	  <!-- Storm comes with logback-classic.  Let's exclude it -->
+			              <exclusion>
+			                  <groupId>ch.qos.logback</groupId>
+			                  <artifactId>logback-classic</artifactId>
+			              </exclusion>
+			              
+		                  <!-- Storm comes with jboss.netty and io.netty.  This removed the jboss.netty ones -->
+		                  <groupId>org.jboss.netty</groupId>
+		                  <artifactId>netty</artifactId>
+		              </exclusion>
+		          </exclusions>
+		      </dependency>
+             
+
+
+ 3. Update your logback.xml file to look like this:
+    a. Edit /src/main/resources/logback.xml
+    b. Replace your logback.xml with this:
+    
+		<?xml version="1.0" encoding="windows-1252" ?>
+		<!DOCTYPE project>
+		
+		<configuration debug="false">
+		    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+		        <encoder>
+		            <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+		        </encoder>
+		    </appender>
+		
+		
+		
+		    <logger name="com.wahtever" level="DEBUG" additivity="false">
+		        <appender-ref ref="CONSOLE"/>
+		    </logger>
+		
+		    <root level="DEBUG">
+		        <appender-ref ref="CONSOLE"/>
+		    </root>
+		</configuration>
+              
+ 
+ 
+ 4. Create this class:  EsClientSingleton
+    a. Right-click on /src/main/java -> New -> Java Class
+       Name:  EsClientSingleton
+       Kind:  Class
+       Press OK
+       
+    b. Copy this to EsClientSingleton.java 
+		    
+			package com.whatever;
+			
+			import org.elasticsearch.client.Client;
+			import org.elasticsearch.client.transport.TransportClient;
+			import org.elasticsearch.common.transport.InetSocketTransportAddress;
+			import java.net.InetAddress;
+			
+			/**
+			 * Created by adam on 6/25/16.
+			 */
+			public enum EsClientSingleton
+			{
+			    INSTANCE;
+			
+			    private Client esClient;
+			
+			    /******************************************************************
+			     * Private EsClientSingleton Constructor
+			     * -- Do one-time initialization here
+			     *******************************************************************/
+			    private EsClientSingleton()
+			    {
+			        // The very first time this singleton is called, we will initialize the ES Client
+			        initializeEsClientNoException();
+			    }
+			
+			
+			    /******************************************************************
+			     * initializeEsClient()
+			     * -- Attempt to connect to the ElasticSearch Instance
+			     *******************************************************************/
+			    private void initializeEsClientNoException()
+			    {
+			        try {
+			            // Connect to the ElasticSearch instance using port 9300  [it's a binary protocol]
+			            // NOTE:  The java client does not connect to port 9200
+			            InetAddress addrEsHostname = InetAddress.getByName("localhost");
+			
+			            esClient = TransportClient.builder().build()
+			                    .addTransportAddress(new InetSocketTransportAddress(addrEsHostname, 9300));
+			        }
+			        catch (Exception e)
+			        {
+			            // Convert the exception to a RunTime exception
+			            RuntimeException re = new RuntimeException(e);
+			            re.setStackTrace(e.getStackTrace());
+			            throw re;
+			        }
+			
+			    }
+			
+			    public Client getEsClient()
+			    {
+			        return esClient;
+			    }
+			}
+		
+
+				
+ 5. Create this class:  DeleteIndex
+    a. Right-click on /src/main/java -> New -> Java Class
+       Name:  DeleteIndex
+       Kind:  Class
+       Press OK
+       
+    b. Copy this to DeleteIndex
+
+			package com.whatever;
+			
+			import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+			import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
+			import org.elasticsearch.client.Client;
+			import org.slf4j.Logger;
+			import org.slf4j.LoggerFactory;
+			
+			/**
+			 * Created by adam on 6/25/16.
+			 */
+			public class DeleteIndex
+			{
+			    public static final Logger logger = LoggerFactory.getLogger(DeleteIndex.class);
+			
+			    public static void main(String[] args) throws Exception
+			    {
+			        logger.debug("main() started");
+			
+			        final String ES_INDEX_NAME = "records-db";
+			
+			        // Connect to the ElasticSearch instance and return the client
+			        Client esClient = EsClientSingleton.INSTANCE.getEsClient();
+			
+			        try
+			        {
+			            // A T T E M P T       T O     D E L E T E      I N D E X
+			            DeleteIndexResponse deleteResponse = esClient.admin().indices().delete(new DeleteIndexRequest(ES_INDEX_NAME)).actionGet();
+			            if (!deleteResponse.isAcknowledged() )
+			            {
+			                logger.error("Index wasn't deleted: {}", ES_INDEX_NAME);
+			            }
+			            else
+			            {
+			                logger.debug("Index was successfully deleted: {}", ES_INDEX_NAME);
+			            }
+			        }
+			        catch (Exception e)
+			        {
+			            logger.error("Index wasn't deleted.", e);
+			        }
+			
+			        logger.debug("main() started");
+			
+			    }
+			}
+			 
+			 
+			 
+ 6. Startup your local ElasticSearch Instance
+    unix> sudo service elasticsesarch start
+    
+ 
+ 
+ 7. Run the code
+    a. Within Intellij, right-click on the App class -> Run 'ListIndexes.main()'
+    
+    b. You should see the following in your console:
+    					
+		06/25/2016 20:04:36 DEBUG com.whatever.DeleteIndex main() started
+		06/25/2016 20:04:36 INFO  org.elasticsearch.plugins [Reject] modules [], plugins [], sites []
+		06/25/2016 20:04:36 DEBUG org.elasticsearch.threadpool [Reject] creating thread_pool [generic], type [cached], keep_alive [30s]
+		06/25/2016 20:04:36 DEBUG org.elasticsearch.threadpool [Reject] creating thread_pool [index], type [fixed], size [6], queue_size [200]
+		06/25/2016 20:04:36 DEBUG org.elasticsearch.threadpool [Reject] creating thread_pool [fetch_shard_store], type [scaling], min [1], size [12], keep_alive [5m]
+		06/25/2016 20:04:36 DEBUG org.elasticsearch.threadpool [Reject] creating thread_pool [get], type [fixed], size [6], queue_size [1k]
+		06/25/2016 20:04:36 DEBUG org.elasticsearch.threadpool [Reject] creating thread_pool [snapshot], type [scaling], min [1], size [3], keep_alive [5m]
+		06/25/2016 20:04:36 DEBUG org.elasticsearch.threadpool [Reject] creating thread_pool [force_merge], type [fixed], size [1], queue_size [null]
+		06/25/2016 20:04:36 DEBUG org.elasticsearch.threadpool [Reject] creating thread_pool [suggest], type [fixed], size [6], queue_size [1k]
+		06/25/2016 20:04:36 DEBUG org.elasticsearch.threadpool [Reject] creating thread_pool [bulk], type [fixed], size [6], queue_size [50]
+		06/25/2016 20:04:36 DEBUG org.elasticsearch.threadpool [Reject] creating thread_pool [warmer], type [scaling], min [1], size [3], keep_alive [5m]
+		06/25/2016 20:04:36 DEBUG org.elasticsearch.threadpool [Reject] creating thread_pool [flush], type [scaling], min [1], size [3], keep_alive [5m]
+		06/25/2016 20:04:36 DEBUG org.elasticsearch.threadpool [Reject] creating thread_pool [search], type [fixed], size [10], queue_size [1k]
+		06/25/2016 20:04:36 DEBUG org.elasticsearch.threadpool [Reject] creating thread_pool [fetch_shard_started], type [scaling], min [1], size [12], keep_alive [5m]
+		06/25/2016 20:04:36 DEBUG org.elasticsearch.threadpool [Reject] creating thread_pool [listener], type [fixed], size [3], queue_size [null]
+		06/25/2016 20:04:36 DEBUG org.elasticsearch.threadpool [Reject] creating thread_pool [percolate], type [fixed], size [6], queue_size [1k]
+		06/25/2016 20:04:36 DEBUG org.elasticsearch.threadpool [Reject] creating thread_pool [management], type [scaling], min [1], size [5], keep_alive [5m]
+		06/25/2016 20:04:36 DEBUG org.elasticsearch.threadpool [Reject] creating thread_pool [refresh], type [scaling], min [1], size [3], keep_alive [5m]
+		06/25/2016 20:04:37 DEBUG org.elasticsearch.common.network configuration:
+		
+		lo
+		        inet 127.0.0.1 netmask:255.255.255.255 scope:host
+		        inet6 ::1 prefixlen:128 scope:host
+		        UP LOOPBACK mtu:65536 index:1
+		
+		eth0
+		        inet 192.168.1.159 netmask:255.255.255.0 broadcast:192.168.1.255 scope:site
+		        inet6 fe80::a00:27ff:fecb:fa14 prefixlen:64 scope:link
+		        hardware 08:00:27:CB:FA:14
+		        UP MULTICAST mtu:1500 index:2
+		
+		06/25/2016 20:04:37 DEBUG org.elasticsearch.common.netty using gathering [true]
+		06/25/2016 20:04:37 DEBUG org.elasticsearch.client.transport [Reject] node_sampler_interval[5s]
+		06/25/2016 20:04:37 DEBUG org.elasticsearch.netty.channel.socket.nio.SelectorUtil Using select timeout of 500
+		06/25/2016 20:04:37 DEBUG org.elasticsearch.netty.channel.socket.nio.SelectorUtil Epoll-bug workaround enabled = false
+		06/25/2016 20:04:37 DEBUG org.elasticsearch.client.transport [Reject] adding address [{#transport#-1}{127.0.0.1}{localhost/127.0.0.1:9300}]
+		06/25/2016 20:04:37 DEBUG org.elasticsearch.transport.netty [Reject] connected to node [{#transport#-1}{127.0.0.1}{localhost/127.0.0.1:9300}]
+		06/25/2016 20:04:37 DEBUG org.elasticsearch.transport.netty [Reject] connected to node [{Annex}{kKIXGfeeTAKAfQUCjW_Xpw}{192.168.1.159}{localhost/127.0.0.1:9300}]
+		06/25/2016 20:04:37 DEBUG com.whatever.DeleteIndex Index was successfully deleted: records-db
+		06/25/2016 20:04:37 DEBUG com.whatever.DeleteIndex main() started
+
+
