@@ -1,8 +1,6 @@
 How to Setup an Apache Storm Topology Using TestData Spout, IP Normalizer, and ES bolts
 ---------------------------------------------------------------------------------------
 
-INCOMPLETE
-
 
 Assumptions:
  A) You have Java JDK already installed
@@ -14,7 +12,7 @@ References
 ----------
 https://azure.microsoft.com/en-us/documentation/articles/hdinsight-storm-develop-java-topology/
 https://github.com/davidkiss/storm-twitter-word-count
-
+https://github.com/davidkiss/storm-twitter-word-count/blob/master/src/main/java/com/kaviddiss/storm/WordCounterBolt.java
 
  
 Procedure
@@ -126,33 +124,59 @@ Procedure
     
         
         
-    Copy and paste these dependencies into your pom.xml
-    NOTE:  Add all of these dependencies should be between these tags:
+    Add these additional dependencies into your pom.xml
+    NOTE:  Add all of these dependencies should be between these tags:  
        <dependencies>
        . . .
        </dependencies>
-       
+
+
+
+      <dependency>
+          <groupId>org.apache.storm</groupId>
+          <artifactId>storm-core</artifactId>
+          <version>0.9.3</version>
+          
+          <!-- keep storm out of the jar-with-dependencies -->
+          <scope>compile</scope>
+
+          <exclusions>
+              <exclusion>
+                  <groupId>ch.qos.logback</groupId>
+                  <artifactId>logback-classic</artifactId>
+              </exclusion>
+
+              <exclusion>
+                  <groupId>ch.qos.logback</groupId>
+                  <artifactId>logback-core</artifactId>
+              </exclusion>
+          </exclusions>
+      </dependency>       
      
-        <dependency>
-           <groupId>org.apache.storm</groupId>
-           <artifactId>storm-core</artifactId>
-           <version>0.9.2-incubating</version>
-           <!-- keep storm out of the jar-with-dependencies -->
-          <scope>provided</scope>
-        </dependency>        
-        
-        <dependency>
-           <groupId>org.slf4j</groupId>
-           <artifactId>slf4j-api</artifactId>
-           <version>1.7.5</version>
-        </dependency>
-        
-        <dependency>
-           <!-- Storm uses log4j so use SLF4j w/log4j bridge -->
-           <groupId>org.slf4j</groupId>
-           <artifactId>slf4j-log4j12</artifactId>
-           <version>1.7.12</version>
-       </dependency>
+     <dependency>
+          <groupId>ch.qos.logback</groupId>
+          <artifactId>logback-classic</artifactId>
+          <version>1.0.13</version>
+      </dependency>
+
+      <dependency>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava</artifactId>
+          <version>19.0</version>
+      </dependency>
+
+      <dependency>
+          <groupId>org.elasticsearch</groupId>
+          <artifactId>elasticsearch</artifactId>
+          <version>2.3.3</version>
+      </dependency>
+
+      <dependency>
+          <!-- Use this to get Jackson's ObjectMapper -->
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-databind</artifactId>
+          <version>2.1.0</version>
+      </dependency>
 
 
 
@@ -222,74 +246,289 @@ Procedure
             </build>
     
 
- 7. Add the Exec Maven Plugin to allow you to easily run your topology locally
-    a. Edit your pom.xml
-    b. Add this to the <plugins>...</plugins> section
-	    
-	    <plugin>
-		  <groupId>org.codehaus.mojo</groupId>
-		  <artifactId>exec-maven-plugin</artifactId>
-		  <version>1.4.0</version>
-		 	 <executions>
-		   	 	<execution>
-		    		<goals>
-		     	 		<goal>exec</goal>
-		    		</goals>
-		   		 </execution>
-		 	 </executions>
-		 	 <configuration>
-			    <executable>java</executable>
-			    <includeProjectDependencies>true</includeProjectDependencies>
-			    <includePluginDependencies>false</includePluginDependencies>
-			    <classpathScope>compile</classpathScope>
-			    <mainClass>com.whatever.WordCountTopolog</mainClass>
-		  </configuration>
-		</plugin>
-	
+
 	    
     
- 8. Create this file:  log4j.xml
-    NOTE:  Hadoop uses log4j so we must, too.
-    
+ 7. Create this file:  logback.xml
     a. Browse to src/main/resources
     b. Right-click on classes -> New -> Other... -> Search for file
-       filename:  log4j.xml
+       filename:  logback.xml
        
-        <?xml version="1.0" encoding="UTF-8" ?>
-        <!DOCTYPE log4j:configuration SYSTEM "log4j.dtd">
-        
-        <log4j:configuration xmlns:log4j="http://jakarta.apache.org/log4j/">
-            <appender name="CONSOLE" class="org.apache.log4j.ConsoleAppender">
-                <param name="Target" value="System.out"/>
-                <layout class="org.apache.log4j.PatternLayout">
-                    <param name="ConversionPattern" value="%d{MM/dd/yyyy HH:mm:ss} %c %m%n"/>
-                </layout>
-            </appender>
-        
-        
-            <logger name="com.whatever" additivity="false">
-                <level value="debug" />
-                <appender-ref ref="CONSOLE" />
-            </logger>
-        
-            <root>
-                <priority value="info" />
-                <appender-ref ref="CONSOLE" />
-            </root>
-        
-        </log4j:configuration>
+		<?xml version="1.0" encoding="windows-1252" ?>
+		<!DOCTYPE project>
+		
+		<configuration debug="false">
+		    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+		        <encoder>
+		            <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+		        </encoder>
+		    </appender>
+		
+		
+		
+		    <logger name="com.whatever" level="DEBUG" additivity="false">
+		        <appender-ref ref="CONSOLE"/>
+		    </logger>
+		
+		    <root level="INFO">
+		        <appender-ref ref="CONSOLE"/>
+		    </root>
+		</configuration>
    
    
    
- 9. Add this spout:  MakeTestDataSpout
+ 8. Add this spout:  MakeTestDataSpout
     a. Pull src / main / java / com.whatever -> New -> Java Class
        Name:  MakeTestDataSpout
        Kind:  Class
        press OK
-       
-		
+    
+    b. Copy this java code to MakeTestDataSpout.java    
 
- 5. Add this bolt:  IpAddressToIntegerBolt
+			package com.whatever;
+			
+			/**
+			 * Created by adam on 6/24/16.
+			 */
+			import backtype.storm.spout.SpoutOutputCollector;
+			import backtype.storm.task.TopologyContext;
+			import backtype.storm.topology.OutputFieldsDeclarer;
+			import backtype.storm.topology.base.BaseRichSpout;
+			import backtype.storm.tuple.Fields;
+			import backtype.storm.tuple.Values;
+			import com.google.common.collect.Iterables;
+			import org.slf4j.Logger;
+			import org.slf4j.LoggerFactory;
+			
+			import java.util.ArrayList;
+			import java.util.Iterator;
+			import java.util.Map;
+			
+			
+			
+			public class MakeTestDataSpout extends BaseRichSpout
+			{
+			    private static final Logger logger = LoggerFactory.getLogger(MakeTestDataSpout.class);
+			
+			    //Collector used to emit output
+			    private SpoutOutputCollector _collector;
+			
+			    private Iterator<String> infiniteWordListIterator;
+			
+			
+			    /*********************************************************************************
+			     * open()
+			     *
+			     * This method is called when an instance of the class is created
+			     **********************************************************************************/
+			    @Override
+			    public void open(Map conf, TopologyContext context, SpoutOutputCollector collector)
+			    {
+			        logger.debug("open() started");
+			
+			        //Set the instance collector to the one passed in
+			        this._collector = collector;
+			
+			        ArrayList<String> words = new ArrayList<String>();
+			        words.add("dog");
+			        words.add("cat");
+			        words.add("elephan");
+			        words.add("lion");
+			
+			        // Make a list of strings that will iterate forever
+			        this.infiniteWordListIterator = Iterables.cycle(words).iterator();
+			
+			        logger.debug("open() finished");
+			    }
+			
+			
+			
+			    /*********************************************************************************
+			     * nextTyple()
+			     *
+			     * Emit data to the stream
+			     **********************************************************************************/
+			    @Override
+			    public void nextTuple()
+			    {
+			        // Get the next word
+			        String sWord = this.infiniteWordListIterator.next();
+			
+			        //Emit the sentence
+			        logger.debug("Emitting this word={}", sWord);
+			        _collector.emit(new Values(sWord));
+			    }
+			
+			    //Ack is not implemented since this is a basic example
+			    @Override
+			    public void ack(Object id)
+			    {
+			    }
+			
+			    //Fail is not implemented since this is a basic example
+			    @Override
+			    public void fail(Object id)
+			    {
+			    }
+			
+			    //Declare the output fields. In this case, an sentence
+			    @Override
+			    public void declareOutputFields(OutputFieldsDeclarer declarer)
+			    {
+			        declarer.declare(new Fields("word"));
+			    }
+			}	
+	
+	
+		
+ 9. Add this bolt:  WordCounterBolt
+    a. Browse to src/main/java/com/whatever
+    b. Right-click on classes -> New -> Java Class
+       Name:  WordCounterBolt      
+    c. Copy this to WordCounterBolt.java
+    
+		package com.whatever;
+		
+		import backtype.storm.task.OutputCollector;
+		import backtype.storm.task.TopologyContext;
+		import backtype.storm.topology.OutputFieldsDeclarer;
+		import backtype.storm.topology.base.BaseRichBolt;
+		import backtype.storm.tuple.Tuple;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		
+		import java.util.*;
+		
+		/**
+		 * Created by adam on 6/24/16.
+		 */
+		public class WordCounterBolt extends BaseRichBolt
+		{
+		    private static final Logger logger = LoggerFactory.getLogger(WordCounterBolt.class);
+		
+		    private HashMap<String, Long> counter;
+		    private int runningCount = 1;
+		
+		    @Override
+		    public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector)
+		    {
+		        this.counter = new HashMap<String, Long>();
+		    }
+		
+		    @Override
+		    public void execute(Tuple aTuple)
+		    {
+		        String sWord = (String) aTuple.getValueByField("word");
+		        Long lCount = counter.get(sWord);
+		        if (lCount == null)
+		        {
+		            lCount = new Long(1);
+		        }
+		        else
+		        {
+		            lCount++;
+		        }
+		        counter.put(sWord, lCount);
+		
+		        if (this.runningCount == 100)
+		        {
+		            logger.debug("In Execute().  Running Counts:\n{}\n", displayHashMapCounter(this.counter));
+		            this.runningCount = 1;
+		        }
+		        else
+		        {
+		            this.runningCount++;
+		        }
+		    }
+		
+		
+		    private String displayHashMapCounter(HashMap<String, Long> aCounter)
+		    {
+		        if ((aCounter == null) || (aCounter.size() == 0))
+		        {
+		            return null;
+		        }
+		
+		        StringBuilder sb = new StringBuilder();
+		        for (Map.Entry<String,Long> entry: aCounter.entrySet())
+		        {
+		            String sWord = entry.getKey();
+		            long lCount = entry.getValue();
+		
+		            sb.append(sWord)
+		              .append(":")
+		              .append(lCount)
+		              .append("\n");
+		        }
+		
+		        return sb.toString();
+		    }
+		
+		    @Override
+		    public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer)
+		    {
+		
+		    }
+		}
+ 
+
+10. Add this bolt:  WordCountTopology
+    a. Browse to src/main/java/com/whatever
+    b. Right-click on classes -> New -> Java Class
+       Name:  WordCountTopology      
+    c. Copy this to WordCountTopology.java
+    
+			package com.whatever;
+			
+			import backtype.storm.Config;
+			import backtype.storm.LocalCluster;
+			import backtype.storm.topology.TopologyBuilder;
+			import org.slf4j.Logger;
+			import org.slf4j.LoggerFactory;
+			
+			/**
+			 * Created by adam on 6/25/16.
+			 */
+			public class WordCountTopology
+			{
+			    private static final Logger logger = LoggerFactory.getLogger(WordCountTopology.class);
+			
+			    private static final String TOPOLOGY_NAME = "word-count";
+			
+			    public static void main(String[] args) throws Exception
+			    {
+			        logger.debug("main() started");
+			
+			        Config config = new Config();
+			        config.setDebug(true);
+			        config.setMessageTimeoutSecs(120);
+			
+			        TopologyBuilder builder = new TopologyBuilder();
+			        builder.setSpout("MakeTestDataSpout", new MakeTestDataSpout());
+			        builder.setBolt("WordCounterBolt", new WordCounterBolt()).shuffleGrouping("MakeTestDataSpout");
+			
+			        final LocalCluster cluster = new LocalCluster();
+			        cluster.submitTopology(TOPOLOGY_NAME, config, builder.createTopology());
+			
+			        //sleep
+			        Thread.sleep(200000);
+			
+			        cluster.shutdown();
+			
+			
+			        logger.debug("main() finished");
+			    }
+			}
+
+
+11. Debug the topology
+    a. Right-click in WordCountTopology -> Debug -> WordCountTopology.main()
+    
+    
+    
+    
+
+ 9. Add this bolt:  IpAddressToIntegerBolt
 		 
  
  6. Add this bolt:  kmeansClusterBolt
