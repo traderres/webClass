@@ -4,6 +4,11 @@ How to Install a Nexus Repository on your own CentOS Box
 Assumptions:
  A) You have Java JDK 8 installed on your CentOS box
  
+
+References
+----------
+http://blog.arungupta.me/setup-local-nexus-repository-deploying-war-from-maven-techtip74/
+https://books.sonatype.com/nexus-book/reference/install-sect-service.html
  
 
 Procedures
@@ -15,46 +20,122 @@ Procedures
     Java HotSpot(TM) 64-Bit Server VM (build 25.74-b02, mixed mode)
     
     
- 2. Download the Nexus Repository Manager OSS
+ 2. Download the Nexus Repository Manager OSS 2
     a. Open a browser
     b. Go to http://www.sonatype.com/download-oss-sonatype
-       Select nexus-3.0.0-03-unix.tar.gz  (or whatever unix version ends with .tar.gz)
+    c. Scroll down to "Nexus Repository Manager OSS 2.xx"
+    
+       Select Nexus Repository Manager OSS 2.xx
        **OR**
-       Go to http://download.sonatype.com/nexus/3/nexus-3.0.0-03-unix.tar.gz
+       Go to http://www.sonatype.org/downloads/nexus-latest-bundle.tar.gz
        
-       Save nexus-3.0.0-03-unix.tar.gz to your Downloads directory
-       -- Now, you should have this file /home/adam/Downloads/nexus-3.0.0-03-unix.tar.gz
+       Save nexus-2.13.0-01-bundle.tar.gz to your Downloads directory
+       -- Now, you should have this file /home/adam/Downloads/nexus-2.13.0-01-bundle.tar.gz
        
        
  3. Install it to your /opt/ directory
     unix> sudo -s
-    unix> mv /home/adam/Downloads/nexus-3.0.0-03-unix.tar.gz /opt
+    unix> mv /home/adam/Downloads/nexus-2.13.0-01-bundle.tar.gz /opt
     unix> cd /opt
-    unix> tar zxvf nexus-3.0.0-03-unix.tar.gz
-    unix> rm nexus-3.0.0-03-unix.tar.gz
-    unix> chown -R adam:adam /opt/nexus-3.0.0-03
+    unix> tar zxvf nexus-2.13.0-01-bundle.tar.gz
+    unix> rm nexus-2.13.0-01-bundle.tar.gz
+    unix> chown -R adam:adam /opt/nexus-2.13.0-01
     unix> exit
     
     -- Now, you should have these directories:
-         /opt/nexus-3.0.0-03/bin
-         /opt/nexus-3.0.0-03/data/
-         /opt/nexus-3.0.0-03/deploy/
-         /opt/nexus-3.0.0-03/etc/
-         /opt/nexus-3.0.0-03/lib/
-         /opt/nexus-3.0.0-03/system/
-         
- 4. Run the nexus
-    unix> cd /opt/nexus-3.0.0-03/bin
+         /opt/nexus-2.13.0-01/bin/
+         /opt/nexus-2.13.0-01/conf/
+         /opt/nexus-2.13.0-01/lib/
+         /opt/nexus-2.13.0-01/logs/
+         /opt/nexus-2.13.0-01/tmp/
+ 
+ 4. Configure nexus's work directory to be *inside* /opt/nexus-2.13.0-01/
+    unix> cd /opt/nexus-2.13.0-01/conf/
+    unix> vi nexus.properties
+    
+    # Change this line:
+    nexus-work=${bundleBasedir}/../sonatype-work/nexus
+    
+    # To this
+    nexus-work=${bundleBasedir}/sonatype-work/nexus
+    
+    
+ 5. Start the nexus instance
+    unix> cd /opt/nexus-2.13.0-01/bin
     unix> ./nexus start
     
- 
- 5. Look at the log files
-    unix> tail -f  /opt/nexus-3.0.0-03/data/log/nexus.log
     
- 
- 6. Open a browser and connect to it
+ 6. Look at the log files
+    unix> tail -f /opt/nexus-2.13.0-01/logs/wrapper.log 
+    
+    
+ 7. Open a browser and connect to it
     NOTE:  By default, nexus listens on port 8081
     a. Open a browser
-    b. Connect to http://localhost:8081/  
+    b. Connect to http://localhost:8081/nexus
     
     
+ 8. Open up port 8081  so that an outside machines can connect to the Nexus Repo
+    unix> sudo -s
+    unix> iptables -I INPUT -p tcp -m tcp --dport 8081 -j ACCEPT
+    unix> service iptables save
+    unix> service iptables restart
+    unix> iptables -S              # to list the current firewall rules
+    
+    
+ 9. Verify that an outside machine can connect to your nexus repo
+    a. Open a browser
+    b. Go to http://centosvm:8081/nexus
+    
+    
+10. Shutdown the nexus service
+    unix> cd /opt/nexus-2.13.0-01/bin
+    unix> ./nexus stop
+
+
+11. Setup nexus as a service
+    a. Create a nexus user     
+       unix> sudo -s
+       unix> groupadd nexus   # create a group called 'nexus'
+       unix> useradd --system -g nexus --home /opt/nexus-2.13.0-01  nexus
+       
+    b. Make the nexus user the owner of the /opt/nexus-2.13.0-01
+       unix> chown -R nexus:nexus /opt/nexus-2.13.0-01
+    
+    c. Copy the nexus wrapper script to /etc/init.d/nexus 
+       unix> cp /opt/nexus-2.13.0-01/bin/nexus  /etc/init.d/nexus
+    
+    d. Make the /etc/init.d/nexus script executable and owned by the root user 
+       unix> chmod 755 /etc/init.d/nexus
+       unix> chown root /etc/init.d/nexus
+    
+    f. Modify the /etc/init.d/nexus script so that it knows to run as the 'nexus' user 
+       and it knows where the nexus home directory is located
+       unix> vi /etc/init.d/nexus
+       
+       		NEXUS_HOME=/opt/nexus-2.13.0-01
+       		RUN_AS_USER=nexus
+       		PIDDIR=$NEXUS_HOME
+       
+    g. Finish configuring the service in centOS
+       unix> cd /etc/init.d
+       unix> chkconfig --add nexus
+       unix> chkconfig --levels 345 nexus on
+    
+    h. Verify it works
+       1) Look at the wrapper.log
+          unix> tail -f /opt/nexus-2.13.0-01/logs/wrapper.log
+          
+       2) Start the nexus service
+          unix> service nexus start
+       
+       3) Look at the nexus repo in a browser from the centOS box
+          a) Open a browser 
+          b) Go to http://localhost:8081/nexus
+       
+       4) Look at the nexus repo in a browser from a different box
+          a) Open a browser 
+          b) Go to http://centosVM:8081/nexus
+         
+       
+              
