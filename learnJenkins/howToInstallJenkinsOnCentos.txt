@@ -1,0 +1,136 @@
+How to Install Jenkins on CentOS Unix
+-------------------------------------
+
+Assumptions:
+ A) You have a CentOS unix box
+ B) You want to install Jenkins
+ C) You want Jenkins to listen on port 8090
+
+
+References
+----------
+http://www.linuxfunda.com/2013/11/17/how-to-install-and-configure-jenkins-on-centos-6-4/
+
+
+Procedure
+---------
+ 1. Verify that you have a Java JDK installed
+    unix> java -version
+    
+    NOTE:  If you do not see anything, then install a Java JDK
+    [see learnJava / howToInstallJava8OnCentOS.txt]
+     
+
+
+ 2. Open-up port 8090 so that an outside machine can connect to Jenkins
+    unix> sudo -s
+    unix> iptables -I INPUT -p tcp -m tcp --dport 8090 -j ACCEPT
+    unix> service iptables save
+    unix> service iptables restart
+    unix> iptables -S              # to list the current firewall rules
+
+
+
+ 3. Add the Jenkins repository to our machine
+    unix> sudo wget -O /etc/yum.repos.d/jenkins.repo http://pkg.jenkins-ci.org/redhat/jenkins.repo
+    unix> sudo rpm --import http://pkg.jenkins-ci.org/redhat/jenkins-ci.org.key
+
+
+
+ 4. Install Jenkins
+    unix> sudo yum install jenkins
+
+
+
+ 5. Configure Jenkins service to startup on boot-up
+    unix> sudo chkconfig jenkins on
+
+
+
+ 6. Configure Jenkins to use your Java JDK and to listen on port 8090
+    a. Get the path of where java is located
+       unix> which java
+             /usr/java/jdk1.7.0_55/bin/java
+
+
+    b. Set the Java path in the /etc/sysconfig/jenkins
+       unix> sudo vi /etc/sysconfig/jenkins
+             
+             # Remove this line
+             JENKINS_JAVA_CMD=""
+             
+             # Add this line
+             JENKINS_JAVA_CMD="/usr/java/jdk1.7.0_55/bin/java"
+             
+    
+    c. Set the Jenkins port to be 8090  (so it does not conflict with GitLab)
+       unix> sudo vi /etc/sysconfig/jenkins
+       
+             # Remove this line
+             JENKINS_PORT=="8080"
+             
+             # Add this line
+             JENKINS_PORT=="8090"
+    
+    
+    
+
+       
+ 7. Start the Jenkins Service
+    unix> sudo service jenkins start
+
+
+
+ 8. Verify that Jenkins is listening on port 8090
+    unix> sudo netstat -tnlp | grep 8090
+
+    You should see this:
+      tcp        0      0 :::8090           :::*           LISTEN      30826/java    
+
+    
+    
+ 9. Configure Jenkins (install plugins and create a 1st admin user account)
+    a. Go to the Jenkins page
+       1) Open a browser
+       2) Go to  http://localhost:8090/
+    
+    b. In the "Unlock Jenkins" page, follow the procedures
+       1) Copy the file from /var/lib/jenkins/secrets/initialAdminPassword
+          unix> /var/lib/jenkins/secrets/initialAdminPassword
+          a59d78ef220c49e39f884e039ddf2e31
+          
+       2) Paste it into the "Administrator password" box
+          Press Continue
+          
+    c. In the "Customize Jenkins",
+       Press "Select plugins to install"
+        
+    d. In the next screen
+       Click "Suggested" [on the top] to select all suggested plugins
+       
+       Check-off these additional plugins:
+         SSH Agent Plugin
+         NodeJS Plugin
+         Warnings Plug-in
+         Git Parameter Plug-in
+         GitLab Plugin
+         
+       Unhceck these plugins:
+         Subversion Plug-in
+         
+       Press "Install"
+       
+               
+    e. Next, you will see a "Create First Admin User" screen
+       username:  admin
+       password:  secret
+       
+    f. In the final screen, you should see
+       "Jenkins is ready!"
+       Press "Start using Jenkins"
+        
+  
+  
+ At this point, to connect to the jenkins page, go herE:
+   http://localhost:8090/
+    
