@@ -1,0 +1,155 @@
+Lesson:  Debug your Web Application using IntelliJ Community Edition
+--------------------------------------------------------------------
+
+  
+Assumptions:  
+ A) You have created a Web Application
+ B) You have installed IntelliJ Community Edition
+ 
+
+Procedure
+---------
+ 1. **OPTIONAL** open-up port 8080 so that an outside browser can connect to your Jetty app-server
+    unix> sudo -s
+    unix> iptables -I INPUT -p tcp -m tcp --dport 8080 -j ACCEPT
+    unix> service iptables save
+    unix> service iptables restart
+    unix> iptables -S                  # to list the current rule
+    unix> exit
+
+
+
+ 2. Setup Remote connection in Intellij
+    a. Startup IntelliJ
+    b. Pull Run / Edit Configurations
+    c. Click the "+"
+    d. Select "Remote"
+    e. Enter these values:
+       Name:           Remote-webapp1
+       Transport:      Socket
+       Debugger Mode:  Attach
+       Host:           localhost
+       Port:           5005        
+     
+    f. Press Apply
+    g. Press OK
+
+
+
+ 3. Setup the Jetty maven plugin to startup a Jetty instance from the command-line in debug mode
+    Right now, the end of your pom.xml should look like this:
+    
+            <build>
+              <finalName>webapp1</finalName>
+            </build>
+         </project>
+     
+     
+    a. Change the end of the of the pom.xml to this:
+    
+          <build>
+            <finalName>webapp1</finalName>
+    
+		    <plugins>
+		      <plugin>
+		        <groupId>org.eclipse.jetty</groupId>
+		        <artifactId>jetty-maven-plugin</artifactId>
+		
+		        <!-- NOTE:  The jetty 9.1.5.v2014050 version works with Java 1.7 -->
+		        <version>9.1.5.v20140505</version>
+		
+		        <configuration>
+		          <httpConnector>
+		              <!-- Your local jetty listens on port 8080 -->
+		              <port>8080</port>
+		          </httpConnector>
+		
+		          <webApp>
+		             <!-- If your project is called webapp1, then jetty listens on http://localhost:8080/webapp1  -->
+		             <contextPath>/${project.artifactId}</contextPath>
+		          </webApp>
+		
+		          <!-- Jetty will scan every 10 seconds to pickup front-end changes -->
+		          <scanIntervalSeconds>10</scanIntervalSeconds>
+		        </configuration>
+		      </plugin>
+		    </plugins>
+         </build>
+       </project>
+
+
+
+ 4. Use IntelliJ to set a breakpoint
+    a. In Intellij, Pull File / Save All
+    b. Set a breakpoint
+       -- Browse to src/main/java -> app1.controllers -> WelcomeController.java
+       -- Single-click in the left margin and add a breakpoint on this line
+             logger.debug("mainPage() started");
+
+
+
+  5. Startup a Jetty App Server from the command-line in debug mode      
+     a. If you are running in Unix
+          unix> export MAVEN_OPTS="-Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,address=5005,server=y,suspend=y"
+          unix> cd /home/adam/intellijProjects/webapp1
+          unix> mvn jetty:run
+    
+        If you are running from Windows
+          DOS> cd /d c:\tools\intellij\workspace\webapp1
+          DOS> set MAVEN_OPTS=-Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,address=5005,server=y,suspend=y
+          DOS> mvn jetty:run
+           
+        
+       At this point, your Jetty instance is *waiting* for someone to connect to it remotely
+           Listening for transport dt_socket at address: 5005
+
+
+
+ 6. Use Intellij to connect to your running Jetty instance remotely
+    -- In Intellij, pull Run / Debug 'Remote-webapp1'
+ 
+ 
+      NOTE:  If you see this error:
+                 [WARNING] FAILED org.eclipse.jetty.maven.plugin.JettyServer@30926bd7: java.net.BindException: Address already in use
+                 java.net.BindException: Address already in use
+             Then, change your jetty port 
+                  -- Go to the pom.xml
+                  -- change port 8080 to another port
+              
+      
+        
+ 7. Open a web browser to your local webapp
+    -- Open Firefox
+    -- Connect to http://localhost:8080/webapp1
+    -- You should reach your breakpoint
+       
+ 
+ 
+       
+    
+    
+What happens when you start the debugger
+----------------------------------------
+ 1) Your browser opens to here:  http://localhost:8080/webapp1
+    
+ 2) Your Jetty instance will call WelcomeController.handleDefaultPage() 
+    which forwards the user to 
+      http://localhost:8080/webapp1/welcome
+       
+ 3) Your WelcomeController has this line in it:
+    @RequestMapping("/welcome")
+    public ModelAndView mainPage( Model aModel )
+    {
+    
+    }
+    
+    So your mainPage() method is executed
+    
+    
+ 4) The WelcomeController.mainPage() method then does the following
+    a) Creates a UserInfo object
+    b) Binds that UserInfo object to your welcome.jsp
+    c) Forward the user to the welcome.jsp page  [with the UserInfo object bound to it].
+     
+     -- As a result, the user sees the welcome.jsp page  [with the information attached to it]
+     
