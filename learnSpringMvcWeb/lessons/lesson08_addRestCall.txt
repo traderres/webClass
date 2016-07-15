@@ -1,0 +1,133 @@
+Lesson:  Add a REST call to your Spring MVC Web App
+---------------------------------------------------
+
+
+Procedure
+---------
+ 1. Add the dependency to add the GSON library to your web app
+    a. Navigate to your pom.xml
+    
+    b. Add this dependency
+	      <dependency>
+	          <groupId>com.google.code.gson</groupId>
+	          <artifactId>gson</artifactId>
+	          <version>2.6.2</version>
+	      </dependency>
+	      
+	      
+	      
+	      
+ 2. Add these methods to your WelcomeController
+
+ 
+    /***************************************************************************
+     * getUsers()   *REST EndPoint*
+     ****************************************************************************/
+    @RequestMapping(value="/rest/users", method = RequestMethod.GET)
+    public ResponseEntity<?> getUsers()
+    {
+        logger.debug("getUsers() started");
+
+        try
+        {
+            // Run a SQL call to get the list of users
+            ArrayList<UserInfo> users = getUserListOrderedBy("name");
+
+            // Convert the list of UserInfo into a JSON string
+            Gson gson = new Gson();
+            String sJson = gson.toJson(users);
+
+            // Return respnose code of 200 and the JSON string
+            return new ResponseEntity<String>(sJson, HttpStatus.OK);
+        }
+        catch (Exception e)
+        {
+            // Tell the AJAX call that this call failed
+            String sMessage = getFormattedMessageFromException(e);
+            return new ResponseEntity<String>(sMessage, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+
+    /***************************************************************************
+     * getUserListOrderedBy()
+     *  1) Run a sql call to get all userinfo from the database
+     *
+     *  Returns a list of UserInfo objects
+     ****************************************************************************/
+    private ArrayList<UserInfo> getUserListOrderedBy(String aOrderBy) throws Exception
+    {
+        ArrayList<UserInfo> users = new ArrayList<UserInfo>();
+
+        // Construct the SQL call
+        final String sSql = "Select name from users order by ?";
+
+        JdbcTemplate jt = new JdbcTemplate(this.postgresDataSource);
+
+        // Get a connection from the JDBC pool, run the query, return the connection to the pool
+        SqlRowSet rs = jt.queryForRowSet(sSql, aOrderBy);
+
+        while (rs.next())
+        {
+            // Get the name from the read-only recordset
+            String sUserName = rs.getString(1);
+
+            // Construct a new userInfo object and popuplate it with data from the database
+            UserInfo userInfo = new UserInfo();
+            userInfo.setUserName(sUserName);
+            userInfo.setIsAdministrator(false);
+
+            users.add(userInfo);
+        }
+
+        return users;
+    }
+
+    /***************************************************************************
+     * getFormattedMessageFromException()
+     ****************************************************************************/
+    private String getFormattedMessageFromException(Exception aException)
+    {
+        StringBuilder sbMessage = new StringBuilder();
+
+        String sStackTrace = getStackTraceAsString(aException);
+
+        sbMessage.append("Message: ")
+                .append(aException.getMessage())
+                .append("\n\n")
+                .append("Cause: ")
+                .append(aException.getCause())
+                .append("\n\n")
+                .append("StackTrace:\n")
+                .append(sStackTrace);
+
+        return sbMessage.toString();
+    }
+
+
+
+    /***************************************************************************
+     * getStackTraceAsString()
+     ****************************************************************************/
+    public String getStackTraceAsString(Exception aException)
+    {
+        StringBuilder sb = new StringBuilder();
+        for (StackTraceElement element : aException.getStackTrace()) {
+            sb.append(element.toString());
+            sb.append("\n");
+        }
+        return sb.toString();
+    }
+
+ 
+  3. Set a breakpoint in getUsers
+  
+  
+  4. Open a browser and call it
+     a. Go to http://192.168.1.162:8080/webapp1/rest/users/
+     
+     b. You should get this JSON back
+         [{"isAdministrator":false,"username":"Adam"},{"isAdministrator":false,"username":"Ben"},{"isAdministrator":false,"username":"Justin"}]
+        
+        
+          
