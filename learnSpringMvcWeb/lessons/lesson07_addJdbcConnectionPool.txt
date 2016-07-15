@@ -324,29 +324,32 @@ Procedure
  
  
      c. Add this line to your WelcomeController.mainPage()
-            String sDatabaseTime = getDatabaseTime();
-            logger.debug("Current database time is {}", sDatabaseTime);
-            
- 
+	        String sDatabaseTime = getDatabaseTime();
+	        logger.debug("Current database time is {}", sDatabaseTime);
+	        mv.addObject("currentTime", sDatabaseTime);
+	            
+     d. Modify welcome.jsp to show it
+        Add this to welcome.jsp
+           Database time is ${currentTime}
+
+
 
 
 
 Move Property Values to their own property file
 -----------------------------------------------
- 8. Setup a property file in WAR / WEB-INF / classes
-    a. Create the property file
-       Filename:  jdbc.properties
-      
-       NOTE:  The name of the property file does not matter as spring will load all of them that end with .properties
-     
-      
-   b. Copy + Paste this to your property file
+ 8. Create this file:  webapp1.properties
+    a. Right-click on src/main/resources -> New -> File
+       Filename:  webapp1.properties
+       
+        
+    b. Copy + Paste this to your property file
    
         #
         # JDBC Connection Pool Properties
         #
         jdbc.driverClass=org.postgresql.Driver
-        jdbc.jdbcUrl=jdbc:postgresql://centosVM:5432/postgres
+        jdbc.jdbcUrl=jdbc:postgresql://localhost:5432/postgres
         jdbc.user=postgres
         jdbc.password=secret
         jdbc.initialPoolSize=1
@@ -362,23 +365,24 @@ Move Property Values to their own property file
    
      
  9. Tell Spring to read the values from your property file   
-    Add this to your applicationContext.xml file
+    a. Modify src/main/webapp/WEB-INF/spring/applicationContext.xml
+     
+    b. Add this spring-bean
        
-        <!-- Move the data source values to a property file -->
+        <!-- Load the webapp1.properties file if is found in the CLASSPATH 
+             So, they can be read using ${ } within this XML file
+        -->
+        
         <bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
-           <property name="locations" value="classpath:jdbc.properties" />
+           <property name="locations" value="classpath:webapp1.properties" />
         </bean>
         
         **OR**
         
-        <!-- Load any file that is found in WEB-INF/classes that ends with .properties -->
-        <context:property-placeholder location="classpath*:*.properties" />
+        <context:property-placeholder location="classpath:webapp1.properties" />
  
-
-
-
-
-10. Replace the hard-coded values with variables
+ 
+10. Replace the hard-coded values (in applicationContext.xml) with variables
     Your postgresDataSource bean should look like this now:
    
     <!-- Setup a spring bean that acts as a C3P0 Connection pool                          -->
@@ -399,9 +403,27 @@ Move Property Values to their own property file
 
 
 
+11. Add a spring bean that can be used to pull out property values (within Java Code)
+    a. Modify src/main/webapp/WEB-INF/spring/applicationContext.xml
+    
+    b. Add this spring-bean
+	        <bean id="myProps" class="org.springframework.beans.factory.config.PropertiesFactoryBean">
+	        	<property name="locations" value="classpath:webapp1.properties" />
+	        </bean>
+
+    c. Inject the myProps bean into WelcomeController
+ 			@Resource(name = "myProps")
+ 			private Properties appProperties
+ 		
+	d. Have your WelcomeController pull out a property value
+	   Add this call to one of the methods:
+	        String sJdbcUrl = appProperties.getProperty("jdbc.jdbcUrl");
+	        logger.debug("sJdbcUrl={}", sJdbcUrl);
+	    
+	    
 
 
-11. Verify that it works
+12. Verify that it works
 
     After the spring beans are loaded, you should see this:
     
