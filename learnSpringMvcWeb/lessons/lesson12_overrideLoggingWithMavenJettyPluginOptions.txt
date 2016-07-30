@@ -1,0 +1,128 @@
+Lesson:  How to override the webapp's logback.xml configuration
+---------------------------------------------------------------
+
+Assumptions:
+ A) You have a java webapp
+ B) Your Java web app uses Logback for logging
+ C) Your Java web app has an existing logback.xml in /src/main/java/resources
+
+
+You have a problem:  Your webapp has a logging configuration
+You want to override it in your local environment
+
+
+Solution:  Add a JVM Arg
+               -Dlogback.configurationFile=C:\tools\logging\logbackConsole.xml
+
+
+Assumptions:
+ A) You are using Maven
+ B) You are using maven-jetty-plugin to run Jetty
+ C) You have this setting in your pom.xml
+        <plugins>
+             <plugin>
+                <groupId>org.eclipse.jetty</groupId>
+                <artifactId>jetty-maven-plugin</artifactId>
+
+                <!-- NOTE:  The jetty 9.1.5.v2014050 version works with Java 1.7 -->
+                <version>9.1.5.v20140505</version>
+
+                <configuration>
+                    <httpConnector>
+                        <!-- Your local jetty listens on port 8080 -->
+                        <port>8080</port>
+                    </httpConnector>
+
+                    <webApp>
+                        <!-- If your project is called webapp1, then jetty listens on http://localhost:8080/webapp1  -->
+                        <contextPath>/${project.artifactId}</contextPath>
+                    </webApp>
+
+                    <!-- Jetty will scan every 10 seconds to pickup front-end changes -->
+                    <scanIntervalSeconds>10</scanIntervalSeconds>
+                </configuration>
+            </plugin>
+         </plugins>
+         
+         
+          
+
+Procedure
+---------
+ 1. Create a new file:  logbackConsole.xml
+    a. Create this file c:\tools\logging\logbackConsole.xml
+    b. Copy this to your logbackConsole.xml
+       NOTE:  The pattern begins with "LC" so we can tell if this file is being read
+       
+		<?xml version="1.0" encoding="windows-1252" ?>
+		<!DOCTYPE project>
+		
+		<configuration debug="true">
+		    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+		        <encoder>
+		            <pattern>LC %d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+		        </encoder>
+		    </appender>
+		    
+		    
+		    <logger name="org.springframework" level="DEBUG" additivity="false">
+		        <appender-ref ref="CONSOLE"/>
+		    </logger>
+		    
+		    <logger name="app1" level="DEBUG" additivity="false">
+		        <appender-ref ref="CONSOLE"/>
+		    </logger>   
+		    
+			<logger name="org.apache" level="DEBUG" additivity="false">
+		        <appender-ref ref="CONSOLE"/>
+		    </logger>   
+			
+		   <logger name="com.mchange" level="DEBUG" additivity="false">
+			<appender-ref ref="CONSOLE"/>
+		</logger>
+		
+			
+		    <root level="DEBUG">
+		        <appender-ref ref="CONSOLE"/>
+		    </root>
+		</configuration>     
+ 
+ 
+ 
+ 2. Create the debug option in Intellij
+    a. Open the Maven Projects window
+       Pull View -> Tool Window -> Maven Project
+    
+    b. Single-click on Plugins -> jetty -> jetty:run
+    
+    c. Right-click on jetty:run -> Debug....  
+       -- This will activate the jetty maven plugin in debug mode
+          *AND*
+       -- This will create a menu option :
+          Run -> Debug '<your webapp's name>' [jetty:run]'
+ 
+ 
+ 
+  3. Add this setting to your debugger to tell your app server to use this logback.xml file
+       -Dlogback.configurationFile=C:\tools\logging\logbackConsole.xml
+ 
+     a. Pull Run -> Edit Configurations
+     b. Single-click on '<your webapp's name>' [jetty:run]'
+     c. Edit the command-line:
+     
+        Command-line:  jetty:run -Dlogback.configurationFile=C:\tools\logging\logbackConsole.xml
+        
+     d. Press Apply
+     e. Press OK
+ 
+ 
+ 
+  4. Activate the Debugger
+     a. Pull Run -> Debug '<your webapp's name>' [jetty:run]'
+ 
+     -- You should see your console logging start with LC
+     -- Because logging is now using the C:\tools\logging\logbackConsole.xml
+ 
+        
+
+   c. 
