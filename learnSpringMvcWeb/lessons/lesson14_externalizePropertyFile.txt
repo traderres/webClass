@@ -1,0 +1,71 @@
+Lesson: How to External Properties in a Spring MVC Web App
+----------------------------------------------------------
+
+Assumptions:
+ A) You have a Spring MVC web app
+ B) Your web app has a property file called webapp1.properties
+ C) You want to build your production WAR file *WITHOUT* a property file
+    (Because you will only the webapp1.properties in <Tomcat-home>/lib or <Jetty-home>/lib
+ D) Your property file is located here in your webapp:
+      /src/main/resources/webapp1.properties
+ E) You are using the jetty-maven-plugin plugin to run your web app in debug mode
+    
+
+Procedure
+---------
+ 1. Move the property file to /src/main/config directory
+    a. Create this directory:  /src/main/config/
+    b. Copy   /src/main/resources/webapp1.properties to /src/main/config/ 
+    c. Delete /src/main/resources/webapp1.properties
+
+    Now, when you run "mvn clean package", your war file will *NOT* contain the webapp1.properties file
+    
+    
+    
+ 2. Setup your local Tomcat so it has the property file
+    a. Copy /src/main/config/springMvcWebAppE.properties to your <tomcat-home>/lib
+    
+ 
+ 
+
+ PROBLEM:  You want your production war file to not include the property file *and*
+           You want mvn jetty:run command to *use* the property file in /src/main/config/
+              
+ SOLUTION: Tell the jetty-maven-plugin to look in /src/main/config/
+ 		   Add this line to your jetty-maven-plugin:
+ 		   
+ 		      <extraClasspath>${basedir}/src/main/config</extraClasspath>
+    
+    
+    
+      So, your <plugins>...</plugins> section should look like this:
+      
+         <plugins>
+            <plugin>
+                <groupId>org.eclipse.jetty</groupId>
+                <artifactId>jetty-maven-plugin</artifactId>
+
+                <!-- NOTE:  The jetty 9.1.5.v2014050 version works with Java 1.7 -->
+                <version>9.1.5.v20140505</version>
+
+                <configuration>
+                    <httpConnector>
+                        <!-- Your local jetty listens on port 8080 -->
+                        <port>8080</port>
+                    </httpConnector>
+
+                    <webApp>
+                        <!-- If your project is called webapp1, then jetty listens on http://localhost:8080/webapp1  -->
+                        <contextPath>/${project.artifactId}</contextPath>
+                        
+                        <!-- Look in /src/main/config/ for property files -->
+                        <extraClasspath>${basedir}/src/main/config</extraClasspath>
+                    </webApp>
+
+                    <!-- Jetty will scan every 10 seconds to pickup front-end changes -->
+                    <scanIntervalSeconds>10</scanIntervalSeconds>
+                </configuration>
+            </plugin>       
+         </plugins>
+  
+    
