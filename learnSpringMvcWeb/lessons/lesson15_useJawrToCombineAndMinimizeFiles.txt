@@ -23,3 +23,235 @@ We want to combine all of the CSS includes into one
 We want to combine all of the JS  includes into one
 
 
+
+P A R T   # 1:  Setup a bundle for a group of JavaScript Files
+--------------------------------------------------------------
+ 1. Add this dependency to your pom.xml
+    NOTE:  Because we are using logback, we will exclude the log4j
+            
+        <dependency>
+          <groupId>net.jawr.extensions</groupId>
+          <artifactId>jawr-spring-extension</artifactId>
+          <version>3.8</version>
+    
+          <exclusions>
+             <!-- the jawr bundler comes with log4j, but we are using logback so exclude log4j -->
+             <exclusion>
+               <groupId>org.slf4j</groupId>
+               <artifactId>slf4j-log4j12</artifactId>
+             </exclusion>
+             <exclusion>
+               <groupId>log4j</groupId>
+               <artifactId>log4j</artifactId>
+             </exclusion>
+          </exclusions>
+        </dependency>
+
+
+
+ 2. Turn on JAWR debug logging by adding this to your logback.xml file
+    a. Edit your /src/main/resources/logback.xml
+    
+    b. Add this entry:
+    
+	   <logger name="net.jawr" level="DEBUG" additivity="false">
+	        <appender-ref ref="CONSOLE"/>
+	   </logger>  
+
+
+
+ 3. Define a spring bean called "jawrControllerForJs" in your application-context.xml
+    NOTE:  This spring bean will handle combined javascript files
+    a. Edit your /src/main/webapp/WEB-INF/spring/applicationContext.xml
+    
+    b. Add this bean:
+    
+        <bean id="jawrControllerForJs" class="net.jawr.web.servlet.JawrSpringController">
+            <property name="mapping" value=""/>
+            <property name="controllerMapping" value="/jawr/"/>
+            <property name="configLocation" value="/jawr.properties"/>
+            <property name="type" value="js"/>
+        </bean>
+
+
+
+ 4. Update your spring dispatch-servlet.xml to map the JS files to your jawrControllerForJs
+    a. Edit your /src/main/webapp/WEB-INF/spring/dispatch-servlet.xml
+    
+    b. Add this entry:       
+        <bean id="urlMapping" class="org.springframework.web.servlet.handler.SimpleUrlHandlerMapping">
+            <property name="mappings">
+                <props>
+                    <prop key="/jawr/**/*.js">jawrControllerForJs</prop>
+                </props>
+            </property>
+        </bean>
+      
+
+
+ 5. Create this file:  jawr.properties
+    NOTE:  This file defined your JavaScript and CSS Bundles
+     
+    a. Right-click on src/main/resources -> new -> File
+       Enter file name:  jawr.properties
+		
+		####################################################################################
+		# Filename:  jawr.properties
+		# Purpose:
+		#   1) Define JS and CSS bundles to be created by JAWR
+		#   2) Define JAWR settings
+		#
+		# If jawr.debug.on=true, then files are *not* bundled    (development mode)
+		# If jawr.debug.on=false, then files are bundled         (production mode)
+		#
+		# Suggestion:
+		#  1) In this file, set jawr.debug.on=false  (so files are bundled in production)
+		#  2) When debugging In local development mode, add this entry
+		#         -Dnet.jawr.debug.on=true
+		#     To tell your local Tomcat or Jetty to not combine files
+		####################################################################################
+		jawr.debug.on=false
+		jawr.gzip.on=true
+		jawr.strict.mode=true
+		
+		# By default, jawr will auto-scan for non-explicity mapped files and generate a one-file bundle for each one
+		# -- Set this to false  to reduce startup time
+		jawr.factory.use.orphans.mapper=false
+		
+		# This flag indicates if during the server startup we should use the data of the preprocessed bundles instead of performing the bundling process.
+		# If set to true, then your webapp will startup faster, but your JS code changes might not make it into the bundle
+		jawr.use.bundle.mapping=false
+		
+		
+		# Define a JS bundle that holds jquery, bootstrap, Angular (jba)
+		# NOTE:  The bundle id must end with .js
+		jawr.js.bundle.jba.id=/id/jquery.bootsrap.angular.js
+		jawr.js.bundle.jba.mappings=/resources/jquery-1.12.4/jquery-1.12.4.min.js,        \
+		                             /resources/bootstrap-3.3.4/dist/js/bootstrap.min.js, \
+		                             /resources/angular-1.3.16/angular.min.js
+		
+				
+
+ 
+ 6. Edit your stdJspIncludes.jsp
+    a. Add this to the top of layout.jsp:
+         <%@ taglib prefix="jwr"    uri="http://jawr.net/tags"  %>
+
+
+
+ 7. Adjust your welcome.jsp page   
+    b. Remove these from the bottom:
+
+		<%-- Load jQuery (necessary for Bootstrap's JavaScript plugins) --%>
+		<script src="${contextPath}/resources/jquery-1.12.4/jquery-1.12.4.min.js"></script>
+		
+		<%-- Load Angular --%>
+		<script src="${contextPath}/resources/angular-1.3.16/angular.min.js" type="text/javascript"></script>
+		
+		<%-- Include all compiled plugins (below), or include individual files as needed --%>
+		<script src="${contextPath}/resources/bootstrap-3.3.4/dist/js/bootstrap.min.js"></script>
+		
+
+    c. Add this instead: 
+    
+        <%-- L O A D    J A V A S C R I P T     B U N D L E   (jquery, bootstrap, angular)  --%>
+        <jwr:script src="/id/jquery.bootsrap.angular.js" />        
+
+
+
+ 8. Verify that the JavaScript files are combined
+    a. Startup the webapp using
+       DOS> mvn clean install cargo:run
+     
+    b. Connect to the web app
+       http://localhost:8080/springMvcWebAppE/welcome
+        
+        You should see this
+          <script type="text/javascript" src="/webapp1/jawr/1895793670/id/jquery.bootsrap.angular.js" ></script>        
+        
+        This bundle holds jQuery, bootstrap, and angular JavaScript files
+ 
+
+
+P A R T   # 2:  Setup a bundle to hold jquery, bootstrap, angular, and dataTables.net CSS
+-----------------------------------------------------------------------------------------
+ 9. Add the SCCS compiler dependency 
+    a. Add this dependency to your pom.xml    
+ 
+    <dependency>
+      <!-- required to bundle css files using jawr -->
+      <groupId>com.vaadin</groupId>
+      <artifactId>vaadin-sass-compiler</artifactId>
+      <version>0.9.12</version>
+    </dependency>
+   
+   
+
+   
+10. Define a jawrControllerForCSS in your application-context.xml
+    NOTE:  This spring bean will handle combined CSS files
+    a. Edit your /src/main/webapp/WEB-INF/spring/applicationContext.xml
+    
+    b. Add this bean:
+        <bean id="jawrControllerForCSS" class="net.jawr.web.servlet.JawrSpringController">
+            <property name="mapping" value=""/>
+            <property name="controllerMapping" value="/jawr/"/>
+            <property name="configLocation" value="/jawr.properties"/>
+            <property name="type" value="css"/>
+        </bean>
+   
+ 
+        
+        
+ 9. Update your spring dispatch-servlet.xml to map the CSS files to your jawrControllerForCSS
+    a. Edit your /src/main/webapp/WEB-INF/spring/dispatch-servlet.xml
+    
+    b. Replace your "urlMapping" bean with this bean
+       
+        <bean id="urlMapping" class="org.springframework.web.servlet.handler.SimpleUrlHandlerMapping">
+            <property name="mappings">
+                <props>
+                    <prop key="/jawr/**/*.js">jawrControllerForJs</prop>
+                    <prop key="/jawr/**/*.css">jawrControllerForCSS</prop>
+                </props>
+            </property>
+        </bean>
+      
+
+   
+10. Add this to your jawr.properties
+
+	# Define a CSS bundle
+	# NOTE:  The bundle id must end with .css
+	jawr.css.bundle.jbad_css.id=/id/jquery.boostrap.angular.css
+	jawr.css.bundle.jbad_css.mappings=/resources/bootstrap-3.3.4/dist/css/bootstrap.min.css,\
+	                                  /resources/bootstrap-3.3.4/dist/css/bootstrap-theme.min.css                                   
+	           
+	   
+  
+11. Adjust your welcome.jsp
+    a. Remove these from your layout.jsp
+	    <!-- Load Bootstrap CSS -->
+	    <link href="${contextPath}/resources/bootstrap-3.3.4/dist/css/bootstrap.min.css" rel="stylesheet" media="screen">
+	
+	    <!-- Load Bootstrap CSS Themes -->
+	    <link href="${contextPath}/resources/bootstrap-3.3.4/dist/css/bootstrap-theme.min.css" rel="stylesheet" media="screen">
+
+
+    b. Add this to your jawr.properties
+        <%-- I N S E R T       C S S     B U N D L E     --%>
+        <jwr:style src="/id/jquery.boostrap.angular.css"/>
+	           
+	   
+
+12. Verify it works
+    a. Startup your web app in debug mode
+    b. Use a browse and go to http://localhost:8080/webapp1
+           
+       You should see this:
+          <link rel="stylesheet" type="text/css" media="screen" href="/springMvcWebAppE/jawr/gzip_N907339418/id/jquery.boostrap.angular.css" />
+       
+       Instead of your individual CSS files
+       
+       
+       
