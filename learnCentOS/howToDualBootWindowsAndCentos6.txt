@@ -344,19 +344,24 @@ Part 2: Configure your unix user account
 
 
 
+
 Part 3: Adjust the Boot Loader to Boot Windows
 ----------------------------------------------
+Assumption:  Your Windows partition is bootable from /dev/sda2
+             In the grub.conf,  (hd0,1) refers to    /dev/sda2
+             Run fdisk -l and look for the Boot partition to verify that /dev/sda2 is the bootable windows partition
+             
  1. Adjust the /etc/grub.conf 
     unix> sudo -s
     unix> cp /etc/grub.conf /etc/grub.conf.ORIG
     unix> vi /etc/grub.conf
  
-      # This entry tells Grub to boot from /dev/sda3
+      # Remove this "Other" entry (which tells Grub to boot Windows from /dev/sda3)
       title Other
       	rootnoverify (hd0,2)
       	chainloader +1
       	
-      # Replace it with this (so that grub boots from /dev/sda2)
+      # Add this entry (so that grub boots Windows from /dev/sda2)
       title Windows 7
       	rootnoverify (hd0,1)
       	chainloader +1     
@@ -371,6 +376,7 @@ Part 3: Adjust the Boot Loader to Boot Windows
     -- On reboot, press the space bar
     -- Select Windows 7
     -- Verify that Windows 7 actually boots up
+
 
 
 
@@ -393,7 +399,41 @@ Part 4: Configure Network Settings
 
 
 
-Part 5: Install Development Tools
+Part 5: Mount your Windows Parition so you can access your Windows files from CentOS
+------------------------------------------------------------------------------------
+Assumption:  Your Windows partition that holds your C:\ drive is mapped to /dev/sda3
+             Run fdisk -l and look for the Boot partition to verify that /dev/sda3 is the bootable windows partition
+
+ 1. Install the ntfs-3g package
+    unix> sudo yum install ntfs-3g
+ 
+ 2. Install the fuse driver (to mount detected drives)
+    unix> sudo yum install fuse
+    unix> sudo modprobe fuse
+    
+ 3. Create a CentOS mount directory for Windows
+    unix> mkdir /mnt/windows
+    
+ 4. Mount the Windows C:\ drive on /dev/sda3 to /mnt/windows
+    unix> sudo mount -t ntfs-3g /dev/sda3 /mnt/windows
+
+ 5. Configure this mount point so it is mounted automatically on every reboot
+    unix> sudo vi /etc/fstab
+    
+       # Add this line to mount the Windows C:\ drive to /mnt/windows
+       /dev/sda3    /mnt/windows    ntfs-3g        defaults    0    0
+    
+ 6. Verify it works:
+    a. Reboot the centos machine
+       unix> sudo reboot
+       
+    b. Verify that you can see these files
+       unix> ls -l /mnt/windows
+             -- You should see your Windows C:\ drive
+             
+           
+    
+Part 6: Install Development Tools
 ---------------------------------
  1. Uninstall open-JDK
     a. Open a terminal
