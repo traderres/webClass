@@ -143,7 +143,96 @@ Procedures
        unix> service slapd start
        
                  
-             
+  9. Manually create the "dc=my-domain,dc=com" LDAP entry in your LDAP tree. 
+     a. Create the /tmp/my-domain.ldif file
+        unix> cd /tmp
+        unix> vi my-domain.ldif
+     
+			dn: dc=my-domain,dc=com
+			objectClass: dcObject
+			objectClass: organization
+			dc: my-domain
+			o : my-domain
     
-    unix> cp olcDatabase\=\{2\}bdb.ldif  
-          		
+     b. Add the contents of this file to LDAP 
+        unix> ldapadd -f /tmp/my-domain.ldif -D cn=Manager,dc=my-domain,dc=com -w secret
+     
+     c. Verify that it worked
+        unix> ldapsearch -x -LLL -b dc=my-domain,dc=com
+        
+
+10. Open-up the default LDAP port of 389
+    unix> sudo -s
+    unix> iptables -I INPUT -p tcp -m tcp --dport 389 -j ACCEPT
+    unix> service iptables save
+    unix> service iptables restart
+
+
+11. Add an Organizational Unit to my-domain called "Users"
+    unix> cd /tmp
+    unix> vi users.ldif
+    
+		dn: ou=Users,dc=my-domain,dc=com
+		objectClass: organizationalUnit
+		ou: Users
+		
+  	unix> ldapadd -f /tmp/users.ldif -D cn=Manager,dc=my-domain,dc=com -w secret
+  	
+
+12. Add a user named "John Smith" to LDAP inside the "Users" OU
+    unix> cd /tmp
+    unix> vi johnsmith.ldif
+    
+		dn: cn=John Smith,ou=Users,dc=my-domain,dc=com
+		cn: John Smith
+		sn: Smith
+		objectClass: inetOrgPerson
+		userPassword: secret
+		uid: jsmith
+    
+    unix> ldapadd -f /tmp/johnsmith.ldif -D cn=Manager,dc=my-domain,dc=com -w secret
+    
+    
+13. Add a group to the Organizational Unit (called engineering)
+    unix> cd /tmp
+    unix> vi engineering.ldif
+    
+		dn: cn=Engineering,ou=Users,dc=my-domain,dc=com
+		cn: Engineering
+		objectClass: groupOfNames
+		member: cn=John Smith,ou=Users,dc=my-domain,dc=com
+   
+   unix> ldapadd -f /tmp/engineering.ldif -D cn=Manager,dc=my-domain,dc=com -w secret
+   
+   
+14. Add a 2nd user called Luke Skywalker
+    unix> cd /tmp
+    unix> vi luke.ldif
+    
+    	dn: cn=Luke Skywalker,ou=Users,dc=my-domain,dc=com
+		cn: Luke Skywalker
+		sn: Skywalker
+		objectClass: inetOrgPerson
+		userPassword: secret
+		uid: lskywalker
+
+ 	unix> ldapadd -f /tmp/luke.ldif -D cn=Manager,dc=my-domain,dc=com -w secret
+
+
+ 15. Add Luke to the Engineering Group
+     unix> cd /tmp
+     unix> vi addUserToGroup.ldif
+     
+		dn: cn=Engineering,ou=Users,dc=my-domain,dc=com
+		changetype: modify
+		add: member
+		member: cn=Luke Skywalker,ou=Users,dc=my-domain,dc=com
+		
+	unix> ldapadd -f /tmp/addUserToGroup.ldif -D cn=Manager,dc=my-domain,dc=com -w secret
+	
+	
+
+ 16. Verify the changes are there:
+     unix> ldapsearch -x -LLL -b dc=my-domain,dc=com
+     
+     
