@@ -7,6 +7,8 @@ https://www.centos.org/docs/5/html/Deployment_Guide-en-US/s1-ldap-quickstart.htm
 http://www.openldap.org/doc/admin24/quickstart.html  # Has steps to build and compile stand-alone ldap service
 http://docs.adaptivecomputing.com/viewpoint/hpc/Content/topics/1-setup/installSetup/settingUpOpenLDAPOnCentos6.htm
 http://www.tldp.org/HOWTO/LDAP-HOWTO/utilities.html
+http://docs.adaptivecomputing.com/viewpoint/hpc/Content/topics/1-setup/installSetup/settingUpOpenLDAPOnCentos6.htm
+
 
 Procedures
 ---------- 
@@ -26,40 +28,121 @@ Procedures
     unix> service slapd status
     slapd is stopped
  
+    
  
- 3. Generate a password hash to be used as the admin password. This password hash will be used when you create the root user for your LDAP installation. 
+ 3. Create LDAP root user password and get the hash
+    Generate a password hash to be used as the admin password. 
+    This password hash will be used when you create the root user for your LDAP installation. 
     unix> slappasswd
-    New password:            p@ssw0rd
-    Re-enter new password:   p@ssw0rd
-    {SSHA}OEpFbF9IQpkO1izm0jK9FcLYGvxpO7fG
+    New password:            secret
+    Re-enter new password:   secret
+    {SSHA}y8nxWO6kig+17WcTKOl/1Wga5OOz2yK+
     
     
- 4. Add the root user and the root user's password hash to the OpenLDAP configuration in the olcDatabase={2}bdb.ldif file. 
-    The root user will have permissions to add other users, groups, organizational units, etc.
+ 4. Add the root user, password, suffix, and rootDN to the config
+    unix> sudo -s
     unix> cd /etc/openldap/slapd.d/cn\=config
     unix> vi olcDatabase\=\{2\}bdb.ldif
     
-    If the olcRootPW attribute does not already exist, create it. Then set the value to be the hash you created from slappasswd. 
-    olcRootPW: {SSHA}OEpFbF9IQpkO1izm0jK9FcLYGvxpO7fG
-    
-    NOTE:  While editing this file, change the distinguished name (DN) of the olcSuffix to something appropriate. 
-           The suffix typically corresponds to your DNS domain name, and it will be appended to the DN of
-           every other LDAP entry in your LDAP tree.
-           
-           For example, let's say your company is called Acme Corporation, and that your domain name is "acme.com."
-           You might make the following changes to the olcDatabase={2}bdb.ldif file:
+    If the olcRootPW attribute does not already exist, create it. 
+     Then set the value to be the hash you created from slappasswd. For example:
 
-              olcSuffix: dc=acme,dc=com
-              ...
-              olcRootDN: cn=Manager,dc=acme,dc=com
-              ...
-              olcRootPW: {SSHA}OEpFbF9IQpkO1izm0jK9FcLYGvxpO7fG
-              
-              
-    Do not set the cn of your root user to "root" (cn=root,dc=acme,dc=com), or OpenLDAP will have problems.
+         # Set the root password's hash
+         olcRootPW: {SSHA}y8nxWO6kig+17WcTKOl/1Wga5OOz2yK+
+
+         # Set the distinguished name (DN) of the olcSuffix to my-domain
+         olcSuffix: dc=my-domain,dc=com
+         olcRootDN: cn=Manager,dc=my-domain,dc=com
     
- 5. Modify the DN of the root user in the olcDatabase={1}monitor.ldif file to match the olcRootDN line in the olcDatabase={2}bdb.ldif file.
-    unix> vi olcDatabase\=\{1\}monitor.ldif
+    WARNING:  Do *NOT* set the cn of your root user to "root" (cn=root,dc=acme,dc=com), or OpenLDAP will have problems.
     
-    INCOMPLETE
+         
+         
+  5. Modify the DN of the root user in the olcDatabase={1}monitor.ldif file 
+     to match the olcRootDN line in the olcDatabase={2}bdb.ldif file
+     unix> vi olcDatabase\=\{1\}monitor.ldif
+     
+     		# Modify the olcAccess line so that the dn.base matches the olcRootDN 
+     		# from the olcDatabase={2}bdb.ldif file. 
+     		# (In this example, dn.base should be "cn=Manager,dc=my-domain,dc=com".)
+     	
+     	olcAccess: {0}to *  by dn.base="gidNumber=0+uidNumber=0,cn=peercred,cn=exter
+		nal,cn=auth" read  by dn.base="cn=manager,dc=my-domain,dc=com" read  by * n
+ 		one
+     		
+     Now the root user for your LDAP is cn=Manager,dc=acme,dc=com. 
+     The root user's password is the password that you entered using slappasswd -- e.g., secret
+     
+  
+  6. Hide the password hashes from users who should not have permission to view them. 
+     unix> vi olcDatabase\=\{2\}bdb.ldif
+     
+     Add the following two lines to the end of the file to
+     estrict users from viewing other users' password hashes.
+
+
+		olcAccess: {0}to attrs=userPassword by self write by dn.base="cn=Manager,dc=acme,dc=com" write by anonymous auth by * none
+		olcAccess: {1}to * by dn.base="cn=Manager,dc=my-domain,dc=com" write by self write by * read
+
+	These lines allow a user to read and write his or her own password.
+	 It also allows a manager to read and write anyone's password. 
+	 Anyone, including anonymous users, is allowed to view non-password attributes of other users.
+
+
+
+ 7. Make sure that OpenLDAP is configured to start when the machine starts up, and start the OpenLDAP service.     
+    unix> service slapd start
     
+    Checking configuration files for slapd:                    [WARNING]
+    57be419c ldif_read_file: checksum error on "/etc/openldap/slapd.d/cn=config/olcDatabase={2}bdb.ldif"
+    config file testing succeeded
+    Starting slapd:                                            [  OK  ]
+    
+    
+ 8. **OPTIONAL** Get rid of the checksum error
+    NOTE:  Because you modified this file, you need to recalculate the checksum
+    
+    a. Make a copy of the file without the first two lines and put the copy in /tmp
+       unix> sudo -s 
+       unix> cd /etc/openldap/slapd.d/cn=config
+       unix> cp olcDatabase\=\{2\}bdb.ldif /tmp
+   
+    b. Remove the first two lines of that file where it is included the old checksum value
+       unix> tail -n +3 /tmp/olcDatabase\=\{2\}bdb.ldif > /tmp/ldif.fixed
+       
+    
+    c. Download the Check CRC tool 
+       a. Open a browser
+       b. Go to http://freecode.com/projects/checkcrc/
+       c. Click "Download"
+       d. Save the file to your "Downloads" directory
+    
+    d. Compile the Check CRC tool
+       unix> sudo yum install zlib-dev
+       unix> cd ~/Downloads
+       unix> tar zxvf check-4.3-src.tgz
+       unix> rm zxvf check-4.3-src.tgz 
+       unix> cd check-4.3
+       unix> gcc -O3 -Wall -DUSE_ZLIB -I/usr/include -o check check.c -L/usr/lib64 -lz
+             -- Now, you have the compiled check program located here:
+                ~/Downloads/check
+                
+    e. Generate the updated CRC on your /tmp/ldif.fixed
+       unix> ./check /tmp/fixed.ldif
+       fixed.ldif        CRC-32 = 61e6182a, size = 582 bytes
+       
+    f. Replace the new CRC-32 value into the original file using your favourite editor
+       unix> cd /etc/openldap/slapd.d/cn=config
+       unix> vi olcDatabase\=\{2\}bdb.ldif
+             
+             # CRC32 61e6182a
+   
+    g. Now, restart the slapd service and you will not see the warning
+       unix> service slapd stop
+       unix> service slapd start
+       
+                 
+             
+    
+    unix> cp olcDatabase\=\{2\}bdb.ldif  
+          		
