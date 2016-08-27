@@ -1,0 +1,48 @@
+How to Verify that MemberOf works in LDAP
+-----------------------------------------
+
+
+Procedure
+---------
+ 1. Delete the group
+    unix> vi /tmp/delete.lst
+        
+        cn=Engineering,ou=Users,dc=my-domain,dc=com
+        
+    unix> ldapdelete -f /tmp/delete.lst -D cn=Manager,dc=my-domain,dc=com -w secret
+
+    
+ 2. Add a group to the Organizational Unit (called engineering)
+    unix> vi /tmp/engineering.ldif
+    
+		dn: cn=Engineering,ou=Users,dc=my-domain,dc=com
+		cn: Engineering
+		objectClass: groupOfNames
+		member: cn=John Smith,ou=Users,dc=my-domain,dc=com
+   
+   unix> ldapadd -f /tmp/engineering.ldif -D cn=Manager,dc=my-domain,dc=com -w secret
+   
+   
+ 3. Add Luke to the Engineering Group
+    unix> vi /tmp/addUserToGroup.ldif
+     
+		dn: cn=Engineering,ou=Users,dc=my-domain,dc=com
+		changetype: modify
+		add: member
+		member: cn=Luke Skywalker,ou=Users,dc=my-domain,dc=com
+		
+	unix> ldapadd -f /tmp/addUserToGroup.ldif -D cn=Manager,dc=my-domain,dc=com -w secret
+
+ 	
+ 4. Verify that memberOf shows the correct values
+    unix> ldapsearch -v -D 'cn=Manager,dc=my-domain,dc=com' -w secret -h localhost -LLL  -b 'dc=my-domain,dc=com' uid=lskywalker memberOf
+ 
+		ldap_initialize( ldap://localhost )
+		filter: uid=lskywalker
+		requesting: memberOf 
+		dn: cn=Luke Skywalker,ou=Users,dc=my-domain,dc=com
+		memberOf: cn=Engineering,ou=Users,dc=my-domain,dc=com
+ 
+   
+   Here, you see that Luke Skywalker is a member of Engineering
+   
