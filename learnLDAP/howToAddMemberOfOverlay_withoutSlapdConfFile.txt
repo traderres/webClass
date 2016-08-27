@@ -1,0 +1,144 @@
+How to Add the 'memberOf' overlay to openLDAP (without using the slapd.conf file)
+---------------------------------------------------------------------------------
+
+Assumptions:
+ A) You are connected to the box running ldap
+ B) Your version of LDAP does not have an /etc/openldap/slapd.conf file
+
+
+References
+----------
+http://idmoim.blogspot.com/2014/05/ldapadd-insufficient-access-50-openldap.html
+
+
+
+# Setup the password
+unix> export PA=secret
+
+# Run a search
+unix> ldapsearch -v -D 'cn=LDAPAdmin,ou=People,dc=rdk3,dc=mil' -w $PA -H ldaps://localhost:636 -LLL uid=aresnick > aresnick.txt
+
+
+Assumption:
+ A) All of these commands are executed on the server running the stand-alone ldap (slapd service)
+
+
+Procedure
+---------
+ 1. Start the LDAP service
+    unix> service slapd start
+
+ 
+ 2. Set the password for the 'cn=config' user to be secret2
+    NOTE:  This password is different from your Manager password
+    a. Run the slappasswd to generate a password hash for this user
+       unix> slappasswd
+			New password:   secret2
+			Re-enter new password:   secret2
+			{SSHA}5vhPNfK9S9yJZw56v0oB2cMMTIp2B830
+   
+   
+    b. Store this password hash in /etc/openldap/slapd.d/cn=config
+       unix> sudo -s
+       unix> cd /etc/openldap/slapd.d/cn=config
+       unix> vi olcDatabase={0}config.ldif
+        
+            # Add this entry
+            olcRootPW: {SSHA}5vhPNfK9S9yJZw56v0oB2cMMTIp2B830
+            
+ 
+   c. Restart ldap
+      unix> service slapd stop
+      unix> service slapd start
+      
+    
+ 2. Create these 3 files:
+    a. Create this file:  /tmp/memberof.ldif 
+       NOTE:  You may have to search your entire filesystem for the memberof.la 
+              On CentOS, it is located in /usr/lib64/openldap/memberof.la
+              So, olcModulePath is set to /usr/lib64/openldap
+              
+       unix> vi /tmp/memberof.ldif   
+			dn: cn=module,cn=config
+			objectClass: olcModuleList
+			cn: module
+			olcModulePath: /usr/lib64/openldap
+			olcModuleLoad: memberof
+
+       
+       unix> vi /tmp/memberof2.ldif
+			dn: olcOverlay=memberof,olcDatabase={2}bdb,cn=config
+			objectClass: olcMemberOf
+			objectClass: olcOverlayConfig
+			objectClass: olcConfig
+			objectClass: top
+			olcOverlay: memberof
+			olcMemberOfDangling: ignore
+			olcMemberOfRefInt: TRUE
+			olcMemberOfGroupOC: groupOfNames
+			olcMemberOfMemberAD: member
+			olcMemberOfMemberOfAD: memberOf
+
+      
+       NOTE:  You might have the wrong filename
+              Verify that olcDatabase={2}bdb exists in your /etc/openldap/slapd.d/cn=config/ directory
+              
+    
+   
+    
+ 3. Set up the memberof module  [using the password secret2]
+    unix> sudo ldapadd -D 'cn=config' -w secret2 -H ldap://localhost  -f /tmp/memberof.ldif
+    unix> sudo ldapadd -D 'cn=config' -w secret2 -H ldap://localhost  -f /tmp/memberof2.ldif
+ 
+ 
+ 4. Clean up
+    unix> rm /tmp/memberof.ldif
+    unix> rm /tmp/memberof2.ldif
+    
+
+ 5. **OPTIONAL** Get rid of the checksum warning that appears when starting-up slapd
+    NOTE:  Because you modified a file, you need to recalculate the checksum
+ 
+   a. Download the Check CRC tool 
+      1) Open a browser
+      2) Go to http://freecode.com/projects/checkcrc/
+      3) Click "Download"
+      4) Save the file to your "Downloads" directory
+    
+   b. Compile the Check CRC tool
+      unix> sudo yum install zlib-dev
+      unix> cd ~/Downloads
+      unix> tar zxvf check-4.3-src.tgz
+      unix> rm zxvf check-4.3-src.tgz 
+      unix> cd check-4.3
+      unix> gcc -O3 -Wall -DUSE_ZLIB -I/usr/include -o check check.c -L/usr/lib64 -lz
+             -- Now, you have the compiled check program located here:
+                ~/Downloads/check-4.3/check
+ 
+    
+   c. Calculate the correct CRC value for your ldif file
+      1) Make a copy of the file without the first two lines and put the copy in /tmp
+         unix> sudo -s 
+         unix> cd /etc/openldap/slapd.d/cn=config
+         unix> cp olcDatabase={0}config.ldif  /tmp
+   
+      2) Remove the first two lines of that file where it is included the old checksum value
+         unix> tail -n +3 /tmp/olcDatabase={0}config.ldif  > /tmp/ldif.fixed
+       
+      3) Get the correct CRC value from /tmp/ldif.fixed
+         unix> cd ~/Downloads/check-4.3
+         unix> ./check /tmp/ldif.fixed
+         /tmp/ldif.fixed                  CRC-32 = 05bbfd2d, size = 642 bytes
+                     
+        
+    d. Replace the new CRC-32 value into the original file using your favourite editor
+       unix> cd /etc/openldap/slapd.d/cn=config
+       unix> vi olcDatabase={0}config.ldif
+             
+             # CRC32 05bbfd2d
+   
+    e. Now, restart the slapd service and you will not see the warning
+       unix> service slapd stop
+       unix> service slapd start
+     
+ 
