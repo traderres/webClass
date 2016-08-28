@@ -1,0 +1,83 @@
+How to Setup an LDAP Schema
+---------------------------
+
+
+Assumptions:
+ A) You have installed an LDAP Service
+    [see howToInstallLdapServiceOnCentos.txt]
+    
+ B) You know the LDAP Manager username -- e.g., cn=Manager,dc=my-domain,dc=com
+ C) You know the LDAP Manager password -- e.g., secret
+
+
+Procedure
+---------
+ 1. Add an Organizational Unit to my-domain called "Users"
+    unix> vi /tmp/users.ldif
+    
+		dn: ou=Users,dc=my-domain,dc=com
+		objectClass: organizationalUnit
+		ou: Users
+		
+  	unix> ldapadd -f /tmp/users.ldif -D cn=Manager,dc=my-domain,dc=com -w secret
+  	
+
+ 2. Add a user named "John Smith" to LDAP inside the "Users" OU
+    unix> vi /tmp/johnsmith.ldif
+    
+		dn: cn=John Smith,ou=Users,dc=my-domain,dc=com
+		cn: John Smith
+		sn: Smith
+		objectClass: inetOrgPerson
+		userPassword: secret
+		uid: jsmith
+    
+    unix> ldapadd -f /tmp/johnsmith.ldif -D cn=Manager,dc=my-domain,dc=com -w secret
+    
+    
+ 3. Add a group to the Organizational Unit (called engineering)
+    unix> vi /tmp/engineering.ldif
+    
+		dn: cn=Engineering,ou=Users,dc=my-domain,dc=com
+		cn: Engineering
+		objectClass: groupOfNames
+		member: cn=John Smith,ou=Users,dc=my-domain,dc=com
+   
+   unix> ldapadd -f /tmp/engineering.ldif -D cn=Manager,dc=my-domain,dc=com -w secret
+   
+   
+ 4. Add a 2nd user called Luke Skywalker
+    unix> vi /tmp/luke.ldif
+    
+    	dn: cn=Luke Skywalker,ou=Users,dc=my-domain,dc=com
+		cn: Luke Skywalker
+		sn: Skywalker
+		objectClass: inetOrgPerson
+		userPassword: secret
+		uid: lskywalker
+
+ 	unix> ldapadd -f /tmp/luke.ldif -D cn=Manager,dc=my-domain,dc=com -w secret
+
+
+ 5. Add Luke to the Engineering Group
+    unix> vi /tmp/addUserToGroup.ldif
+     
+		dn: cn=Engineering,ou=Users,dc=my-domain,dc=com
+		changetype: modify
+		add: member
+		member: cn=Luke Skywalker,ou=Users,dc=my-domain,dc=com
+		
+	unix> ldapadd -f /tmp/addUserToGroup.ldif -D cn=Manager,dc=my-domain,dc=com -w secret
+	
+	
+
+ 6. Verify the changes are there:
+    NOTE:  The -x tells ldapsearch to use simple authentication instead of SASL
+    unix> ldapsearch -x -LLL -b dc=my-domain,dc=com
+     
+     
+ 7. Verify the password works
+    NOTE:  The -D 'cn=Manager,dc=my-domain,dc=com' tells ldapsearch to use that account
+    unix> ldapsearch  -v  -D 'cn=Manager,dc=my-domain,dc=com'  -w secret -H ldap://localhost -LLL -b 'dc=my-domain,dc=com' 'uid=jsmith'
+    
+   
