@@ -10,10 +10,51 @@ Assumptions:
 Procedures
 ----------
  1. Follow the procedures in howToCreateJavaCommandLineProgramUsingIntellijMaven.txt
-    Assumption:  The intellij project is called queryParser
+    -- Setup the project with these maven settings:
+       groupId:        com.stuff
+       artifactId:     queryParser
+       Version:        1.0-SNAPSHOT
+       
+    -- Project Name:   queryParser
+
+ 
+ 2. Create a main App class under com.stuff
+    a. Right-click on src/main/java -> New -> Package 
+       Package name:  com
+       
+    b. Right-click on /src/main/java/com -> New -> Package
+       Package name: stuff
+       
+    c. Right-click on /src/main/java/code/stuff -> New -> Java Class
+       Class Name:  App
+       
+    d. Copy this to your App class
+    
+			package com.stuff;
+			
+			import org.slf4j.Logger;
+			import org.slf4j.LoggerFactory;
+			import com.stuff.HelloParser;
+			
+			/**
+			 * Hello world!
+			 *
+			 */
+			public class App 
+			{
+			    private static final Logger logger = LoggerFactory.getLogger(App.class);
+			
+			    public static void main( String[] args )
+			    {
+			        logger.debug("main() started");
+			
+			
+			        logger.debug("main() finished");
+			    }
+			}
 
 
- 2. Add this dependency to your pom.xml
+ 3. Add this dependency to your pom.xml
  
      <dependency>
         <groupId>org.antlr</groupId>
@@ -23,7 +64,7 @@ Procedures
      
      
      
- 3. Add this plugin to your <build><plugins>...</plugins></build> section of your pom.xml
+ 4. Add this plugin to your <build><plugins>...</plugins></build> section of your pom.xml
     [so mvn will compile the parser in addition to any Java code]
     
       <plugin>
@@ -36,7 +77,7 @@ Procedures
               <goal>antlr4</goal>
             </goals>
             <configuration>
-              <!-- Generate parse tree visitor interface and base class. -->
+              <!-- Generate parse tree visitor interface and base class -->
               <visitor>true</visitor>
             </configuration>
           </execution>
@@ -44,15 +85,17 @@ Procedures
       </plugin>
 
       
- 4. Add a simple HelloWorld.g4 grammar
-    a. Create this directory:  /src/main/antlr4
+ 5. Add a simple HelloWorld.g4 grammar
+    a. Create this directory:  /src/main/antlr4/com/stuff
+    
         
-    b. Create this file:  HelloWorld.g4  (in the /src/main/altr4/ directory)
+    b. Create this file:  Hello.g4  (in the /src/main/altr4/com/stuff directory)
     
 		grammar Hello;              // Define a grammar called Hello
-		r  : 'hello' ID;            // match keyword hello followed by an identifier
+		init  : 'hello' ID;         // match keyword hello followed by an identifier
 		ID : [a-z]+;                // match lower-case identifiers
 		WS : [ \t\r\n]+ -> skip;    // skip spaces, tabs, newline, \r
+
    
    
    NOTE:  If you create your Hello.g4 file under /src/main/antlr4/com/stuff
@@ -60,16 +103,99 @@ Procedures
           
    
  
- 5. Compile your code
+ 6. Compile your code
     unix> cd ~/intellijProjects/queryParser
     unix> mvn clean compile
     
-    --- You should now see ./target/classes/HelloParser.class
-    
+    --- You should now see these files:
+    		./target/classes/com/stuff/HelloBaseListener.class
+    		./target/classes/com/stuff/HelloBaseVisitor.class
+    		./target/classes/com/stuff/HelloLexer.class
+    		./target/classes/com/stuff/HelloListener.class
+    		./target/classes/com/stuff/HelloParser.class
+    		./target/classes/com/stuff/HelloVisitor.class
+    		
+    		    		    
  
- 6. Tell Intellij to look for the generated antlr classes
-    a. Pull File / Project Structure
-    b. Click Modules  [on the left]
-    c. In the directory,
-         Right-click on target/generated-sources/antlr4 -> Sources
-          
+ 7. Tell Intellij to look for the generated antlr classes
+    a. Pull View -> Tool Window -> Maven Project
+    b. Right-click on the <project-name> -> Generate Sources and Update folders
+    
+    NOTE:  Any time that you change the .g4 file, 
+           run "Generate Sources and Update folders" so Intellij knows about the updated generated code
+    
+    
+  
+ 8. Create this filE:  input1.txt 
+    a. Right-click on /src/main/resources/ -> New -> File
+       Filename:  input1.txt
+    
+    b. Copy this to input1.txt
+    	hello john
+        hello jack
+    
+    
+ 9. Modify the App class to look like this:
+	 
+	package com.stuff;
+	
+	import org.antlr.v4.runtime.ANTLRInputStream;
+	import org.antlr.v4.runtime.CommonToken;
+	import org.antlr.v4.runtime.CommonTokenStream;
+	import org.antlr.v4.runtime.tree.ParseTree;
+	import org.slf4j.Logger;
+	import org.slf4j.LoggerFactory;
+	import com.stuff.HelloParser;
+	
+	import java.io.FileInputStream;
+	import java.io.InputStream;
+	
+	/**
+	 * Hello world!
+	 *
+	 */
+	public class App
+	{
+	    private static final Logger logger = LoggerFactory.getLogger(App.class);
+	
+	    public static void main( String[] args ) throws Exception
+	    {
+	        logger.debug("main() started");
+	
+	        // Read the file into an inputstream
+	        InputStream in = App.class.getResourceAsStream("/input1.txt");
+	
+	        // Create a stream that reads from the file
+	        ANTLRInputStream inputStream = new ANTLRInputStream(in);
+	
+	        // Create a lexer that feeds off of the input stream
+	        HelloLexer lexer = new HelloLexer(inputStream);
+	
+	        // Create a buffer of tokens pulled from the lexer
+	        CommonTokenStream tokens = new CommonTokenStream(lexer);
+	
+	        // Create a parser that feeds off the tokens buffer
+	        HelloParser parser = new HelloParser(tokens);
+	
+	        // Begin parsing at the "init" rule of the grammar file
+	        ParseTree tree = parser.init();
+	
+	        // Show a lisp-style tree
+	        logger.debug("tree={}", tree.toStringTree(parser));
+	
+	        logger.debug("main() finished");
+	    }
+	}
+
+
+
+10. Use Intellij to run the program
+    a. Right-click on App -> Debug 'App.main()'
+    
+    b. You should see this console output
+    
+		09/04/2016 13:14:25 DEBUG com.stuff.App main() started
+		09/04/2016 13:14:26 DEBUG com.stuff.App tree=(init (line hello john) (line hello jack))
+		09/04/2016 13:14:26 DEBUG com.stuff.App main() finished
+		
+		
