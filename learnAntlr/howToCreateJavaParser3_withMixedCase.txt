@@ -1,0 +1,298 @@
+How to Create an ANTLR Parser with a Listener
+---------------------------------------------
+
+Assumptions:
+ A) You have a Windows 7 workstation or later
+ B) You have a Java JDK installed
+ 
+ 
+ 
+Procedures
+----------
+ 1. Follow the procedures in howToCreateJavaCommandLineProgramUsingIntellijMaven.txt
+    -- Setup the project with these maven settings:
+       groupId:        com.stuff
+       artifactId:     queryParser
+       Version:        1.0-SNAPSHOT
+       
+    -- Project Name:   queryParser
+
+ 
+ 2. Create this class:  AppQueryParser3
+    a. Right-click on src/main/java -> New -> Package 
+       Package name:  com
+       
+    b. Right-click on /src/main/java/com -> New -> Package
+       Package name: stuff
+       
+    c. Right-click on /src/main/java/code/stuff -> New -> Java Class
+       Class Name:  AppQueryParser1
+       
+    d. Copy this to your AppQueryParser3 class
+    
+			package com.stuff;
+			
+			import org.slf4j.Logger;
+			import org.slf4j.LoggerFactory;
+			
+			/**
+			 * Hello world!
+			 *
+			 */
+			public class AppQueryParser3 
+			{
+			    private static final Logger logger = LoggerFactory.getLogger(AppQueryParser3.class);
+			
+			    public static void main( String[] args )
+			    {
+			        logger.debug("main() started");
+			
+			
+			        logger.debug("main() finished");
+			    }
+			}
+
+
+ 3. Add this dependency to your pom.xml
+ 
+     <dependency>
+        <groupId>org.antlr</groupId>
+        <artifactId>antlr4-runtime</artifactId>
+        <version>4.5.3</version>
+     </dependency>
+     
+     
+     
+ 4. Add this plugin to your <build><plugins>...</plugins></build> section of your pom.xml
+    [so mvn will compile the parser in addition to any Java code]
+    
+      <plugin>
+        <groupId>org.antlr</groupId>
+        <artifactId>antlr4-maven-plugin</artifactId>
+        <version>4.5.3</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>antlr4</goal>
+            </goals>
+            <configuration>
+              <!-- Generate parse tree visitor interface and base class -->
+              <visitor>true</visitor>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+
+      
+ 5. Add a simple QueryParser2.g4 grammar
+    a. Create this directory:  /src/main/antlr4/com/stuff
+    
+        
+    b. Create this file:  QueryParser3.g4  (in the /src/main/altr4/com/stuff directory)
+    
+		/**************************************************************
+		 * Filename:  QueryParser3.g4
+		 * Purpose:   Holds the grammar for this language
+		 *
+		 * Match these types of strings:
+		 *  1) text:"this and that"  AND
+		 *     author:John    AND
+		 *     author:'john smith'
+		 *
+		 *  2)   TExt:"this and that"   or
+		 *        author:person
+		 *
+		 *  3) stuff
+		 ***************************************************************/
+		grammar QueryParser3;
+		
+		init             : (queryNoOperator queryAndOperator*) | queryNoKey   ;
+		queryNoOperator  : SPACE* query SPACE*                        ;
+		queryAndOperator : SPACE+ OPERATOR SPACE* query               ;
+		queryNoKey       : SEARCHVALUE                                ;
+		query            : SPACE* SEARCHKEY  SEPARATOR  SEARCHVALUE   ;
+		OPERATOR         : AND | OR                                   ;
+		SEARCHKEY        : TITLE | AUTHOR | TEXT                      ;
+		SEPARATOR        : ':'                                        ;
+		SEARCHVALUE      : STRING_WITHIN_QUOTES | STRING_WITHIN_APOSTOPHE | STRING;
+		STRING_WITHIN_QUOTES        : ["] .*? ["]                     ;
+		STRING_WITHIN_APOSTOPHE     : ['] .*? [']                     ;
+		STRING           : ~['"\n\r: ]+                               ;
+		SPACE            : ' '                                        ;
+		AND              : [aA][nN][dD]                               ;
+		OR               : [oO][rR]                                   ;
+		TITLE            : [tTiItTlLeE]                               ;
+		AUTHOR           : [aA][uU][tT][hH][oO][rR]                   ;
+		TEXT             : [tT][eE][xX][tT]                           ;
+		WS               : [\r\n]+ -> skip                            ;
+		   
+		   
+           
+ 6. Compile your code
+    unix> cd ~/intellijProjects/queryParser
+    unix> mvn clean compile
+    
+    --- You should now see these files:
+    		./target/classes/com/stuff/QueryParser3BaseListener.class
+    		./target/classes/com/stuff/QueryParser3BaseVisitor.class
+    		./target/classes/com/stuff/QueryParser3Lexer.class
+    		./target/classes/com/stuff/QueryParser3Listener.class
+    		./target/classes/com/stuff/QueryParser3Parser.class
+    		./target/classes/com/stuff/QueryParser3Visitor.class
+
+   
+           
+ 7. Tell Intellij to look for the generated antlr classes
+    a. Pull View -> Tool Window -> Maven Project
+    b. Right-click on the <project-name> -> Generate Sources and Update folders
+    
+    NOTE:  Any time that you change the .g4 file, 
+             A) Re-compile the code (using mvn clean compile) *AND*
+             B) Run "Generate Sources and Update folders" so Intellij knows about the updated generated code
+
+   
+           
+ 8. Create this filE:  searchTerms3.txt 
+    a. Right-click on /src/main/resources/ -> New -> File
+       Filename:  searchTerms3.txt
+    
+    b. Copy this to searchTerms3.txt
+			  text:"this and that"  AND
+			  author:John    Or
+			author:'john smith'
+
+
+
+ 9. Create this class:  MyQueryParser3Listener
+    a. Create the class file in the "com.stuff" package
+       Right-click on /src/main/java/com/stuff -> New Java Class:  MyQueryParser3Listener
+   
+    b. Copy this to your java class
+ 
+			package com.stuff;
+			
+			import org.slf4j.Logger;
+			import org.slf4j.LoggerFactory;
+			
+			/**
+			 * Created by adam on 9/5/2016.
+			 */
+			public class MyQueryParser3Listener extends QueryParser3BaseListener
+			{
+			    private static final Logger logger = LoggerFactory.getLogger(MyQueryParser3Listener.class);
+			
+			
+			    public void exitQueryNoOperator(QueryParser3Parser.QueryNoOperatorContext ctx) {
+			        String sSearchKey = ctx.query().SEARCHKEY().getText();
+			        String sSearchValue = ctx.query().SEARCHVALUE().getText();
+			
+			        logger.debug("in exitQueryNoOperator():   key={}   value-->{}<--  ", sSearchKey, sSearchValue);
+			    }
+			
+			    
+			    public void exitQueryAndOperator(QueryParser3Parser.QueryAndOperatorContext ctx)
+			    {
+			        String sSearchKey = ctx.query().SEARCHKEY().getText();
+			        String sSearchValue = ctx.query().SEARCHVALUE().getText();
+			        String sOperator = ctx.OPERATOR().getText();
+			
+			        logger.debug("in exitQueryAndOperator():  key={}   value-->{}<--  operator={}", sSearchKey, sSearchValue, sOperator);
+			
+			    }
+			
+			    public void exitQueryNoKey(QueryParser3Parser.QueryNoKeyContext ctx)
+			    {
+			        String sSearchValue = ctx.SEARCHVALUE().getText();
+			        logger.debug("in exitQueryNoKey():        value-->{}<--", sSearchValue);
+			    }
+			
+			}
+
+       
+       
+10. Edit this class:  AppQueryParser3
+    a. Copy this to your AppQueryParser3 class
+		    
+		package com.stuff;
+		
+		import org.antlr.v4.runtime.ANTLRInputStream;
+		import org.antlr.v4.runtime.CommonTokenStream;
+		import org.antlr.v4.runtime.tree.ParseTree;
+		import org.antlr.v4.runtime.tree.ParseTreeWalker;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		
+		import java.io.InputStream;
+		
+		/**
+		 * Created by adam on 9/4/2016.
+		 */
+		public class AppQueryParser3
+		{
+		    private static final Logger logger = LoggerFactory.getLogger(AppQueryParser3.class);
+		
+		    public static void main( String[] args ) throws Exception
+		    {
+		        logger.debug("main() started");
+		
+		        // Create an inputstream from a file found in the classpath
+		        InputStream in = AppQueryParser3.class.getResourceAsStream("/searchTerms3.txt");
+		
+		        // Create aan ANTLRInputStream from our inputStream object
+		        ANTLRInputStream inputStream = new ANTLRInputStream(in);
+		
+		        // Create a lexer that feeds off of the input stream
+		        QueryParser3Lexer lexer = new QueryParser3Lexer(inputStream);
+		
+		        // Create a buffer of tokens pulled from the lexer
+		        CommonTokenStream tokens = new CommonTokenStream(lexer);
+		
+		        // Create a parser that feeds off the tokens buffer
+		        QueryParser3Parser parser = new QueryParser3Parser(tokens);
+		
+		        // Begin parsing at the "init" rule of the grammar file
+		        ParseTree tree = parser.init();
+		        logger.debug("tree={}", tree.toStringTree(parser));
+		
+		        if (parser.getNumberOfSyntaxErrors() > 0) 
+		        {
+		            logger.debug("\n**PARSE FAILED**:  {} errors found.", parser.getNumberOfSyntaxErrors());
+		            System.exit(1);
+		        }
+		        else
+		        {
+		            logger.debug("\nPARSE SUCCEEDED.");
+		        }
+		
+		
+		        // Create a walker that can trigger callbacks
+		        ParseTreeWalker walker = new ParseTreeWalker();
+		
+		        // Walk the tree during the prase, triggering callbacks
+		        walker.walk(new MyQueryParser3Listener(), tree);
+		
+		        // Show a lisp-style tree
+		        logger.debug("tree={}", tree.toStringTree(parser));
+		
+		        logger.debug("main() finished");
+		    }
+		}
+
+
+
+11. Use Intellij to run the program
+    a. Right-click on AppQueryParser2 -> Debug 'AppQueryParser2.main()'
+    
+    b. You should see this console output
+    
+		09/05/2016 11:03:41 DEBUG com.stuff.AppQueryParser3 main() started
+		09/05/2016 11:03:41 DEBUG com.stuff.AppQueryParser3 tree=(init (queryNoOperator (query text : "this and that")  ) (queryAndOperator   AND             (query author : John)) (queryAndOperator         AND             (query author : 'john smith')))
+		09/05/2016 11:03:41 DEBUG com.stuff.AppQueryParser3 
+		PARSE SUCCEEDED.
+		09/05/2016 11:03:41 DEBUG com.stuff.MyQueryParser3Listener in exitQueryNoOperator():   key=text   value-->"this and that"<--  
+		09/05/2016 11:03:41 DEBUG com.stuff.MyQueryParser3Listener in exitQueryAndOperator():  key=author   value-->John<--  operator=AND
+		09/05/2016 11:03:41 DEBUG com.stuff.MyQueryParser3Listener in exitQueryAndOperator():  key=author   value-->'john smith'<--  operator=AND
+		09/05/2016 11:03:41 DEBUG com.stuff.AppQueryParser3 tree=(init (queryNoOperator (query text : "this and that")  ) (queryAndOperator   AND             (query author : John)) (queryAndOperator         AND             (query author : 'john smith')))
+		09/05/2016 11:03:41 DEBUG com.stuff.AppQueryParser3 main() finished
+		
