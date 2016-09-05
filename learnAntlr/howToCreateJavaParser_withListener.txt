@@ -1,0 +1,274 @@
+How to Create an ANTLR Parser with a Listener
+---------------------------------------------
+
+Assumptions:
+ A) You have a Windows 7 workstation or later
+ B) You have a Java JDK installed
+ 
+ 
+ 
+Procedures
+----------
+ 1. Follow the procedures in howToCreateJavaCommandLineProgramUsingIntellijMaven.txt
+    -- Setup the project with these maven settings:
+       groupId:        com.stuff
+       artifactId:     queryParser
+       Version:        1.0-SNAPSHOT
+       
+    -- Project Name:   queryParser
+
+ 
+ 2. Create a main App class under com.stuff
+    a. Right-click on src/main/java -> New -> Package 
+       Package name:  com
+       
+    b. Right-click on /src/main/java/com -> New -> Package
+       Package name: stuff
+       
+    c. Right-click on /src/main/java/code/stuff -> New -> Java Class
+       Class Name:  App
+       
+    d. Copy this to your App class
+    
+			package com.stuff;
+			
+			import org.slf4j.Logger;
+			import org.slf4j.LoggerFactory;
+			import com.stuff.HelloParser;
+			
+			/**
+			 * Hello world!
+			 *
+			 */
+			public class App 
+			{
+			    private static final Logger logger = LoggerFactory.getLogger(App.class);
+			
+			    public static void main( String[] args )
+			    {
+			        logger.debug("main() started");
+			
+			
+			        logger.debug("main() finished");
+			    }
+			}
+
+
+ 3. Add this dependency to your pom.xml
+ 
+     <dependency>
+        <groupId>org.antlr</groupId>
+        <artifactId>antlr4-runtime</artifactId>
+        <version>4.5.3</version>
+     </dependency>
+     
+     
+     
+ 4. Add this plugin to your <build><plugins>...</plugins></build> section of your pom.xml
+    [so mvn will compile the parser in addition to any Java code]
+    
+      <plugin>
+        <groupId>org.antlr</groupId>
+        <artifactId>antlr4-maven-plugin</artifactId>
+        <version>4.5.3</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>antlr4</goal>
+            </goals>
+            <configuration>
+              <!-- Generate parse tree visitor interface and base class -->
+              <visitor>true</visitor>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+
+      
+ 5. Add a simple QueryParser2.g4 grammar
+    a. Create this directory:  /src/main/antlr4/com/stuff
+    
+        
+    b. Create this file:  Hello.g4  (in the /src/main/altr4/com/stuff directory)
+    
+		/**************************************************************
+		 * Filename:  QueryParser2.g4
+		 * Purpose:   Holds the grammar for this language
+		 *
+		 * Match these types of strings:
+		 *    text:"this and that"  AND
+		 *    author:John    AND
+		 *    author:'john smith'
+		 ***************************************************************/
+		grammar QueryParser2;
+		
+		init        : query (SPACE+ OPERATOR SPACE* query)*        ;
+		query       : SPACE* SEARCHKEY  SEPARATOR  SEARCHVALUE     ;
+		OPERATOR    : AND | OR                                     ;
+		SEARCHKEY   : 'title' | 'author' | 'ingestDate' | 'text'   ;
+		SEPARATOR   : ':'                                          ;
+		SEARCHVALUE : STRING_WITHIN_QUOTES | STRING_WITHIN_APOSTOPHE | STRING;
+		STRING_WITHIN_QUOTES        : ["] .*? ["]              ;
+		STRING_WITHIN_APOSTOPHE     : ['] .*? [']              ;
+		STRING      : ~['"\n\r: ]+                             ;
+		SPACE       : ' '                                      ;
+		AND         : [aA][nN][dD]                             ;
+		OR          : [oO][rR]                                 ;
+		WS          : [\r\n]+ -> skip                          ;
+
+   
+           
+ 6. Compile your code
+    unix> cd ~/intellijProjects/queryParser
+    unix> mvn clean compile
+    
+    --- You should now see these files:
+    		./target/classes/com/stuff/QueryParser2BaseListener.class
+    		./target/classes/com/stuff/QueryParser2BaseVisitor.class
+    		./target/classes/com/stuff/QueryParser2Lexer.class
+    		./target/classes/com/stuff/QueryParser2Listener.class
+    		./target/classes/com/stuff/QueryParser2Parser.class
+    		./target/classes/com/stuff/QueryParser2Visitor.class
+
+   
+           
+ 7. Tell Intellij to look for the generated antlr classes
+    a. Pull View -> Tool Window -> Maven Project
+    b. Right-click on the <project-name> -> Generate Sources and Update folders
+    
+    NOTE:  Any time that you change the .g4 file, 
+             A) Re-compile the code (using mvn clean compile) *AND*
+             B) Run "Generate Sources and Update folders" so Intellij knows about the updated generated code
+
+   
+           
+ 8. Create this filE:  searchTerms.txt 
+    a. Right-click on /src/main/resources/ -> New -> File
+       Filename:  searchTerms.txt
+    
+    b. Copy this to input1.txt
+			  text:"this and that"  AND
+			  author:John    Or
+			author:'john smith'
+
+
+
+ 9. Create this class:  MyQueryParser2Listener
+    a. Create the class file in the "com.stuff" package
+       Right-click on /src/main/java/ -> New Package "com"
+       Right-click on /src/main/java/com -> New Package "stuff"
+       Right-click on /src/main/java/com/stuff -> New Java Class:  MyQueryParser2Listener
+   
+    b. Copy this to your java class
+ 
+		package com.stuff;
+		
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		
+		/**
+		 * Created by adam on 9/4/2016.
+		 */
+		public class MyQueryParser2Listener extends QueryParser2BaseListener
+		{
+		    private static final Logger logger = LoggerFactory.getLogger(MyQueryParser2Listener.class);
+		
+		    public void exitQuery(QueryParser2Parser.QueryContext ctx)
+		    {
+		        String sSearchKey = ctx.SEARCHKEY().getText();
+		        String sSearchValue = ctx.SEARCHVALUE().getText();
+		
+		        logger.debug("in exitQuery():  key-->{}<--   value-->{}<--", sSearchKey, sSearchValue);
+		    }
+		
+		}
+
+       
+       
+10. Create this class:  AppQueryParser2
+    a. Right-click on /src/main/java/com/stuff -> New Java Class:  AppQueryParser2
+    
+    b. Copy this to your AppQueryParser2 class
+    
+		package com.stuff;
+		
+		import org.antlr.v4.runtime.ANTLRInputStream;
+		import org.antlr.v4.runtime.CommonTokenStream;
+		import org.antlr.v4.runtime.tree.ParseTree;
+		import org.antlr.v4.runtime.tree.ParseTreeWalker;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		
+		import java.io.InputStream;
+		
+		/**
+		 * Created by adam on 9/4/2016.
+		 */
+		public class AppQueryParser2
+		{
+		    private static final Logger logger = LoggerFactory.getLogger(AppQueryParser2.class);
+		
+		    public static void main( String[] args ) throws Exception
+		    {
+		        logger.debug("main() started");
+		
+		        // Create an inputstream from a file found in the classpath
+		        InputStream in = App.class.getResourceAsStream("/searchTerms.txt");
+		
+		        // Create aan ANTLRInputStream from our inputStream object
+		        ANTLRInputStream inputStream = new ANTLRInputStream(in);
+		
+		        // Create a lexer that feeds off of the input stream
+		        QueryParser2Lexer lexer = new QueryParser2Lexer(inputStream);
+		
+		        // Create a buffer of tokens pulled from the lexer
+		        CommonTokenStream tokens = new CommonTokenStream(lexer);
+		
+		        // Create a parser that feeds off the tokens buffer
+		        QueryParser2Parser parser = new QueryParser2Parser(tokens);
+		
+		        // Begin parsing at the "init" rule of the grammar file
+		        ParseTree tree = parser.init();
+		        logger.debug("tree={}", tree.toStringTree(parser));
+		
+		        if (parser.getNumberOfSyntaxErrors() > 0) {
+		            logger.debug("\n**PARSE FAILED**:  {} errors found.", parser.getNumberOfSyntaxErrors());
+		            System.exit(1);
+		        }
+		        else
+		        {
+		            logger.debug("\nPARSE SUCCEEDED.");
+		        }
+		
+		
+		        // Create a walker that can trigger callbacks
+		        ParseTreeWalker walker = new ParseTreeWalker();
+		
+		        // Walk the tree during the prase, triggering callbacks
+		        walker.walk(new MyQueryParser2Listener(), tree);
+		
+		        // Show a lisp-style tree
+		        logger.debug("tree={}", tree.toStringTree(parser));
+		
+		        logger.debug("main() finished");
+		    }
+		}
+		
+
+
+11. Use Intellij to run the program
+    a. Right-click on AppQueryParser2 -> Debug 'AppQueryParser2.main()'
+    
+    b. You should see this console output
+    
+		09/05/2016 10:25:32 DEBUG com.stuff.AppQueryParser2 main() started
+		09/05/2016 10:25:32 DEBUG com.stuff.AppQueryParser2 tree=(init (query     text : "this and that")     AND     (query author : John)         Or (query author : 'john smith'))
+		09/05/2016 10:25:32 DEBUG com.stuff.AppQueryParser2 
+		PARSE SUCCEEDED.
+		09/05/2016 10:25:32 DEBUG com.stuff.MyQueryParser2Listener in exitQuery():  key-->text<--   value-->"this and that"<--
+		09/05/2016 10:25:32 DEBUG com.stuff.MyQueryParser2Listener in exitQuery():  key-->author<--   value-->John<--
+		09/05/2016 10:25:32 DEBUG com.stuff.MyQueryParser2Listener in exitQuery():  key-->author<--   value-->'john smith'<--
+		09/05/2016 10:25:32 DEBUG com.stuff.AppQueryParser2 tree=(init (query     text : "this and that")     AND     (query author : John)         Or (query author : 'john smith'))
+		09/05/2016 10:25:32 DEBUG com.stuff.AppQueryParser2 main() finished
+		
