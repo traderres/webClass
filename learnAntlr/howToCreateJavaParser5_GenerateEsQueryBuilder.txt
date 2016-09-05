@@ -1,0 +1,116 @@
+How to Create an ANTLR Parser (Generate ES Query Builder)
+----------------------------------------------------------
+
+Assumptions:
+ A) You have a Java JDK installed
+ B) You have Maven installed
+ C) You have IntelliJ Idea installed 
+ D) You have installed ElasticSearch 2.3.3
+ 
+ 
+Procedures
+----------
+ 1. Follow the procedures in howToCreateJavaParser3_withMixedCase.txt
+ 
+ 
+
+ 2. Open-up the queryParser project in Intellij
+
+
+ 3. Add the ElasticSearch dependencies
+
+      <dependency>
+          <groupId>org.elasticsearch</groupId>
+          <artifactId>elasticsearch</artifactId>
+          <version>2.3.3</version>
+      </dependency>
+
+
+      <dependency>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava</artifactId>
+          <version>19.0</version>
+      </dependency>
+
+
+      <dependency>
+          <!-- Use this to get Jackson's ObjectMapper -->
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-databind</artifactId>
+          <version>2.1.0</version>
+      </dependency> 
+ 
+ 
+ 
+
+  4. Add the ElasticSearch singleton object
+     a. Right-click on /src/main/java/com/stuff -> New -> Java Class
+        Name:  EsClientSingleton
+  
+     b. Copy this to your Java Class
+     
+ 
+		package com.stuff;
+		
+		
+		import org.elasticsearch.client.Client;
+		import org.elasticsearch.client.transport.TransportClient;
+		import org.elasticsearch.common.transport.InetSocketTransportAddress;
+		import java.net.InetAddress;
+		
+		/**
+		 * Created by adam on 6/25/16.
+		 */
+		public enum EsClientSingleton
+		{
+		    INSTANCE;
+		
+		    private Client esClient;
+		
+		    private static final String ES_HOSTNAME = "localhost";
+		
+		    /******************************************************************
+		     * Private EsClientSingleton Constructor
+		     * -- Do one-time initialization here
+		     *******************************************************************/
+		    private EsClientSingleton()
+		    {
+		        // The very first time this singleton is called, we will initialize the ES Client
+		        initializeEsClientNoException();
+		    }
+		
+		
+		    /******************************************************************
+		     * initializeEsClientNoException()
+		     * -- Attempt to connect to the ElasticSearch Instance
+		     *******************************************************************/
+		    private void initializeEsClientNoException()
+		    {
+		        try {
+		            // Connect to the ElasticSearch instance using port 9300  [it's a binary protocol]
+		            // NOTE:  The java client does not connect to port 9200
+		            InetAddress addrEsHostname = InetAddress.getByName(ES_HOSTNAME);
+		
+		            esClient = TransportClient.builder().build()
+		                    .addTransportAddress(new InetSocketTransportAddress(addrEsHostname, 9300));
+		        }
+		        catch (Exception e)
+		        {
+		            // Convert the exception to a RunTime exception
+		            RuntimeException re = new RuntimeException(e);
+		            re.setStackTrace(e.getStackTrace());
+		            throw re;
+		        }
+		
+		    }
+		
+		    public Client getEsClient()
+		    {
+		        return esClient;
+		    }
+		}
+		 
+     
+     
+  5. Update the listener class to generate a QueryBuilder object
+  
