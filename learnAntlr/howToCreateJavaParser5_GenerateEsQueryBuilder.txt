@@ -5,7 +5,9 @@ Assumptions:
  A) You have a Java JDK installed
  B) You have Maven installed
  C) You have IntelliJ Idea installed 
- D) You have installed ElasticSearch 2.3.3
+ D) You have installed ElasticSearch 2.3.3 instance running on localhost
+ E) You can reach port 9300 and 9200 of your ElasticSearch instance
+ 
  
 
 References
@@ -13,13 +15,42 @@ References
 http://stackoverflow.com/questions/24225766/elasticsearch-java-api-building-queries
 http://www.ibm.com/developerworks/library/j-use-elasticsearch-java-apps/index.html
 https://www.elastic.co/guide/en/elasticsearch/client/java-api/current/java-search-msearch.html
+https://www.elastic.co/guide/en/elasticsearch/guide/master/term-vs-full-text.html
+https://www.elastic.co/guide/en/elasticsearch/reference/2.4/query-dsl-simple-query-string-query.html
 
 
+
+ElasticSearch Query Types
+-------------------------
+ A) Term-based query have no analysis phase.  They operate on a single term (look at inverted index only)
+ B) Match or query_string queries are high-level queries that use the mapping of a field
+    -- Match query knows how to deal with full-text and exactly-value fields
+    -- Match query supports multiple words
+    -- We will use the Match query for the regular search query
+       
+ C) When running a match query on multiple words,
+    the results contain atleast *one* of the specified terms in the match query
+    The more terms that match --> the more relevant the document
+    
+    DEFAULT Operator is "or"
+    
+    match query supports the minimum_should_match parameter, 
+    which specifies the number of terms that *must* match for a document to be considered relevant
+    (usually a percentage)
+    
+    
+    
+
+
+ 1) If a user enters words without searchkeys, it's a term-based query (full-text)
+ 2) if a user enters search key, then it's a term-based query (match exact word)
+     
+     this that other thing -->  text:"this or that or other or thing"
+     
  
 Procedures
 ----------
  1. Follow the procedures in howToCreateJavaParser3_withMixedCase.txt
- 
  
 
  2. Open-up the queryParser project in Intellij
@@ -34,20 +65,6 @@ Procedures
       </dependency>
 
 
-      <dependency>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava</artifactId>
-          <version>19.0</version>
-      </dependency>
-
-
-      <dependency>
-          <!-- Use this to get Jackson's ObjectMapper -->
-          <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>jackson-databind</artifactId>
-          <version>2.1.0</version>
-      </dependency> 
- 
  
  
 
@@ -121,8 +138,254 @@ Procedures
      
      
   5. Update the listener class to generate a QueryBuilder object
-  
-  
-     INCOMPLETE
+		  
+		package com.stuff;
+		
+		import org.apache.commons.lang3.StringUtils;
+		import org.elasticsearch.index.query.QueryBuilders;
+		import org.elasticsearch.index.query.MatchQueryBuilder;
+		import org.elasticsearch.index.query.*;
+		import org.elasticsearch.index.search.*;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		
+		import java.util.ArrayList;
+		
+		import static org.elasticsearch.index.query.QueryBuilders.matchQuery;
+		
+		/**
+		 * Created by adam on 9/5/2016.
+		 */
+		public class MyQueryParser3Listener extends QueryParser3BaseListener
+		{
+		    private static final Logger logger = LoggerFactory.getLogger(MyQueryParser3Listener.class);
+		
+		    private int iTotalExitQueryNoKey = 0;
+		
+		    private QueryBuilder queryBuilder;
+		
+		    /*********************************************************************
+		     * MyQueryParser3Listener()   **CONSTRUCTOR**
+		     *********************************************************************/
+		    public MyQueryParser3Listener()
+		    {
+		    }
+		
+		
+		    public QueryBuilder getQueryBuilder()  { return this.queryBuilder; }
+		    public int getTotalExitQueryNoKey() { return this.iTotalExitQueryNoKey; }
+		
+		    /*********************************************************************
+		     * exitQueryNoOperator()
+		     *********************************************************************/
+		    public void exitQueryNoOperator(QueryParser3Parser.QueryNoOperatorContext ctx)
+		    {
+		        String sSearchKey = ctx.query().SEARCHKEY().getText();
+		        String sSearchValue = ctx.query().SEARCHVALUE().getText();
+		
+		        logger.debug("in exitQueryNoOperator():   key={}   value-->{}<--  ", sSearchKey, sSearchValue);
+		    }
+		
+		
+		    /*********************************************************************
+		     * exitQueryAndOperator()
+		     *********************************************************************/
+		    public void exitQueryAndOperator(QueryParser3Parser.QueryAndOperatorContext ctx)
+		    {
+		        String sSearchKey = ctx.query().SEARCHKEY().getText();
+		        String sSearchValue = ctx.query().SEARCHVALUE().getText();
+		        String sOperator = ctx.OPERATOR().getText();
+		
+		        logger.debug("in exitQueryAndOperator():  key={}   value-->{}<--  operator={}", sSearchKey, sSearchValue, sOperator);
+		
+		    }
+		
+		    /*********************************************************************
+		     * exitQueryNoKey()
+		     *
+		     * The user entered no operator -- e.g., AND, OR
+		     * The user entered no keys (so assume to search the text field)
+		     *********************************************************************/
+		    public void exitQueryNoKey(QueryParser3Parser.QueryNoKeyContext ctx)
+		    {
+		        this.iTotalExitQueryNoKey=ctx.SEARCHVALUE().size();
+		
+		        ArrayList<String> terms = new ArrayList<String>();
+		        for (int i=0; i<ctx.SEARCHVALUE().size(); i++)
+		        {
+		            String sSearchValue = ctx.SEARCHVALUE(i).getText();
+		            terms.add(sSearchValue);
+		            logger.debug("in exitQueryNoKey():        SEARCHVALUE({})-->{}<--",  i, ctx.SEARCHVALUE(i));
+		        }
+		
+		
+		        String sJoinedTerms = StringUtils.join(terms, " ");
+		
+		        // See the QueryBuilders abstract class
+		        this.queryBuilder = new MatchQueryBuilder("searchable_text", sJoinedTerms)
+		                               .type(MatchQueryBuilder.Type.BOOLEAN)
+		                               .operator(MatchQueryBuilder.Operator.OR);
+		    }
+		
+		}
+
+		
+		      
+ 6. Edit the AppQueryParser3 main() to actually run a query against ElasticSearch
+ 
+		package com.stuff;
+		
+		import org.antlr.v4.runtime.ANTLRInputStream;
+		import org.antlr.v4.runtime.CommonTokenStream;
+		import org.antlr.v4.runtime.tree.ParseTree;
+		import org.antlr.v4.runtime.tree.ParseTreeWalker;
+		import org.elasticsearch.action.search.SearchRequestBuilder;
+		import org.elasticsearch.action.search.SearchResponse;
+		import org.elasticsearch.client.Client;
+		import org.elasticsearch.index.query.QueryBuilder;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		
+		import java.io.ByteArrayInputStream;
+		import java.io.InputStream;
+		
+		/**
+		 * Created by adam on 9/4/2016.
+		 */
+		public class AppQueryParser3
+		{
+		    private static final Logger logger = LoggerFactory.getLogger(AppQueryParser3.class);
+		
+		    public static void main( String[] args ) throws Exception
+		    {
+		        logger.debug("main() started");
+		
+		        String sString="luke returns";
+		        InputStream in = new ByteArrayInputStream(sString.getBytes("UTF-8"));
+		
+		        // Create aan ANTLRInputStream from our inputStream object
+		        ANTLRInputStream inputStream = new ANTLRInputStream(in);
+		
+		        // Create a lexer that feeds off of the input stream
+		        QueryParser3Lexer lexer = new QueryParser3Lexer(inputStream);
+		
+		        // Create a buffer of tokens pulled from the lexer
+		        CommonTokenStream tokens = new CommonTokenStream(lexer);
+		
+		        // Create a parser that feeds off the tokens buffer
+		        QueryParser3Parser parser = new QueryParser3Parser(tokens);
+		
+		        // Begin parsing at the "init" rule of the grammar file
+		        ParseTree tree = parser.init();
+		        logger.debug("tree={}", tree.toStringTree(parser));
+		
+		        if (parser.getNumberOfSyntaxErrors() > 0)
+		        {
+		            logger.debug("\n**PARSE FAILED**:  {} errors found.", parser.getNumberOfSyntaxErrors());
+		            System.exit(1);
+		        }
+		        else
+		        {
+		            logger.debug("\nPARSE SUCCEEDED.");
+		        }
+		
+		
+		        // Create a walker that can trigger callbacks
+		        ParseTreeWalker walker = new ParseTreeWalker();
+		
+		
+		        // Walk the tree during the prase, triggering callbacks
+		        MyQueryParser3Listener queryParserListener = new MyQueryParser3Listener();
+		        walker.walk(queryParserListener, tree);
+		
+		        // Get the QueryBuilder object from the listener
+		        QueryBuilder queryBuilder = queryParserListener.getQueryBuilder();
+		
+		
+		        // E X E C U T E       ELASTIC SEARCH    Q U E R Y
+		        Client esClient = EsClientSingleton.INSTANCE.getEsClient();
+		        SearchResponse response = esClient.prepareSearch("records_db")
+		                                          .setQuery(queryBuilder)
+		                                          .execute()
+		                                          .actionGet();
+		
+		        logger.debug("response={}", response.toString());
+		
+		        logger.debug("main() finished");
+		    }
+		}
+		 	      
+      
+      
+ 7. Add records to your ElasticSearch instance
+    a. Startup Chrome
+    
+    b. Startup the "Sense" plugin
      
+    c. Run these commands in them
+    	DELETE /records_db
+	    
+		PUT /records_db
+		    {
+		       "mappings": {
+		          "record": {
+		             "properties": {
+		                "title": {
+		                   "type": "string",
+		                   "analyzer": "snowball",
+		                   "copy_to": "searchable_text" 
+		                },
+		                "permissions": {
+		                   "type": "string",
+		                   "analyzer": "standard"
+		                },
+		                "type": {
+		                   "type": "integer",
+		                   "index": "not_analyzed"
+		                },
+		                "createDate": {
+		                   "type": "string",
+		                   "index": "not_analyzed"
+		                },
+		                "description": {
+		                   "type": "string",
+		                   "analyzer": "snowball",
+		                   "copy_to": "searchable_text" 
+		                },
+		                "searchable_text": {
+		                   "type": "string",
+		                   "analyzer": "snowball"
+		                }
+		             }
+		          }
+		       }
+		    }
+		
+		
+		POST _bulk
+		    { "create": { "_index": "records_db", "_type": "record", "_id": "1" }}
+		    { "title": "Star Wars New Hope", "permissions": "x,y,z", "type": 7, "createDate": "02/25/2016", "description": "Obi Wan teaches Luke about the force and gets his first light sabre.  Han Solo can really shoot.  The Falcon takes some hits." }
+		    { "create": { "_index": "records_db", "_type": "record", "_id": "2" }}
+		    { "title": "Star Wars Empire Strikes Back", "permissions": "a,b,c,d", "type": 4, "createDate": "02/25/2016", "description": "Luke gets some training from Yoda.  The falcon helps them escape at the end."}
+		    { "create": { "_index": "records_db", "_type": "record", "_id": "3" }}
+		    { "title": "More Star Wars Return of the Jedi", "permissions": "a,y,z", "type": 7, "createDate": "02/25/2016", "description": "Luke returns to kill his father"}
+		
+		
+		POST /records_db/_search
+		    {
+		       "query":
+		       {
+		          "match": 
+		          {
+		              "searchable_text":
+		              {
+		                "query": "luke returns",
+		                "operator": "and"
+		              }    
+		          }
+		      }
+		    }
+		 
+		
+		GET /records_db/_search 
      
