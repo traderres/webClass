@@ -1,0 +1,247 @@
+How to Authenticate the User By Header
+--------------------------------------
+
+Assumptions:
+ A) You have a spring-mvc web app
+ B) You have an apache server that is authenticating and pushing headers to you
+ 
+
+Procedure
+---------
+
+ 1. Add a class MyRequestHeaderAuthFilter
+       
+      package app1.security;
+      
+      import csaac.ng.utilities.SpringAppContextUtils;
+      import org.slf4j.Logger;
+      import org.slf4j.LoggerFactory;
+      import org.springframework.security.web.authentication.preauth.RequestHeaderAuthenticationFilter;
+      
+      import javax.servlet.http.HttpServletRequest;
+      import java.util.Enumeration;
+      import java.util.Properties;
+      
+      /**
+       * Created by adam on 9/17/16.
+       */
+      public class MyRequestHeaderAuthFilter extends RequestHeaderAuthenticationFilter
+      {
+          private static final Logger logger = LoggerFactory.getLogger(MyRequestHeaderAuthFilter.class);
+      
+          /*************************************************************
+           * MyRequestHeaderAuthFilter()   **Constructor**
+           *************************************************************/
+          public MyRequestHeaderAuthFilter()
+          {
+              super();
+      
+              // Get a pointer to the App Properties
+              Properties myProps = (Properties) SpringAppContextUtils.getBean("myProps");
+      
+              // Get the name of the header that will hold this user's DN value
+              final String sNameOfHeaderHoldingDN = myProps.getProperty("security.authenticate.header.dn");
+              logger.debug("MyRequestHeaderAuthFilter()  sNameOfHeaderHoldingDN={}", sNameOfHeaderHoldingDN);
+      
+              // Set the name of the header to extract
+              this.setPrincipalRequestHeader(sNameOfHeaderHoldingDN);
+      
+              // If the above header is not found, then return a 403 forbidden error
+              // (instead of throwing an exception)
+              this.setExceptionIfHeaderMissing(false);
+          }
+      
+      
+          /**************************************************************
+           * getPreAuthenticatedPrincipal()
+           *
+           * This is called when a request is made, the returned object identifies the
+           * user and will either be {@literal null} or a String.
+           *
+           * This method will throw an exception if
+           * exceptionIfHeaderMissing is set to true (default) and the required header is missing.
+           **************************************************************/
+          @Override
+          protected Object getPreAuthenticatedPrincipal(HttpServletRequest aRequest)
+          {
+              logger.debug("getPreAuthenticatedPrincipal() called");
+      
+              logHeaders(aRequest);
+      
+              String sUserDnFromHeader = (String) (super.getPreAuthenticatedPrincipal(aRequest));
+              logger.debug("getPreAuthenticatedPrincipal() returns user's DN={}", sUserDnFromHeader);
+      
+              return sUserDnFromHeader;
+          }
+      
+      
+      
+          /**************************************************************
+           * logHeaders()
+           **************************************************************/
+          private void logHeaders(HttpServletRequest aRequest)
+          {
+              if (logger.isDebugEnabled())
+              {
+                  Enumeration<String> enumHeaders = aRequest.getHeaderNames();
+                  while (enumHeaders.hasMoreElements()) {
+                      String sHeaderName = enumHeaders.nextElement();
+                      String sHeaderValue = aRequest.getHeader(sHeaderName);
+                      logger.debug("header({}) holds -->{}<---", sHeaderName, sHeaderValue);
+                  }
+              }
+          }
+      
+      }
+
+
+ 2. Adjust your Spring Security Config to use your new filter
+ 
+      package app1.security;
+      
+      import csaac.ng.security.MyAuthenticationManager;
+      import csaac.ng.security.MyUserDetailsService;
+      import csaac.ng.security.SubjectX509PrincipalExtractor;
+      import csaac.ng.utilities.Constants;
+      import org.slf4j.Logger;
+      import org.slf4j.LoggerFactory;
+      import org.springframework.beans.factory.annotation.Autowired;
+      import org.springframework.context.annotation.Bean;
+      import org.springframework.context.annotation.Configuration;
+      import org.springframework.security.access.expression.SecurityExpressionOperations;
+      import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+      import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+      import org.springframework.security.config.annotation.web.builders.WebSecurity;
+      import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+      import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+      import org.springframework.security.config.http.SessionCreationPolicy;
+      import org.springframework.security.core.Authentication;
+      import org.springframework.security.web.FilterInvocation;
+      import org.springframework.security.web.access.expression.DefaultWebSecurityExpressionHandler;
+      import org.springframework.security.web.access.expression.WebSecurityExpressionRoot;
+      import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationProvider;
+      import org.springframework.security.web.authentication.preauth.RequestHeaderAuthenticationFilter;
+      import org.springframework.security.web.authentication.preauth.x509.X509AuthenticationFilter;
+      
+      import javax.annotation.Resource;
+      import java.util.Properties;
+      
+      /**
+       * Created by adam on 1/6/2016.
+       */
+      @Configuration
+      @EnableWebSecurity
+      public class SpringSecurityConfig extends WebSecurityConfigurerAdapter
+      {
+          private static final Logger logger = LoggerFactory.getLogger(SpringSecurityConfig.class);
+      
+          @Resource(name = "myProps")
+          private Properties appProps;
+      
+          @Autowired
+          public void configureGlobal(AuthenticationManagerBuilder aAuthMgrBuilder) throws Exception
+          {
+              logger.debug("configureGlobal() started");
+      
+              super.configure(aAuthMgrBuilder);
+      
+              // Tell Spring-Security to use our authentication provider bean
+              // NOTE:  This authentication provider bean calls myUserDetailService
+              aAuthMgrBuilder.authenticationProvider(preAuthProvider());
+      
+              logger.debug("configureGlobal() finished");
+          }
+      
+      
+          /*************************************************************************
+           * configure()
+           *
+           * Configure Spring Security
+           *
+           * If the security.authenticate.mechanism property holds 'header'
+           *   then use the Request Header to get the DN from the header
+           *
+           * If the security.authenticate.mechanism property holds 'x509'
+           *   then use the x509 filter to get the DN from the x509 certificate
+           *************************************************************************/
+          @Override
+          public void configure(HttpSecurity aHttp) throws Exception
+          {
+              logger.debug("configure() #1 started");
+      
+              
+              // We are using Apache httpd to authenticate the user
+      
+              // Pull the DN from the user's Request Headers
+              aHttp.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
+                      .and()
+                      .addFilterBefore(requestHeaderAuthFilter(), RequestHeaderAuthenticationFilter.class)
+                      .authorizeRequests()
+                      .antMatchers("/**").access("hasRole('Reader')")           // All users must have the grantedAuthority called ROLE_UserFoundInLdap to view all pages
+                      .and()
+                      .requiresChannel().antMatchers("/**").requiresSecure()    // Redirect http to https
+                      .and()
+                      .headers().frameOptions().disable()                       // By default X-Frame-Options is set to denied.  Disable frameoptions to let this webapp work in OWF
+                      .and()
+                      .anonymous().disable();
+         
+      
+      
+              logger.debug("configure() #1 finished");
+          }
+      
+      
+          @Override
+          public void configure(WebSecurity aWebSecurity) throws Exception
+          {
+              logger.debug("configure() #2 started");
+      
+              // Tell Spring-Security to let any URL request through that starts with /resources
+              aWebSecurity.ignoring()
+                      .antMatchers("/resources/**");
+      
+      
+              logger.debug("configure() #2 finished");
+          }
+      
+      
+      
+      
+      
+          @Bean
+          public MyAuthenticationManager myAuthenticationManager()
+          {
+              return new MyAuthenticationManager();
+          }
+      
+          @Bean
+          public MyRequestHeaderAuthFilter requestHeaderAuthFilter() throws Exception
+          {
+              // Create a filter that extracts the principal from the SSL_CLIENT_S_DN header
+              MyRequestHeaderAuthFilter filter = new MyRequestHeaderAuthFilter();
+              filter.setAuthenticationManager(myAuthenticationManager());
+      
+              return filter;
+          }
+      
+      
+      
+          @Bean
+          public MyUserDetailsService myUserDetailsService()
+          {
+              return new MyUserDetailsService();
+          }
+      
+      
+          @Bean
+          public PreAuthenticatedAuthenticationProvider preAuthProvider()
+          {
+              // Connect the myUserDetailsService to this filter
+              PreAuthenticatedAuthenticationProvider preAuthProvider = new PreAuthenticatedAuthenticationProvider();
+              preAuthProvider.setPreAuthenticatedUserDetailsService(myUserDetailsService());
+              preAuthProvider.setThrowExceptionWhenTokenRejected(true);
+      
+              return preAuthProvider;
+          }
+      
+      }
