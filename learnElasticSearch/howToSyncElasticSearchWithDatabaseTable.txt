@@ -1,0 +1,195 @@
+How to Sync an ElasticSearch Index to a Postgres Database Table
+---------------------------------------------------------------
+The database table holds the "record of truth" and as the database table is updated,
+we want to update an ElasticSearch index.  But, we do not want to do it in real-time
+
+
+
+Assumptions:
+ A) You have an Elastic Search instance established
+ B) You have a Postgres database table
+ C) As you add, modify, and delete records from the database table, 
+    you want to add, modify, and delete records from the ElasticSearch index
+
+
+References
+----------
+https://qafoo.com/blog/086_how_to_synchronize_a_database_with_elastic_search.html
+https://www.elastic.co/blog/found-keeping-elasticsearch-in-sync
+http://dba.stackexchange.com/questions/27688/locking-issue-with-concurrent-delete-insert-in-postgresql
+
+Design
+------
+ 1) Create a documents table (holds the "record of truth")
+ 
+ 2) Create a changes table
+ 
+ 3) Add some sample records to the documents table
+ 
+ 4) Add some records to the changes table
+ 
+ 5) Setup a cron job that will periodically update ElasticSearch
+    Perhaps, this job will run once-every-hour or once-every-5-minutes
+    
+    Afterwards we can just query the changes like:
+		SELECT
+		    sequence_number, document.*
+		FROM changes
+		JOIN -- … --
+		WHERE sequence_number > :since
+		ORDER BY sequence_number ASC
+		LIMIT 0, 100;
+
+    192.168.1.155
+    
+    
+Procedure
+---------
+ 1. Setup the Postgres database tables
+ 
+ 	a. Create this table:  documents
+ 	   NOTE:  The "serial" type causes a few things to happeN:
+ 	            a) It creates a sequence called "documents_id_seq"
+ 	            b) It causes the id column to use the default value of the sequence
+ 	                   create table documents
+ 	                    (
+ 	                   		id INT NOT NULL DEFAULT NEXTVAL('documents_id_seq'), 
+ 	       					...
+ 	       				);
+ 	       				
+ 	       				
+ 	
+			CREATE TABLE documents
+			(
+			  id      serial,
+			  title   varchar(50) not null,
+			  author  varchar(50) not null,
+			  summary varchar(50) null,
+			  primary key(id)
+			);
+
+ 		
+ 	b. Create this table:  changes
+
+			CREATE TYPE changetype AS ENUM('create','delete','update');
+			CREATE TABLE changes
+			(
+			  id      serial,
+			  docid   int not null,
+		      type    changetype NOT NULL
+			);
+
+ 
+  	c. Add some sample records to the documents and changes tables
+ 			insert into documents(title, author) values('The Wizard of Oz', 'someone');
+ 			insert into documents(title, author) values('Hitchhiker''s Guide to the Galaxy', 'Douglas Adams');
+ 			insert into changes(docid, type) values(1, 'create');
+ 			insert into changes(docid, type) values(2, 'create');
+ 			
+ 
+ 
+ 2. Setup a mapping in ElasticSearch called docs
+ 	a. Startup Chrome
+ 	b. Startup the "Sense" plugin
+ 	c. Run the following commands:	
+	 
+		1) Delete the index called "docs"
+	    	DELETE /docs
+	
+	
+	 	2) Create a mappings for the index called "docs"
+		    PUT /docs
+	    	{
+		       "mappings": {
+		          "record": {
+		             "properties": {
+		                "title": {
+		                   "type": "string",
+		                   "analyzer": "snowball",
+		                   "copy_to": "search_text" 
+		                },
+		                "type": {
+		                   "type": "string",
+		                   "index": "not_analyzed"
+		                },
+		                "createDate": {
+		                   "type": "string",
+		                   "index": "not_analyzed"
+		                },
+		                "description": {
+		                   "type": "string",
+		                   "analyzer": "snowball",
+		                   "copy_to": "search_text" 
+		                },
+		                "search_text": {
+		                   "type": "string",
+		                   "analyzer": "standard"
+		                }
+		             }
+		          }
+		       }
+		    }
+ 
+ 
+ 3. Create this Java program that will process 1000 records from the changes table (queue)
+ 
+// Our worker, scheduled to run every N minutes.
+// It will read 1000 entries off the queue, issue a single batch request
+// to elasticsearch, and repeat if more items are still on the queue
+class QueueWorker < Worker {
+  function work() {
+    errorCount = 0;
+    // Transactionally reserve 1000 entries at a time, but don't delete them from the queue yet
+    // The entries will be only be fully deleted once the bulk operation has successfully completed
+    while ((queue_entries = Queue.reserve(limit: 1000)) && records.length > 0) {
+      try {
+        // In this example we will build up the JSON-like body for the 
+        // elasticsearch queue API request. It consists of newline separated
+        // JSON documents comprising action metadata, and document values
+        bulk_body = "";
+        record_class = Class.named(queue_entry.record_type);
+        i = 0;  
+        queue_entries.each(function (queue_entry) {
+          i++;
+          record = record_class.find(id: queue_entry.record_id);
+       
+          // Note, a production ready version of this code would double-check that the document still exists
+          // and would create a bulk delete request if the record was no longer present
+          action_metadata = {index: {
+                              _index: record_class.elasticsearch_index,
+                              _type: record_class.elasticsearch_type,
+                              _id: record.id}}
+       
+          bulk_body += "\n" unless i == 1;
+          bulk_body += encode_json(action_metadata);
+          bulk_body += "\n";            
+          bulk_body += encode_json(record);
+        });
+        
+        bulk_body += "\n"; // The bulk API requires termination by a newline  
+        http_client.post("http://host.for.elasticsearch:9200/_bulk", body: bulk_body);
+        // Now that we're sure processing has succeeded we can fully delete the queue entries
+        queue_entries.delete
+      } catch (StandardError ex) {
+        queue_entries.unreserve;
+        
+        // Simply let the while loop retry up to 5 times.
+        errorCount += 1
+        if (errorCount >= 5) {
+          throw(CannotReplicateElasticsearchError);
+        } else {
+          Logger.warn("Error processing elasticsearchqueue, will retry. Attempt: $errorCount", ex)
+        }
+      }
+    }
+  }
+}
+ 
+ 4. Query against the ElasticSearch index (there should be no records)
+ 
+ 
+ 5. Run the Java Program
+ 
+ 
+ 6. Query against the ElasticSearch index (there should be a few records)
+ 
