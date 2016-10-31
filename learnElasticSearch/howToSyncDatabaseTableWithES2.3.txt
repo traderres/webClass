@@ -361,109 +361,159 @@ Part 2:  Create this Java program that will process 1000 records from the change
        
     b. Copy this to to your java class
     
-package stuff;
-
-import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
-import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.indices.IndexAlreadyExistsException;
-import org.elasticsearch.search.SearchHit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.jdbc.core.JdbcTemplate;
-
-import javax.sql.DataSource;
-
-import static org.elasticsearch.common.xcontent.XContentFactory.*;
-
-import java.util.HashMap;
-import java.util.Map;
-
-/**
- * SyncRecords
- *
- */
-public class SyncRecords
-{
-    public static final Logger logger = LoggerFactory.getLogger(SyncRecords.class);
-
-    public static void main( String[] args ) throws Exception
-    {
-        logger.debug("main() started");
-
-        // Connect to the ElasticSearch instance and return the client
-        Client esClient = EsClientSingleton.INSTANCE.getEsClient();
-
-        // Connect to the Postgres DataSource instance and return the data source object
-        DataSource datasource = PostgresSingleton.INSTANCE.getDataSource();
-
-
-        // Reserve 1000 entries at a time
-        final String sSql = "select id, title, author from documents for update where ro
-
-//     //   syncDatabaseWithElasticSearchIndex(esClient, datasource);
-//
-//        final String ES_INDEX_NAME = "docs";
-//
-//
-//        // A T T E M P T      T O     C R E A T E      I N D E X    (within ElasticSearch)
-//        try
-//        {
-//            // Create an index called "music"
-//            logger.debug("Attempting create the index called '{}'....", ES_INDEX_NAME);
-//            Settings indexSettings = Settings.builder()
-//                    .put("number_of_shards", 1)
-//                    .put("number_of_replicas", 1)
-//                    .build();
-//            CreateIndexRequest indexRequest = new CreateIndexRequest(ES_INDEX_NAME, indexSettings);
-//            CreateIndexResponse res = esClient.admin().indices().create(indexRequest).actionGet();
-//            if (! res.isAcknowledged())
-//            {
-//                logger.error("I failed to create this index:  {}", ES_INDEX_NAME);
-//            }
-//        }
-//        catch (IndexAlreadyExistsException alreadyExistsException)
-//        {
-//            // Ignore this exception
-//            logger.debug("Ignoring IndexAlreadyExistsException that was raised.");
-//        }
-//
-//        IndexResponse res;
-//
-//
-//        // Add Record Approach #1:  Use a HashMap
-//        Map<String, Object> jsonMap = new HashMap<String, Object>();
-//        jsonMap.put("createDate", "02/25/2016");
-//        jsonMap.put("description", "This is the description for record #1");
-//        jsonMap.put("author", "Adam");
-//
-//        // Create the record and set _type="record" and _id="1"
-//        // NOTE:  By setting the ID you can only create this record once.  Calling it multiple times does not add additional records
-//        IndexRequest indexRequest = new IndexRequest(ES_INDEX_NAME, "record", "1")
-//                .source(jsonMap);
-//        res = esClient.index(indexRequest).actionGet();
-//        logger.debug("After adding record #1. res.isCreated={}  res.getId()={}", res.isCreated(), res.getId());
-//
-//
-//
-//        // Search for the records  (you should get 4 hits)
-//        SearchResponse searchResponse =
-//                esClient.prepareSearch(ES_INDEX_NAME).setTypes("record").execute().actionGet();
-//        SearchHit[] hits = searchResponse.getHits().getHits();
-//        logger.debug("After running search.  hits.length={}", hits.length);
-//
-
-
-        // esClient.admin().indices();
-        logger.debug("main() finished");
-    }
-
-
-}
+		package stuff;
+		
+		import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+		import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
+		import org.elasticsearch.action.bulk.BulkItemRequest;
+		import org.elasticsearch.action.bulk.BulkRequestBuilder;
+		import org.elasticsearch.action.index.IndexRequest;
+		import org.elasticsearch.action.index.IndexResponse;
+		import org.elasticsearch.action.search.SearchResponse;
+		import org.elasticsearch.client.Client;
+		import org.elasticsearch.common.settings.Settings;
+		import org.elasticsearch.indices.IndexAlreadyExistsException;
+		import org.elasticsearch.search.SearchHit;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import org.springframework.jdbc.core.JdbcTemplate;
+		import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+		import org.springframework.jdbc.support.rowset.SqlRowSet;
+		import org.springframework.transaction.TransactionStatus;
+		import org.springframework.transaction.support.TransactionCallbackWithoutResult;
+		import org.springframework.transaction.support.TransactionTemplate;
+		
+		import javax.sql.DataSource;
+		
+		import static org.elasticsearch.common.xcontent.XContentFactory.*;
+		
+		import java.util.ArrayList;
+		import java.util.HashMap;
+		import java.util.Map;
+		
+		/**
+		 * SyncRecords
+		 *
+		 */
+		public class SyncRecords
+		{
+		    public static final Logger logger = LoggerFactory.getLogger(SyncRecords.class);
+		
+		    public static void main( String[] args ) throws Exception
+		    {
+		        logger.debug("main() started");
+		
+		        final int TOTAL_RECORDS_TO_PROCESS_AT_ONCE = 3;
+		
+		        // Connect to the ElasticSearch instance and return the client
+		        final Client esClient = EsClientSingleton.INSTANCE.getEsClient();
+		
+		        // Connect to the Postgres DataSource instance and return the data source object
+		        final DataSource datasource = PostgresSingleton.INSTANCE.getDataSource();
+		
+		
+		
+		
+		        TransactionTemplate tt = new TransactionTemplate();
+		        tt.setTransactionManager(new DataSourceTransactionManager(ds));
+		
+		        // This transaction will throw a TransactionTimedOutException after 60 seconds (causing the transaction to rollback)
+		        tt.setTimeout(120);
+		
+		        tt.execute(new TransactionCallbackWithoutResult()
+		        {
+		            protected void doInTransactionWithoutResult(TransactionStatus aStatus)
+		            {
+		                try
+		                {
+		                    ArrayList<String> changeIds = new ArrayList<String>();
+		
+		                    BulkRequestBuilder bulkRequestBuilder = esClient.prepareBulk();
+		
+		                    // Reserve 1000 entries at a time
+		                    // NOTE:  If another process calls select...for update, then that other process is blocked until this transaction is finished
+		                    //        If another process calls delete on these ids, then that other process is blocked until this transaction is finished
+		                    //        If another process calls select...., then that other process can see the records
+		                    final String sSql = "select id, docid, type " +
+		                                        "from changes " +
+		                                        "where id IN " +
+		                                        "(select id from changes limit " + TOTAL_RECORDS_TO_PROCESS_AT_ONCE + ") " +
+		                                        "order by id " +
+		                                        "FOR UPDATE";
+		
+		                    // Run the query, get a read-only recordset, and return the connection back to the pool
+		                    JdbcTemplate jt = new JdbcTemplate(datasource);
+		                    SqlRowSet rs = jt.queryForRowSet(sSql);
+		
+		                    // Loop through the read-only recordset
+		                    while (rs.next())
+		                    {
+		                        String sChangeId = rs.getString("id");
+		                        String sDocid = rs.getString("docid");
+		                        String sChangeType = rs.getString("type");
+		
+		                        changeIds.add(sChangeId);
+		
+		                        if (sChangeType.equalsIgnoreCase("CREATE"))
+		                        {
+		                            // Add a new document to ElasticSearch
+		                            // 1) Get a hashmap of information about this document (from the documents table)
+		                            // 2) Generate a JSON string from this info
+		                            // 3) Append the JSON string to the big JSON post
+		
+		                            // Add Record Approach #1:  Use a HashMap
+		                            Map<String, Object> jsonMap = new HashMap<String, Object>();
+		                            jsonMap.put("createDate", "02/25/2016");
+		                            jsonMap.put("description", "This is the description for record #1");
+		                            jsonMap.put("author", "Adam");
+		
+		                            // Create the record and set _type="record" and _id="1"
+		                            // NOTE:  By setting the ID you can only create this record once.  Calling it multiple times does not add additional records
+		                            IndexRequest indexRequest = new IndexRequest(ES_INDEX_NAME, "record", "1")
+		                                    .source(jsonMap);
+		                            BulkItemRequest
+		
+		                        }
+		                        else if (sChangeType.equalsIgnoreCase("UPDATE"))
+		                        {
+		                            // Update an existing document within ElasticSearch
+		
+		                        }
+		                        else if (sChangeType.equalsIgnoreCase("DELETE"))
+		                        {
+		                            // Delete an existing document within ElasticSearch
+		                        }
+		
+		
+		
+		                        logger.debug("After adding record #1. res.isCreated={}  res.getId()={}", res.isCreated(), res.getId());
+		                    }
+		
+		                    // Make a large POST call to index all of the records
+		
+		                    // Construct a large SQL call to delete all of these records from the changes table
+		
+		
+		                    // Commit the transaction if I get to the end of this method
+		                }
+		                catch(Exception e)
+		                {
+		                    // Rollback the transaction by calling setRollbackOnly() or by throwing a RuntimeException
+		                    RuntimeException re = new RuntimeException("Exception occurred, rolling back transaction", e);
+		                    re.setStackTrace(e.getStackTrace() );
+		                    throw re;
+		                }
+		            }
+		        });
+		
+		
+		
+		        // esClient.admin().indices();
+		        logger.debug("main() finished");
+		    }
+		
+		
+		}
 		    
 		 
 // Our worker, scheduled to run every N minutes.
