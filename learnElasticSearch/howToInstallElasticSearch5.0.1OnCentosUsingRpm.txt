@@ -1,0 +1,197 @@
+How to Install Elastic Search 5.0.1 on CentOS (using the RPM)
+-------------------------------------------------------------
+
+Advantages of using the rpm package to install ElasticSearch
+ 1) It will create an elasticsearch group
+ 2) It will create an elasticsearch user 
+ 3) it will create an elasticsearch service
+
+
+Disadvantages of using the rpm package to install ElasticSearch
+ 1) it installs the files to
+      /usr/share/elasticsearch
+ 2) The config files are located here:
+      /etc/elasticsearch/logging.yml
+      /etc/elasticsearch/elasticsearch.yml
+      /etc/sysconfig/elasticsearch
+ 3) logging is stored here:
+     /var/log/elasticsearch
+ 4) data directory is here:
+     /var/lib/elasticsearch
+     
+NOTES:
+ A) Default directory values (for the elasticsearch service) are in this file:          
+      /etc/rc.d/init.d/elasticsearch has default directories
+ B) You can override these values by modifying this file:  
+      /etc/sysconfig/elasticsearch     
+
+
+
+References
+----------
+https://www.digitalocean.com/community/tutorials/how-to-install-and-configure-elasticsearch-on-centos-7
+
+
+
+Assumptions
+ A) You have a Java JDk installed and in your PATH
+ 
+ 
+
+Procedures
+----------
+ 1. **OPTIONAL** open-up port 9200, 9300, and 54328 so that an outside machine can connect to ElasticSearch
+    unix> sudo -s
+    unix> iptables -I INPUT -p tcp -m tcp --dport 9200 -j ACCEPT
+    unix> iptables -I INPUT -p tcp -m tcp --dport 9300 -j ACCEPT
+    unix> iptables -I INPUT -p tcp -m tcp --dport 54328 -j ACCEPT    
+    unix> service iptables save
+    unix> service iptables restart
+
+    # List the current iptables rule (you should see a rule for port 9200)
+    unix> iptables -S
+
+
+ 2. Download the Elastic Search 5.0.1 rpm package to your unix box
+    unix> cd /tmp
+    unix> wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.0.1.rpm
+     
+       
+ 
+ 3. Install Elastic Search 5.0.1 (using the rpm)
+    unix> cd /tmp
+    unix> sudo rpm -ivh elasticsearch-5.0.1.rpm
+    unix> rm /tmp/elasticsearch-5.0.1.rpm
+    
+      
+
+ 4. Verify that we have an elasticsearch user and group
+    unix> grep elasticsearch /etc/passwd
+    elasticsearch:x:494:491:elasticsearch user:/home/elasticsearch:/sbin/nologin
+       
+    unix> grep elasticsearch /etc/group
+    elasticsearch:x:491:
+      
+      
+ 
+ 5. Configure ElasticSearch service so that it knows where the JAVA_HOME is
+    unix> sudo vi /etc/sysconfig/elasticsearch
+    
+        # Tell ElasticSearch where your JAVA_HOME is
+        JAVA_HOME=/usr/java/jdk1.8.0_74
+
+           
+ 
+ 6. Conifugre ElasticSearch to bind to a localhost *and* public-facing IP address
+    unix> sudo vi /etc/elasticsearch/elasticsearch.yml
+    
+		network.bind_host: "0.0.0.0"
+    
+ 
+ 7. Setup your elasticsearch user so that its open file limit is 65536 or more
+    NOTE:  If this is not set, 
+    		then you will get an error in /var/log/elasticsearch.log
+				bootstrap checks failed
+				max file descriptors [1024] for elasticsearch process is too low, increase to at least [65536]
+
+      unix> sudo -s
+      unix> vi /etc/security/limits.conf
+           
+             # Setup the elasticsearch user so that it can have 65536 open files
+             elasticsearch -     nofile 65536
+      
+      
+      
+ 8. Setup your elasticsearch user so that its max thread limit is 2048 or more
+    NOTE:  If this is not set, 
+    		then you will get an error in /var/log/elasticsearch.log
+				bootstrap checks failed
+				max number of threads [1024] for user [elasticsearch] is too low, increase to at least [2048]
+
+      unix> sudo -s
+      unix> vi /etc/security/limits.conf
+           
+             # Setup the elasticsearch user so that it can have up to 2048 threads
+             elasticsearch -     nproc 2048
+      
+ 
+    
+ 9. Attempt to start the elasticsearch service
+    unix> sudo service elasticsearch start
+    Starting elasticsearch:                                    [  OK  ]
+    
+    
+ 
+10. Look at the log files to see what's happening
+    unix> sudo tail -2000f /var/log/elasticsearch/elasticsearch.log 
+    
+	[2016-11-20T16:47:01,716][INFO ][o.e.n.Node               ] [] initializing ...
+	[2016-11-20T16:47:01,798][INFO ][o.e.e.NodeEnvironment    ] [q6kqqlh] using [1] data paths, mounts [[/ (/dev/mapper/vg_centosvm-lv_root)]], net usable_space [14.9gb], net total_space [34.9gb], spins? [possibly], types [ext4]
+	[2016-11-20T16:47:01,798][INFO ][o.e.e.NodeEnvironment    ] [q6kqqlh] heap size [1.9gb], compressed ordinary object pointers [true]
+	[2016-11-20T16:47:01,799][INFO ][o.e.n.Node               ] [q6kqqlh] node name [q6kqqlh] derived from node ID; set [node.name] to override
+	[2016-11-20T16:47:01,800][INFO ][o.e.n.Node               ] [q6kqqlh] version[5.0.1], pid[7737], build[080bb47/2016-11-11T22:08:49.812Z], OS[Linux/2.6.32-573.18.1.el6.x86_64/amd64], JVM[Oracle Corporation/Java HotSpot(TM) 64-Bit Server VM/1.8.0_74/25.74-b02]
+	[2016-11-20T16:47:02,458][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [aggs-matrix-stats]
+	[2016-11-20T16:47:02,458][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [ingest-common]
+	[2016-11-20T16:47:02,458][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [lang-expression]
+	[2016-11-20T16:47:02,458][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [lang-groovy]
+	[2016-11-20T16:47:02,458][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [lang-mustache]
+	[2016-11-20T16:47:02,458][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [lang-painless]
+	[2016-11-20T16:47:02,458][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [percolator]
+	[2016-11-20T16:47:02,459][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [reindex]
+	[2016-11-20T16:47:02,459][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [transport-netty3]
+	[2016-11-20T16:47:02,459][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [transport-netty4]
+	[2016-11-20T16:47:02,459][INFO ][o.e.p.PluginsService     ] [q6kqqlh] no plugins loaded
+	[2016-11-20T16:47:04,446][INFO ][o.e.n.Node               ] [q6kqqlh] initialized
+	[2016-11-20T16:47:04,446][INFO ][o.e.n.Node               ] [q6kqqlh] starting ...
+	[2016-11-20T16:47:04,600][INFO ][o.e.t.TransportService   ] [q6kqqlh] publish_address {127.0.0.1:9300}, bound_addresses {[::]:9300}
+	[2016-11-20T16:47:04,604][INFO ][o.e.b.BootstrapCheck     ] [q6kqqlh] bound or publishing to a non-loopback or non-link-local address, enforcing bootstrap checks
+	  
+		  
+       
+11. Install the "Sense" extension for Chrome
+    a. Startup the Chrome Browser
+    b. Go to https://chrome.google.com/webstore/search/sense%20elasticsearch?hl=en-US
+    c. Next to Sense, press "Add to Chrome"
+    d. Press "Add extension"
+    e. Adjust Chrome so that Sense runs in "incognito" mode
+       Click on the menu button [on the far right] -> Settings
+       Click on Extensions [on the left]
+       Scroll down to "Sense" and check-off "Allow in incognito"
+   
+       NOTE:  You should see the "Sense" icon next to the url
+
+
+12. Verify the "Sense" extension works
+    a. Startup ElasticSearch
+    b. Startup the Chrome Browser
+    c. Inside Chrome, click on the "Sense" iccon
+       
+       Server:  localhost:9200
+   
+       GET _cluster/health
+       
+    d. Press the Play Button
+
+       You should see something like this:
+       {
+          "cluster_name": "elasticsearch",
+          "status": "green",
+          "timed_out": false,
+          "number_of_nodes": 1,
+          "number_of_data_nodes": 1,
+          "active_primary_shards": 0,
+          "active_shards": 0,
+          "relocating_shards": 0,
+          "initializing_shards": 0,
+          "unassigned_shards": 0,
+          "delayed_unassigned_shards": 0,
+          "number_of_pending_tasks": 0,
+          "number_of_in_flight_fetch": 0
+       }
+ 
+
+How to Uninstall this RPM
+--------------------------
+unix> sudo rpm -e elasticsearch
+
+       
