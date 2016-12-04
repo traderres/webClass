@@ -1,0 +1,599 @@
+How to Sync a Postgres Database Table w/ElasticSearch 2.3.3 Index 
+-----------------------------------------------------------------
+The database table holds the "record of truth" and as the database table is updated,
+we want to update an ElasticSearch index.  But, we do not want to do it in real-time
+
+As you add, modify, and delete records from the database table, 
+we want to *PERIODICALLY* add, modify, and delete records from the ElasticSearch index
+    
+    
+
+Assumptions:
+ A) You have an Elastic Search instance 2.3.3 up & listening at 192.168.1.157 on port 9200/9300
+    [see howToInstallElasticSearch2.3.3OnCentosUsingRpm.txt]
+    
+ B) You have a Postgres database table up & listening at 192.168.1.157 on port 5432
+    [see howToInstallPostgresOnCentOS.txt]
+
+
+**INCOMPLETE**
+
+
+References
+----------
+https://qafoo.com/blog/086_how_to_synchronize_a_database_with_elastic_search.html
+https://www.elastic.co/blog/found-keeping-elasticsearch-in-sync
+http://dba.stackexchange.com/questions/27688/locking-issue-with-concurrent-delete-insert-in-postgresql
+http://stackoverflow.com/questions/16920902/elasticsearch-java-bulk-batch-size
+
+    
+    
+Part 1:  Setup the Database Table and ElasticSearch Index
+----------------------------------------------------------
+ 1. Setup the Postgres database tables
+ 	a. Create this table:  documents
+ 	   NOTE:  The "serial" type causes a few things to happeN:
+ 	            a) It creates a sequence called "documents_id_seq"
+ 	            b) It causes the id column to use the default value of the sequence
+ 	                   create table documents
+ 	                    (
+ 	                   		id INT NOT NULL DEFAULT NEXTVAL('documents_id_seq'), 
+ 	       					...
+ 	       				);
+ 	       				
+ 	       				
+ 	
+			CREATE TABLE documents
+			(
+			  id      serial,
+			  title   varchar(50) not null,
+			  author  varchar(50) not null,
+			  summary varchar(50) null,
+			  primary key(id)
+			);
+
+ 		
+ 	b. Create this table:  changes
+
+			CREATE TYPE changetype AS ENUM('create','delete','update');
+			CREATE TABLE changes
+			(
+			  id      serial,
+			  docid   int not null,
+		      type    changetype NOT NULL
+			);
+
+ 
+  	c. Add some sample records to the documents and changes tables
+ 			insert into documents(title, author) values('The Wizard of Oz', 'someone');
+ 			insert into documents(title, author) values('Hitchhiker''s Guide to the Galaxy', 'Douglas Adams');
+ 			insert into changes(docid, type) values(1, 'create');
+ 			insert into changes(docid, type) values(2, 'create');
+ 			
+ 
+ 
+ 2. Setup a mapping in ElasticSearch called docs
+ 	a. Startup Chrome
+ 	b. Startup the "Sense" plugin
+ 	c. Run the following commands:	
+	 
+		1) Delete the index called "docs"
+	    	DELETE /docs
+	
+	
+	 	2) Create a mappings for the index called "docs"
+		    PUT /docs
+	    	{
+		       "mappings": {
+		          "record": {
+		             "properties": {
+		                "title": {
+		                   "type": "string",
+		                   "analyzer": "snowball",
+		                   "copy_to": "search_text" 
+		                },
+		                "type": {
+		                   "type": "string",
+		                   "index": "not_analyzed"
+		                },
+		                "createDate": {
+		                   "type": "string",
+		                   "index": "not_analyzed"
+		                },
+		                "description": {
+		                   "type": "string",
+		                   "analyzer": "snowball",
+		                   "copy_to": "search_text" 
+		                },
+		                "search_text": {
+		                   "type": "string",
+		                   "analyzer": "standard"
+		                }
+		             }
+		          }
+		       }
+		    }
+ 
+
+
+Part 2:  Create this Java program that will process 1000 records from the changes table 
+--------------------------------------------------------------------------------------- 
+ 1. Create a Java command-line project
+    [see learnJava / howToCreateJavaCommandLineProgramUsingIntellijMaven.txt]
+ 
+ 
+ 2. Add these dependencies to your pom.xml
+
+
+      <dependency>
+          <!-- WARNING:  The ElasticSearch java client should match the ElasticSearch instance version -->
+          <groupId>org.elasticsearch</groupId>
+          <artifactId>elasticsearch</artifactId>
+          <version>2.3.3</version>
+      </dependency>
+
+       <dependency>
+           <!-- Spring Core -->
+          <groupId>org.springframework</groupId>
+          <artifactId>spring-core</artifactId>
+          <version>4.1.1.RELEASE</version>
+          <exclusions>
+              <exclusion>
+                  <groupId>commons-logging</groupId>
+                  <artifactId>commons-logging</artifactId>
+              </exclusion>
+          </exclusions>
+      </dependency>
+
+      <dependency>
+          <!-- Used to get the Spring JDBC Single Connection Data Source -->
+          <groupId>org.springframework</groupId>
+          <artifactId>spring-jdbc</artifactId>
+          <version>4.1.1.RELEASE</version>
+      </dependency>
+
+      <dependency>
+          <!-- Add the dependency for your postgreSQL driver -->
+          <groupId>postgresql</groupId>
+          <artifactId>postgresql</artifactId>
+          <version>9.1-901-1.jdbc4</version>
+      </dependency>
+
+      <dependency>
+          <!-- Bridge Logging from Java Common Logging to SLF4J -->
+          <groupId>org.slf4j</groupId>
+          <artifactId>jcl-over-slf4j</artifactId>
+          <version>1.7.5</version>
+      </dependency>
+
+      <dependency>
+          <!-- Logback is our SLF4j logging implementation -->
+          <groupId>ch.qos.logback</groupId>
+          <artifactId>logback-classic</artifactId>
+          <version>1.0.13</version>
+      </dependency>
+      
+
+ 3. Update your logback.xml file to look like this:
+    a. Edit /src/main/resources/logback.xml
+    b. Replace your logback.xml with this:
+    
+		<?xml version="1.0" encoding="windows-1252" ?>
+		<!DOCTYPE project>
+		
+		<configuration debug="false">
+		    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+		        <encoder>
+		            <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+		        </encoder>
+		    </appender>
+		
+		
+		    <logger name="stuff" level="DEBUG" additivity="false">
+		        <appender-ref ref="CONSOLE"/>
+		    </logger>
+		
+		    <logger name="org.elasticsearch" level="INFO" additivity="false">
+		        <appender-ref ref="CONSOLE"/>
+		    </logger>
+		
+		    <logger name="org.springframework.jdbc" level="DEBUG" additivity="false">
+		        <appender-ref ref="CONSOLE"/>
+		    </logger>
+		
+		    <root level="INFO">
+		        <appender-ref ref="CONSOLE"/>
+		    </root>
+		
+		</configuration>
+              
+ 
+ 4. Create a package called "stuff"
+    a. Right-click on /src/main/java -> New -> Package
+       Name:  Stuff
+       
+ 
+ 5. Create this class:  EsClientSingleton
+    a. Right-click on /src/main/java/stuff -> New -> Java Class
+       Name:  EsClientSingleton
+       Kind:  Class
+       Press OK
+       
+    b. Copy this to to your java class
+		    
+		package stuff;
+		
+		import org.elasticsearch.client.Client;
+		import org.elasticsearch.client.transport.TransportClient;
+		import org.elasticsearch.common.transport.InetSocketTransportAddress;
+		import java.net.InetAddress;
+		
+		/**
+		 * Created by adam on 6/25/16.
+		 */
+		public enum EsClientSingleton
+		{
+		    INSTANCE;
+		
+		    private Client esClient;
+		
+		    /******************************************************************
+		     * Private EsClientSingleton Constructor
+		     * -- Do one-time initialization here
+		     *******************************************************************/
+		    private EsClientSingleton()
+		    {
+		        // The very first time this singleton is called, we will initialize the ES Client
+		        initializeEsClientNoException();
+		    }
+		
+		
+		    /******************************************************************
+		     * initializeEsClientNoException()
+		     * -- Attempt to connect to the ElasticSearch Instance
+		     *******************************************************************/
+		    private void initializeEsClientNoException()
+		    {
+		        try {
+		            // Connect to the ElasticSearch instance using port 9300  [it's a binary protocol]
+		            // NOTE:  The java client does not connect to port 9200
+		            InetAddress addrEsHostname = InetAddress.getByName("192.168.1.157");
+
+		
+		            esClient = TransportClient.builder().build()
+		                    .addTransportAddress(new InetSocketTransportAddress(addrEsHostname, 9300));
+		        }
+		        catch (Exception e)
+		        {
+		            // Convert the exception to a RunTime exception
+		            RuntimeException re = new RuntimeException(e);
+		            re.setStackTrace(e.getStackTrace());
+		            throw re;
+		        }
+		
+		    }
+		
+		    public Client getEsClient()
+		    {
+		        return esClient;
+		    }
+		}
+
+
+				
+ 6. Create this class:  PostgresSingleton
+    a. Right-click on /src/main/java/stuff -> New -> Java Class
+       Name:  PostgresSingleton
+       Kind:  Class
+       Press OK
+       
+    b. Copy this to to your java class
+    
+		package stuff;
+		
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import org.springframework.jdbc.core.JdbcTemplate;
+		import org.springframework.jdbc.datasource.SingleConnectionDataSource;
+		
+		import javax.sql.DataSource;
+		
+		/**
+		 * Created by adam on 10/30/2016.
+		 */
+		public enum PostgresSingleton
+		{
+		    INSTANCE;
+		
+		    private DataSource datasource;
+		
+		    /******************************************************************
+		     * Private PostgresSingleton Constructor
+		     * -- Do one-time initialization here
+		     *******************************************************************/
+		    private PostgresSingleton()
+		    {
+		        // The very first time this singleton is called, we will initialize the data source by attempting to run a query
+		        initializeDataSourceNoException();
+		    }
+		
+		
+		    /******************************************************************
+		     * initializeDataSourceNoException()
+		     * -- Attempt to connect to the Postgres Data Source
+		     *******************************************************************/
+		    private void initializeDataSourceNoException()
+		    {
+		        try {
+		            // Create the data source object
+		            SingleConnectionDataSource sds = (SingleConnectionDataSource) new SingleConnectionDataSource();
+		
+		            // Initialize the data source by setting its properties
+		            sds.setDriverClassName("org.postgresql.Driver");
+		            sds.setUrl("jdbc:postgresql://192.168.1.157:5432/postgres");
+		            sds.setUsername("postgres");
+		            sds.setPassword("secret");
+		
+		            this.datasource = sds;
+		
+		            JdbcTemplate jt = new JdbcTemplate(sds);
+		            final String sSql = "select now()";
+		            String sCurrentDateTime = jt.queryForObject(sSql, String.class);
+		        }
+		        catch (Exception e)
+		        {
+		            // Convert the exception to a RunTime exception
+		            RuntimeException re = new RuntimeException(e);
+		            re.setStackTrace(e.getStackTrace());
+		            throw re;
+		        }
+		
+		    }
+		
+		    public DataSource getDataSource()
+		    {
+		        return datasource;
+		    }
+		}
+		 
+ 7. Create this class:  SyncRecords
+    a. Right-click on /src/main/java/stuff -> New -> Java Class
+       Name:  SyncRecords
+       Kind:  Class
+       Press OK
+       
+    b. Copy this to to your java class
+    
+		package stuff;
+		
+		import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+		import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
+		import org.elasticsearch.action.bulk.BulkItemRequest;
+		import org.elasticsearch.action.bulk.BulkRequestBuilder;
+		import org.elasticsearch.action.index.IndexRequest;
+		import org.elasticsearch.action.index.IndexResponse;
+		import org.elasticsearch.action.search.SearchResponse;
+		import org.elasticsearch.client.Client;
+		import org.elasticsearch.common.settings.Settings;
+		import org.elasticsearch.indices.IndexAlreadyExistsException;
+		import org.elasticsearch.search.SearchHit;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import org.springframework.jdbc.core.JdbcTemplate;
+		import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+		import org.springframework.jdbc.support.rowset.SqlRowSet;
+		import org.springframework.transaction.TransactionStatus;
+		import org.springframework.transaction.support.TransactionCallbackWithoutResult;
+		import org.springframework.transaction.support.TransactionTemplate;
+		
+		import javax.sql.DataSource;
+		
+		import static org.elasticsearch.common.xcontent.XContentFactory.*;
+		
+		import java.util.ArrayList;
+		import java.util.HashMap;
+		import java.util.Map;
+		
+		/**
+		 * SyncRecords
+		 *
+		 */
+		public class SyncRecords
+		{
+		    public static final Logger logger = LoggerFactory.getLogger(SyncRecords.class);
+		
+		    public static void main( String[] args ) throws Exception
+		    {
+		        logger.debug("main() started");
+		
+		        final int TOTAL_RECORDS_TO_PROCESS_AT_ONCE = 3;
+		
+		        // Connect to the ElasticSearch instance and return the client
+		        final Client esClient = EsClientSingleton.INSTANCE.getEsClient();
+		
+		        // Connect to the Postgres DataSource instance and return the data source object
+		        final DataSource datasource = PostgresSingleton.INSTANCE.getDataSource();
+		
+		
+		
+		
+		        TransactionTemplate tt = new TransactionTemplate();
+		        tt.setTransactionManager(new DataSourceTransactionManager(ds));
+		
+		        // This transaction will throw a TransactionTimedOutException after 60 seconds (causing the transaction to rollback)
+		        tt.setTimeout(120);
+		
+		        tt.execute(new TransactionCallbackWithoutResult()
+		        {
+		            protected void doInTransactionWithoutResult(TransactionStatus aStatus)
+		            {
+		                try
+		                {
+		                    ArrayList<String> changeIds = new ArrayList<String>();
+		
+		                    BulkRequestBuilder bulkRequestBuilder = esClient.prepareBulk();
+		
+		                    // Reserve 1000 entries at a time
+		                    // NOTE:  If another process calls select...for update, then that other process is blocked until this transaction is finished
+		                    //        If another process calls delete on these ids, then that other process is blocked until this transaction is finished
+		                    //        If another process calls select...., then that other process can see the records
+		                    final String sSql = "select id, docid, type " +
+		                                        "from changes " +
+		                                        "where id IN " +
+		                                        "(select id from changes limit " + TOTAL_RECORDS_TO_PROCESS_AT_ONCE + ") " +
+		                                        "order by id " +
+		                                        "FOR UPDATE";
+		
+		                    // Run the query, get a read-only recordset, and return the connection back to the pool
+		                    JdbcTemplate jt = new JdbcTemplate(datasource);
+		                    SqlRowSet rs = jt.queryForRowSet(sSql);
+		
+		                    // Loop through the read-only recordset
+		                    while (rs.next())
+		                    {
+		                        String sChangeId = rs.getString("id");
+		                        String sDocid = rs.getString("docid");
+		                        String sChangeType = rs.getString("type");
+		
+		                        changeIds.add(sChangeId);
+		
+		                        if (sChangeType.equalsIgnoreCase("CREATE"))
+		                        {
+		                            // Add a new document to ElasticSearch
+		                            // 1) Get a hashmap of information about this document (from the documents table)
+		                            // 2) Generate a JSON string from this info
+		                            // 3) Append the JSON string to the big JSON post
+		
+		                            // Add Record Approach #1:  Use a HashMap
+		                            Map<String, Object> jsonMap = new HashMap<String, Object>();
+		                            jsonMap.put("createDate", "02/25/2016");
+		                            jsonMap.put("description", "This is the description for record #1");
+		                            jsonMap.put("author", "Adam");
+		
+		                            // Create the record and set _type="record" and _id="1"
+		                            // NOTE:  By setting the ID you can only create this record once.  Calling it multiple times does not add additional records
+		                            IndexRequest indexRequest = new IndexRequest(ES_INDEX_NAME, "record", "1")
+		                                    .source(jsonMap);
+		                            BulkItemRequest
+		
+		                        }
+		                        else if (sChangeType.equalsIgnoreCase("UPDATE"))
+		                        {
+		                            // Update an existing document within ElasticSearch
+		
+		                        }
+		                        else if (sChangeType.equalsIgnoreCase("DELETE"))
+		                        {
+		                            // Delete an existing document within ElasticSearch
+		                        }
+		
+		
+		
+		                        logger.debug("After adding record #1. res.isCreated={}  res.getId()={}", res.isCreated(), res.getId());
+		                    }
+		
+		                    // Execute Bulk Request to re-index lots of documents
+		                    // (or make large POST call to re-index records)
+		                    
+		
+		                    // Construct a large SQL call to delete all of these records from the changes table
+		
+		
+		                    // Commit the transaction if I get to the end of this method
+		                }
+		                catch(Exception e)
+		                {
+		                    // Rollback the transaction by calling setRollbackOnly() or by throwing a RuntimeException
+		                    RuntimeException re = new RuntimeException("Exception occurred, rolling back transaction", e);
+		                    re.setStackTrace(e.getStackTrace() );
+		                    throw re;
+		                }
+		            }
+		        });
+		
+		
+		
+		        // esClient.admin().indices();
+		        logger.debug("main() finished");
+		    }
+		
+		
+		}
+		    
+		 
+// Our worker, scheduled to run every N minutes.
+// It will read 1000 entries off the queue, issue a single batch request
+// to elasticsearch, and repeat if more items are still on the queue
+class QueueWorker < Worker {
+  function work() {
+    errorCount = 0;
+    // Transactionally reserve 1000 entries at a time, but don't delete them from the queue yet
+    // The entries will be only be fully deleted once the bulk operation has successfully completed
+    while ((queue_entries = Queue.reserve(limit: 1000)) && records.length > 0) {
+      try {
+        // In this example we will build up the JSON-like body for the 
+        // elasticsearch queue API request. It consists of newline separated
+        // JSON documents comprising action metadata, and document values
+        bulk_body = "";
+        record_class = Class.named(queue_entry.record_type);
+        i = 0;  
+        queue_entries.each(function (queue_entry) {
+          i++;
+          record = record_class.find(id: queue_entry.record_id);
+       
+          // Note, a production ready version of this code would double-check that the document still exists
+          // and would create a bulk delete request if the record was no longer present
+          action_metadata = {index: {
+                              _index: record_class.elasticsearch_index,
+                              _type: record_class.elasticsearch_type,
+                              _id: record.id}}
+       
+          bulk_body += "\n" unless i == 1;
+          bulk_body += encode_json(action_metadata);
+          bulk_body += "\n";            
+          bulk_body += encode_json(record);
+        });
+        
+        bulk_body += "\n"; // The bulk API requires termination by a newline  
+        http_client.post("http://host.for.elasticsearch:9200/_bulk", body: bulk_body);
+        // Now that we're sure processing has succeeded we can fully delete the queue entries
+        queue_entries.delete
+      } catch (StandardError ex) {
+        queue_entries.unreserve;
+        
+        // Simply let the while loop retry up to 5 times.
+        errorCount += 1
+        if (errorCount >= 5) {
+          throw(CannotReplicateElasticsearchError);
+        } else {
+          Logger.warn("Error processing elasticsearchqueue, will retry. Attempt: $errorCount", ex)
+        }
+      }
+    }
+  }
+}
+ 
+ 
+ 
+ 
+ 
+ 
+Part 3:  Run the program
+------------------------
+ 1. Query against the ElasticSearch index (there should be no records)
+ 	a. Startup Chrome
+ 	b. Run the "Sense" plugin
+ 	c. Run this command:
+ 			GET /docs/_search
+ 			
+ 
+ 2. Run the Java Program
+ 
+ 
+ 
+ 3. Query against the ElasticSearch index (there should be a few records)
+  	a. Startup Chrome
+ 	b. Run the "Sense" plugin
+ 	c. Run this command:
+ 			GET /docs/_search
+ 
