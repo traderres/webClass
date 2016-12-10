@@ -1,0 +1,115 @@
+How to Query IP Addresses in Elastic Search 1.7.5
+-------------------------------------------------
+
+Assumptions:
+ A) You have ElasticSearch 1.7.5 running up and running
+ B) You have the Chrome Sense extension installed
+
+
+Procedure
+---------
+ 1. Delete the index
+    DELETE /records_db
+
+
+ 2. Create a mappings for the index
+	PUT /records_db
+    {
+       "mappings": {
+          "record": {
+             "properties": {
+                "title": {
+                   "type": "string",
+                   "analyzer": "snowball"
+                },
+                "ipAddress" : {
+                   "type": "ip",
+                    "store": "yes",
+                    "null_value": "null",
+                    "include_in_all": true
+                },
+                "type": {
+                   "type": "integer",
+                   "index": "not_analyzed"
+                },
+                "createDate": {
+                   "type": "string",
+                   "format": "YYYYMMDD HH:mm:ss"
+                },
+                "description": {
+                   "type": "string",
+                   "analyzer": "snowball" 
+                },
+                "search_text": {
+                   "type": "string",
+                   "analyzer": "standard"
+                }
+             }
+          }
+       }
+    }
+
+
+ 3. Bulk insert 3 records
+	DELETE /records_db
+
+	POST _bulk
+    { "create": { "_index": "records_db", "_type": "record" }}
+    { "title": "Record #1", "ipAddress": "1.1.1.1", "type": 7, "createDate": "20161209 21:23:00", "description": "This is the description for record #1" }
+    { "create": { "_index": "records_db", "_type": "record" }}
+    { "title": "Record #2", "ipAddress": "1.1.1.141", "type": 7, "createDate": "20161209 21:23:01", "description": "This is the description for record #2" }
+    { "create": { "_index": "records_db", "_type": "record" }}
+    { "title": "Record #3", "ipAddress": "2.2.2.1", "type": 7, "createDate": "20161209 21:23:02", "description": "This is the description for record #3" }
+    { "create": { "_index": "records_db", "_type": "record" }}
+    { "title": "Record #4", "ipAddress": "2.2.2.56", "type": 7, "createDate": "20161209 21:23:03", "description": "This is the description for record #4" }
+    { "create": { "_index": "records_db", "_type": "record" }}
+    { "title": "Record #5", "ipAddress": "1.2.3.11", "type": 7, "createDate": "20161209 21:23:04", "description": "This is the description for record #5" }
+    { "create": { "_index": "records_db", "_type": "record" }}
+    { "title": "Record #6", "ipAddress": ["1.1.1.1", "2.2.2.2", "3.3.3.3"], "type": 7, "createDate": "20161209 21:23:04", "description": "This is the description for record #6" }
+    
+    IMPORTANT:  You must have a carriage return after every line (including the last one)
+    
+    NOTE:  Record #6 holds an array of multiple IP addresses
+    
+    
+    
+ 4. Query for all records to see that they are present
+    POST /records_db/_search
+
+
+
+ 5. Search for the 2 records tha contain 1.1.1.1
+	POST /records_db/_search
+	{
+	     "query": {
+	        "query_string": {
+	          "query": "1.1.1.1"
+	        }
+	    }
+	}
+
+
+
+ 6. Search for a range of IP addresses (using a regular expression)
+	POST /records_db/_search
+	{
+	     "query": {
+	        "query_string": {
+	          "query": "/1.1.1.[1-151]/"
+	        }
+	    }
+	}
+
+
+
+ 7. Search for a range of IP addresses (using a range query)
+    WARNING:  The "TO" must be capitalized
+   
+    POST /records_db/_search
+	{
+	     "query": {
+	        "query_string": {
+	          "query": "[1.1.1.1 TO 1.1.1.151]"
+	        }
+	    }
+	}
