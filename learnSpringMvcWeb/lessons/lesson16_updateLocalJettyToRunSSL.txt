@@ -1,0 +1,694 @@
+Lesson 16:  Update your Local Jetty to Run SSL and PKI Authentication
+---------------------------------------------------------------------
+
+
+Procedure
+---------
+Procedures
+----------
+ 1. Setup your own Root Certificate Authority
+    [see learnSSL / howToUseYourCertAuthority_InitialSetup.txt]
+   
+   
+   
+ 2. Generate your own Client Certificate
+    [see learnSSL / howToUseYourCertAuthority_MakeClientCert.txt]
+   
+   
+   
+ 3. Generate your own Server Certificate
+   [see learnSSL / howToUseYourCertAuthority_MakeServerCert.txt]
+   
+   
+   
+ 4. Add a docs/jetty/ directory to your webapp1 project
+    NOTE:  This will hold the local jetty configuration and JKS files
+    a. Copy your newly created myKeystore.jks to    /webapp1/docs/jetty/
+    b. Copy your newly created myTruststore.jks to  /webapp1/docs/jetty/
+    
+
+
+ 5. Create this file:  jetty.xml 
+    a. Create the file here /webapp1/docs/jetty/jetty.xml
+    b. Copy this to your file:
+    
+      <?xml version="1.0"?>
+			<!DOCTYPE Configure PUBLIC "-//Jetty//Configure//EN" "http://www.eclipse.org/jetty/configure_9_0.dtd">
+
+			<!-- ============================================================= -->
+			<!-- Configure the Http Configuration                              -->
+			<!-- ============================================================= -->
+			<Configure id="httpConfig" class="org.eclipse.jetty.server.HttpConfiguration">
+				<Set name="secureScheme">https</Set>
+				<Set name="securePort"><Property name="jetty.secure.port" default="8443" /></Set>
+				<Set name="outputBufferSize">32768</Set>
+				<Set name="requestHeaderSize">8192</Set>
+				<Set name="responseHeaderSize">8192</Set>
+				<Set name="sendServerVersion">true</Set>
+				<Set name="sendDateHeader">false</Set>
+				<Set name="headerCacheSize">512</Set>
+
+				<!-- Uncomment to enable handling of X-Forwarded- style headers
+				<Call name="addCustomizer">
+				  <Arg><New class="org.eclipse.jetty.server.ForwardedRequestCustomizer"/></Arg>
+				</Call>
+				-->
+			</Configure>     
+ 
+ 
+ 6. Create this file:  jetty-https.xml 
+    a. Create the file here /webapp1/docs/jetty/jetty-https.xml
+    b. Copy this to your file:
+    
+    <?xml version="1.0"?>
+		<!DOCTYPE Configure PUBLIC "-//Jetty//Configure//EN" "http://www.eclipse.org/jetty/configure_9_0.dtd">
+
+		<!-- ============================================================= -->
+		<!-- Configure a HTTPS connector.                                  -->
+		<!-- This configuration must be used in conjunction with jetty.xml -->
+		<!-- and jetty-ssl.xml.                                            -->
+		<!-- ============================================================= -->
+		<Configure id="Server" class="org.eclipse.jetty.server.Server">
+
+			<!-- =========================================================== -->
+			<!-- Add a HTTPS Connector.                                      -->
+			<!-- Configure an o.e.j.server.ServerConnector with connection   -->
+			<!-- factories for TLS (aka SSL) and HTTP to provide HTTPS.      -->
+			<!-- All accepted TLS connections are wired to a HTTP connection.-->
+			<!--                                                             -->
+			<!-- Consult the javadoc of o.e.j.server.ServerConnector,        -->
+			<!-- o.e.j.server.SslConnectionFactory and                       -->
+			<!-- o.e.j.server.HttpConnectionFactory for all configuration    -->
+			<!-- that may be set here.                                       -->
+			<!-- =========================================================== -->
+			<Call id="httpsConnector" name="addConnector">
+				<Arg>
+				    <New class="org.eclipse.jetty.server.ServerConnector">
+				        <Arg name="server"><Ref refid="Server" /></Arg>
+				        <Arg name="factories">
+				            <Array type="org.eclipse.jetty.server.ConnectionFactory">
+				                <Item>
+				                    <New class="org.eclipse.jetty.server.SslConnectionFactory">
+				                        <Arg name="next">http/1.1</Arg>
+				                        <Arg name="sslContextFactory"><Ref refid="sslContextFactory"/></Arg>
+				                    </New>
+				                </Item>
+				                <Item>
+				                    <New class="org.eclipse.jetty.server.HttpConnectionFactory">
+				                        <Arg name="config"><Ref refid="sslHttpConfig"/></Arg>
+				                    </New>
+				                </Item>
+				            </Array>
+				        </Arg>
+				        <Set name="host"><Property name="jetty.host" /></Set>
+				        <Set name="port"><Property name="https.port" default="8443" /></Set>
+				        <Set name="idleTimeout"><Property name="https.timeout" default="30000"/></Set>
+				    </New>
+				</Arg>
+			</Call>
+		</Configure>
+ 
+ 
+ 7. Create this file:  jetty-ssl.xml
+    NOTE:  This file has hte paths of the keystore and truststore -- so you might have to edit this one
+    
+    a. Create the file here /webapp1/docs/jetty/jetty-ssl.xml
+    b. Copy this to your file:
+       
+    <?xml version="1.0"?>
+		<!DOCTYPE Configure PUBLIC "-//Jetty//Configure//EN" "http://www.eclipse.org/jetty/configure_9_0.dtd">
+
+		<!-- ============================================================= -->
+		<!-- Configure a TLS (SSL) Context Factory                         -->
+		<!-- This configuration must be used in conjunction with jetty.xml -->
+		<!-- and either jetty-https.xml or jetty-spdy.xml (but not both)   -->
+		<!-- ============================================================= -->
+		<Configure id="sslContextFactory" class="org.eclipse.jetty.util.ssl.SslContextFactory">
+			<Set name="KeyStorePath"><Property name="jetty.base" default="." />/<Property name="jetty.keystore" default="./docs/jetty/myKeystore.jks"/></Set>
+			<Set name="KeyStorePassword"><Property name="jetty.keystore.password" default="changeit"/></Set>
+			<Set name="KeyManagerPassword"><Property name="jetty.keymanager.password" default="changeit"/></Set>
+			<Set name="TrustStorePath"><Property name="jetty.base" default="." />/<Property name="jetty.truststore" default="./docs/jetty/myTruststore.jks"/></Set>
+			<Set name="TrustStorePassword"><Property name="jetty.truststore.password" default="changeit"/></Set>
+			<Set name="EndpointIdentificationAlgorithm"></Set>
+			<Set name="ExcludeCipherSuites">
+				<Array type="String">
+				    <Item>SSL_RSA_WITH_DES_CBC_SHA</Item>
+				    <Item>SSL_DHE_RSA_WITH_DES_CBC_SHA</Item>
+				    <Item>SSL_DHE_DSS_WITH_DES_CBC_SHA</Item>
+				    <Item>SSL_RSA_EXPORT_WITH_RC4_40_MD5</Item>
+				    <Item>SSL_RSA_EXPORT_WITH_DES40_CBC_SHA</Item>
+				    <Item>SSL_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA</Item>
+				    <Item>SSL_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA</Item>
+				</Array>
+			</Set>
+
+			<Set name="NeedClientAuth">
+				<!-- Tell Jetty to request a Client PKI Certificate -->
+				<Property name="jetty.needclientauth" default="true"/>
+			</Set>
+
+			<!-- =========================================================== -->
+			<!-- Create a TLS specific HttpConfiguration based on the        -->
+			<!-- common HttpConfiguration defined in jetty.xml               -->
+			<!-- Add a SecureRequestCustomizer to extract certificate and    -->
+			<!-- session information                                         -->
+			<!-- =========================================================== -->
+			<New id="sslHttpConfig" class="org.eclipse.jetty.server.HttpConfiguration">
+				<Arg><Ref refid="httpConfig"/></Arg>
+				<Call name="addCustomizer">
+				    <Arg><New class="org.eclipse.jetty.server.SecureRequestCustomizer"/></Arg>
+				</Call>
+			</New>
+
+		</Configure>
+
+
+ 8. Update the jetty-maven-plugin in your pom.xml so it looks like this:
+ 
+             <plugin>
+                <groupId>org.eclipse.jetty</groupId>
+                <artifactId>jetty-maven-plugin</artifactId>
+
+                <!-- NOTE:  The jetty 9.1.5.v2014050 version works with Java 1.7 -->
+                <version>9.1.5.v20140505</version>
+
+                <configuration>
+                     <webApp>
+                        <!-- If your project is called webapp1, then jetty listens on http://localhost:8080/webapp1  -->
+                        <contextPath>/${project.artifactId}</contextPath>
+
+                        <!-- Tell maven to look for the property files in src/main/config -->
+                        <extraClasspath>${project.basedir}/src/main/config</extraClasspath>
+                    </webApp>
+
+                    <!-- Jetty will scan every 10 seconds to pickup front-end changes -->
+                    <scanIntervalSeconds>10</scanIntervalSeconds>
+
+
+                    <jettyXml>
+                        <!-- Configure Jetty to use https
+                             NOTES:
+                                1) Do not change the **ORDER** of these files or the configuration gets screwed-up
+
+                        -->
+
+                        <!-- Configure your local Jetty to use your SSL files -->
+                        ${project.basedir}/docs/jetty/jetty.xml,${project.basedir}/docs/jetty/jetty-ssl.xml,${project.basedir}/docs/jetty/jetty-https.xml
+
+                    </jettyXml>
+                </configuration>
+            </plugin>
+ 
+ 
+ 
+   
+   
+ 9. Add the dependencies to your web app's pom.xml file
+ 
+       <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-web</artifactId>
+            <version>4.0.3.RELEASE</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-config</artifactId>
+            <version>4.0.3.RELEASE</version>
+        </dependency>
+   
+   
+   
+
+   
+   
+10. Make sure your web.xml has a listener or ApplicationWatcher class
+ 
+      <listener>
+         <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+      </listener>
+  
+ 
+ 
+11. Create this package:  app1.security
+    NOTE:  The remaining classes will be created inside app1.security
+     
+     
+     
+12 Create this class:  UserInfo
+ 
+        package app1.security;
+        
+        import org.springframework.security.core.GrantedAuthority;
+        import org.springframework.security.core.userdetails.UserDetails;
+        
+        import java.io.Serializable;
+        import java.util.Collection;
+        import java.util.List;
+        
+        /**
+         * Created by adam on 1/6/2016.
+         */
+        public class UserInfo implements UserDetails, Serializable
+        {
+            private String username;
+            private List<GrantedAuthority> grantedAuthorities;
+        
+        
+            public UserInfo(String aUsername, List<GrantedAuthority> aGrantedAuthorities)
+            {
+                this.username = aUsername;
+                this.grantedAuthorities = aGrantedAuthorities;
+            }
+        
+        
+            public Collection<? extends GrantedAuthority> getAuthorities() {
+                return this.grantedAuthorities;
+            }
+        
+            public String getPassword() {
+                return null;
+            }
+        
+            public String getUsername() {
+                return this.username;
+            }
+        
+            public boolean isAccountNonExpired() {
+                return true;
+            }
+        
+            public boolean isAccountNonLocked() {
+                return true;
+            }
+        
+            public boolean isCredentialsNonExpired() {
+                return true;
+            }
+        
+            public boolean isEnabled() {
+                return true;
+            }
+        
+        }
+   
+   
+   
+13. Create this class:  SubjectX509PrincipalExtractor
+ 
+        package app1.security;
+        
+        import org.springframework.security.web.authentication.preauth.x509.X509PrincipalExtractor;
+        
+        import java.security.cert.X509Certificate;
+        
+        /**
+         * Created by adam on 1/6/2016.
+         */
+        public class SubjectX509PrincipalExtractor implements X509PrincipalExtractor
+        {
+        
+            public Object extractPrincipal(X509Certificate aClientCert)
+            {
+                Object principal = aClientCert.getSubjectX500Principal().getName();
+                return principal;
+            }
+        
+        }
+   
+   
+   
+14. Create this class:  SpringSecurityInitializer
+
+        package app1.security;
+        
+        import org.springframework.security.web.context.AbstractSecurityWebApplicationInitializer;
+        
+        
+        /*****************************************************************************************
+         * Created by adam on 11/12/2015.
+         *
+         * SpringSecurityInitializer class:  This is used to initialize Spring Security
+         *
+         * NOTE:  The above code is the *SAME* as defining this in the web.xml
+         *    <filter>
+         *      <filter-name>springSecurityFilterChain</filter-name>
+         *      <filter-class>org.springframework.web.filter.DelegatingFilterProxy</filter-class>
+         *    </filter>
+         *
+         *    <filter-mapping>
+         *      <filter-name>springSecurityFilterChain</filter-name>
+         *      <url-pattern>/*</url-pattern>
+         *      <dispatcher>ERROR</dispatcher>
+         *      <dispatcher>REQUEST</dispatcher>
+         *    </filter-mapping>
+         *****************************************************************************************/
+        public class SpringSecurityInitializer extends AbstractSecurityWebApplicationInitializer
+        {
+        
+        }
+
+
+ 
+15. Create this class:  MyUserDetailsService
+    NOTE:  This is the class that will actually do the authentication
+    
+    
+        package app1.security;
+        
+        import org.springframework.security.core.GrantedAuthority;
+        import org.springframework.security.core.authority.SimpleGrantedAuthority;
+        import org.springframework.security.core.userdetails.AuthenticationUserDetailsService;
+        import org.springframework.security.core.userdetails.UserDetails;
+        import org.springframework.security.core.userdetails.UsernameNotFoundException;
+        import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
+        
+        import java.util.ArrayList;
+        
+        /**
+         * Created by adam on 1/6/2016.
+         */
+        public class MyUserDetailsService implements AuthenticationUserDetailsService<PreAuthenticatedAuthenticationToken>
+        {
+        
+            public UserDetails loadUserDetails(PreAuthenticatedAuthenticationToken aToken) throws UsernameNotFoundException
+            {
+                try
+                {
+                    String sUserDN = aToken.getName();
+        
+                    // A U T H E N T I C A T E     H E R E
+                    // -- Lookup the user in LDAP, a database, or make a web service call
+                    // -- Then get the results and put them into the UserInfo object
+                    // -- Finally, add the ROLE_USER granted authority
+                    //
+                    
+                    // Create a list of granted authorities
+                    ArrayList<GrantedAuthority> grantedAuthorities = new ArrayList<GrantedAuthority>();
+                    grantedAuthorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+        
+                    // Create your UserInfo object
+                    UserInfo userInfo = new UserInfo(sUserDN, grantedAuthorities);
+                    return userInfo;
+                }
+                catch (Exception e)
+                {
+                    throw new UsernameNotFoundException("Unable to authenticate this user", e);
+                }
+            }
+        }
+
+  
+  
+  
+16. Create this class:   MyAuthenticationManager
+  
+        package app1.security;
+        
+        import org.springframework.security.authentication.AuthenticationManager;
+        import org.springframework.security.core.Authentication;
+        import org.springframework.security.core.AuthenticationException;
+        import org.springframework.stereotype.Component;
+        
+        /**
+         * Created by adam on 1/6/2016.
+         */
+        @Component
+        public class MyAuthenticationManager implements AuthenticationManager
+        {
+        
+            public Authentication authenticate(Authentication aAuth) throws AuthenticationException
+            {
+                // We are really authenticating in the MyUserDetailService -- so do nothing here
+                return aAuth;
+            }
+        }
+   
+   
+   
+17. Create this class:  SpringSecurityConfig 
+    NOTE:  This class sets the *order* of spring-security operations
+    
+        package app1.security;
+        
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.beans.factory.annotation.Autowired;
+        import org.springframework.context.annotation.Bean;
+        import org.springframework.context.annotation.Configuration;
+        import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+        import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+        import org.springframework.security.config.annotation.web.builders.WebSecurity;
+        import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+        import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+        import org.springframework.security.config.http.SessionCreationPolicy;
+        import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationProvider;
+        import org.springframework.security.web.authentication.preauth.x509.X509AuthenticationFilter;
+        
+        /**
+         * Created by adam on 1/6/2016.
+         */
+        @Configuration
+        @EnableWebSecurity
+        public class SpringSecurityConfig extends WebSecurityConfigurerAdapter
+        {
+            private static final Logger logger = LoggerFactory.getLogger(SpringSecurityConfig.class);
+        
+            @Autowired
+            public void configureGlobal(AuthenticationManagerBuilder aAuthMgrBuilder) throws Exception
+            {
+                logger.debug("configureGlobal() started");
+        
+                super.configure(aAuthMgrBuilder);
+        
+                // Tell Spring-Security to use our authentication provider bean
+                // NOTE:  This authentication provider bean calls myUserDetailService
+                aAuthMgrBuilder.authenticationProvider(preAuthProvider() );
+        
+                logger.debug("configureGlobal() finished");
+            }
+        
+        
+            @Override
+            public void configure(HttpSecurity aHttp) throws Exception
+            {
+                logger.debug("configure() #1 started");
+        
+                // Sets the *ORDER* of what happens in security
+                //  1) Setup the session
+                //  2) Use the x509Filter to extract the principal
+                //  3) Call the authenticationProvider --> which calls the myUserDetailsService
+                //  4) Verify that certain pages have the required role
+                aHttp.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
+                        .and()
+                          .addFilter(x509Filter())
+                        .authorizeRequests()
+                          .antMatchers("/**").access("hasRole('ROLE_USER')")
+                        .and()
+                          .requiresChannel().antMatchers("/**").requiresSecure()
+                        .and()
+                          .anonymous().disable();
+        
+                logger.debug("configure() #1 finished");
+            }
+        
+        
+        
+        
+            @Override
+            public void configure(WebSecurity aWebSecurity) throws Exception
+            {
+                logger.debug("configure() #2 started");
+        
+                aWebSecurity.ignoring()
+                        .antMatchers("/resources/**");
+        
+                logger.debug("configure() #2 finished");
+           }
+        
+        
+            @Bean
+            public MyAuthenticationManager myAuthenticationManager()
+            {
+                return new MyAuthenticationManager();
+            }
+        
+        
+            @Bean
+            public SubjectX509PrincipalExtractor subjectX509PrincipalExtractor()
+            {
+                return new SubjectX509PrincipalExtractor();
+            }
+        
+            @Bean
+            public X509AuthenticationFilter x509Filter()
+            {
+                // Setup a filter that extracts the principal from the cert
+                X509AuthenticationFilter x509Filter = new X509AuthenticationFilter();
+                x509Filter.setContinueFilterChainOnUnsuccessfulAuthentication(false);
+                x509Filter.setAuthenticationManager(myAuthenticationManager());
+                x509Filter.setPrincipalExtractor(subjectX509PrincipalExtractor());
+        
+                return x509Filter;
+            }
+        
+            @Bean
+            public MyUserDetailsService myUserDetailsService()
+            {
+                return new MyUserDetailsService();
+            }
+        
+        
+            @Bean
+            public PreAuthenticatedAuthenticationProvider preAuthProvider()
+            {
+                // Connect the myUserDetailsService to this filter
+                PreAuthenticatedAuthenticationProvider preAuthProvider = new PreAuthenticatedAuthenticationProvider();
+                preAuthProvider.setPreAuthenticatedUserDetailsService(myUserDetailsService());
+                preAuthProvider.setThrowExceptionWhenTokenRejected(true);
+        
+                return preAuthProvider;
+            }
+        
+        }
+        
+        
+
+
+
+18. Update your WelcomeController to look like this:
+
+        package app1.controllers;
+        
+        import app1.security.UserInfo;
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.security.core.Authentication;
+        import org.springframework.security.core.context.SecurityContextHolder;
+        import org.springframework.stereotype.Controller;
+        import org.springframework.ui.Model;
+        import org.springframework.web.bind.annotation.RequestMapping;
+        import org.springframework.web.servlet.ModelAndView;
+        
+        
+        @Controller
+        public class WelcomeController
+        {
+            private final static Logger logger = LoggerFactory.getLogger(WelcomeController.class);
+        
+        
+            /**********************************************************************
+             * handleDefaultPage()
+             *
+             * The user browsed to the   http://www.myserver.com/webapp
+             * So, forward the user to   http://www.myserver.com/webapp/forward
+             ***********************************************************************/
+            @RequestMapping("/")
+            public ModelAndView handleDefaultPage( Model aModel )
+            {
+                // By default, forward users to the /welcome page
+                return new ModelAndView("forward:/welcome");
+            }
+        
+        
+        
+            /**********************************************************************
+             * mainPage()
+             *
+             * The user browsed to the /welcome page
+             *  1) Get a userinfo object setup
+             *  2) Forward the user to the welcome.jsp page
+             ***********************************************************************/
+            @RequestMapping("/welcome")
+            public ModelAndView mainPage( Model aModel )
+            {
+                logger.debug("mainPage() started");
+        
+                // Create a modelAndView object
+                ModelAndView mav = new ModelAndView();
+        
+                // Show the welcome.jsp page
+                mav.setViewName("welcome.jsp");
+        
+                // Get the userInfo object from Spring-security
+                Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                UserInfo userInfo = (UserInfo) auth.getPrincipal();
+        
+        
+                // Add the userInfo information to the view
+                mav.addObject("userInfo", userInfo);
+        
+                logger.debug("mainPage() finished");
+                return mav;
+            }
+        }
+                            
+        
+        
+
+
+19. Update your welcome.jsp page to this:
+
+    <%@ include file="/WEB-INF/jsp/stdJspIncludes.jsp" %>
+    
+    <!DOCTYPE HTML>
+    
+    <html xmlns="http://www.w3.org/1999/xhtml">
+    
+    <head>
+        <title>Welcome Page</title>
+    </head>
+    
+    <body>
+    
+    <%-- S T A N D A R D       H E A D E R  --%>
+    <%@ include file="/WEB-INF/jsp/stdHeader.jsp" %>
+    
+    <h2>welcome.jsp</h2>
+    
+    <br/>
+    
+    Hello ${userInfo.username} <br/>
+    
+    
+    <br/>
+    <br/>
+    
+    <%-- S T A N D A R D       F O O T E R  --%>
+    <%@ include file="/WEB-INF/jsp/stdFooter.jsp" %>
+    
+    </body>
+    </html> 
+
+
+20. Use IntelliJ to set a breakpoint
+    a. In Intellij, Pull File / Save All
+    b. Set a breakpoint
+       -- Browse to src/main/java -> app1.controllers -> WelcomeController.java
+       -- Single-click in the left margin and add a breakpoint on this line
+             logger.debug("mainPage() started");
+
+
+        
+21. Tell Intellij to use Maven Jetty Plugin in debug mode
+    a. Open the Maven Projects window
+       Pull View -> Tool Window -> Maven Project
+    
+    b. Single-click on Plugins -> jetty -> jetty:run
+    
+    c. Right-click on jetty:run -> Debug....  
+       -- This will activate the jetty maven plugin in debug mode
+          *AND*
+       -- This will create a menu option :
+          Run -> Debug '<your webapp's name>' [jetty:run]'
+          
+      
+        
+22. Open a browser and connect to your web app
+    a. Startup Firefox
+    b. Connect to https://localhost:8443/webapp1/
+    
+      
+23. Stop the debugger
+    In Intellij, Pull Run / Stop '<your webapp's name>' [jetty:run]'
+
