@@ -1,0 +1,706 @@
+How to Make a PKI Client REST Call
+----------------------------------
+
+              
+Assumptions
+ A) You have Java installed
+ B) You have Maven installed
+ 
+                     
+               
+
+
+ 
+Procedure
+---------
+ 1. Setup your own Root Certificate Authority
+    [see learnSSL / howToUseYourCertAuthority_InitialSetup.txt]
+
+
+ 2. Generate your own Client Certificate
+    [see learnSSL / howToUseYourCertAuthority_MakeClientCert.txt]
+
+   
+ 3. Generate your own Server Certificate
+   [see learnSSL / howToUseYourCertAuthority_MakeServerCert.txt]
+ 
+
+ 4. Setup a webapp1 web app that requires PKI authentication
+    a. Create webapp1
+       [follow the steps in learnSpringMvcWeb / lessons / lesson03_createSpringMvcWebApp_usingIntellijMaven.txt]
+       
+    b. Setup PKI Client Authentication
+       [Follow the steps in learnSpringMvcWeb / lessons / lesson16_updateLocalJettyToRunSSL.txt]
+
+    c. Package-up the webapp1.war 
+       unix> cd ~/intellijProjects/webapp1
+       unix> mvn clean package
+             -- Now, you should have ./target/webapp1.war
+             
+
+ 5. Install a local Tomcat 8 instance so that it requires PKI client authentication
+    NOTE:  This Tomcat 8 will run your webapp1.war
+    a. Install Tomcat8
+       [follow the steps in learnTomcat /	howToSetupTomcat8.txt]
+    
+    b. Edit your Tomcat's conf/server.xml so that it has this entry
+       WARNING:
+        - The myKeystore.jks and myTruststore.jks were generated in step 3 above
+        - Make sure the paths to myKeystore.jks and myTruststore.jks are correct
+        - Make sure the passwords are correct
+        - Make sure the alias is the same alias you used in step 3 above
+               
+          <Connector port="8443"
+                 protocol="org.apache.coyote.http11.Http11Protocol"
+                 maxThreads="150"
+                 SSLEnabled="true"
+                 scheme="https"
+                 secure="true"
+                 clientAuth="true"
+                 sslProtocol="TLS"
+                 keystoreFile="/home/adam/server_cert/myKeystore.jks"
+                 keystorePass="changeit"
+                 keystoreType="JKS"
+                 truststoreFile="/home/adam/server_cert/myTruststore.jks"
+                 truststorePass="changeit"
+                 truststoreType="JKS"
+                 keyAlias="devKeystore"
+          />
+          
+     c. Remove any other <Connector..> entries from the server.xml
+     
+
+ 
+ 6. Create your Java client that will *CALL* your local tomcat using PKI authentication
+    [follow the steps in learnJava / howToCreateJavaCommandLineProgramUsingIntellijMaven.txt]
+    
+    
+ 7. Add these dependencies to your pom.xml
+ 
+		  <dependency>
+		    <groupId>org.apache.commons</groupId>
+		    <artifactId>commons-lang3</artifactId>
+		    <version>3.3.2</version>
+		  </dependency>
+
+		  <dependency>
+		    <groupId>org.slf4j</groupId>
+		    <artifactId>slf4j-api</artifactId>
+		    <version>1.7.5</version>
+		  </dependency>
+
+		  <dependency>
+		    <groupId>ch.qos.logback</groupId>
+		    <artifactId>logback-classic</artifactId>
+		    <version>1.0.13</version>
+		  </dependency>
+
+		  <dependency>
+		    <groupId>com.ning</groupId>
+		    <artifactId>async-http-client</artifactId>
+		    <version>1.9.31</version>
+		  </dependency>
+
+		  <dependency>
+		    <groupId>org.apache.commons</groupId>
+		    <artifactId>commons-io</artifactId>
+		    <version>1.3.2</version>
+		  </dependency>
+    
+ 
+ 8. Copy the root CA file to your project's /src/main/resources
+    -- Copy your /home/adam/root-ca/public/root.pem  /home/adam/intellijProjects/<project name>/src/main/resources/root.pem
+    
+ 
+ 9. Copy the PKI client .p12 file to your project's /src/main/resources
+    -- Copy your /home/adam/client-cert/client.p12  /home/adam/intellijProjects/<project name>/src/main/resources/client.p12
+  
+  
+10. Create this class:  CustomTrustManager
+
+		package stuff;
+
+		import javax.net.ssl.TrustManager;
+		import javax.net.ssl.TrustManagerFactory;
+		import javax.net.ssl.X509TrustManager;
+		import java.security.KeyStore;
+		import java.security.KeyStoreException;
+		import java.security.NoSuchAlgorithmException;
+		import java.security.Principal;
+		import java.security.cert.*;
+		import java.util.Arrays;
+		import java.util.List;
+
+		/**
+		 * A custom X509TrustManager implementation that trusts a specified server certificate in addition
+		 * to those that are in the system TrustStore.
+		 * Also handles an out-of-order certificate chain, as is often produced by Apache's mod_ssl
+		 */
+		public class CustomTrustManager implements X509TrustManager
+		{
+
+			private final X509TrustManager originalX509TrustManager;
+			private final KeyStore trustStore;
+
+			/**
+			 * @param trustStore A KeyStore containing the server certificate that should be trusted
+			 * @throws NoSuchAlgorithmException
+			 * @throws KeyStoreException
+			 */
+			public CustomTrustManager(KeyStore trustStore) throws NoSuchAlgorithmException, KeyStoreException
+			{
+				this.trustStore = trustStore;
+
+				TrustManagerFactory originalTrustManagerFactory = TrustManagerFactory.getInstance("X509");
+				originalTrustManagerFactory.init((KeyStore) null);
+
+				TrustManager[] originalTrustManagers = originalTrustManagerFactory.getTrustManagers();
+				originalX509TrustManager = (X509TrustManager) originalTrustManagers[0];
+			}
+
+			/**
+			 * No-op. Never invoked by client, only used in server-side implementations
+			 * @return
+			 */
+			public X509Certificate[] getAcceptedIssuers() {
+				return new X509Certificate[0];
+			}
+
+			/**
+			 * No-op. Never invoked by client, only used in server-side implementations
+			 * @return
+			 */
+			public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException
+			{
+			}
+
+
+			/**
+			 * Given the partial or complete certificate chain provided by the peer,
+			 * build a certificate path to a trusted root and return if it can be validated and is trusted
+			 * for client SSL authentication based on the authentication type. The authentication type is
+			 * determined by the actual certificate used. For instance, if RSAPublicKey is used, the authType should be "RSA".
+			 * Checking is case-sensitive.
+			 * Defers to the default trust manager first, checks the cert supplied in the ctor if that fails.
+			 * @param chain the server's certificate chain
+			 * @param authType the authentication type based on the client certificate
+			 * @throws CertificateException
+			 */
+			public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+				try {
+				    originalX509TrustManager.checkServerTrusted(chain, authType);
+				} catch(CertificateException originalException) {
+				    try {
+				        X509Certificate[] reorderedChain = reorderCertificateChain(chain);
+				        CertPathValidator validator = CertPathValidator.getInstance("PKIX");
+				        CertificateFactory factory = CertificateFactory.getInstance("X509");
+				        CertPath certPath = factory.generateCertPath(Arrays.asList(reorderedChain));
+				        PKIXParameters params = new PKIXParameters(trustStore);
+				        params.setRevocationEnabled(false);
+				        validator.validate(certPath, params);
+				    } catch(Exception ex) {
+				        throw originalException;
+				    }
+				}
+
+			}
+
+			/**
+			 * Puts the certificate chain in the proper order, to deal with out-of-order
+			 * certificate chains as are sometimes produced by Apache's mod_ssl
+			 * @param chain the certificate chain, possibly with bad ordering
+			 * @return the re-ordered certificate chain
+			 */
+			private X509Certificate[] reorderCertificateChain(X509Certificate[] chain) {
+
+				X509Certificate[] reorderedChain = new X509Certificate[chain.length];
+				List<X509Certificate> certificates = Arrays.asList(chain);
+
+				int position = chain.length - 1;
+				X509Certificate rootCert = findRootCert(certificates);
+				reorderedChain[position] = rootCert;
+
+				X509Certificate cert = rootCert;
+				while((cert = findSignedCert(cert, certificates)) != null && position > 0) {
+				    reorderedChain[--position] = cert;
+				}
+
+				return reorderedChain;
+			}
+
+			/**
+			 * A helper method for certificate re-ordering.
+			 * Finds the root certificate in a possibly out-of-order certificate chain.
+			 * @param certificates the certificate change, possibly out-of-order
+			 * @return the root certificate, if any, that was found in the list of certificates
+			 */
+			private X509Certificate findRootCert(List<X509Certificate> certificates) {
+				X509Certificate rootCert = null;
+
+				for(X509Certificate cert : certificates) {
+				    X509Certificate signer = findSigner(cert, certificates);
+				    if(signer == null || signer.equals(cert)) { // no signer present, or self-signed
+				        rootCert = cert;
+				        break;
+				    }
+				}
+
+				return rootCert;
+			}
+
+			/**
+			 * A helper method for certificate re-ordering.
+			 * Finds the first certificate in the list of certificates that is signed by the sigingCert.
+			 */
+			private X509Certificate findSignedCert(X509Certificate signingCert, List<X509Certificate> certificates) {
+				X509Certificate signed = null;
+
+				for(X509Certificate cert : certificates) {
+				    Principal signingCertSubjectDN = signingCert.getSubjectDN();
+				    Principal certIssuerDN = cert.getIssuerDN();
+				    if(certIssuerDN.equals(signingCertSubjectDN) && !cert.equals(signingCert)) {
+				        signed = cert;
+				        break;
+				    }
+				}
+
+				return signed;
+			}
+
+			/**
+			 * A helper method for certificate re-ordering.
+			 * Finds the certificate in the list of certificates that signed the signedCert.
+			 */
+			private X509Certificate findSigner(X509Certificate signedCert, List<X509Certificate> certificates) {
+				X509Certificate signer = null;
+
+				for(X509Certificate cert : certificates) {
+				    Principal certSubjectDN = cert.getSubjectDN();
+				    Principal issuerDN = signedCert.getIssuerDN();
+				    if(certSubjectDN.equals(issuerDN)) {
+				        signer = cert;
+				        break;
+				    }
+				}
+
+				return signer;
+			}
+		}
+ 
+ 
+ 
+11. Create this class:  SSLContextFactory
+		package stuff;
+
+		import javax.net.ssl.KeyManager;
+		import javax.net.ssl.KeyManagerFactory;
+		import javax.net.ssl.SSLContext;
+		import javax.net.ssl.TrustManager;
+		import javax.xml.bind.DatatypeConverter;
+		import java.io.*;
+		import java.security.KeyStore;
+		import java.security.cert.CertificateFactory;
+		import java.security.cert.X509Certificate;
+
+		/**
+		 * A factory for SSLContexts.
+		 * Builds an SSLContext with custom KeyStore and TrustStore, to work with a client cert signed by a self-signed CA cert.
+		 */
+		public class SSLContextFactory {
+
+			private static SSLContextFactory theInstance = null;
+
+			private SSLContextFactory()
+			{
+			}
+
+			public static SSLContextFactory getInstance() {
+				if(theInstance == null) {
+				    theInstance = new SSLContextFactory();
+				}
+				return theInstance;
+			}
+
+			/**
+			 * Creates an SSLContext with the client and server certificates
+			 * @param clientCertFile A File containing the client certificate
+			 * @param clientCertPassword Password for the client certificate
+			 * @param caCertString A String containing the server certificate
+			 * @return An initialized SSLContext
+			 * @throws Exception
+			 */
+			public SSLContext makeContext(File clientCertFile, String clientCertPassword, String caCertString) throws Exception
+			{
+				final KeyStore keyStore = loadPKCS12KeyStore(clientCertFile, clientCertPassword);
+				KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+				kmf.init(keyStore, clientCertPassword.toCharArray());
+				KeyManager[] keyManagers = kmf.getKeyManagers();
+
+				final KeyStore trustStore = loadPEMTrustStore(caCertString);
+				TrustManager[] trustManagers = {new CustomTrustManager(trustStore)};
+
+				SSLContext sslContext = SSLContext.getInstance("TLS");
+				sslContext.init(keyManagers, trustManagers, null);
+
+				return sslContext;
+			}
+
+
+
+			/**
+			 * Produces a KeyStore from a String containing a PEM certificate (typically, the server's CA certificate)
+			 * @param certificateString A String containing the PEM-encoded certificate
+			 * @return a KeyStore (to be used as a trust store) that contains the certificate
+			 * @throws Exception
+			 */
+			private KeyStore loadPEMTrustStore(String certificateString) throws Exception
+			{
+
+				byte[] der = loadPemCertificate(new ByteArrayInputStream(certificateString.getBytes()));
+				ByteArrayInputStream derInputStream = new ByteArrayInputStream(der);
+				CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
+				X509Certificate cert = (X509Certificate) certificateFactory.generateCertificate(derInputStream);
+				String alias = cert.getSubjectX500Principal().getName();
+
+				KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
+				trustStore.load(null);
+				trustStore.setCertificateEntry(alias, cert);
+
+				return trustStore;
+			}
+
+			/**
+			 * Produces a KeyStore from a PKCS12 (.p12) certificate file, typically the client certificate
+			 * @param certificateFile A file containing the client certificate
+			 * @param clientCertPassword Password for the certificate
+			 * @return A KeyStore containing the certificate from the certificateFile
+			 * @throws Exception
+			 */
+			private KeyStore loadPKCS12KeyStore(File certificateFile, String clientCertPassword) throws Exception {
+				KeyStore keyStore = null;
+				FileInputStream fis = null;
+				try {
+				    keyStore = KeyStore.getInstance("PKCS12");
+				    fis = new FileInputStream(certificateFile);
+				    keyStore.load(fis, clientCertPassword.toCharArray());
+				} finally {
+				    try {
+				        if(fis != null) {
+				            fis.close();
+				        }
+				    } catch(IOException ex) {
+				        // ignore
+				    }
+				}
+				return keyStore;
+			}
+
+
+			private KeyStore loadJksKeyStore(File certificateFile, String aTrustPassword) throws Exception {
+				KeyStore keyStore = null;
+				FileInputStream fis = null;
+				try {
+				    keyStore = KeyStore.getInstance("JKS");
+				    fis = new FileInputStream(certificateFile);
+				    keyStore.load(fis, aTrustPassword.toCharArray());
+				} finally {
+				    try {
+				        if(fis != null) {
+				            fis.close();
+				        }
+				    } catch(IOException ex) {
+				        // ignore
+				    }
+				}
+				return keyStore;
+			}
+
+
+			/**
+			 * Reads and decodes a base-64 encoded DER certificate (a .pem certificate), typically the server's CA cert.
+			 * @param certificateStream an InputStream from which to read the cert
+			 * @return a byte[] containing the decoded certificate
+			 * @throws IOException
+			 */
+			byte[] loadPemCertificate(InputStream certificateStream) throws IOException {
+
+				byte[] der = null;
+				BufferedReader br = null;
+
+				try {
+				    StringBuilder buf = new StringBuilder();
+				    br = new BufferedReader(new InputStreamReader(certificateStream));
+
+				    String line = br.readLine();
+				    while(line != null) {
+				        if(!line.startsWith("--")){
+				            buf.append(line);
+				        }
+				        line = br.readLine();
+				    }
+
+				    String pem = buf.toString();
+				    der = DatatypeConverter.parseBase64Binary(pem);
+
+				} finally {
+				    if(br != null) {
+				        br.close();
+				    }
+				}
+
+				return der;
+			}
+		}
+
+
+12. Create this class:  App
+		package stuff;
+
+		import com.ning.http.client.AsyncHttpClient;
+		import com.ning.http.client.AsyncHttpClientConfig;
+		import com.ning.http.client.Response;
+		import org.apache.commons.io.IOUtils;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+
+		import javax.net.ssl.SSLContext;
+		import java.io.File;
+		import java.io.FileInputStream;
+
+		/**
+		 * Hello world!
+		 *
+		 */
+		public class App 
+		{
+			private static final Logger logger = LoggerFactory.getLogger(App.class);
+
+			/*******************************************************************************
+			 * main()
+			 ********************************************************************************/
+			public static void main( String[] args ) throws Exception
+			{
+				logger.debug("main() started.");
+
+				makeSecureSyncWebServiceCall();
+
+				logger.debug("main() finished.");
+			}
+
+
+
+			/*******************************************************************************
+			 * makeSecureSyncWebServiceCall()
+			 *
+			 ********************************************************************************/
+			private static String makeSecureSyncWebServiceCall() throws Exception
+			{
+				String sResponseBody = null;
+
+
+
+				// Initialize the sslContext
+				final String CLIENT_CERT_PATH     = "/home/adam/intellijProjects/makeSslCall/src/main/resources/client.p12";
+				final String CLIENT_CERT_PASSWORD = "secret";
+				final String CLIENT_CA_CERT_PATH  = "/home/adam/intellijProjects/makeSslCall/src/main/resources/root.pem";
+
+				File fClientCert = new File(CLIENT_CERT_PATH);
+				FileInputStream caCertFile = new FileInputStream(CLIENT_CA_CERT_PATH);
+				String sCertificateAuthorityContents = IOUtils.toString(caCertFile);
+				SSLContext sslContext = SSLContextFactory.getInstance().makeContext(fClientCert, CLIENT_CERT_PASSWORD, sCertificateAuthorityContents);
+
+
+				// Initialize the asyncHttpClient to use our sslContext
+				AsyncHttpClientConfig.Builder configBuilder = new AsyncHttpClientConfig.Builder();
+				configBuilder.setAcceptAnyCertificate(true);    // Disables hostname verification
+				configBuilder.setFollowRedirect(true);          // Fixes problems with 302 redirects
+				configBuilder.setSSLContext(sslContext);
+				AsyncHttpClientConfig config = configBuilder.build();
+
+
+
+				AsyncHttpClient asyncHttpClient = new AsyncHttpClient(config);
+
+				try
+				{
+				    logger.debug("Making synchronous web service call.");
+
+				    // Make a sync web service call and *WAIT* for a response
+				    Response response = asyncHttpClient.prepareGet("https://localhost:8443/webapp1")
+				            .setHeader("accept", "application/html")
+				            .execute()
+				            .get();
+
+				    sResponseBody = response.getResponseBody();
+
+				    if (response.getStatusCode() != 200)
+				    {
+				        // I got a non-200 response, so log the exception and return false
+				        throw new RuntimeException("Exception raised in makeSecureSyncWebServiceCall():  The web service call to returned a non-200 response.  Status Code=" + response.getStatusCode() + " StatusText=" +  response.getStatusText() + "  sResponseBody=" + sResponseBody);
+				    }
+
+				    logger.debug("sResponseBody={}", sResponseBody);
+				}
+				catch (Exception e)
+				{
+				    logger.error("Exception raised in makeSecureSyncWebServiceCall()", e);
+				    RuntimeException re = new RuntimeException(e);
+				    re.setStackTrace(e.getStackTrace());
+				    throw re;
+				}
+				finally
+				{
+				    // Close the async http client
+				    asyncHttpClient.close();
+				}
+
+				return (sResponseBody);
+			}
+
+		}
+
+
+
+13. Startup your Tomcat
+    unix> cd /home/adam/apache-tomcat-8.0.23/bin
+    unix> chmod ugo+x *.sh
+    unix> ./startup.sh
+
+
+14. Deploy webapp1.war by copying webapp1.war to your <TOMCAT-HOME>/webapps/ directory  
+    
+    
+15. Attempt to debug your App Class
+    Right-click in App -> Debug 'App.main()'
+    
+    You should see the following output:
+  
+    
+			12/23/2016 12:30:05 DEBUG stuff.App main() started.
+			12/23/2016 12:30:05 DEBUG stuff.App Making synchronous web service call.
+			12/23/2016 12:30:05 DEBUG com.ning.http.client.providers.netty.request.NettyConnectListener Using non-cached Channel [id: 0x7023e098, /127.0.0.1:40082 => localhost/127.0.0.1:8443] for GET '/webapp1'
+			12/23/2016 12:30:05 DEBUG com.ning.http.client.providers.netty.handler.HttpProtocol 
+
+			Request DefaultHttpRequest(chunked: false)
+			GET /webapp1 HTTP/1.1
+			accept: application/html
+			Connection: keep-alive
+			Host: localhost:8443
+			User-Agent: AHC/1.0
+
+			Response DefaultHttpResponse(chunked: true)
+			HTTP/1.1 302 Found
+			Server: Apache-Coyote/1.1
+			Location: https://localhost:8443/webapp1/
+			Transfer-Encoding: chunked
+			Date: Fri, 23 Dec 2016 17:30:05 GMT
+
+			12/23/2016 12:30:05 DEBUG com.ning.http.client.providers.netty.handler.HttpProtocol Redirecting to https://localhost:8443/webapp1/
+			12/23/2016 12:30:05 DEBUG com.ning.http.client.providers.netty.handler.HttpProtocol Sending redirect to https://localhost:8443/webapp1
+			12/23/2016 12:30:05 DEBUG com.ning.http.client.providers.netty.channel.ChannelManager Closing Channel [id: 0x7023e098, /127.0.0.1:40082 => localhost/127.0.0.1:8443] 
+			12/23/2016 12:30:05 DEBUG com.ning.http.client.providers.netty.handler.Processor Channel Closed: [id: 0x7023e098, /127.0.0.1:40082 :> localhost/127.0.0.1:8443] with attribute INSTANCE
+			12/23/2016 12:30:05 DEBUG com.ning.http.client.providers.netty.request.NettyConnectListener Using non-cached Channel [id: 0xd7c798eb, /127.0.0.1:40084 => localhost/127.0.0.1:8443] for GET '/webapp1/'
+			12/23/2016 12:30:05 DEBUG com.ning.http.client.providers.netty.handler.HttpProtocol 
+
+			Request DefaultHttpRequest(chunked: false)
+			GET /webapp1/ HTTP/1.1
+			accept: application/html
+			Connection: keep-alive
+			Host: localhost:8443
+			User-Agent: AHC/1.0
+
+			Response DefaultHttpResponse(chunked: false)
+			HTTP/1.1 200 OK
+
+				12/23/2016 12:30:05 DEBUG stuff.App main() started.
+				12/23/2016 12:30:05 DEBUG stuff.App Making synchronous web service call.
+				12/23/2016 12:30:05 DEBUG com.ning.http.client.providers.netty.request.NettyConnectListener Using non-cached Channel [id: 0x7023e098, /127.0.0.1:40082 => localhost/127.0.0.1:8443] for GET '/webapp1'
+				12/23/2016 12:30:05 DEBUG com.ning.http.client.providers.netty.handler.HttpProtocol 
+
+				Request DefaultHttpRequest(chunked: false)
+				GET /webapp1 HTTP/1.1
+				accept: application/html
+				Connection: keep-alive
+				Host: localhost:8443
+				User-Agent: AHC/1.0
+
+				Response DefaultHttpResponse(chunked: true)
+				HTTP/1.1 302 Found
+				Server: Apache-Coyote/1.1
+				Location: https://localhost:8443/webapp1/
+				Transfer-Encoding: chunked
+				Date: Fri, 23 Dec 2016 17:30:05 GMT
+
+				12/23/2016 12:30:05 DEBUG com.ning.http.client.providers.netty.handler.HttpProtocol Redirecting to https://localhost:8443/webapp1/
+				12/23/2016 12:30:05 DEBUG com.ning.http.client.providers.netty.handler.HttpProtocol Sending redirect to https://localhost:8443/webapp1
+				12/23/2016 12:30:05 DEBUG com.ning.http.client.providers.netty.channel.ChannelManager Closing Channel [id: 0x7023e098, /127.0.0.1:40082 => localhost/127.0.0.1:8443] 
+				12/23/2016 12:30:05 DEBUG com.ning.http.client.providers.netty.handler.Processor Channel Closed: [id: 0x7023e098, /127.0.0.1:40082 :> localhost/127.0.0.1:8443] with attribute INSTANCE
+				12/23/2016 12:30:05 DEBUG com.ning.http.client.providers.netty.request.NettyConnectListener Using non-cached Channel [id: 0xd7c798eb, /127.0.0.1:40084 => localhost/127.0.0.1:8443] for GET '/webapp1/'
+				12/23/2016 12:30:05 DEBUG com.ning.http.client.providers.netty.handler.HttpProtocol 
+
+				Request DefaultHttpRequest(chunked: false)
+				GET /webapp1/ HTTP/1.1
+				accept: application/html
+				Connection: keep-alive
+				Host: localhost:8443
+				User-Agent: AHC/1.0
+
+				Response DefaultHttpResponse(chunked: false)
+				HTTP/1.1 200 OK
+				Server: Apache-Coyote/1.1
+				Set-Cookie: JSESSIONID=6F0428A1D22F21D661F093B2A35A56B7; Path=/webapp1/; Secure; HttpOnly
+				X-Content-Type-Options: nosniff
+				X-XSS-Protection: 1; mode=block
+				Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+				Pragma: no-cache
+				Expires: 0
+				Strict-Transport-Security: max-age=31536000 ; includeSubDomains
+				X-Frame-Options: DENY
+				Content-Type: text/html;charset=ISO-8859-1
+				Content-Language: en-US
+				Content-Length: 528
+				Date: Fri, 23 Dec 2016 17:30:05 GMT
+
+				12/23/2016 12:30:05 DEBUG com.ning.http.client.providers.netty.channel.ChannelManager Adding key: https://localhost:8443 for channel [id: 0xd7c798eb, /127.0.0.1:40084 => localhost/127.0.0.1:8443]
+				12/23/2016 12:30:05 DEBUG stuff.App sResponseBody=
+
+
+				<!DOCTYPE HTML>
+
+				<html xmlns="http://www.w3.org/1999/xhtml">
+
+				<head>
+					<title>Welcome Page</title>
+				</head>
+
+				<body>
+
+
+
+				<table style="width: 100%; border: 1px solid black">
+					<tr>
+						<td align="center">Standard Header is here</td>
+					</tr>
+				</table>
+
+				<h2>welcome.jsp</h2>
+
+				<br/>
+
+				Hello CN=John Smith,OU=Secure,O=Secure,ST=Virginia,C=US <br/>
+
+				<br/>
+				<br/>
+
+				<table style="width: 100%; border: 1px solid black">
+					<tr>
+						<td align="center">Standard Footer is here</td>
+					</tr>
+				</table>
+
+				</body>
+				</html>
+
+				12/23/2016 12:30:05 DEBUG stuff.App main() finished.
+
+
