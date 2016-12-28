@@ -397,6 +397,9 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		package stuff;
 		
 		import com.google.gson.Gson;
+		import com.google.gson.JsonElement;
+		import com.google.gson.JsonObject;
+		import com.google.gson.JsonParser;
 		import com.ning.http.client.AsyncHttpClient;
 		import com.ning.http.client.Response;
 		import org.slf4j.Logger;
@@ -448,7 +451,7 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		            {
 		                try
 		                {
-		
+		                    boolean bChangeRecordsWereFound = false;
 		                    StringBuilder sbJsonBulkRequest = new StringBuilder();
 		
 		                    ArrayList<String> changeIds = new ArrayList<String>();
@@ -558,37 +561,54 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		                                             .append("\n");
 		                        }
 		
+		
+		                        bChangeRecordsWereFound = true;
 		                    }
 		
-		                    // Add one more carriage return
-		                    sbJsonBulkRequest.append("\n");
 		
-		
-		                    // Delete all of these records from the changes table  [once the SQL transaction is committed]
-		                    String sCsvDocids = String.join(",", changeIds);
-		                    String sSqlToDeleteRecords =
-		                            "delete from changes " +
-		                            "where id IN (" + sCsvDocids + ") ";
-		                    jt.update(sSqlToDeleteRecords);
-		
-		
-		                    // Make a large POST call to index all of the records
-		                    Response response = httpClient.preparePost(ES_URL + "/_bulk")
-		                            .setHeader("accept", "application/json")
-		                            .setBody(sbJsonBulkRequest.toString())
-		                            .execute()
-		                            .get();
-		
-		                    if (response.getStatusCode() != 200)
+		                    if (bChangeRecordsWereFound)
 		                    {
-		                        throw new RuntimeException("Critical Error in Sync Program:  I got a non-200 status code of " + response.getStatusCode() +  ".  The error is " + response.getStatusText() );
-		                    }
-		                    else
-		                    {
-		                        logger.debug("response.getResponseBody()={}", response.getResponseBody().toString());
-		                        // Verify that I got the acknowledged response
-		                    }
 		
+		                        // Add one more carriage return
+		                        sbJsonBulkRequest.append("\n");
+		
+		
+		                        // Delete all of these records from the changes table  [once the SQL transaction is committed]
+		                        String sCsvDocids = String.join(",", changeIds);
+		                        String sSqlToDeleteRecords =
+		                                "delete from changes " +
+		                                        "where id IN (" + sCsvDocids + ") ";
+		                        jt.update(sSqlToDeleteRecords);
+		
+		
+		                        // Make a large POST call to index all of the records
+		                        Response response = httpClient.preparePost(ES_URL + "/_bulk")
+		                                .setHeader("accept", "application/json")
+		                                .setBody(sbJsonBulkRequest.toString())
+		                                .execute()
+		                                .get();
+		
+		                        if (response.getStatusCode() != 200)
+		                        {
+		                            // ElasticSearch returned a non-200 status response -- that's bad
+		                            throw new RuntimeException("Critical Error in Sync Program:  I got a non-200 status code of " + response.getStatusCode() + ".  The error is " + response.getStatusText());
+		                        }
+		                        else
+		                        {
+		                            // ElasticSearch returned a 200 status
+		                            // -- now, Verify that I got no errors
+		                            String sJsonResponse = response.getResponseBody().toString();
+		                            JsonElement jelement = new JsonParser().parse(sJsonResponse);
+		                            JsonObject jobject = jelement.getAsJsonObject();
+		                            Boolean bErrors = jobject.get("errors").getAsBoolean();
+		                            logger.debug("ElasticSearch returned errors={}", bErrors);
+		
+		                            if (bErrors)
+		                            {
+		                                throw new RuntimeException("Critical Error in Sync Program:  I got a 200 status code, but I got some errors.  Here is the returned json:  " + sJsonResponse);
+		                            }
+		                        }
+		                    }
 		
 		                    // C O M M I T       T R A N S A C T I O N
 		                }
@@ -609,15 +629,13 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		        logger.debug("main() finished");
 		    }
 		
-		
 		}
 
 
 
-
-		    
-		 
-// Our worker, scheduled to run every N minutes.
+A L G O R I T H M
+-----------------		    
+		 // Our worker, scheduled to run every N minutes.
 // It will read 1000 entries off the queue, issue a single batch request
 // to elasticsearch, and repeat if more items are still on the queue
 class QueueWorker < Worker {
