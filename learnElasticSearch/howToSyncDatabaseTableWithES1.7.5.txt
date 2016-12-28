@@ -68,8 +68,8 @@ Part 1:  Setup the Database Table and ElasticSearch Index
 
  
   	c. Add some sample records to the documents and changes tables
- 			insert into documents(title, author, createDate, ingestDate) values('The Wizard of Oz', 'someone',                        now(), (now() - INTERVAL '30 days') );
- 			insert into documents(title, author, createDate, ingestDate) values('Hitchhiker''s Guide to the Galaxy', 'Douglas Adams', now(), (now() - INTERVAL '10 days') );
+ 			insert into documents(id, title, author, createDate, ingestDate) values(1, 'The Wizard of Oz', 'someone',                        now(), (now() - INTERVAL '30 days') );
+ 			insert into documents(id, title, author, createDate, ingestDate) values(2, 'Hitchhiker''s Guide to the Galaxy', 'Douglas Adams', now(), (now() - INTERVAL '10 days') );
  			insert into changes(docid, type) values(1, 'create');
  			insert into changes(docid, type) values(2, 'create');
  			
@@ -368,19 +368,33 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		
 		    private String     elasticsearchUrl = null;
 		    private DataSource dataSource = null;
-		
+		    private int        totalRecordsToProcessInOneBulkRequest;
 		
 		
 		
 		    /********************************************************************************************
 		     * SyncRecords()   **Constructor**
 		     *********************************************************************************************/
-		    public SyncRecords(String aElasticSearchUrl, DataSource aDataSource)
+		    public SyncRecords(String aElasticSearchUrl, DataSource aDataSource, int aTotalRecordsToProcessIneOneBulkRequest)
 		    {
 		        logger.debug("SyncRecords() started. aElasticSearchUrl={}", aElasticSearchUrl);
 		
+		        if (StringUtils.isEmpty(aElasticSearchUrl))
+		        {
+		            throw new RuntimeException("Critical Error in SyncRecords()  aElasticSearchUrl is null or empty.");
+		        }
+		        else if (aDataSource == null)
+		        {
+		            throw new RuntimeException("Critical Error in SyncRecords()  aDataSource is null.");
+		        }
+		        else if (aTotalRecordsToProcessIneOneBulkRequest <= 0)
+		        {
+		            throw new RuntimeException("Critical Error in SyncRecords()  aTotalRecordsToProcessIneOneBulkRequest is zero or less.  It must be a positive number.");
+		        }
+		
 		        this.elasticsearchUrl = aElasticSearchUrl;
 		        this.dataSource = aDataSource;
+		        this.totalRecordsToProcessInOneBulkRequest = aTotalRecordsToProcessIneOneBulkRequest;
 		    }
 		
 		
@@ -444,7 +458,6 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		
 		        final String ES_INDEX_NAME   = "docs";
 		        final String ES_MAPPING_NAME = "record";
-		        final int    TOTAL_RECORDS_TO_PROCESS_AT_ONCE = 3;
 		
 		        tt.execute(new TransactionCallbackWithoutResult()
 		        {
@@ -463,11 +476,11 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		                    final String sSql = "select id, docid, type " +
 		                                        "from changes " +
 		                                        "where id IN " +
-		                                        "(select id from changes limit " + TOTAL_RECORDS_TO_PROCESS_AT_ONCE + ") " +
+		                                        "(select id from changes limit " + totalRecordsToProcessInOneBulkRequest + ") " +
 		                                        "order by id " +
 		                                        "FOR UPDATE";
 		
-		                    // Run the query, get a read-only recordset, and return the connection back to the pool
+		                    // Run the query, get a read-only recordset, and return the connection back to the JDBC connection pool
 		                    JdbcTemplate jt = new JdbcTemplate(dataSource);
 		                    SqlRowSet rs = jt.queryForRowSet(sSql);
 		
@@ -534,7 +547,7 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		                            String sJsonDetails = gson.toJson(data);
 		
 		                            // Append 2 lines of JSON:
-		                            //  1) the 1st line tells ES that this is a 'create request'
+		                            //  1) the 1st line tells ES that this is an 'update request'
 		                            //  2) the 2nd line tells ES the data for this request
 		                            sbJsonBulkRequest.append(sUpdateLine1.replace("?", sDocid))
 		                                             .append("\n")
@@ -555,7 +568,7 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		                    {
 		                        // I have some JSON to send to ElasticSearch
 		
-		                        // Add one more carriage return
+		                        // Add one more carriage return to the JSON (so the bulk request is valid)
 		                        sbJsonBulkRequest.append("\n");
 		
 		                        // Delete all of these records from the changes table  [once the SQL transaction is committed]
@@ -566,7 +579,7 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		                        jt.update(sSqlToDeleteRecords);
 		
 		
-		                        // Make a large POST call (that performs the bulk index request against ElasticSearch)
+		                        // Make a POST call to ElasticSearch  (this performs the bulk index request)
 		                        Response response = httpClient.preparePost(elasticsearchUrl + "/_bulk")
 		                                .setHeader("accept", "application/json")
 		                                .setBody(sbJsonBulkRequest.toString())
@@ -580,8 +593,9 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		                        }
 		                        else
 		                        {
-		                            // ElasticSearch returned a 200 status
-		                            // -- now, Verify that I got no errors
+		                            // ElasticSearch returned a 200 status -- that's good
+		
+		                            // Parse the returned JSON string and check the returned "errors" field  (hopefully it holds "false")
 		                            String sJsonResponse = response.getResponseBody();
 		                            JsonElement jelement = new JsonParser().parse(sJsonResponse);
 		                            JsonObject jobject = jelement.getAsJsonObject();
@@ -617,7 +631,7 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		    }
 		
 		}
- 
+		 
 
  7. Create this class:  App
     a. Right-click on /src/main/java/stuff -> New -> Java Class
@@ -649,13 +663,14 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		    {
 		        logger.debug("main() started");
 		
-		        final String ES_URL = "http://192.168.1.165:9200";
+		        final String ES_URL                          =  "http://192.168.1.165:9200";
+		        final int    TOTAL_RECORDS_TO_INDEX_AT_ONCE = 2;
 		
 		        // Connect to the Postgres DataSource instance and return the data source object
 		        DataSource datasource = PostgresSingleton.INSTANCE.getDataSource();
 		
 		        // Create a SyncRecords object with the passed-in ElasticSearchUrl and data source
-		        SyncRecords syncRecords = new SyncRecords(ES_URL, datasource);
+		        SyncRecords syncRecords = new SyncRecords(ES_URL, datasource, TOTAL_RECORDS_TO_INDEX_AT_ONCE);
 		
 		        // Start syncing the records
 		        syncRecords.syncIndex1();
@@ -664,17 +679,17 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		    }
 		
 		}
-		 
+			 
  
  
  
 Part 3:  Run the program
 ------------------------
  1. Insert some records into the documents and changes tables
-		insert into documents(title, author, createDate, ingestDate) values('The Wizard of Oz', 'someone',                        now(), (now() - INTERVAL '30 days') );
-		insert into documents(title, author, createDate, ingestDate) values('Hitchhiker''s Guide to the Galaxy', 'Douglas Adams', now(), (now() - INTERVAL '10 days') );
-		insert into changes(docid, type) values(1, 'create');
-		insert into changes(docid, type) values(2, 'create');
+		insert into documents(id, title, author, createDate, ingestDate) values(3, 'The Wizard of Oz', 'someone',                        now(), (now() - INTERVAL '30 days') );
+		insert into documents(id, title, author, createDate, ingestDate) values(4, 'Hitchhiker''s Guide to the Galaxy', 'Douglas Adams', now(), (now() - INTERVAL '10 days') );
+		insert into changes(docid, type) values(3, 'create');
+		insert into changes(docid, type) values(4, 'create');
 
 
  2. Query against the ElasticSearch index (there should be no records)
