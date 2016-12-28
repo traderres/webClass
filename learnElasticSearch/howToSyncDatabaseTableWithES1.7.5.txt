@@ -44,10 +44,12 @@ Part 1:  Setup the Database Table and ElasticSearch Index
  	
 			CREATE TABLE documents
 			(
-			  id      serial,
-			  title   varchar(50) not null,
-			  author  varchar(50) not null,
-			  summary varchar(50) null,
+			  id         serial,
+			  createDate timestamp   not null,
+			  ingestDate timestamp   not null,
+			  title      varchar(50) not null,
+			  author     varchar(50) not null,
+			  summary    varchar(50) null,
 			  primary key(id)
 			);
 
@@ -64,8 +66,8 @@ Part 1:  Setup the Database Table and ElasticSearch Index
 
  
   	c. Add some sample records to the documents and changes tables
- 			insert into documents(title, author) values('The Wizard of Oz', 'someone');
- 			insert into documents(title, author) values('Hitchhiker''s Guide to the Galaxy', 'Douglas Adams');
+ 			insert into documents(title, author, createDate, ingestDate) values('The Wizard of Oz', 'someone',                        now(), (now() - INTERVAL '30 days') );
+ 			insert into documents(title, author, createDate, ingestDate) values('Hitchhiker''s Guide to the Galaxy', 'Douglas Adams', now(), (now() - INTERVAL '10 days') );
  			insert into changes(docid, type) values(1, 'create');
  			insert into changes(docid, type) values(2, 'create');
  			
@@ -149,7 +151,7 @@ Part 2:  Create this Java program that will process 1000 records from the change
 
 
       <dependency>
-          <!-- Used to convert objects to JSON -->
+          <!-- Used to convert java objects to JSON -->
           <groupId>com.google.code.gson</groupId>
           <artifactId>gson</artifactId>
           <version>2.8.0</version>
@@ -345,6 +347,8 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		import org.springframework.transaction.TransactionStatus;
 		import org.springframework.transaction.support.TransactionCallbackWithoutResult;
 		import org.springframework.transaction.support.TransactionTemplate;
+		import org.springframework.util.StringUtils;
+		
 		import javax.sql.DataSource;
 		
 		import java.util.ArrayList;
@@ -358,24 +362,82 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		{
 		    public static final Logger logger = LoggerFactory.getLogger(SyncRecords.class);
 		
-		    public static void main( String[] args ) throws Exception
-		    {
-		        logger.debug("main() started");
+		    private String     elasticsearchUrl = null;
+		    private DataSource dataSource = null;
 		
-		        // Connect to the Postgres DataSource instance and return the data source object
-		        final DataSource datasource = PostgresSingleton.INSTANCE.getDataSource();
+		
+		
+		
+		    /********************************************************************************************
+		     * SyncRecords()   **Constructor**
+		     *********************************************************************************************/
+		    public SyncRecords(String aElasticSearchUrl, DataSource aDataSource)
+		    {
+		        logger.debug("SyncRecords() started. aElasticSearchUrl={}", aElasticSearchUrl);
+		
+		        this.elasticsearchUrl = aElasticSearchUrl;
+		        this.dataSource = aDataSource;
+		    }
+		
+		
+		    /********************************************************************************************
+		     * getMapOfDetailsForDocid()
+		     *
+		     * Pass-in a Docid and returns a hashmap of details
+		     *********************************************************************************************/
+		    private HashMap<String, Object> getMapOfDetailsForDocid(String asDocid)
+		    {
+		        if (StringUtils.isEmpty(asDocid))
+		        {
+		            throw new RuntimeException("Critical Error in getMapOfDetailsForDocid():  The passed-in aDocid is empty is null.");
+		        }
+		
+		        HashMap<String, Object> dataMap = new HashMap<String, Object>();
+		
+		        // Convert the passed-in string docid into a long
+		        Long lDocid = new Long(asDocid);
+		
+		        // Run the query against the database to get all of the information for this docid
+		        final String sSql = "SELECT title, author, " +
+		                "to_char(createDate,'YYYYmmdd') as createDate, " +
+		                "to_char(ingestDate,'YYYYmmdd') as ingestDate  " +
+		                "FROM documents " +
+		                "WHERE id=?";
+		
+		        JdbcTemplate jt = new JdbcTemplate(this.dataSource);
+		        SqlRowSet rs = jt.queryForRowSet(sSql, lDocid);
+		
+		        if (rs.next())
+		        {
+		            // I found a documents record -- so put the values into this hashmap
+		            dataMap.put("ingestDate", rs.getString("ingestDate"));
+		            dataMap.put("createDate", rs.getString("createDate"));
+		            dataMap.put("author",     rs.getString("author"));
+		            dataMap.put("title",      rs.getString("title"));
+		        }
+		
+		        return dataMap;
+		    }
+		
+		
+		
+		    /********************************************************************************************
+		     * syncIndex1()
+		     *********************************************************************************************/
+		    public void syncIndex1() throws Exception
+		    {
+		        logger.debug("syncIndex1() started");
 		
 		        // Setup an http client object [we will use this to make the actual POST calls]
 		        final AsyncHttpClient httpClient = new AsyncHttpClient();
 		
 		        // Setup a SQL Transaction
 		        TransactionTemplate tt = new TransactionTemplate();
-		        tt.setTransactionManager(new DataSourceTransactionManager(datasource));
+		        tt.setTransactionManager(new DataSourceTransactionManager(this.dataSource));
 		
-		        // This transaction will throw a TransactionTimedOutException after 60 seconds (causing the transaction to rollback)
+		        // This transaction will throw a TransactionTimedOutException after 120 seconds (causing the transaction to rollback)
 		        tt.setTimeout(120);
 		
-		        final String ES_URL          = "http://192.168.1.165:9200";
 		        final String ES_INDEX_NAME   = "docs";
 		        final String ES_MAPPING_NAME = "record";
 		        final int    TOTAL_RECORDS_TO_PROCESS_AT_ONCE = 3;
@@ -386,7 +448,6 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		            {
 		                try
 		                {
-		                    boolean bChangeRecordsWereFound = false;
 		                    StringBuilder sbJsonBulkRequest = new StringBuilder();
 		
 		                    ArrayList<String> changeIds = new ArrayList<String>();
@@ -403,7 +464,7 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		                                        "FOR UPDATE";
 		
 		                    // Run the query, get a read-only recordset, and return the connection back to the pool
-		                    JdbcTemplate jt = new JdbcTemplate(datasource);
+		                    JdbcTemplate jt = new JdbcTemplate(dataSource);
 		                    SqlRowSet rs = jt.queryForRowSet(sSql);
 		
 		                    Gson gson = new Gson();
@@ -415,7 +476,6 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		                    HashMap<String, Object> outerMapCreate = new HashMap<String, Object>();
 		                    outerMapCreate.put("create", innerMapCreate);
 		                    final String sCreateLine1 = gson.toJson(outerMapCreate);
-		                    logger.debug("sCreateLine1={}", sCreateLine1);
 		
 		                    // Generate the 1st line of JSON (used for each 'update' request)
 		                    HashMap<String, String> innerMapUpdate = new HashMap<String, String>();
@@ -425,8 +485,6 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		                    HashMap<String, Object> outerMapUpdate = new HashMap<String, Object>();
 		                    outerMapUpdate.put("update", innerMapUpdate);
 		                    final String sUpdateLine1 = gson.toJson(outerMapUpdate);
-		                    logger.debug("sUpdateLine1={}", sUpdateLine1);
-		
 		
 		                    // Generate the 1st line of JSON (used for each 'delete' request)
 		                    HashMap<String, String> innerMapDelete = new HashMap<String, String>();
@@ -436,15 +494,11 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		                    HashMap<String, Object> outerMapDelete = new HashMap<String, Object>();
 		                    outerMapDelete.put("delete", innerMapDelete);
 		                    final String sDeleteLine1 = gson.toJson(outerMapDelete);
-		                    logger.debug("sDeleteLine1={}", sDeleteLine1);
 		
 		
-		
-		                    // Loop through the read-only recordset
-		                    int i=0;
+		                    // Loop through the read-only recordset of *changes* records
 		                    while (rs.next())
 		                    {
-		                        i++;
 		                        String sChangeId = rs.getString("id");
 		                        String sDocid = rs.getString("docid");
 		                        String sChangeType = rs.getString("type");
@@ -454,38 +508,33 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		                        if (sChangeType.equalsIgnoreCase("CREATE"))
 		                        {
 		                            // Generate a HashMap with the values to index in ElasticSearch
-		                            HashMap<String, String> data = new HashMap<String, String>();
-		                            data.put("ingestDate", "20160214");
-		                            data.put("createDate", "20150701");
-		                            data.put("source", "log format1");
-		                            data.put("title", "This is the record " + i);
-		                            data.put("description", "this is the description for this record");
+		                            HashMap<String, Object> data = getMapOfDetailsForDocid(sDocid);
+		
+		                            // Convert the HashMap into JSON
+		                            String sJsonDetails = gson.toJson(data);
 		
 		                            // Append 2 lines of JSON:
 		                            //  1) the 1st line tells ES that this is a 'create request'
 		                            //  2) the 2nd line tells ES the data for this request
 		                            sbJsonBulkRequest.append(sCreateLine1)
 		                                             .append("\n")
-		                                             .append(gson.toJson(data))
+		                                             .append(sJsonDetails)
 		                                             .append("\n");
 		                        }
 		                        else if (sChangeType.equalsIgnoreCase("UPDATE"))
 		                        {
 		                            // Update an existing document within ElasticSearch
+		                            HashMap<String, Object> data = getMapOfDetailsForDocid(sDocid);
 		
-		                            HashMap<String, String> data = new HashMap<String, String>();
-		                            data.put("ingestDate", "20160214");
-		                            data.put("createDate", "20150701");
-		                            data.put("source", "log format1");
-		                            data.put("title", "This is the updated record " + i);
-		                            data.put("description", "this is the updated description for this record");
+		                            // Convert the HashMap into JSON
+		                            String sJsonDetails = gson.toJson(data);
 		
 		                            // Append 2 lines of JSON:
 		                            //  1) the 1st line tells ES that this is a 'create request'
 		                            //  2) the 2nd line tells ES the data for this request
 		                            sbJsonBulkRequest.append(sUpdateLine1.replace("?", sDocid))
 		                                             .append("\n")
-		                                             .append(gson.toJson(data))
+		                                             .append(sJsonDetails)
 		                                             .append("\n");
 		
 		                        }
@@ -495,29 +544,26 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		                            sbJsonBulkRequest.append(sDeleteLine1.replace("?", sDocid))
 		                                             .append("\n");
 		                        }
-		
-		
-		                        bChangeRecordsWereFound = true;
 		                    }
 		
 		
-		                    if (bChangeRecordsWereFound)
+		                    if (sbJsonBulkRequest.length() > 0)
 		                    {
+		                        // I have some JSON to send to ElasticSearch
 		
 		                        // Add one more carriage return
 		                        sbJsonBulkRequest.append("\n");
 		
-		
 		                        // Delete all of these records from the changes table  [once the SQL transaction is committed]
-		                        String sCsvDocids = String.join(",", changeIds);
-		                        String sSqlToDeleteRecords =
-		                                "delete from changes " +
-		                                        "where id IN (" + sCsvDocids + ") ";
+		                        final String sCsvDocids = String.join(",", changeIds);
+		                        final String sSqlToDeleteRecords =
+		                               "delete from changes " +
+		                               "where id IN (" + sCsvDocids + ") ";
 		                        jt.update(sSqlToDeleteRecords);
 		
 		
-		                        // Make a large POST call to index all of the records
-		                        Response response = httpClient.preparePost(ES_URL + "/_bulk")
+		                        // Make a large POST call (that performs the bulk index request against ElasticSearch)
+		                        Response response = httpClient.preparePost(elasticsearchUrl + "/_bulk")
 		                                .setHeader("accept", "application/json")
 		                                .setBody(sbJsonBulkRequest.toString())
 		                                .execute()
@@ -532,7 +578,7 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		                        {
 		                            // ElasticSearch returned a 200 status
 		                            // -- now, Verify that I got no errors
-		                            String sJsonResponse = response.getResponseBody().toString();
+		                            String sJsonResponse = response.getResponseBody();
 		                            JsonElement jelement = new JsonParser().parse(sJsonResponse);
 		                            JsonObject jobject = jelement.getAsJsonObject();
 		                            Boolean bErrors = jobject.get("errors").getAsBoolean();
@@ -545,7 +591,7 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		                        }
 		                    }
 		
-		                    // C O M M I T       T R A N S A C T I O N
+		                    // C O M M I T      S Q L      T R A N S A C T I O N
 		                }
 		                catch(Exception e)
 		                {
@@ -554,27 +600,106 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		                    re.setStackTrace(e.getStackTrace() );
 		                    throw re;
 		                }
+		                finally
+		                {
+		                    // Close the httpClient object
+		                    httpClient.close();
+		                }
 		            }
 		        });
 		
 		
-		        // Close the httpClient object
-		        httpClient.close();
-		
-		        logger.debug("main() finished");
+		        logger.debug("syncIndex1() finished.");
 		    }
 		
 		}
+ 
+
+ 7. Create this class:  App
+    a. Right-click on /src/main/java/stuff -> New -> Java Class
+       Name:  App
+       Kind:  Class
+       Press OK
+       
+       
+    b. Copy this to to your java class
+
+		package stuff;
+		
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		
+		import javax.sql.DataSource;
+		
+		/**
+		 * Created by adam on 12/28/2016.
+		 */
+		public class App
+		{
+		    private static final Logger logger = LoggerFactory.getLogger(App.class);
+		
+		    /********************************************************************************************
+		     * main()
+		     *********************************************************************************************/
+		    public static void main(String[] args) throws Exception
+		    {
+		        logger.debug("main() started");
+		
+		        final String ES_URL = "http://192.168.1.165:9200";
+		
+		        // Connect to the Postgres DataSource instance and return the data source object
+		        DataSource datasource = PostgresSingleton.INSTANCE.getDataSource();
+		
+		        // Create a SyncRecords object with the passed-in ElasticSearchUrl and data source
+		        SyncRecords syncRecords = new SyncRecords(ES_URL, datasource);
+		
+		        // Start syncing the records
+		        syncRecords.syncIndex1();
+		
+		        logger.debug("main() finished.");
+		    }
+		
+		}
+		 
+ 
+ 
+ 
+Part 3:  Run the program
+------------------------
+ 1. Insert some records into the documents and changes tables
+		insert into documents(title, author, createDate, ingestDate) values('The Wizard of Oz', 'someone',                        now(), (now() - INTERVAL '30 days') );
+		insert into documents(title, author, createDate, ingestDate) values('Hitchhiker''s Guide to the Galaxy', 'Douglas Adams', now(), (now() - INTERVAL '10 days') );
+		insert into changes(docid, type) values(1, 'create');
+		insert into changes(docid, type) values(2, 'create');
 
 
-
+ 2. Query against the ElasticSearch index (there should be no records)
+ 	a. Startup Chrome
+ 	b. Run the "Sense" plugin
+ 	c. Run this command:
+ 			GET /docs/_search
+ 
+ 			
+ 3. Run the Java Program
+ 
+ 
+ 4. Query against the ElasticSearch index (there should be a few records)
+  	a. Startup Chrome
+ 	b. Run the "Sense" plugin
+ 	c. Run this command:
+ 			GET /docs/_search
+ 
+ 
+ 
 A L G O R I T H M
 -----------------		    
-		 // Our worker, scheduled to run every N minutes.
+// Our worker, scheduled to run every N minutes.
 // It will read 1000 entries off the queue, issue a single batch request
 // to elasticsearch, and repeat if more items are still on the queue
-class QueueWorker < Worker {
-  function work() {
+class QueueWorker < Worker
+ {
+  function work()
+   {
     errorCount = 0;
     // Transactionally reserve 1000 entries at a time, but don't delete them from the queue yet
     // The entries will be only be fully deleted once the bulk operation has successfully completed
@@ -607,15 +732,21 @@ class QueueWorker < Worker {
         http_client.post("http://host.for.elasticsearch:9200/_bulk", body: bulk_body);
         // Now that we're sure processing has succeeded we can fully delete the queue entries
         queue_entries.delete
-      } catch (StandardError ex) {
+      } 
+      catch (StandardError ex) 
+      {
         queue_entries.unreserve;
         
         // Simply let the while loop retry up to 5 times.
         errorCount += 1
-        if (errorCount >= 5) {
+        if (errorCount >= 5) 
+        {
           throw(CannotReplicateElasticsearchError);
-        } else {
-          Logger.warn("Error processing elasticsearchqueue, will retry. Attempt: $errorCount", ex)
+        } 
+        else
+         {
+          Logg
+          er.warn("Error processing elasticsearchqueue, will retry. Attempt: $errorCount", ex)
         }
       }
     }
@@ -623,26 +754,4 @@ class QueueWorker < Worker {
 }
  
  
- 
- 
- 
- 
-Part 3:  Run the program
-------------------------
- 1. Query against the ElasticSearch index (there should be no records)
- 	a. Startup Chrome
- 	b. Run the "Sense" plugin
- 	c. Run this command:
- 			GET /docs/_search
- 			
- 
- 2. Run the Java Program
- 
- 
- 
- 3. Query against the ElasticSearch index (there should be a few records)
-  	a. Startup Chrome
- 	b. Run the "Sense" plugin
- 	c. Run this command:
- 			GET /docs/_search
  
