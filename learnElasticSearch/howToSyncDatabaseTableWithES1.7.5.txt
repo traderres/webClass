@@ -80,7 +80,7 @@ Part 1:  Setup the Database Table and ElasticSearch Index
  	b. Startup the "Sense" plugin
  	c. Run the following commands:	
 	 
-		1) Delete the index called "docs"
+		1) Delete the index called "docs" [and all records and the mapping, too!]
 	    	DELETE /docs
 	
 	
@@ -94,7 +94,7 @@ Part 1:  Setup the Database Table and ElasticSearch Index
 		                   "type": "string",
 		                   "analyzer": "snowball",
 		                   "copy_to": "search_text" 
-		                },
+		                },	                
 		                "source": {
 		                   "type": "string",
 		                   "index": "not_analyzed"
@@ -124,11 +124,8 @@ Part 1:  Setup the Database Table and ElasticSearch Index
 		    }
  
 
-	 	3) Delete any existing records (but keep the mapping)
-	    	DELETE /docs/record
  
- 
-		4) Add some sample records to this index
+		3) Add some sample records to this index
 	    	POST _bulk
 	    	{ "create": { "_index": "docs", "_type": "record"}}
 	    	{ "title": "Record #1", "source": "log format1", "ingestDate", "20150526", "createDate": "20160124", "description": "This is the description for record #1" }
@@ -138,7 +135,7 @@ Part 1:  Setup the Database Table and ElasticSearch Index
 	    	{ "title": "Record #3", "source": "log format2", "createDate": "02/25/2016", "description": "This is the description for record #3"}
     
     
-    	5) View all records in this index
+    	4) View all records in this index
 	    	GET /docs/record/_search
     
     
@@ -232,7 +229,7 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		        <appender-ref ref="CONSOLE"/>
 		    </logger>
 		
-		    <logger name="org.springframework.jdbc" level="DEBUG" additivity="false">
+		    <logger name="org.springframework.jdbc" level="INFO" additivity="false">
 		        <appender-ref ref="CONSOLE"/>
 		    </logger>
 		
@@ -337,10 +334,7 @@ Part 2:  Create this Java program that will process 1000 records from the change
     
 		package stuff;
 		
-		import com.google.gson.Gson;
-		import com.google.gson.JsonElement;
-		import com.google.gson.JsonObject;
-		import com.google.gson.JsonParser;
+		import com.google.gson.*;
 		import com.ning.http.client.AsyncHttpClient;
 		import com.ning.http.client.Response;
 		import org.slf4j.Logger;
@@ -357,6 +351,7 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		
 		import java.util.ArrayList;
 		import java.util.HashMap;
+		import java.util.Map;
 		
 		/**
 		 * SyncRecords
@@ -432,8 +427,17 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		            dataMap.put("createDate", rs.getString("createDate"));
 		            dataMap.put("author",     rs.getString("author"));
 		            dataMap.put("title",      rs.getString("title"));
-		        }
 		
+		            if (asDocid.equalsIgnoreCase("1"))
+		            {
+		                dataMap.put("ingestDate", "INVALID");
+		            }
+		        }
+		        else
+		        {
+		            // I did not find a record with this docid (in the database)
+		            logger.warn("Warning in getMapOfDetailsForDocid():  I did not find a record for docid=" + asDocid + ".  This should never happen.");
+		        }
 		        return dataMap;
 		    }
 		
@@ -465,8 +469,9 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		            {
 		                try
 		                {
+		                    int iTotalSuccessIndexOperations = 0;
+		                    int iTotalFailIndexOperations = 0;
 		                    StringBuilder sbJsonBulkRequest = new StringBuilder();
-		
 		                    ArrayList<String> changeIds = new ArrayList<String>();
 		
 		                    // Reserve 1000 entries at a time
@@ -490,6 +495,7 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		                    HashMap<String, String> innerMapCreate = new HashMap<String, String>();
 		                    innerMapCreate.put("_index", ES_INDEX_NAME);
 		                    innerMapCreate.put("_type",  ES_MAPPING_NAME);
+		                    innerMapCreate.put("_id",    "?");
 		                    HashMap<String, Object> outerMapCreate = new HashMap<String, Object>();
 		                    outerMapCreate.put("create", innerMapCreate);
 		                    final String sCreateLine1 = gson.toJson(outerMapCreate);
@@ -533,7 +539,7 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		                            // Append 2 lines of JSON:
 		                            //  1) the 1st line tells ES that this is a 'create request'
 		                            //  2) the 2nd line tells ES the data for this request
-		                            sbJsonBulkRequest.append(sCreateLine1)
+		                            sbJsonBulkRequest.append(sCreateLine1.replace("?", sDocid))
 		                                             .append("\n")
 		                                             .append(sJsonDetails)
 		                                             .append("\n");
@@ -564,7 +570,11 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		                    }
 		
 		
-		                    if (sbJsonBulkRequest.length() > 0)
+		                    if (sbJsonBulkRequest.length() == 0)
+		                    {
+		                        logger.debug("I found no records in the changes table.  There is nothing to index.");
+		                    }
+		                    else
 		                    {
 		                        // I have some JSON to send to ElasticSearch
 		
@@ -602,12 +612,54 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		                            Boolean bErrors = jobject.get("errors").getAsBoolean();
 		                            logger.debug("ElasticSearch returned errors={}", bErrors);
 		
-		                            if (bErrors)
+		                            if (bErrors == false)
 		                            {
-		                                throw new RuntimeException("Critical Error in Sync Program:  I got a 200 status code, but I got some errors.  Here is the returned json:  " + sJsonResponse);
+		                                // There were no errors performing this bulk operation
+		                                logger.debug("Index operation finished successfully.  There were no errors.");
+		                            }
+		                            else
+		                            {
+		                                // There were some errors performing this bulk operations
+		                                // NOTE:  The "errors" flag holds true -- so one or more items *FAILED* to index
+		                                logger.error("Critical Error in Sync Program:  I got a 200 status code, but I got some errors.  Here is the returned json:  " + sJsonResponse);
+		
+		                                JsonArray items = jobject.getAsJsonArray("items");
+		                                for (JsonElement item: items)
+		                                {
+		                                    JsonObject jitem = item.getAsJsonObject();
+		
+		                                    if (jitem.has("create"))
+		                                    {
+		                                        JsonObject jitemDetails = jitem.get("create").getAsJsonObject();
+		
+		                                        int iStatus   = jitemDetails.get("status").getAsInt();
+		                                        String sDocid = jitemDetails.get("_id").getAsString();
+		                                        logger.debug("Examining operation on docid=" + sDocid + " with status=" + iStatus);
+		
+		                                        if ((iStatus == 200) || (iStatus == 201))
+		                                        {
+		                                            // This item was successfully indexed
+		                                            logger.error("ElasticSearch successfully indexed this docid: " + sDocid);
+		
+		                                            iTotalSuccessIndexOperations++;
+		                                        }
+		                                        else
+		                                        {
+		                                            // This item failed to index
+		                                            String sErrorMesg = jitemDetails.get("error").getAsString();
+		                                            logger.error("ElasticSearch failed to index docid {}.  Error is {}", sDocid, sErrorMesg);
+		                                            iTotalFailIndexOperations++;
+		                                        }
+		                                    }
+		
+		
+		                                }
+		
+		                                logger.warn("WARNING: iTotalSuccessIndexOperations={}  iTotalFailIndexOperations={}", iTotalSuccessIndexOperations, iTotalFailIndexOperations);
 		                            }
 		                        }
 		                    }
+		
 		
 		                    // C O M M I T      S Q L      T R A N S A C T I O N
 		                }
@@ -631,7 +683,8 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		    }
 		
 		}
-		 
+
+
 
  7. Create this class:  App
     a. Right-click on /src/main/java/stuff -> New -> Java Class
