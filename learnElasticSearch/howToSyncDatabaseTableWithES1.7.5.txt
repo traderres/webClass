@@ -429,7 +429,7 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		        else
 		        {
 		            // I did not find a record with this docid (in the database)
-		            logger.warn("Warning in getMapOfDetailsForDocid():  I did not find a record for docid=" + asDocid + ".  This should never happen.");
+		            logger.warn("Warning in getMapOfDetailsForDocid():  I did not find a record for docid={}.  This should never happen.", asDocid);
 		        }
 		
 		        return dataMap;
@@ -485,14 +485,14 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		
 		                    Gson gson = new Gson();
 		
-		                    // Generate the 1st line of JSON (used for each 'create' request)
+		                    // Generate the 1st line of JSON (used for each 'create' or 'update' request)
 		                    HashMap<String, String> innerMapCreate = new HashMap<String, String>();
 		                    innerMapCreate.put("_index", ES_INDEX_NAME);
 		                    innerMapCreate.put("_type",  ES_MAPPING_NAME);
 		                    innerMapCreate.put("_id",    "?");
 		                    HashMap<String, Object> outerMapCreate = new HashMap<String, Object>();
 		                    outerMapCreate.put("index", innerMapCreate);
-		                    final String sCreateUpdateLine1 = gson.toJson(outerMapCreate);
+		                    final String sCreateOrUpdateLine1 = gson.toJson(outerMapCreate);
 		
 		                    // Generate the 1st line of JSON (used for each 'delete' request)
 		                    HashMap<String, String> innerMapDelete = new HashMap<String, String>();
@@ -526,7 +526,7 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		                            // Append 2 lines of JSON:
 		                            //  1) the 1st line tells ES that this is a 'create request'
 		                            //  2) the 2nd line tells ES the data for this request
-		                            sbJsonBulkRequest.append(sCreateUpdateLine1.replace("?", sDocid))
+		                            sbJsonBulkRequest.append(sCreateOrUpdateLine1.replace("?", sDocid))
 		                                             .append("\n")
 		                                             .append(sJsonDetails)
 		                                             .append("\n");
@@ -612,15 +612,17 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		                                            String sDocid = jitemDetails.get("_id").getAsString();
 		                                            logger.debug("{} operation on docid={} with status={}", sIndexOperationName, sDocid, iStatus);
 		
-		                                            if ((iStatus == 200) || (iStatus == 201)) {
-		                                                // This item was successfully indexed
-		                                                logger.error("ElasticSearch successfully indexed this docid: " + sDocid);
+		                                            if ((iStatus == 200) || (iStatus == 201))
+		                                            {
+		                                                // Out of the N index operations, this one operation succeeded
+		                                                logger.error("ElasticSearch {} operation succeeded for this docid: ", sIndexOperationName, sDocid);
 		
 		                                                iTotalSuccessIndexOperations++;
-		                                            } else {
+		                                            } else
+		                                            {
 		                                                // This item failed to index
 		                                                String sErrorMesg = jitemDetails.get("error").getAsString();
-		                                                logger.error("ElasticSearch failed to index docid {}.  Error is {}", sDocid, sErrorMesg);
+		                                                logger.error("ElasticSearch {} operation failed for this docid {}.  Error is {}", sIndexOperationName, sDocid, sErrorMesg);
 		                                                iTotalFailIndexOperations++;
 		                                            }
 		                                        }
