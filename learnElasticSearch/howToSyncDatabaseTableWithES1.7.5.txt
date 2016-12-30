@@ -350,6 +350,7 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		import javax.sql.DataSource;
 		
 		import java.util.*;
+		import java.util.regex.Pattern;
 		
 		/**
 		 * SyncRecords
@@ -362,13 +363,15 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		    private String     elasticsearchUrl = null;
 		    private DataSource dataSource = null;
 		    private int        totalRecordsToProcessInOneBulkRequest;
-		
-		
+		    private int        transactionTimeoutPeriodInSecs;   // Total number of secs before transaction times out
 		
 		    /********************************************************************************************
 		     * SyncRecords()   **Constructor**
 		     *********************************************************************************************/
-		    public SyncRecords(String aElasticSearchUrl, DataSource aDataSource, int aTotalRecordsToProcessIneOneBulkRequest)
+		    public SyncRecords(String aElasticSearchUrl,
+		                       DataSource aDataSource,
+		                       int aTotalRecordsToProcessIneOneBulkRequest,
+		                       int aTransactionTimeoutPeriodInSecs)
 		    {
 		        logger.debug("SyncRecords() started. aElasticSearchUrl={}", aElasticSearchUrl);
 		
@@ -388,6 +391,7 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		        this.elasticsearchUrl = aElasticSearchUrl;
 		        this.dataSource = aDataSource;
 		        this.totalRecordsToProcessInOneBulkRequest = aTotalRecordsToProcessIneOneBulkRequest;
+		        this.transactionTimeoutPeriodInSecs = aTransactionTimeoutPeriodInSecs;
 		    }
 		
 		
@@ -436,6 +440,70 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		    }
 		
 		
+		    /********************************************************************************************
+		     * deleteRecordsFromChangesTableWithIds()
+		     *
+		     * NOTE:  Delete in batches of 10,000 records at a time (to avoid sending a massive single delete call to postgess)
+		     *********************************************************************************************/
+		    private void deleteRecordsFromChangesTableWithIds(ArrayList<String> ids) throws Exception
+		    {
+		        logger.debug("deleteRecordsFromChangesTableWithIds() started  ids.size()={}", ids.size());
+		        long startTime = System.currentTimeMillis();
+		
+		        final int TOTAL_RECORDS_TO_DELETE_AT_ONCE = 10000;
+		        StringBuilder sbCsvIds = new StringBuilder();
+		        JdbcTemplate jt = new JdbcTemplate(this.dataSource);
+		        int iTotal=0;
+		
+		        for (int i=0; i<ids.size(); i++)
+		        {
+		
+		            if (((i % TOTAL_RECORDS_TO_DELETE_AT_ONCE) == 0) && (i > 0))
+		            {
+		                // This is one batch of 10,000
+		                // -- Run the SQL to delete these 10,000 records
+		                sbCsvIds.deleteCharAt(sbCsvIds.length() - 1);
+		
+		                String sSqlToDeleteRecords =
+		                        "delete from changes " +
+		                                "where id IN (" + sbCsvIds.toString() + ") ";
+		
+		                logger.debug("Deleting changes records initiated.  iTotal={}  i={}", iTotal, i);
+		                jt.update(sSqlToDeleteRecords);
+		
+		                // Clear the string builder
+		                sbCsvIds.setLength(0);
+		
+		                iTotal=0;
+		            }
+		
+		
+		            String sId = ids.get(i);
+		
+		            sbCsvIds.append(sId)
+		                    .append(",");
+		
+		            iTotal++;
+		        }
+		
+		        if (sbCsvIds.length() > 0)
+		        {
+		            // Delete is the last batch
+		
+		            // Remove the last comma
+		            sbCsvIds.deleteCharAt(sbCsvIds.length() -1);
+		
+		            String sSqlToDeleteRecords =
+		                    "delete from changes " +
+		                            "where id IN (" + sbCsvIds.toString() + ") ";
+		
+		            logger.debug("Deleting last batch of records initiated.  iTotal={}", iTotal);
+		            jt.update(sSqlToDeleteRecords);
+		        }
+		
+		        long endTime = System.currentTimeMillis();
+		        logger.debug("deleteRecordsFromChangesTableWithIds() finished in {} ms.", (endTime - startTime));
+		     }
 		
 		    /********************************************************************************************
 		     * syncIndex1()
@@ -452,7 +520,7 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		        tt.setTransactionManager(new DataSourceTransactionManager(this.dataSource));
 		
 		        // This transaction will throw a TransactionTimedOutException after 120 seconds (causing the transaction to rollback)
-		        tt.setTimeout(120);
+		        tt.setTimeout(this.transactionTimeoutPeriodInSecs);
 		
 		        final String ES_INDEX_NAME   = "docs";
 		        final String ES_MAPPING_NAME = "record";
@@ -463,6 +531,7 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		            {
 		                try
 		                {
+		                    Pattern patMatchQuestionChar = Pattern.compile("[?]");
 		                    int iTotalSuccessIndexOperations = 0;
 		                    int iTotalFailIndexOperations = 0;
 		                    StringBuilder sbJsonBulkRequest = new StringBuilder();
@@ -505,6 +574,7 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		
 		
 		                    // Loop through the read-only recordset of *changes* records
+		                    int iTotalBulkIndexOperations = 0;
 		                    while (rs.next())
 		                    {
 		                        String sChangeId = rs.getString("id");
@@ -523,26 +593,40 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		                            // Convert the HashMap into JSON
 		                            String sJsonDetails = gson.toJson(data);
 		
+		                            // Replace the "?" with the docid
+		                            String sCreateOrUpdateLine1WithId = patMatchQuestionChar.matcher(sCreateOrUpdateLine1).replaceFirst(sDocid);
+		
 		                            // Append 2 lines of JSON:
 		                            //  1) the 1st line tells ES that this is a 'create request'
 		                            //  2) the 2nd line tells ES the data for this request
-		                            sbJsonBulkRequest.append(sCreateOrUpdateLine1.replace("?", sDocid))
+		                            sbJsonBulkRequest.append(sCreateOrUpdateLine1WithId)
 		                                             .append("\n")
 		                                             .append(sJsonDetails)
 		                                             .append("\n");
+		
+		                            iTotalBulkIndexOperations++;
 		                        }
 		                        else if (sChangeType.equalsIgnoreCase("DELETE"))
 		                        {
 		                            // Append the JSON needed to delete a document within ElasticSearch
+		                            String sDeleteLine1WithId = patMatchQuestionChar.matcher(sDeleteLine1).replaceFirst(sDocid);
 		
 		                            // Delete an existing document within ElasticSearch
-		                            sbJsonBulkRequest.append(sDeleteLine1.replace("?", sDocid))
+		                            sbJsonBulkRequest.append(sDeleteLine1WithId)
 		                                             .append("\n");
+		
+		                            iTotalBulkIndexOperations++;
 		                        }
+		
+		                        if ((iTotalBulkIndexOperations % 1000) == 0)
+		                        {
+		                            logger.debug("Finished preparing another 1000.  Up to {}", iTotalBulkIndexOperations);
+		                        }
+		
 		                    }
 		
 		
-		                    if (sbJsonBulkRequest.length() == 0)
+		                    if (iTotalBulkIndexOperations == 0)
 		                    {
 		                        logger.debug("I found no records in the changes table.  There is nothing to index.");
 		                    }
@@ -554,19 +638,19 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		                        sbJsonBulkRequest.append("\n");
 		
 		                        // Delete all of these records from the changes table  [once the SQL transaction is committed]
-		                        final String sCsvDocids = String.join(",", changeIds);
-		                        final String sSqlToDeleteRecords =
-		                               "delete from changes " +
-		                               "where id IN (" + sCsvDocids + ") ";
-		                        jt.update(sSqlToDeleteRecords);
-		
+		                        deleteRecordsFromChangesTableWithIds(changeIds);
 		
 		                        // Make a POST call to ElasticSearch  (this performs the bulk index request)
+		                        logger.debug("ElasticSearch POST initiated.  Total Bulk Operations Requested={}", iTotalBulkIndexOperations);
+		                        long startTime = System.currentTimeMillis();
 		                        Response response = httpClient.preparePost(elasticsearchUrl + "/_bulk")
 		                                .setHeader("accept", "application/json")
 		                                .setBody(sbJsonBulkRequest.toString())
 		                                .execute()
 		                                .get();
+		                        long endTime = System.currentTimeMillis();
+		                        long lTotalTimeMs = endTime - startTime;
+		                        logger.debug("ElasticSearch POST finished in {} ms with status code of {}", lTotalTimeMs, response.getStatusCode());
 		
 		                        if (response.getStatusCode() != 200)
 		                        {
@@ -587,14 +671,17 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		                            if (bErrors == false)
 		                            {
 		                                // There were no errors performing this bulk operation
+		                                // B U L K    O P E R A T I O N     W A S    1 0 0 %    S U C C E S S F U L
 		                                logger.debug("Index operation finished successfully.  There were no errors.");
 		                            }
 		                            else
 		                            {
-		                                // There were some errors performing this bulk operations
-		                                // NOTE:  The "errors" flag holds true -- so one or more items *FAILED* to index
+		                                // B U L K    O P E R A T I O N     P A R T I A L L Y    F A I L E D
+		                                // -- The "errors" flag holds true -- so one or more items *FAILED* to index
 		                                logger.error("Critical Error in Sync Program:  I got a 200 status code, but I got some errors.  Here is the returned json:  " + sJsonResponse);
 		
+		                                // The Response object's JSON holds information under "create", "index", or "delete" keys
+		                                // -- So, we need to look under all of them to find out which "create" operations worked, which "index" operations worked, and which "delete" operations worked
 		                                List<String> operationNames = Arrays.asList("create","index","delete");
 		
 		                                JsonArray items = jobject.getAsJsonArray("items");
@@ -618,7 +705,8 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		                                                logger.error("ElasticSearch {} operation succeeded for this docid: ", sIndexOperationName, sDocid);
 		
 		                                                iTotalSuccessIndexOperations++;
-		                                            } else
+		                                            }
+		                                            else
 		                                            {
 		                                                // This item failed to index
 		                                                String sErrorMesg = jitemDetails.get("error").getAsString();
@@ -626,7 +714,8 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		                                                iTotalFailIndexOperations++;
 		                                            }
 		                                        }
-		                                    }
+		
+		                                    }  // end of looping thru "create", "index", and "delete" strings
 		                                }
 		
 		                                logger.warn("WARNING: iTotalSuccessIndexOperations={}  iTotalFailIndexOperations={}", iTotalSuccessIndexOperations, iTotalFailIndexOperations);
@@ -659,6 +748,8 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		}
 
 
+
+
  7. Create this class:  App
     a. Right-click on /src/main/java/stuff -> New -> Java Class
        Name:  App
@@ -672,6 +763,11 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		
 		import org.slf4j.Logger;
 		import org.slf4j.LoggerFactory;
+		import org.springframework.jdbc.core.JdbcTemplate;
+		import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+		import org.springframework.transaction.TransactionStatus;
+		import org.springframework.transaction.support.TransactionCallbackWithoutResult;
+		import org.springframework.transaction.support.TransactionTemplate;
 		
 		import javax.sql.DataSource;
 		
@@ -689,23 +785,80 @@ Part 2:  Create this Java program that will process 1000 records from the change
 		    {
 		        logger.debug("main() started");
 		
+		        long startTime = System.currentTimeMillis();
+		
+		
 		        final String ES_URL                          =  "http://192.168.1.165:9200";
-		        final int    TOTAL_RECORDS_TO_INDEX_AT_ONCE = 2;
+		        final int    TOTAL_RECORDS_TO_INDEX_AT_ONCE = 2500;
+		        final int    TRANSACTION_TIMEOUT_IN_SECS =    900;   // Transaction times out after 900 secds (or 15 minutes)
 		
 		        // Connect to the Postgres DataSource instance and return the data source object
 		        DataSource datasource = PostgresSingleton.INSTANCE.getDataSource();
 		
+		
+		        // Create 50,000 document and changes requests
+		//        createRequests(datasource);
+		
 		        // Create a SyncRecords object with the passed-in ElasticSearchUrl and data source
-		        SyncRecords syncRecords = new SyncRecords(ES_URL, datasource, TOTAL_RECORDS_TO_INDEX_AT_ONCE);
+		        SyncRecords syncRecords = new SyncRecords(ES_URL, datasource, TOTAL_RECORDS_TO_INDEX_AT_ONCE, TRANSACTION_TIMEOUT_IN_SECS);
 		
 		        // Start syncing the records
 		        syncRecords.syncIndex1();
 		
-		        logger.debug("main() finished.");
+		        long finishTime = System.currentTimeMillis();
+		        logger.debug("main() finished in {} ms.", (finishTime - startTime));
+		    }
+		
+		
+		
+		    /********************************************************************************************
+		     * createRequests()
+		     *********************************************************************************************/
+		    private static void createRequests(final DataSource aDataSource) throws Exception
+		    {
+		        // Setup a SQL Transaction
+		        TransactionTemplate tt = new TransactionTemplate();
+		        tt.setTransactionManager(new DataSourceTransactionManager(aDataSource));
+		
+		        // This transaction will throw a TransactionTimedOutException after 1200 seconds (causing the transaction to rollback)
+		        tt.setTimeout(1800);
+		
+		        tt.execute(new TransactionCallbackWithoutResult()
+		        {
+		            @Override
+		            protected void doInTransactionWithoutResult(TransactionStatus transactionStatus) {
+		                int i = 1;
+		
+		                final String sSqlInsertDocuments = "insert into documents(id, title, author, createDate, ingestDate) " +
+		                        "values(?, ?, ?, now(), now())";
+		
+		
+		                final String sSqlInsertChanges = "insert into changes(docid, type) values(?, CAST(? AS changetype))";
+		
+		                JdbcTemplate jt = new JdbcTemplate(aDataSource);
+		
+		                for (int docid = 1; docid <= 50000; docid++)
+		                {
+		                    String sTitle = "title for " + docid;
+		                    String sAuthor = "author for " + docid;
+		                    jt.update(sSqlInsertDocuments, docid, sTitle, sAuthor);
+		
+		                    jt.update(sSqlInsertChanges, docid, "create");
+		
+		                    if ((docid % 10000) == 0)
+		                    {
+		                        logger.debug("Inserted another 10000.  Up to {}", docid);
+		                    }
+		                }
+		
+		                // C O M M I T
+		                logger.debug("committing operation.");
+		            }
+		        });
 		    }
 		
 		}
-			 
+
  
  
  
