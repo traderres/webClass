@@ -152,12 +152,21 @@ Procedure
 		
 		    /**************************************************************************
 		     * runSimpleQueryString()
+		     *  1) Verify that passed-in arguments are valid
+		     *  2) Clean-up the query so that quotes do not screw up execution
+		     *  3) Run a synchronous ES call
+		     *  4) Verify that the status code is good
+		     *  5) Return the ES JSON results
+		     *
+		     *  Returns are ordered by the default ES Score
 		     ***************************************************************************/
 		    public String runSimpleQueryString(String aQuery,
 		                                       String aIndexName,
 		                                       long   aStartingRecord,
 		                                       long   aPageSize) throws Exception
 		    {
+		        logger.debug("runSimpleQueryString()  aIndexName={}  aQuery={}", aIndexName, aQuery);
+		
 		        String sReturnedJson = null;
 		
 		        if ((aIndexName == null) || (aIndexName.length() == 0))
@@ -181,8 +190,8 @@ Procedure
 		                                  "\"default_operator\": \"and\" " +
 		                            "}" +
 		                    "}," +
-		                    "from:" + aStartingRecord + "," +
-		                    "size:" + aPageSize +
+		                    "\"from\":" + aStartingRecord + "," +
+		                    "\"size\":" + aPageSize +
 		                "}";
 		
 		        // Make a synchronous call to ElasticSearch (to run this query)
@@ -204,11 +213,93 @@ Procedure
 		            sReturnedJson = response.getResponseBody();
 		        }
 		
+		
+		        logger.debug("runSimpleQueryString()  finished.");
 		        return sReturnedJson;
 		    }
 		
 		
+		    /**************************************************************************
+		     * runSimpleQueryStringOrderBy()
+		     *  1) Verify that passed-in arguments are valid
+		     *  2) Clean-up the query so that quotes do not screw up execution
+		     *  3) Run a synchronous ES call
+		     *  4) Verify that the status code is good
+		     *  5) Return the ES JSON results
+		     *
+		     *  Returns are ordered by the passed-in aOrderByField and aOrderByDirection
+		     ***************************************************************************/
+		    public String runSimpleQueryStringOrderBy(String aQuery,
+		                                              String aIndexName,
+		                                              long   aStartingRecord,
+		                                              long   aPageSize,
+		                                              String aOrderByField,
+		                                              String aOrderByDirection) throws Exception
+		    {
+		        logger.debug("runSimpleQueryStringOrderBy()  aIndexName={}  aQuery={}  aOrderByField={}  aOrderByDirection={}", aIndexName, aQuery, aOrderByField, aOrderByDirection);
+		
+		        String sReturnedJson = null;
+		
+		        if ((aIndexName == null) || (aIndexName.length() == 0))
+		        {
+		            throw new RuntimeException("Critical Error in runSimpleQueryStringOrderBy():  The passed-in aIndexName is empty or null.");
+		        }
+		        else if (aStartingRecord < 0)
+		        {
+		            throw new RuntimeException("Critical Error in runSimpleQueryStringOrderBy():  The passed-in aStartingRecord is invalid:  " + aStartingRecord + ".  This number should be zero or greater");
+		        }
+		        else if ((aOrderByField == null) || (aOrderByField.length() == 0))
+		        {
+		            throw new RuntimeException("Critical Error in runSimpleQueryStringOrderBy():  The passed-in aOrderByField is empty or null.");
+		        }
+		        else if ((aOrderByDirection == null) || (aOrderByDirection.length() == 0))
+		        {
+		            throw new RuntimeException("Critical Error in runSimpleQueryStringOrderBy():  The passed-in aOrderByDirection is empty or null.");
+		        }
+		
+		        // Clean-up the raw query so quotes do not prevent it from working
+		        String sCleanQuery = encodeQuery(aQuery);
+		
+		        // Construct the JSON call to run an ES Simple Query String
+		        final String sJsonSearchRequest =
+		                "{ \"explain\": false, " +
+		                        "\"query\": { " +
+		                        "\"simple_query_string\": { " +
+		                        " \"query\": " + "\"" + sCleanQuery + "\"," +
+		                        "\"default_operator\": \"and\" " +
+		                        "}" +
+		                        "}," +
+		                        "\"from\":" + aStartingRecord + "," +
+		                        "\"size\":" + aPageSize + "," +
+		                        "\"sort\": [{ \"" + aOrderByField + "\":\"" + aOrderByDirection + "\"}]" +
+		                 "}";
+		
+		        // Make a synchronous call to ElasticSearch (to run this query)
+		        Response response = this.asyncHttpClient.preparePost(this.elasticSearchURl + "/" + aIndexName + "/_search")
+		                .setHeader("accept", "application/json")
+		                .setBody(sJsonSearchRequest)
+		                .execute()
+		                .get();
+		
+		
+		        if (response.getStatusCode() != 200)
+		        {
+		            // ElasticSearch returned a non-200 status response -- that's bad
+		            throw new RuntimeException("Critical Error in runSimpleQueryStringOrderBy():  I got a non-200 status code of " + response.getStatusCode() + ".  The error is " + response.getResponseBody());
+		        }
+		        else
+		        {
+		            // ElasticSearch returned a 200 status -- that's good
+		            sReturnedJson = response.getResponseBody();
+		        }
+		
+		
+		        logger.debug("runSimpleQueryString()  finished.");
+		        return sReturnedJson;
+		    }
+		
 		}
+
 
 	
 		 
@@ -260,13 +351,19 @@ Procedure
 		        sJsonResults = es.runSimpleQueryString("\"author for 148667\"", "docs", 0, 10);
 		        logger.debug("Query 3 Results:\n{}", es.getJsonInPrettyFormat(sJsonResults));
 		
+		        // This query orders the results by ingestDate/desc
+		        sJsonResults = es.runSimpleQueryStringOrderBy("author", "docs", 0, 5, "ingestDate", "desc");
+		        logger.debug("Query 1 Results:\n{}", es.getJsonInPrettyFormat(sJsonResults));
+		
+		
 		        // Close the ElasticSearchDao class properly
 		        es.close();
 		    }
 		
 		
-		
 		}
+
+
 
 
  7. Debug the main()
