@@ -1,0 +1,281 @@
+How to Run an Elastic Search Query by sending JSON to it
+--------------------------------------------------------
+
+Assumption:
+ A) You have an ES 1.7.5 instance up and running
+ 
+
+Procedure
+---------
+1. Create a Java command-line project
+    [see learnJava / howToCreateJavaCommandLineProgramUsingIntellijMaven.txt]
+ 
+ 
+ 2. Add these dependencies to your pom.xml
+
+      <dependency>
+          <!-- Used to convert java objects to JSON -->
+          <groupId>com.google.code.gson</groupId>
+          <artifactId>gson</artifactId>
+          <version>2.8.0</version>
+      </dependency>
+
+      <dependency>
+          <!-- Used for my httpClient implementation -->
+          <groupId>com.ning</groupId>
+          <artifactId>async-http-client</artifactId>
+          <version>1.9.31</version>
+      </dependency>
+
+  
+
+ 3. Update your logback.xml file to look like this:
+    a. Edit /src/main/resources/logback.xml
+    b. Replace your logback.xml with this:
+    
+		<?xml version="1.0" encoding="windows-1252" ?>
+		<!DOCTYPE project>
+		
+		<configuration debug="false">
+		    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+		        <encoder>
+		            <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+		        </encoder>
+		    </appender>
+		
+		
+		    <logger name="stuff" level="DEBUG" additivity="false">
+		        <appender-ref ref="CONSOLE"/>
+		    </logger>
+		
+		    <logger name="org.elasticsearch" level="INFO" additivity="false">
+		        <appender-ref ref="CONSOLE"/>
+		    </logger>
+		
+		    <logger name="org.springframework.jdbc" level="INFO" additivity="false">
+		        <appender-ref ref="CONSOLE"/>
+		    </logger>
+		
+		    <root level="INFO">
+		        <appender-ref ref="CONSOLE"/>
+		    </root>
+		
+		</configuration>
+		        
+		              
+ 
+ 4. Create a package called "stuff"
+    a. Right-click on /src/main/java -> New -> Package
+       Name:  Stuff
+       
+ 
+				
+ 5. Create this class:  ElasticSearchDao
+    a. Right-click on /src/main/java/stuff -> New -> Java Class
+       Name:  ElasticSearchDao
+       Kind:  Class
+       Press OK
+       
+    b. Copy this to to your java class
+    
+		package stuff;
+		
+		import com.google.gson.Gson;
+		import com.google.gson.GsonBuilder;
+		import com.google.gson.JsonElement;
+		import com.google.gson.JsonParser;
+		import com.ning.http.client.AsyncHttpClient;
+		import com.ning.http.client.Response;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		
+		
+		/**
+		 * Created by adam on 12/30/2016.
+		 */
+		public class ElasticSearchDao
+		{
+		    private static final Logger logger = LoggerFactory.getLogger(ElasticSearchDao.class);
+		
+		    private String elasticSearchURl;
+		    private AsyncHttpClient asyncHttpClient;
+		
+		
+		    /**************************************************************************
+		     * ElasticSearchDao()  Constructor
+		     *
+		     ***************************************************************************/
+		    public ElasticSearchDao(String aElasticSearchUrl)
+		    {
+		        this.asyncHttpClient = new AsyncHttpClient();
+		        this.elasticSearchURl = aElasticSearchUrl;
+		    }
+		
+		    /********************************************************************************************
+		     * getJsonInPrettyFormat()
+		     *
+		     * Return the JSON in pretty format
+		     *********************************************************************************************/
+		    public static String getJsonInPrettyFormat(String aRawJson)
+		    {
+		        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+		        JsonParser jp = new JsonParser();
+		        JsonElement je = jp.parse(aRawJson);
+		        String prettyJsonString = gson.toJson(je);
+		
+		        return prettyJsonString;
+		    }
+		
+		
+		    /**************************************************************************
+		     * close()
+		     ***************************************************************************/
+		    public void close()
+		    {
+		        if (this.asyncHttpClient != null)
+		        {
+		            this.asyncHttpClient.close();
+		        }
+		    }
+		
+		    /**************************************************************************
+		     * encodeQuery()
+		     ***************************************************************************/
+		    public static String encodeQuery(String aRawQuery)
+		    {
+		        // Convert " --> \"
+		        String sReturnedQuery = aRawQuery.replace("\"", "\\\"");
+		
+		        return sReturnedQuery;
+		    }
+		
+		
+		    /**************************************************************************
+		     * runSimpleQueryString()
+		     ***************************************************************************/
+		    public String runSimpleQueryString(String aQuery,
+		                                       String aIndexName,
+		                                       long   aStartingRecord,
+		                                       long   aPageSize) throws Exception
+		    {
+		        String sReturnedJson = null;
+		
+		        if ((aIndexName == null) || (aIndexName.length() == 0))
+		        {
+		            throw new RuntimeException("Critical Error in runSimpleQueryString():  The passed-in aIndexName is empty or null.");
+		        }
+		        else if (aStartingRecord < 0)
+		        {
+		            throw new RuntimeException("Critical Error in runSimpleQueryString():  The passed-in aStartingRecord is invalid:  " + aStartingRecord + ".  This number should be zero or greater");
+		        }
+		
+		        // Clean-up the raw query so quotes do not prevent it from working
+		        String sCleanQuery = encodeQuery(aQuery);
+		
+		        // Construct the JSON call to run an ES Simple Query String
+		        final String sJsonSearchRequest =
+		                "{ \"explain\": false, " +
+		                    "\"query\": { " +
+		                            "\"simple_query_string\": { " +
+		                                " \"query\": " + "\"" + sCleanQuery + "\"," +
+		                                  "\"default_operator\": \"and\" " +
+		                            "}" +
+		                    "}," +
+		                    "from:" + aStartingRecord + "," +
+		                    "size:" + aPageSize +
+		                "}";
+		
+		        // Make a synchronous call to ElasticSearch (to run this query)
+		        Response response = this.asyncHttpClient.preparePost(this.elasticSearchURl + "/" + aIndexName + "/_search")
+		                .setHeader("accept", "application/json")
+		                .setBody(sJsonSearchRequest)
+		                .execute()
+		                .get();
+		
+		
+		        if (response.getStatusCode() != 200)
+		        {
+		            // ElasticSearch returned a non-200 status response -- that's bad
+		            throw new RuntimeException("Critical Error in runSimpleQueryString():  I got a non-200 status code of " + response.getStatusCode() + ".  The error is " + response.getResponseBody());
+		        }
+		        else
+		        {
+		            // ElasticSearch returned a 200 status -- that's good
+		            sReturnedJson = response.getResponseBody();
+		        }
+		
+		        return sReturnedJson;
+		    }
+		
+		
+		}
+
+	
+		 
+ 6. Create this class:  ElasticSearchDaoApp
+    a. Right-click on /src/main/java/stuff -> New -> Java Class
+       Name:  ElasticSearchDaoApp
+       Kind:  Class
+       Press OK
+       
+       
+    b. Copy this to to your java class
+		    
+		package stuff;
+		
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		
+		/**
+		 * Created by adam on 12/30/2016.
+		 */
+		public class ElasticSearchDaoApp
+		{
+		    private static final Logger logger = LoggerFactory.getLogger(ElasticSearchDaoApp.class);
+		
+		    /********************************************************************************************
+		     * main()
+		     *********************************************************************************************/
+		    public static void main(String[] args) throws Exception
+		    {
+		
+		        final String ES_URL        =  "http://192.168.1.165:9200";
+		        ElasticSearchDao es = new ElasticSearchDao(ES_URL);
+		
+		        String sJsonResults;
+		
+		        // Run a simple-query-string query against ElasticSearch
+		        //  -- Search the "docs" index
+		        //  -- Search query is author
+		        //  -- Return results starting from record number 0
+		        //  -- Return a page of 5 records
+		        sJsonResults = es.runSimpleQueryString("author", "docs", 0, 5);
+		        logger.debug("Query 1 Results:\n{}", es.getJsonInPrettyFormat(sJsonResults));
+		
+		        // This query should return zero results
+		        sJsonResults = es.runSimpleQueryString("+stuff +148662", "docs", 0, 10);
+		        logger.debug("Query 2 Results:\n{}", es.getJsonInPrettyFormat(sJsonResults));
+		
+		        // This query has double quotes in it
+		        sJsonResults = es.runSimpleQueryString("\"author for 148667\"", "docs", 0, 10);
+		        logger.debug("Query 3 Results:\n{}", es.getJsonInPrettyFormat(sJsonResults));
+		
+		        // Close the ElasticSearchDao class properly
+		        es.close();
+		    }
+		
+		
+		
+		}
+
+
+ 7. Debug the main()
+    a. Left-click in the margins of ElasticSearchDaoApp and set a breakpoint
+    b. Right-click on ElasticSearchDaoApp -> Debug 'ElasticSearchDaoApp.main()'
+ 
+ 
+
+ 
+ 
+  
+ 
