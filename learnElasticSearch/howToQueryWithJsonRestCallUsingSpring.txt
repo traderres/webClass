@@ -312,10 +312,10 @@ Procedure
 		        final String sJsonSearchRequest =
 		                "{ \"explain\": false, " +
 		                        "\"query\": { " +
-		                        "\"simple_query_string\": { " +
-		                        " \"query\": " + "\"" + sCleanQuery + "\"," +
-		                        "\"default_operator\": \"and\" " +
-		                        "}" +
+		                             "\"simple_query_string\": { " +
+		                                    "\"query\": " + "\"" + sCleanQuery + "\"," +
+		                                    "\"default_operator\": \"and\" " +
+		                             "}" +
 		                        "}," +
 		                        "\"from\":" + aStartingRecord + "," +
 		                        "\"size\":" + aPageSize + "," +
@@ -346,8 +346,155 @@ Procedure
 		        return sReturnedJson;
 		    }
 		
+		
+		    /**************************************************************************
+		     * runAdvancedQuery()
+		     *  1) Verify that passed-in arguments are valid
+		     *  2) Clean-up the query so that quotes do not screw up execution
+		     *  3) Run a synchronous ES call
+		     *  4) Verify that the status code is good
+		     *  5) Return the ES JSON results
+		     *
+		     *  Returns are ordered by the default ES Score
+		     ***************************************************************************/
+		    public String runAdvancedQuery(String aQuery,
+		                                   String aIndexName,
+		                                   long   aStartingRecord,
+		                                   long   aPageSize) throws Exception
+		    {
+		        logger.debug("runAdvancedQuery()  aIndexName={}  aQuery={}", aIndexName, aQuery);
+		
+		        String sReturnedJson = null;
+		
+		        if ((aIndexName == null) || (aIndexName.length() == 0))
+		        {
+		            throw new RuntimeException("Critical Error in runAdvancedQuery():  The passed-in aIndexName is empty or null.");
+		        }
+		        else if (aStartingRecord < 0)
+		        {
+		            throw new RuntimeException("Critical Error in runAdvancedQuery():  The passed-in aStartingRecord is invalid:  " + aStartingRecord + ".  This number should be zero or greater");
+		        }
+		
+		        // Clean-up the raw query so quotes do not prevent it from working
+		        String sCleanQuery = encodeQuery(aQuery);
+		
+		        // Construct the JSON call to run an ES Advanced Query String
+		        final String sJsonSearchRequest =
+		                    "{  \"explain\": false, " +
+		                        "\"query\": { " +
+		                            "\"query_string\": { " +
+		                                "\"query\": " + "\"" + sCleanQuery + "\"" +
+		                            "}" +
+		                        "}," +
+		                        "\"from\":" + aStartingRecord + "," +
+		                        "\"size\":" + aPageSize +
+		                     "}";
+		
+		        // Make a synchronous call to ElasticSearch (to run this query)
+		        Response response = this.asyncHttpClient.preparePost(this.elasticSearchURl + "/" + aIndexName + "/_search")
+		                .setHeader("accept", "application/json")
+		                .setBody(sJsonSearchRequest)
+		                .execute()
+		                .get();
+		
+		
+		        if (response.getStatusCode() != 200)
+		        {
+		            // ElasticSearch returned a non-200 status response -- that's bad
+		            throw new RuntimeException("Critical Error in runAdvancedQuery():  I got a non-200 status code of " + response.getStatusCode() + ".  The error is " + response.getResponseBody());
+		        }
+		        else
+		        {
+		            // ElasticSearch returned a 200 status -- that's good
+		            sReturnedJson = response.getResponseBody();
+		        }
+		
+		
+		        logger.debug("runAdvancedQuery()  finished.");
+		        return sReturnedJson;
+		    }
+		
+		
+		
+		    /**************************************************************************
+		     * runAdvancedQuery()
+		     *  1) Verify that passed-in arguments are valid
+		     *  2) Clean-up the query so that quotes do not screw up execution
+		     *  3) Run a synchronous ES call
+		     *  4) Verify that the status code is good
+		     *  5) Return the ES JSON results
+		     *
+		     *  Returns are ordered by the default ES Score
+		     ***************************************************************************/
+		    public String runAdvancedQueryOrderBy(String aQuery,
+		                                          String aIndexName,
+		                                          long   aStartingRecord,
+		                                          long   aPageSize,
+		                                          String aOrderByField,
+		                                          String aOrderByDirection) throws Exception
+		    {
+		        logger.debug("runAdvancedQueryOrderBy()  aIndexName={}  aQuery={}", aIndexName, aQuery);
+		
+		        String sReturnedJson = null;
+		
+		        if ((aIndexName == null) || (aIndexName.length() == 0))
+		        {
+		            throw new RuntimeException("Critical Error in runAdvancedQueryOrderBy():  The passed-in aIndexName is empty or null.");
+		        }
+		        else if (aStartingRecord < 0)
+		        {
+		            throw new RuntimeException("Critical Error in runAdvancedQueryOrderBy():  The passed-in aStartingRecord is invalid:  " + aStartingRecord + ".  This number should be zero or greater");
+		        }
+		        else if ((aOrderByField == null) || (aOrderByField.length() == 0))
+		        {
+		            throw new RuntimeException("Critical Error in runAdvancedQueryOrderBy():  The passed-in aOrderByField is empty or null.");
+		        }
+		        else if ((aOrderByDirection == null) || (aOrderByDirection.length() == 0))
+		        {
+		            throw new RuntimeException("Critical Error in runAdvancedQueryOrderBy():  The passed-in aOrderByDirection is empty or null.");
+		        }
+		
+		        // Clean-up the raw query so quotes do not prevent it from working
+		        String sCleanQuery = encodeQuery(aQuery);
+		
+		        // Construct the JSON call to run an ES Advanced Query String
+		        final String sJsonSearchRequest =
+		                "{  \"explain\": false, " +
+		                        "\"query\": { " +
+		                        "\"query_string\": { " +
+		                        "\"query\": " + "\"" + sCleanQuery + "\"" +
+		                        "}" +
+		                        "}," +
+		                        "\"from\":" + aStartingRecord + "," +
+		                        "\"size\":" + aPageSize + "," +
+		                        "\"sort\": [{ \"" + aOrderByField + "\":\"" + aOrderByDirection + "\"}]" +
+		                 "}";
+		
+		        // Make a synchronous call to ElasticSearch (to run this query)
+		        Response response = this.asyncHttpClient.preparePost(this.elasticSearchURl + "/" + aIndexName + "/_search")
+		                .setHeader("accept", "application/json")
+		                .setBody(sJsonSearchRequest)
+		                .execute()
+		                .get();
+		
+		
+		        if (response.getStatusCode() != 200)
+		        {
+		            // ElasticSearch returned a non-200 status response -- that's bad
+		            throw new RuntimeException("Critical Error in runAdvancedQuery():  I got a non-200 status code of " + response.getStatusCode() + ".  The error is " + response.getResponseBody());
+		        }
+		        else
+		        {
+		            // ElasticSearch returned a 200 status -- that's good
+		            sReturnedJson = response.getResponseBody();
+		        }
+		
+		
+		        logger.debug("runAdvancedQueryOrderBy()  finished.");
+		        return sReturnedJson;
+		    }
 		}
-
+		
 
 	
 		 
@@ -407,7 +554,15 @@ Procedure
 		
 		        // This query orders the results by ingestDate/desc
 		        sJsonResults = es.runSimpleQueryStringOrderBy("author", "docs", 0, 5, "ingestDate", "desc");
-		        logger.debug("Query 1 Results:\n{}", es.getJsonInPrettyFormat(sJsonResults));
+		        logger.debug("Query 4 Results:\n{}", es.getJsonInPrettyFormat(sJsonResults));
+		
+		        // Run a Advanced Query (sorted by score)
+		        sJsonResults = es.runAdvancedQuery("author", "docs", 0, 5);
+		        logger.debug("Query 5 Results:\n{}", es.getJsonInPrettyFormat(sJsonResults));
+		
+		        // Run a Advanced Query (sorted by createDate descending)
+		        sJsonResults = es.runAdvancedQueryOrderBy("author", "docs", 0, 5, "createDate", "desc");
+		        logger.debug("Query 6 Results:\n{}", es.getJsonInPrettyFormat(sJsonResults));
 		
 		
 		        // S H U T D O W N       S P R I N G     C O N T E X T
