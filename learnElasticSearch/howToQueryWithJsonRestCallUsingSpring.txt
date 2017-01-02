@@ -145,7 +145,34 @@ Procedure
 		
 		    private String elasticSearchURl;
 		    private AsyncHttpClient asyncHttpClient;
-		    private Pattern patMatchDoubleQuote = Pattern.compile("\"");
+		
+		    private Pattern patMatchDoubleQuote     = Pattern.compile("\"");
+		    private Pattern patMatchAscii1To31or128 = Pattern.compile("[\\u0000-\\u001F\\u0080]");
+		    private Pattern patMatchBackwardSlashMissingReserveChar = Pattern.compile("\\\\([^+!-><)(:/}{*~]|\\Z)");
+		
+		
+		    /**************************************************************************
+		     * cleanupQuery()
+		     *
+		     * Clean-up the passed-in raw query with the following rules:
+		     *  1) If Double quote is found, then replace it with \"
+		     *  2) If ASCII value between 1 and 31 is found or 128, then replace it with a space
+		     *  3) If "\" is found without a special reserve chars, then replace it with a space
+		     ***************************************************************************/
+		    public String cleanupQuery(String aRawQuery)
+		    {
+		        // Convert the pattern match of " to \"
+		        // NOTE:  Because of Java Regex, you have to use four backward slashes to match a \
+		        String sCleanedQuery = this.patMatchDoubleQuote.matcher(aRawQuery).replaceAll("\\\\\"");
+		
+		        // If ASCII 1-31 or 128 is found, then replace it with a space
+		        sCleanedQuery = this.patMatchAscii1To31or128.matcher(sCleanedQuery).replaceAll(" ");
+		
+		        // If a single backslash is found but the required reserve char is missing -- then replace it with a space
+		        sCleanedQuery = this.patMatchBackwardSlashMissingReserveChar.matcher(sCleanedQuery).replaceAll(" ");
+		
+		        return sCleanedQuery;
+		    }
 		
 		
 		    /**************************************************************************
@@ -157,6 +184,7 @@ Procedure
 		        this.asyncHttpClient = new AsyncHttpClient();
 		        this.elasticSearchURl = aElasticSearchUrl;
 		    }
+		
 		
 		    /********************************************************************************************
 		     * getJsonInPrettyFormat()
@@ -183,18 +211,6 @@ Procedure
 		        {
 		            this.asyncHttpClient.close();
 		        }
-		    }
-		
-		    /**************************************************************************
-		     * encodeQuery()
-		     ***************************************************************************/
-		    public String encodeQuery(String aRawQuery)
-		    {
-		        // Convert the pattern match of " to \"
-		        // NOTE:  Because of Java Regex, you have to use four backward slashes to match a \
-		        String sEncodedQuery = this.patMatchDoubleQuote.matcher(aRawQuery).replaceAll("\\\\\"");
-		
-		        return sEncodedQuery;
 		    }
 		
 		
@@ -227,7 +243,7 @@ Procedure
 		        }
 		
 		        // Clean-up the raw query so quotes do not prevent it from working
-		        String sCleanQuery = encodeQuery(aQuery);
+		        String sCleanQuery = cleanupQuery(aQuery);
 		
 		        // Construct the JSON call to run an ES Simple Query String
 		        final String sJsonSearchRequest =
@@ -306,7 +322,7 @@ Procedure
 		        }
 		
 		        // Clean-up the raw query so quotes do not prevent it from working
-		        String sCleanQuery = encodeQuery(aQuery);
+		        String sCleanQuery = cleanupQuery(aQuery);
 		
 		        // Construct the JSON call to run an ES Simple Query String
 		        final String sJsonSearchRequest =
@@ -376,7 +392,7 @@ Procedure
 		        }
 		
 		        // Clean-up the raw query so quotes do not prevent it from working
-		        String sCleanQuery = encodeQuery(aQuery);
+		        String sCleanQuery = cleanupQuery(aQuery);
 		
 		        // Construct the JSON call to run an ES Advanced Query String
 		        final String sJsonSearchRequest =
@@ -455,7 +471,7 @@ Procedure
 		        }
 		
 		        // Clean-up the raw query so quotes do not prevent it from working
-		        String sCleanQuery = encodeQuery(aQuery);
+		        String sCleanQuery = cleanupQuery(aQuery);
 		
 		        // Construct the JSON call to run an ES Advanced Query String
 		        final String sJsonSearchRequest =
@@ -495,8 +511,8 @@ Procedure
 		    }
 		}
 		
-
-	
+		
+			
 		 
  6. Create this class:  ElasticSearchDaoApp
     a. Right-click on /src/main/java/stuff -> New -> Java Class

@@ -101,7 +101,34 @@ Procedure
 		
 		    private String elasticSearchURl;
 		    private AsyncHttpClient asyncHttpClient;
-		    private Pattern patMatchDoubleQuote = Pattern.compile("\"");
+		
+		    private Pattern patMatchDoubleQuote     = Pattern.compile("\"");
+		    private Pattern patMatchAscii1To31or128 = Pattern.compile("[\\u0000-\\u001F\\u0080]");
+		    private Pattern patMatchBackwardSlashMissingReserveChar = Pattern.compile("\\\\([^+!-><)(:/}{*~]|\\Z)");
+		
+		
+		    /**************************************************************************
+		     * cleanupQuery()
+		     *
+		     * Clean-up the passed-in raw query with the following rules:
+		     *  1) If Double quote is found, then replace it with \"
+		     *  2) If ASCII value between 1 and 31 is found or 128, then replace it with a space
+		     *  3) If "\" is found without a special reserve chars, then replace it with a space
+		     ***************************************************************************/
+		    public String cleanupQuery(String aRawQuery)
+		    {
+		        // Convert the pattern match of " to \"
+		        // NOTE:  Because of Java Regex, you have to use four backward slashes to match a \
+		        String sCleanedQuery = this.patMatchDoubleQuote.matcher(aRawQuery).replaceAll("\\\\\"");
+		
+		        // If ASCII 1-31 or 128 is found, then replace it with a space
+		        sCleanedQuery = this.patMatchAscii1To31or128.matcher(sCleanedQuery).replaceAll(" ");
+		
+		        // If a single backslash is found but the required reserve char is missing -- then replace it with a space
+		        sCleanedQuery = this.patMatchBackwardSlashMissingReserveChar.matcher(sCleanedQuery).replaceAll(" ");
+		
+		        return sCleanedQuery;
+		    }
 		
 		
 		    /**************************************************************************
@@ -113,6 +140,7 @@ Procedure
 		        this.asyncHttpClient = new AsyncHttpClient();
 		        this.elasticSearchURl = aElasticSearchUrl;
 		    }
+		
 		
 		    /********************************************************************************************
 		     * getJsonInPrettyFormat()
@@ -139,18 +167,6 @@ Procedure
 		        {
 		            this.asyncHttpClient.close();
 		        }
-		    }
-		
-		    /**************************************************************************
-		     * encodeQuery()
-		     ***************************************************************************/
-		    public String encodeQuery(String aRawQuery)
-		    {
-		        // Convert the pattern match of " to \"
-		        // NOTE:  Because of Java Regex, you have to use four backward slashes to match a \
-		        String sEncodedQuery = this.patMatchDoubleQuote.matcher(aRawQuery).replaceAll("\\\\\"");
-		
-		        return sEncodedQuery;
 		    }
 		
 		
@@ -183,7 +199,7 @@ Procedure
 		        }
 		
 		        // Clean-up the raw query so quotes do not prevent it from working
-		        String sCleanQuery = encodeQuery(aQuery);
+		        String sCleanQuery = cleanupQuery(aQuery);
 		
 		        // Construct the JSON call to run an ES Simple Query String
 		        final String sJsonSearchRequest =
@@ -262,7 +278,7 @@ Procedure
 		        }
 		
 		        // Clean-up the raw query so quotes do not prevent it from working
-		        String sCleanQuery = encodeQuery(aQuery);
+		        String sCleanQuery = cleanupQuery(aQuery);
 		
 		        // Construct the JSON call to run an ES Simple Query String
 		        final String sJsonSearchRequest =
@@ -332,7 +348,7 @@ Procedure
 		        }
 		
 		        // Clean-up the raw query so quotes do not prevent it from working
-		        String sCleanQuery = encodeQuery(aQuery);
+		        String sCleanQuery = cleanupQuery(aQuery);
 		
 		        // Construct the JSON call to run an ES Advanced Query String
 		        final String sJsonSearchRequest =
@@ -411,15 +427,15 @@ Procedure
 		        }
 		
 		        // Clean-up the raw query so quotes do not prevent it from working
-		        String sCleanQuery = encodeQuery(aQuery);
+		        String sCleanQuery = cleanupQuery(aQuery);
 		
 		        // Construct the JSON call to run an ES Advanced Query String
 		        final String sJsonSearchRequest =
 		                "{  \"explain\": false, " +
 		                        "\"query\": { " +
 		                        "\"query_string\": { " +
-		                        	"\"query\": " + "\"" + sCleanQuery + "\"" +
-		                        	"}" +
+		                        "\"query\": " + "\"" + sCleanQuery + "\"" +
+		                        "}" +
 		                        "}," +
 		                        "\"from\":" + aStartingRecord + "," +
 		                        "\"size\":" + aPageSize + "," +
@@ -452,6 +468,7 @@ Procedure
 		}
 
 
+
 	
 		 
  6. Create this class:  ElasticSearchDaoApp
@@ -462,11 +479,12 @@ Procedure
        
        
     b. Copy this to to your java class
-		    
+
 		package stuff;
 		
 		import org.slf4j.Logger;
 		import org.slf4j.LoggerFactory;
+		
 		
 		/**
 		 * Created by adam on 12/30/2016.
@@ -474,6 +492,7 @@ Procedure
 		public class ElasticSearchDaoApp
 		{
 		    private static final Logger logger = LoggerFactory.getLogger(ElasticSearchDaoApp.class);
+		
 		
 		    /********************************************************************************************
 		     * main()
@@ -505,7 +524,7 @@ Procedure
 		        // This query orders the results by ingestDate/desc
 		        sJsonResults = es.runSimpleQueryStringOrderBy("author", "docs", 0, 5, "ingestDate", "desc");
 		        logger.debug("Query 4 Results:\n{}", es.getJsonInPrettyFormat(sJsonResults));
-
+		
 		        // Run a Advanced Query (sorted by score)
 		        sJsonResults = es.runAdvancedQuery("author", "docs", 0, 5);
 		        logger.debug("Query 5 Results:\n{}", es.getJsonInPrettyFormat(sJsonResults));
@@ -515,6 +534,24 @@ Procedure
 		        logger.debug("Query 6 Results:\n{}", es.getJsonInPrettyFormat(sJsonResults));
 		
 		
+		        // Try running lots of different characters in the simple query to see if any blows up
+		        for (int i = 1; i<= 128; i++)
+		        {
+		            final String sQuery = "author" + Character.toString((char) i);
+		
+		            logger.debug("Starting Query {}:  query={}", i, sQuery);
+		
+		            try {
+		                sJsonResults = es.runSimpleQueryString(sQuery, "docs", 0, 5);
+		            }
+		            catch (Exception e)
+		            {
+		                logger.debug("i={} failed.  query-->{}<--  Character.toString({}) causes ES to blow-up.", i, sQuery, i);
+		            }
+		        }
+		
+		        sJsonResults = es.runSimpleQueryString("\\author", "docs", 0, 5);
+		
 		        // Close the ElasticSearchDao class properly
 		        es.close();
 		    }
@@ -522,11 +559,161 @@ Procedure
 		
 		}
 
-	
- 7. Startup your ElasticSearch Instance
+
+
+ 7. Create thie test class
+    a. Right-click on /src/test/java/stuff -> New Java Class
+       Name:  AppTest
+    
+    b. Copy this to your AppTest class:
+ 
+		package stuff;
+		
+		import junit.framework.Test;
+		import junit.framework.TestCase;
+		import junit.framework.TestSuite;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		
+		import java.util.regex.Pattern;
+		
+		/**
+		 * Unit test for simple App.
+		 */
+		public class AppTest extends TestCase
+		{
+		    private static final Logger logger = LoggerFactory.getLogger(AppTest.class);
+		
+		    /**
+		     * Create the test case
+		     *
+		     * @param testName name of the test case
+		     */
+		    public AppTest( String testName )
+		    {
+		        super( testName );
+		    }
+		
+		    /**
+		     * @return the suite of tests being tested
+		     */
+		    public static Test suite()
+		    {
+		        return new TestSuite( AppTest.class );
+		    }
+		
+		
+		    public void testCleanupQuery()
+		    {
+		        ElasticSearchDao es = new ElasticSearchDao("whatever");
+		
+		
+		        // ^+-=><!(){}:/\*~
+		
+		        String sRawQuery;
+		        String sCleanQuery;
+		
+		        // Invalid string:  \   it should be stripped-out
+		        sRawQuery = "\\";
+		        sCleanQuery = es.cleanupQuery(sRawQuery);
+		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
+		        assertTrue(sCleanQuery.equalsIgnoreCase(" "));
+		
+		
+		        // Invalid string: '\a' --> ' '    (it should be replaced with a space)
+		        sRawQuery = "\\a";
+		        sCleanQuery = es.cleanupQuery(sRawQuery);
+		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
+		        assertTrue(sCleanQuery.equalsIgnoreCase(" "));
+		
+		        // Partially invalid string:  'author\a' --> 'author '   -- it should be stripped-out
+		        sRawQuery = "author\\a";
+		        sCleanQuery = es.cleanupQuery(sRawQuery);
+		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
+		        assertTrue(sCleanQuery.equalsIgnoreCase("author "));
+		
+		        // Partially invalid -- 'author\a stuff' -->  'author  stuff'   it should be stripped-out
+		        sRawQuery = "author\\a stuff";
+		        sCleanQuery = es.cleanupQuery(sRawQuery);
+		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
+		        assertTrue(sCleanQuery.equalsIgnoreCase("author  stuff"));
+		
+		
+		        // Valid -- author\!    (remains unchanged)
+		        sRawQuery = "author\\!";
+		        sCleanQuery = es.cleanupQuery(sRawQuery);
+		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
+		        assertTrue(sCleanQuery.equalsIgnoreCase(sRawQuery));
+		
+		        // Valid:  author\+     (remains unchanged)
+		        sRawQuery = "author\\+";
+		        sCleanQuery = es.cleanupQuery(sRawQuery);
+		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
+		        assertTrue(sCleanQuery.equalsIgnoreCase(sRawQuery));
+		
+		        // Valid:  author\-     (remains unchanged)
+		        sRawQuery = "author\\-";
+		        sCleanQuery = es.cleanupQuery(sRawQuery);
+		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
+		        assertTrue(sCleanQuery.equalsIgnoreCase(sRawQuery));
+		
+		        // Valid:  author\<     (remains unchanged)
+		        sRawQuery = "author\\<";
+		        sCleanQuery = es.cleanupQuery(sRawQuery);
+		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
+		        assertTrue(sCleanQuery.equalsIgnoreCase(sRawQuery));
+		
+		        // Valid:  \<author\>     (remains unchanged)
+		        sRawQuery = "\\<author\\>";
+		        sCleanQuery = es.cleanupQuery(sRawQuery);
+		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
+		        assertTrue(sCleanQuery.equalsIgnoreCase(sRawQuery));
+		
+		         // Valid:  \(author\)     (remains unchanged)
+		        sRawQuery = "\\(author\\)";
+		        sCleanQuery = es.cleanupQuery(sRawQuery);
+		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
+		        assertTrue(sCleanQuery.equalsIgnoreCase(sRawQuery));
+		
+		        // Valid:  author\:stuff     (remains unchanged)
+		        sRawQuery = "author\\:stuff";
+		        sCleanQuery = es.cleanupQuery(sRawQuery);
+		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
+		        assertTrue(sCleanQuery.equalsIgnoreCase(sRawQuery));
+		
+		        // Valid:  author\/stuff     (remains unchanged)
+		        sRawQuery = "author\\/stuff";
+		        sCleanQuery = es.cleanupQuery(sRawQuery);
+		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
+		        assertTrue(sCleanQuery.equalsIgnoreCase(sRawQuery));
+		
+		        // Valid:  author\{1,2\}       (remains unchanged)
+		        sRawQuery = "author\\{1,2\\}";
+		        sCleanQuery = es.cleanupQuery(sRawQuery);
+		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
+		        assertTrue(sCleanQuery.equalsIgnoreCase(sRawQuery));
+		
+		        // Valid:  author\*       (remains unchanged)
+		        sRawQuery = "author\\*";
+		        sCleanQuery = es.cleanupQuery(sRawQuery);
+		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
+		        assertTrue(sCleanQuery.equalsIgnoreCase(sRawQuery));
+		
+		        // Valid:  author\~3       (remains unchanged)
+		        sRawQuery = "author\\~3";
+		        sCleanQuery = es.cleanupQuery(sRawQuery);
+		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
+		        assertTrue(sCleanQuery.equalsIgnoreCase(sRawQuery));
+		
+		    }
+		}
+    
+    
+    
+ 8. Startup your ElasticSearch Instance
  
  
- 8.Setup the "docs" mapping in ElasticSearch index and add some records
+ 9.Setup the "docs" mapping in ElasticSearch index and add some records
  	a. Startup Chrome
  	b. Startup the "Sense" plugin
  	c. Run the following commands:	
@@ -584,7 +771,7 @@ Procedure
 		   POST /docs/_search
 		   
 		   
- 9. Debug the main()
+10. Debug the main()
     a. Left-click in the margins of ElasticSearchDaoApp and set a breakpoint
     b. Right-click on ElasticSearchDaoApp -> Debug 'ElasticSearchDaoApp.main()'
  
