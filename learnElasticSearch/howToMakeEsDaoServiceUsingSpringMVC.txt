@@ -1,0 +1,912 @@
+How to Make an ElasticSearchDao Service that Queries ES within a Spring MVC Web App
+-----------------------------------------------------------------------------------
+
+Assumption:
+ A) You have an ES 1.7.5 instance up and running listening on 192.168.1.165
+ B) You want to create a Spring MVC Web App
+ C) You want your Spring MVC Web App to talk to ElasticSearch
+ C) You want Spring to create your ElasticSearchDao singleton
+    by defining it within the applicationContext.xml
+ 
+
+Procedure
+---------
+ 1. Create a Java Spring MVC Web App
+    [see learnSpringMvcWeb / lessons / lesson03_createSpringMvcWebApp_usingIntellijMaven.txt
+    
+ 2. Setup the Jetty Plugin
+    [see learnSpringMvcWeb / lessons / lesson04c_debugWebAppUsingIntellijUsingJettyPlugin..txt
+    
+ 3. Add the ApplicationWatcher
+    [see learnSpringMvcWeb / lessons / lesson06_addApplicationWatcher.txt]
+ 
+ 4. Add the property file
+    [see learnSpringMvcWeb / lessons / lesson08_addPropertyFile.txt]
+    
+    
+ 5. Add these dependencies to your pom.xml
+
+      <dependency>
+          <!-- Used to convert java objects to JSON -->
+          <groupId>com.google.code.gson</groupId>
+          <artifactId>gson</artifactId>
+          <version>2.8.0</version>
+      </dependency>
+
+      <dependency>
+          <!-- Used for my httpClient implementation -->
+          <groupId>com.ning</groupId>
+          <artifactId>async-http-client</artifactId>
+          <version>1.9.31</version>
+      </dependency>
+
+  
+  
+
+ 6. Update your logback.xml file to look like this:
+    a. Edit /src/main/resources/logback.xml
+    b. Replace your logback.xml with this:
+    
+		<?xml version="1.0" encoding="windows-1252" ?>
+		
+		<configuration debug="false">
+		    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+		        <encoder>
+		            <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+		        </encoder>
+		    </appender>
+		
+		
+		    <logger name="stuff" level="DEBUG" additivity="false">
+		        <appender-ref ref="CONSOLE"/>
+		    </logger>
+
+		    <logger name="app1" level="DEBUG" additivity="false">
+		        <appender-ref ref="CONSOLE"/>
+		    </logger>	
+		    	
+		    <logger name="org.elasticsearch" level="INFO" additivity="false">
+		        <appender-ref ref="CONSOLE"/>
+		    </logger>
+		
+		    <logger name="org.springframework.jdbc" level="INFO" additivity="false">
+		        <appender-ref ref="CONSOLE"/>
+		    </logger>
+		
+		    <root level="INFO">
+		        <appender-ref ref="CONSOLE"/>
+		    </root>
+		
+		</configuration>
+		        
+		       		        	              
+ 
+ 7. Create a package called "services"
+    a. Right-click on /src/main/java/app1 -> New -> Package
+       Name:  app1.services
+       
+ 
+				
+ 8. Create this class:  ElasticSearchDao
+    a. Right-click on /src/main/java/app1/services -> New -> Java Class
+       Name:  ElasticSearchDao
+       Kind:  Class
+       Press OK
+       
+    b. Copy this to to your java class
+
+		package app1.services;
+
+		import com.google.gson.Gson;
+		import com.google.gson.GsonBuilder;
+		import com.google.gson.JsonElement;
+		import com.google.gson.JsonParser;
+		import com.ning.http.client.AsyncHttpClient;
+		import com.ning.http.client.Response;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+
+		import java.util.regex.Pattern;
+
+
+		/**
+		 * Created by adam on 12/30/2016.
+		 */
+		public class ElasticSearchDao
+		{
+		    private static final Logger logger = LoggerFactory.getLogger(ElasticSearchDao.class);
+
+		    private String elasticSearchUrl;
+		    private AsyncHttpClient asyncHttpClient;
+
+		    private Pattern patMatchDoubleQuote     = Pattern.compile("\"");
+		    private Pattern patMatchAscii1To31or128 = Pattern.compile("[\\u0000-\\u001F\\u0080]");
+		    private Pattern patMatchBackwardSlashMissingReserveChar = Pattern.compile("\\\\([^+!-><)(:/}{*~]|\\Z)");
+
+
+		    /**************************************************************************
+		     * cleanupQuery()
+		     *
+		     * Clean-up the passed-in raw query with the following rules:
+		     *  1) If Double quote is found, then replace it with \"
+		     *  2) If ASCII value between 1 and 31 is found or 128, then replace it with a space
+		     *  3) If "\" is found without a special reserve chars, then replace it with a space
+		     ***************************************************************************/
+		    public String cleanupQuery(String aRawQuery)
+		    {
+		        // Convert the pattern match of " to \"
+		        // NOTE:  Because of Java Regex, you have to use four backward slashes to match a \
+		        String sCleanedQuery = this.patMatchDoubleQuote.matcher(aRawQuery).replaceAll("\\\\\"");
+
+		        // If ASCII 1-31 or 128 is found, then replace it with a space
+		        sCleanedQuery = this.patMatchAscii1To31or128.matcher(sCleanedQuery).replaceAll(" ");
+
+		        // If a single backslash is found but the required reserve char is missing -- then replace it with a space
+		        sCleanedQuery = this.patMatchBackwardSlashMissingReserveChar.matcher(sCleanedQuery).replaceAll(" ");
+
+		        return sCleanedQuery;
+		    }
+
+
+		    /**************************************************************************
+		     * ElasticSearchDao()  Constructor
+		     *
+		     ***************************************************************************/
+		    public ElasticSearchDao(String aElasticSearchUrl)
+		    {
+		        this.asyncHttpClient = new AsyncHttpClient();
+		        this.elasticSearchUrl = aElasticSearchUrl;
+		    }
+
+
+		    /********************************************************************************************
+		     * getJsonInPrettyFormat()
+		     *
+		     * Return the JSON in pretty format
+		     *********************************************************************************************/
+		    public static String getJsonInPrettyFormat(String aRawJson)
+		    {
+		        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+		        JsonParser jp = new JsonParser();
+		        JsonElement je = jp.parse(aRawJson);
+		        String prettyJsonString = gson.toJson(je);
+
+		        return prettyJsonString;
+		    }
+
+
+		    /**************************************************************************
+		     * close()
+		     ***************************************************************************/
+		    public void close()
+		    {
+		        if (this.asyncHttpClient != null)
+		        {
+		            this.asyncHttpClient.close();
+		        }
+		    }
+
+
+		    /**************************************************************************
+		     * runSimpleQueryString()
+		     *  1) Verify that passed-in arguments are valid
+		     *  2) Clean-up the query so that quotes do not screw up execution
+		     *  3) Run a synchronous ES call
+		     *  4) Verify that the status code is good
+		     *  5) Return the ES JSON results
+		     *
+		     * NOTE:  ElasticSearch uses a zero-based starting record number
+             *        So, to see the first 20 results of a search,
+             *               aStaringRecordNumber = 0
+             *               aPageSize = 20
+             *
+		     * Returned hits (within the JSON) are ordered by the default ES score
+		     ***************************************************************************/
+		    public String runSimpleQueryString(String aQuery,
+		                                       String aIndexName,
+		                                       long   aStartingRecord,
+		                                       long   aPageSize) throws Exception
+		    {
+		        logger.debug("runSimpleQueryString()  aIndexName={}  aQuery={}", aIndexName, aQuery);
+
+		        String sReturnedJson = null;
+
+		        if ((aIndexName == null) || (aIndexName.length() == 0))
+		        {
+		            throw new RuntimeException("Critical Error in runSimpleQueryString():  The passed-in aIndexName is empty or null.");
+		        }
+		        else if (aStartingRecord < 0)
+		        {
+		            throw new RuntimeException("Critical Error in runSimpleQueryString():  The passed-in aStartingRecord is invalid:  " + aStartingRecord + ".  This number should be zero or greater");
+		        }
+
+		        // Clean-up the raw query so quotes do not prevent it from working
+		        String sCleanQuery = cleanupQuery(aQuery);
+
+		        // Construct the JSON call to run an ES Simple Query String
+		        final String sJsonSearchRequest =
+		                "{ \"explain\": false, " +
+		                    "\"query\": { " +
+		                            "\"simple_query_string\": { " +
+		                                " \"query\": " + "\"" + sCleanQuery + "\"," +
+		                                  "\"default_operator\": \"and\" " +
+		                            "}" +
+		                    "}," +
+		                    "\"from\":" + aStartingRecord + "," +
+		                    "\"size\":" + aPageSize +
+		                "}";
+
+		        // Make a synchronous call to ElasticSearch (to run this query)
+		        Response response = this.asyncHttpClient.preparePost(this.elasticSearchUrl + "/" + aIndexName + "/_search")
+		                .setHeader("accept", "application/json")
+		                .setBody(sJsonSearchRequest)
+		                .execute()
+		                .get();
+
+
+		        if (response.getStatusCode() != 200)
+		        {
+		            // ElasticSearch returned a non-200 status response -- that's bad
+		            throw new RuntimeException("Critical Error in runSimpleQueryString():  I got a non-200 status code of " + response.getStatusCode() + ".  The error is " + response.getResponseBody());
+		        }
+		        else
+		        {
+		            // ElasticSearch returned a 200 status -- that's good
+		            sReturnedJson = response.getResponseBody();
+		        }
+
+
+		        logger.debug("runSimpleQueryString()  finished.");
+		        return sReturnedJson;
+		    }
+
+
+		    /**************************************************************************
+		     * runSimpleQueryStringOrderBy()
+		     *  1) Verify that passed-in arguments are valid
+		     *  2) Clean-up the query so that quotes do not screw up execution
+		     *  3) Run a synchronous ES call
+		     *  4) Verify that the status code is good
+		     *  5) Return the ES JSON results
+		     *
+             * Returned hits (within the JSON) are ordered by the aOrderByField, aOrderByDirection
+		     ***************************************************************************/
+		    public String runSimpleQueryStringOrderBy(String aQuery,
+		                                              String aIndexName,
+		                                              long   aStartingRecord,
+		                                              long   aPageSize,
+		                                              String aOrderByField,
+		                                              String aOrderByDirection) throws Exception
+		    {
+		        logger.debug("runSimpleQueryStringOrderBy()  aIndexName={}  aQuery={}  aOrderByField={}  aOrderByDirection={}", aIndexName, aQuery, aOrderByField, aOrderByDirection);
+
+		        String sReturnedJson = null;
+
+		        if ((aIndexName == null) || (aIndexName.length() == 0))
+		        {
+		            throw new RuntimeException("Critical Error in runSimpleQueryStringOrderBy():  The passed-in aIndexName is empty or null.");
+		        }
+		        else if (aStartingRecord < 0)
+		        {
+		            throw new RuntimeException("Critical Error in runSimpleQueryStringOrderBy():  The passed-in aStartingRecord is invalid:  " + aStartingRecord + ".  This number should be zero or greater");
+		        }
+		        else if ((aOrderByField == null) || (aOrderByField.length() == 0))
+		        {
+		            throw new RuntimeException("Critical Error in runSimpleQueryStringOrderBy():  The passed-in aOrderByField is empty or null.");
+		        }
+		        else if ((aOrderByDirection == null) || (aOrderByDirection.length() == 0))
+		        {
+		            throw new RuntimeException("Critical Error in runSimpleQueryStringOrderBy():  The passed-in aOrderByDirection is empty or null.");
+		        }
+
+		        // Clean-up the raw query so quotes do not prevent it from working
+		        String sCleanQuery = cleanupQuery(aQuery);
+
+		        // Construct the JSON call to run an ES Simple Query String
+		        final String sJsonSearchRequest =
+		                "{ \"explain\": false, " +
+		                        "\"query\": { " +
+		                             "\"simple_query_string\": { " +
+		                                    "\"query\": " + "\"" + sCleanQuery + "\"," +
+		                                    "\"default_operator\": \"and\" " +
+		                             "}" +
+		                        "}," +
+		                        "\"from\":" + aStartingRecord + "," +
+		                        "\"size\":" + aPageSize + "," +
+		                        "\"sort\": [{ \"" + aOrderByField + "\":\"" + aOrderByDirection + "\"}]" +
+		                 "}";
+
+		        // Make a synchronous call to ElasticSearch (to run this query)
+		        Response response = this.asyncHttpClient.preparePost(this.elasticSearchUrl + "/" + aIndexName + "/_search")
+		                .setHeader("accept", "application/json")
+		                .setBody(sJsonSearchRequest)
+		                .execute()
+		                .get();
+
+
+		        if (response.getStatusCode() != 200)
+		        {
+		            // ElasticSearch returned a non-200 status response -- that's bad
+		            throw new RuntimeException("Critical Error in runSimpleQueryStringOrderBy():  I got a non-200 status code of " + response.getStatusCode() + ".  The error is " + response.getResponseBody());
+		        }
+		        else
+		        {
+		            // ElasticSearch returned a 200 status -- that's good
+		            sReturnedJson = response.getResponseBody();
+		        }
+
+
+		        logger.debug("runSimpleQueryString()  finished.");
+		        return sReturnedJson;
+		    }
+
+
+		    /**************************************************************************
+		     * runAdvancedQuery()
+		     *  1) Verify that passed-in arguments are valid
+		     *  2) Clean-up the query so that quotes do not screw up execution
+		     *  3) Run a synchronous ES call
+		     *  4) Verify that the status code is good
+		     *  5) Return the ES JSON results
+		     *
+		     * Returned hits (within the JSON) are ordered by the default ES score
+		     ***************************************************************************/
+		    public String runAdvancedQuery(String aQuery,
+		                                   String aIndexName,
+		                                   long   aStartingRecord,
+		                                   long   aPageSize) throws Exception
+		    {
+		        logger.debug("runAdvancedQuery()  aIndexName={}  aQuery={}", aIndexName, aQuery);
+
+		        String sReturnedJson = null;
+
+		        if ((aIndexName == null) || (aIndexName.length() == 0))
+		        {
+		            throw new RuntimeException("Critical Error in runAdvancedQuery():  The passed-in aIndexName is empty or null.");
+		        }
+		        else if (aStartingRecord < 0)
+		        {
+		            throw new RuntimeException("Critical Error in runAdvancedQuery():  The passed-in aStartingRecord is invalid:  " + aStartingRecord + ".  This number should be zero or greater");
+		        }
+
+		        // Clean-up the raw query so quotes do not prevent it from working
+		        String sCleanQuery = cleanupQuery(aQuery);
+
+		        // Construct the JSON call to run an ES Advanced Query String
+		        final String sJsonSearchRequest =
+		                    "{  \"explain\": false, " +
+		                        "\"query\": { " +
+		                            "\"query_string\": { " +
+		                                "\"query\": " + "\"" + sCleanQuery + "\"" +
+		                            "}" +
+		                        "}," +
+		                        "\"from\":" + aStartingRecord + "," +
+		                        "\"size\":" + aPageSize +
+		                     "}";
+
+		        // Make a synchronous call to ElasticSearch (to run this query)
+		        Response response = this.asyncHttpClient.preparePost(this.elasticSearchUrl + "/" + aIndexName + "/_search")
+		                .setHeader("accept", "application/json")
+		                .setBody(sJsonSearchRequest)
+		                .execute()
+		                .get();
+
+
+		        if (response.getStatusCode() != 200)
+		        {
+		            // ElasticSearch returned a non-200 status response -- that's bad
+		            throw new RuntimeException("Critical Error in runAdvancedQuery():  I got a non-200 status code of " + response.getStatusCode() + ".  The error is " + response.getResponseBody());
+		        }
+		        else
+		        {
+		            // ElasticSearch returned a 200 status -- that's good
+		            sReturnedJson = response.getResponseBody();
+		        }
+
+
+		        logger.debug("runAdvancedQuery()  finished.");
+		        return sReturnedJson;
+		    }
+
+
+
+		    /**************************************************************************
+		     * runAdvancedQuery()
+		     *  1) Verify that passed-in arguments are valid
+		     *  2) Clean-up the query so that quotes do not screw up execution
+		     *  3) Run a synchronous ES call
+		     *  4) Verify that the status code is good
+		     *  5) Return the ES JSON results
+		     *
+		     * Returned hits (within the JSON) are ordered by the aOrderByField, aOrderByDirection
+		     ***************************************************************************/
+		    public String runAdvancedQueryOrderBy(String aQuery,
+		                                          String aIndexName,
+		                                          long   aStartingRecord,
+		                                          long   aPageSize,
+		                                          String aOrderByField,
+		                                          String aOrderByDirection) throws Exception
+		    {
+		        logger.debug("runAdvancedQueryOrderBy()  aIndexName={}  aQuery={}", aIndexName, aQuery);
+
+		        String sReturnedJson = null;
+
+		        if ((aIndexName == null) || (aIndexName.length() == 0))
+		        {
+		            throw new RuntimeException("Critical Error in runAdvancedQueryOrderBy():  The passed-in aIndexName is empty or null.");
+		        }
+		        else if (aStartingRecord < 0)
+		        {
+		            throw new RuntimeException("Critical Error in runAdvancedQueryOrderBy():  The passed-in aStartingRecord is invalid:  " + aStartingRecord + ".  This number should be zero or greater");
+		        }
+		        else if ((aOrderByField == null) || (aOrderByField.length() == 0))
+		        {
+		            throw new RuntimeException("Critical Error in runAdvancedQueryOrderBy():  The passed-in aOrderByField is empty or null.");
+		        }
+		        else if ((aOrderByDirection == null) || (aOrderByDirection.length() == 0))
+		        {
+		            throw new RuntimeException("Critical Error in runAdvancedQueryOrderBy():  The passed-in aOrderByDirection is empty or null.");
+		        }
+
+		        // Clean-up the raw query so quotes do not prevent it from working
+		        String sCleanQuery = cleanupQuery(aQuery);
+
+		        // Construct the JSON call to run an ES Advanced Query String
+		        final String sJsonSearchRequest =
+		                "{  \"explain\": false, " +
+		                        "\"query\": { " +
+		                        "\"query_string\": { " +
+		                        "\"query\": " + "\"" + sCleanQuery + "\"" +
+		                        "}" +
+		                        "}," +
+		                        "\"from\":" + aStartingRecord + "," +
+		                        "\"size\":" + aPageSize + "," +
+		                        "\"sort\": [{ \"" + aOrderByField + "\":\"" + aOrderByDirection + "\"}]" +
+		                 "}";
+
+		        // Make a synchronous call to ElasticSearch (to run this query)
+		        Response response = this.asyncHttpClient.preparePost(this.elasticSearchUrl + "/" + aIndexName + "/_search")
+		                .setHeader("accept", "application/json")
+		                .setBody(sJsonSearchRequest)
+		                .execute()
+		                .get();
+
+
+		        if (response.getStatusCode() != 200)
+		        {
+		            // ElasticSearch returned a non-200 status response -- that's bad
+		            throw new RuntimeException("Critical Error in runAdvancedQuery():  I got a non-200 status code of " + response.getStatusCode() + ".  The error is " + response.getResponseBody());
+		        }
+		        else
+		        {
+		            // ElasticSearch returned a 200 status -- that's good
+		            sReturnedJson = response.getResponseBody();
+		        }
+
+
+		        logger.debug("runAdvancedQueryOrderBy()  finished.");
+		        return sReturnedJson;
+		    }
+
+
+		    /**************************************************************************
+		     * isElasticSearchRunning()
+		     *
+		     * Returns TRUE if the ElasticSearch instance is up and running
+		     * Returns FALSE otherwise
+		     ***************************************************************************/
+		    public boolean isElasticSearchRunning()
+		    {
+		        try
+		        {
+		            // Make a synchronous call to ElasticSearch (to run this query)
+		            Response response = this.asyncHttpClient.prepareGet(this.elasticSearchUrl + "/")
+		                    .setHeader("accept", "application/json")
+		                    .execute()
+		                    .get();
+
+                   if (response.getStatusCode() != 200)
+                    {
+                        // ElasticSearch returned a non-200 status response -- that's bad
+                        logger.warn("Warning in isElasticSearchRunning():  The call to see if ES returned a non-200 status code of {} and text of {}", response.getStatusCode(), response.getResponseBody());
+                        return false;
+                    }
+
+		            // ElasticSearch returned a 200 status -- so we assume it is up and running
+		            return(true);
+		        }
+		        catch (Exception e)
+		        {
+		            // I got some sort of exception -- so assume it is not running
+		            logger.warn("Warning in isElasticSearchRunning():  The call to see if ES is running threw an exception.  ", e);
+		            return(false);
+		        }
+		    }
+
+
+		}
+
+
+		
+		
+ 9. Edit this file:  applicationContext.xml
+    NOTE:  This tells spring to create your ElasticSearchDao singleton
+    a. Right-click on /src/main/resources/ -> Right-click -> New -> File:
+       Filename:  applicationContexts.xml
+    
+    b. Add this to your file:
+    
+	    <!-- Read the property values and allows us to use them in this xml file as ${es.url} -->
+	    <context:property-placeholder location="classpath:webapp1.properties" />
+	
+	    <!-- Create an ElasticSearchDao singleton and pass-in the es.url (found in app.properties) -->
+	    <bean id="elasticSearchDao" class="app1.services.ElasticSearchDao" destroy-method="close">
+	        <constructor-arg  value="${es.url}" />
+	    </bean>
+        
+        
+        
+10. Add the es.url property value to your webapp1.properties file
+    NOTE:  I assume that your ElasticSearch is listening at the IP address of 192.168.1.165
+      
+       es.url=http://192.168.1.165:9200
+       
+       
+ 
+11. Inject the ElasticSearchDao spring-bean into your Welcome Controller
+ 	a. Edit your /src/main/java/app1/controllers/WelcomeController.java class
+ 	
+ 	b. Add this to the top:
+        @Resource
+    	private ElasticSearchDao elasticSearchDao;
+ 		
+ 
+ 
+12. Add a method called runSearch() to your WelcomeController
+    
+	    /***************************************************************************
+	     * runSearch()
+	     *
+	     * Returns the JSON holding a list of users
+	     ****************************************************************************/
+	    @RequestMapping(value="/search/{rawQuery}", method = RequestMethod.GET, produces = "application/json")
+	    public ResponseEntity<?> runSearch(@PathVariable(value="rawQuery") String aRawQuery)
+	    {
+	        logger.debug("runSearch() started.  aRawQuery={}", aRawQuery);
+	
+	        final String ES_INEX_NAME = "docs";
+	        final int    ES_PAGE_SIZE = 5;
+	        final int    ES_STARTING_RECORD_NUMBER = 0;
+	
+	        try
+	        {
+	            // Run a *synchronous* simple-query-string search against ElasticSearch
+	            String sJsonResults = elasticSearchDao.runSimpleQueryString(aRawQuery, ES_INEX_NAME, ES_STARTING_RECORD_NUMBER, ES_PAGE_SIZE);
+	
+	            // Return respnose code of 200 and the JSON string
+	            return new ResponseEntity<String>(sJsonResults, HttpStatus.OK);
+	        }
+	        catch (Exception e)
+	        {
+	            // Tell the AJAX call that this call failed
+	            logger.error("Error occurred making rest call to /search", e);
+	
+	            // Get a formatted error message from the exception object
+	            String sMessage = getFormattedMessageFromException(e);
+	
+	            // Tell the AJAX caller that this will be plain text being returned (and not JSON)
+	            HttpHeaders headers = new HttpHeaders();
+	            headers.setContentType(MediaType.TEXT_PLAIN);
+	
+	            // Return the error back to the caller
+	            return new ResponseEntity<String>(sMessage, headers, HttpStatus.INTERNAL_SERVER_ERROR);
+	        }
+	    }
+
+	    
+	    
+	    /***************************************************************************
+	     * getFormattedMessageFromException()
+	     ****************************************************************************/
+	    private String getFormattedMessageFromException(Exception aException)
+	    {
+	        StringBuilder sbMessage = new StringBuilder();
+	
+	        String sStackTrace = getStackTraceAsString(aException);
+	
+	        sbMessage.append("Message: ")
+	                .append(aException.getMessage())
+	                .append("\n\n")
+	                .append("Cause: ")
+	                .append(aException.getCause())
+	                .append("\n\n")
+	                .append("StackTrace:\n")
+	                .append(sStackTrace);
+	
+	        return sbMessage.toString();
+	    }
+	
+	
+	
+	    /***************************************************************************
+	     * getStackTraceAsString()
+	     ****************************************************************************/
+	    public String getStackTraceAsString(Exception aException)
+	    {
+	        StringBuilder sb = new StringBuilder();
+	        for (StackTraceElement element : aException.getStackTrace()) {
+	            sb.append(element.toString());
+	            sb.append("\n");
+	        }
+	        return sb.toString();
+	    }
+		    
+	    
+
+        
+13. Startup your ElasticSearch Instance
+ 
+ 
+ 
+14. Setup the "docs" mapping in ElasticSearch index and add some records
+ 	a. Startup Chrome
+ 	b. Startup the "Sense" plugin
+ 	c. Run the following commands:	
+	 
+		1) Delete the index called "docs" [and all records and the mapping, too!]
+	    	DELETE /docs
+	
+	
+	 	2) Create a mappings for the index called "docs"
+		    PUT /docs
+	    	{
+		       "mappings": {
+		          "record": {
+		             "properties": {
+		                "title": {
+		                   "type": "string",
+		                   "analyzer": "snowball"
+		                },	                
+		                "source": {
+		                   "type": "string",
+		                   "index": "not_analyzed"
+		                },
+		                "ingestDate": {
+		                   "type": "date",
+		                   "format": "yyyyMMdd",
+		                   "index": "not_analyzed"
+		                },
+		                "createDate": {
+		                   "type": "date",
+		                   "format": "yyyyMMdd",
+		                   "index": "not_analyzed"
+		                },	
+		                "description": {
+		                   "type": "string",
+		                   "analyzer": "snowball"
+		                }
+		             }
+		          }
+		       }
+		    }
+ 
+
+ 
+		3) Add some sample records to this index
+	    	POST _bulk
+	    	{ "create": { "_index": "docs", "_type": "record"}}
+	    	{ "title": "Record #1", "source": "log format1", "ingestDate": "20150526", "createDate": "20160124", "description": "This is the description for record #1" }
+	    	{ "create": { "_index": "docs", "_type": "record"}}
+	    	{ "title": "Record #2", "source": "log format2", "ingestDate": "20150526", "createDate": "20160225", "description": "This is the description for record #2"}
+	    	{ "create": { "_index": "docs", "_type": "record"}}
+	    	{ "title": "Record #3", "source": "log format2", "ingestDate": "20150526", "createDate": "20160401", "description": "This is the description for record #3"}
+    
+    
+		4) Show the records
+		   POST /docs/_search
+		   
+
+ 		
+
+15. Add the SpringApplicationUtils class to your project
+    NOTE:  This will be used to get access to spring beans from anywhere within your web app
+    a. Right-click on src/main/java/app1/utilities -> New -> Java Class
+       Name:  SpringAppContextUtils
+       
+    b. Copy the following code to your SpringAppContextUtils class
+       
+       package app1.utilities;
+        
+        
+      /**
+        * To work, this line must be in the applicationContext.xml file
+        *    <bean id="applicationContextProvider" class="app1.utilities.SpringAppContextUtils" />
+        * 
+        *  MySpringBean mySpringBean = (MySpringBean) SpringApplicationContext.getBean("mySpringBean");
+        * 
+        * This class implements ApplicationContextAware. 
+        * The method, “setApplicationContext(…)” gets called during the creation of this bean
+        * providing the reference to the context. 
+        * 
+        */
+        import org.springframework.beans.BeansException;
+        import org.springframework.context.ApplicationContext;
+        import org.springframework.context.ApplicationContextAware;
+        
+        public class SpringAppContextUtils implements ApplicationContextAware
+        {
+             private static ApplicationContext applicationContext = null;
+        
+              public static ApplicationContext getApplicationContext()
+              {
+                  return applicationContext;
+              }
+              
+              public void setApplicationContext(ApplicationContext aApplicationContext) throws BeansException
+              {
+                   // Assign the ApplicationContext into a static variable
+                   applicationContext = aApplicationContext;
+              }
+              
+              
+              public static Object getBean(String aName)
+              {
+                  if (applicationContext == null)
+                  {
+                      throw new RuntimeException("Error in SpringAppContextUtils.getBean().  The applicationContext is null");
+                  }
+                  
+                  return applicationContext.getBean(aName);
+              }
+              
+        }
+
+
+16. Setup SpringAppContextUtils so that it has the applicationContext passed into it
+    Add this line to your applicationContext.xml file 
+
+      <bean id="applicationContextProvider" class="app1.utilities.SpringAppContextUtils" />
+  
+ 
+ 
+17. Update the MyApplicationWatcher so that the webapp verifies that ElasticSearch is up and running on startup
+    a. Edit MyApplicationWatcher.contextInitialized()
+    
+    b. Change the contextInitialized() method so that it looks like this:
+    
+		package app1.utilities;
+		
+		import javax.servlet.ServletContextEvent;
+		import app1.services.ElasticSearchDao;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import org.springframework.web.context.ContextLoaderListener;
+		
+		public class MyApplicationWatcher extends ContextLoaderListener
+		{
+		    private static final Logger logger = LoggerFactory.getLogger( MyApplicationWatcher.class );
+		
+		
+		    /***********************************************************************************
+		     * contextInitialized()
+		     *  1) Read the property file for this webapp
+		     *  2) Initialize the Spring Context
+		     *
+		     * NOTE:  If a runtime exception is thrown, then the webapp will *not* startup
+		     ************************************************************************************/
+		    @Override
+		    public void contextInitialized( ServletContextEvent aContextEvent )
+		    {
+		        // Get the name of the web application
+		        final String sWebAppName = aContextEvent.getServletContext().getContextPath().substring(1);
+		
+		        logger.debug("{} contextInitialized() started", sWebAppName);
+		
+		        try
+		        {
+		            // I N I T I A T E      S P R I N G       C O N T E X T
+		            super.contextInitialized( aContextEvent );
+		
+		            // Verify ElasticSearch is up
+		            verifyElasticSearchIsUp();
+		        }
+		        catch (Exception e)
+		        {
+		            logger.error("{} WILL NOT STARTUP", sWebAppName);
+		
+		            // Throw a runtime exception so that this webapp will *not* startup
+		            RuntimeException runtimeException = new RuntimeException(e);
+		            runtimeException.setStackTrace(e.getStackTrace());
+		            throw runtimeException;
+		        }
+		
+		        logger.debug("{} contextInitialized() finished", sWebAppName);
+		    }
+		
+		
+		    /***********************************************************************************
+		     * contextDestroyed()
+		     * The webapp is about to be shutdown
+		     *   1) Shutdown any database connection pools manually
+		     *   2) Shutdown the spring context
+		     ************************************************************************************/
+		    @Override
+		    public void contextDestroyed( ServletContextEvent aContextEvent )
+		    {
+		        // Get the name of the web application
+		        final String sWebAppName = aContextEvent.getServletContext().getContextPath().substring(1);
+		
+		        logger.debug("{} contextDestroyed() started", sWebAppName);
+		
+		
+		        // S H U T D O W N       S P R I N G       C O N T E X T
+		        super.contextDestroyed(aContextEvent);
+		
+		        // At this point, all spring-beans are destroyed
+		
+		
+		        logger.debug("{} contextDestroyed() finished", sWebAppName);
+		    }
+		
+		
+		    /***********************************************************************************
+		     * verifyElasticSearchIsUp()
+		     *
+		     * Attempt to connect to ElasticSearch
+		     * NOTE:  If ElasticSearch does not respond or gives us a non-200 response, then throw an exception
+		     ************************************************************************************/
+		    private void verifyElasticSearchIsUp() throws Exception
+		    {
+		        ElasticSearchDao esDao = (ElasticSearchDao) SpringAppContextUtils.getBean("elasticSearchDao");
+		
+		        if (esDao.isElasticSearchRunning() == false)
+		        {
+		            throw new RuntimeException("Error in verifyElasticSearchIsUp():  ElasticSearch is not running.");
+		        }
+		
+		        // If I got this far, then it is running
+		    }
+		
+		}
+ 
+ 
+ 
+ 
+18. Set a breakpoint in your runSearch() method in your WelcomeController
+
+		   
+19. Debug your Webapp
+    a. Pull Run -> Debug webapp1 [jetty:run]
+        
+    NOTE:  If you do not see this option, then
+      1) Open the Maven Projects window
+         Pull View -> Tool Window -> Maven Project
+    
+      2) Single-click on Plugins -> jetty -> jetty:run
+    
+      3) Right-click on jetty:run -> Debug....  
+          -- This will activate the jetty maven plugin in debug mode
+             *AND*
+          -- This will create a menu option :
+             Run -> Debug '<your webapp's name>' [jetty:run]'
+ 
+ 
+20. Attempt to connect to your webapp
+    a. Startup a web browser
+    b. Connect to http://localhost:8080/webapp1/search/description
+
+    You should see these results
+    
+     	  
+ 		{"took":637,"timed_out":false,
+ 			"_shards":{"total":5,"successful":5,"failed":0},
+ 			"hits":
+ 				{"total":1682500,"max_score":0.31249908,
+ 				"hits":
+ 				[
+ 					{"_index":"docs","_type":"record","_id":"148662","_score":0.31249908,"_source":{"author":"author for 148662","ingestDate":"20161230","title":"title for 148662","createDate":"20161230"}},{"_index":"docs","_type":"record","_id":"148667","_score":0.31249908,"_source":{"author":"author for 148667","ingestDate":"20161230","title":"title for 148667","createDate":"20161230"}},{"_index":"docs","_type":"record","_id":"148674","_score":0.31249908,"_source":{"author":"author for 148674","ingestDate":"20161230","title":"title for 148674","createDate":"20161230"}},{"_index":"docs","_type":"record","_id":"148679","_score":0.31249908,"_source":{"author":"author for 148679","ingestDate":"20161230","title":"title for 148679","createDate":"20161230"}},{"_index":"docs","_type":"record","_id":"148681","_score":0.31249908,"_source":{"author":"author for 148681","ingestDate":"20161230","title":"title for 148681","createDate":"20161230"}}
+ 				]
+ 			}
+ 		}
+ 		
+ 		
