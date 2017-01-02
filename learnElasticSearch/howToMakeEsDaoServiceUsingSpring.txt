@@ -1,8 +1,10 @@
-How to Run an Elastic Search Query by sending JSON to it
---------------------------------------------------------
+How to Make an ElasticSearchDao Service that Queries ES using Spring
+--------------------------------------------------------------------
 
 Assumption:
  A) You have an ES 1.7.5 instance up and running
+ B) You have a command-line Java JAR
+ C) You define your ElasticSearchDao class as a spring bean using the @Service annotation
  
 
 Procedure
@@ -27,6 +29,50 @@ Procedure
           <version>1.9.31</version>
       </dependency>
 
+      <dependency>
+          <groupId>org.apache.commons</groupId>
+          <artifactId>commons-lang3</artifactId>
+          <version>3.3.2</version>
+      </dependency>
+
+      <dependency>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-api</artifactId>
+          <version>1.7.5</version>
+      </dependency>
+
+      <dependency>
+          <groupId>ch.qos.logback</groupId>
+          <artifactId>logback-classic</artifactId>
+          <version>1.0.13</version>
+      </dependency>
+
+      <!-- Spring Core -->
+      <dependency>
+          <groupId>org.springframework</groupId>
+          <artifactId>spring-core</artifactId>
+          <version>4.1.1.RELEASE</version>
+          <exclusions>
+              <exclusion>
+                  <groupId>commons-logging</groupId>
+                  <artifactId>commons-logging</artifactId>
+              </exclusion>
+          </exclusions>
+      </dependency>
+
+      <!-- Spring Context -->
+      <dependency>
+          <groupId>org.springframework</groupId>
+          <artifactId>spring-context</artifactId>
+          <version>4.1.1.RELEASE</version>
+      </dependency>
+
+      <!-- Spring sends logging to Java Common Logging.  But, this will send this logging to SLF4J -->
+      <dependency>
+          <groupId>org.slf4j</groupId>
+          <artifactId>jcl-over-slf4j</artifactId>
+          <version>1.7.5</version>
+      </dependency>
   
 
  3. Update your logback.xml file to look like this:
@@ -62,7 +108,7 @@ Procedure
 		
 		</configuration>
 		        
-		              
+		       		        	              
  
  4. Create a package called "stuff"
     a. Right-click on /src/main/java -> New -> Package
@@ -510,24 +556,23 @@ Procedure
 		}
 
 
-
-	
+		
+			
 		 
-
  6. Create this class:  ElasticSearchDaoApp
     a. Right-click on /src/main/java/stuff -> New -> Java Class
        Name:  ElasticSearchDaoApp
        Kind:  Class
        Press OK
        
-       
     b. Copy this to to your java class
-
+		    
 		package stuff;
 		
 		import org.slf4j.Logger;
 		import org.slf4j.LoggerFactory;
-		
+		import org.springframework.context.ApplicationContext;
+		import org.springframework.context.support.ClassPathXmlApplicationContext;
 		
 		/**
 		 * Created by adam on 12/30/2016.
@@ -537,14 +582,18 @@ Procedure
 		    private static final Logger logger = LoggerFactory.getLogger(ElasticSearchDaoApp.class);
 		
 		
-		    /********************************************************************************************
-		     * main()
-		     *********************************************************************************************/
 		    public static void main(String[] args) throws Exception
 		    {
+		        logger.debug("mainUsingSpring() started");
 		
-		        final String ES_URL        =  "http://192.168.1.165:9200";
-		        ElasticSearchDao es = new ElasticSearchDao(ES_URL);
+		        // S T A R T U P      S P R I N G     C O N T E X T
+		        //  1) Read spring-beans.xml
+		        //  2) Instantiate the spring beans
+		        ApplicationContext context = new ClassPathXmlApplicationContext("spring-beans.xml");
+		
+		        // Get a reference to the ElasticSearchDao Bean
+		        // NOTE:  The name used here must be match the id=".." of the spring bean
+		        ElasticSearchDao es = (ElasticSearchDao) context.getBean("elasticSearchDao");
 		
 		        String sJsonResults;
 		
@@ -577,186 +626,63 @@ Procedure
 		        logger.debug("Query 6 Results:\n{}", es.getJsonInPrettyFormat(sJsonResults));
 		
 		
-		        // Try running lots of different characters in the simple query to see if any blows up
-		        for (int i = 1; i<= 128; i++)
-		        {
-		            final String sQuery = "author" + Character.toString((char) i);
+		        // S H U T D O W N       S P R I N G     C O N T E X T
+		        // NOTE:  causes the close-method to be called on the Spring-Beans)
+		        ((ClassPathXmlApplicationContext) context).close();
 		
-		            logger.debug("Starting Query {}:  query={}", i, sQuery);
 		
-		            try {
-		                sJsonResults = es.runSimpleQueryString(sQuery, "docs", 0, 5);
-		            }
-		            catch (Exception e)
-		            {
-		                logger.debug("i={} failed.  query-->{}<--  Character.toString({}) causes ES to blow-up.", i, sQuery, i);
-		            }
-		        }
-		
-		        sJsonResults = es.runSimpleQueryString("\\author", "docs", 0, 5);
-		
-		        // Close the ElasticSearchDao class properly
-		        es.close();
+		        logger.debug("mainUsingSpring() finished");
 		    }
-		
 		
 		}
 
 
 
- 7. Create thie test class
-    a. Right-click on /src/test/java/stuff -> New Java Class
-       Name:  AppTest
+
+ 7. Create this file:  spring-beans.xml
+    a. Right-click on /src/main/resources/ -> Right-click -> New -> File:
+       Filename:  spring-beans.xml
     
-    b. Copy this to your AppTest class:
- 
-		package stuff;
-		
-		import junit.framework.Test;
-		import junit.framework.TestCase;
-		import junit.framework.TestSuite;
-		import org.slf4j.Logger;
-		import org.slf4j.LoggerFactory;
-		
-		import java.util.regex.Pattern;
-		
-		/**
-		 * Unit test for simple App.
-		 */
-		public class AppTest extends TestCase
-		{
-		    private static final Logger logger = LoggerFactory.getLogger(AppTest.class);
-		
-		    /**
-		     * Create the test case
-		     *
-		     * @param testName name of the test case
-		     */
-		    public AppTest( String testName )
-		    {
-		        super( testName );
-		    }
-		
-		    /**
-		     * @return the suite of tests being tested
-		     */
-		    public static Test suite()
-		    {
-		        return new TestSuite( AppTest.class );
-		    }
-		
-		
-		    public void testCleanupQuery()
-		    {
-		        ElasticSearchDao es = new ElasticSearchDao("whatever");
-		
-		
-		        // ^+-=><!(){}:/\*~
-		
-		        String sRawQuery;
-		        String sCleanQuery;
-		
-		        // Invalid string:  \   it should be stripped-out
-		        sRawQuery = "\\";
-		        sCleanQuery = es.cleanupQuery(sRawQuery);
-		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
-		        assertTrue(sCleanQuery.equalsIgnoreCase(" "));
-		
-		
-		        // Invalid string: '\a' --> ' '    (it should be replaced with a space)
-		        sRawQuery = "\\a";
-		        sCleanQuery = es.cleanupQuery(sRawQuery);
-		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
-		        assertTrue(sCleanQuery.equalsIgnoreCase(" "));
-		
-		        // Partially invalid string:  'author\a' --> 'author '   -- it should be stripped-out
-		        sRawQuery = "author\\a";
-		        sCleanQuery = es.cleanupQuery(sRawQuery);
-		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
-		        assertTrue(sCleanQuery.equalsIgnoreCase("author "));
-		
-		        // Partially invalid -- 'author\a stuff' -->  'author  stuff'   it should be stripped-out
-		        sRawQuery = "author\\a stuff";
-		        sCleanQuery = es.cleanupQuery(sRawQuery);
-		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
-		        assertTrue(sCleanQuery.equalsIgnoreCase("author  stuff"));
-		
-		
-		        // Valid -- author\!    (remains unchanged)
-		        sRawQuery = "author\\!";
-		        sCleanQuery = es.cleanupQuery(sRawQuery);
-		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
-		        assertTrue(sCleanQuery.equalsIgnoreCase(sRawQuery));
-		
-		        // Valid:  author\+     (remains unchanged)
-		        sRawQuery = "author\\+";
-		        sCleanQuery = es.cleanupQuery(sRawQuery);
-		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
-		        assertTrue(sCleanQuery.equalsIgnoreCase(sRawQuery));
-		
-		        // Valid:  author\-     (remains unchanged)
-		        sRawQuery = "author\\-";
-		        sCleanQuery = es.cleanupQuery(sRawQuery);
-		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
-		        assertTrue(sCleanQuery.equalsIgnoreCase(sRawQuery));
-		
-		        // Valid:  author\<     (remains unchanged)
-		        sRawQuery = "author\\<";
-		        sCleanQuery = es.cleanupQuery(sRawQuery);
-		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
-		        assertTrue(sCleanQuery.equalsIgnoreCase(sRawQuery));
-		
-		        // Valid:  \<author\>     (remains unchanged)
-		        sRawQuery = "\\<author\\>";
-		        sCleanQuery = es.cleanupQuery(sRawQuery);
-		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
-		        assertTrue(sCleanQuery.equalsIgnoreCase(sRawQuery));
-		
-		         // Valid:  \(author\)     (remains unchanged)
-		        sRawQuery = "\\(author\\)";
-		        sCleanQuery = es.cleanupQuery(sRawQuery);
-		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
-		        assertTrue(sCleanQuery.equalsIgnoreCase(sRawQuery));
-		
-		        // Valid:  author\:stuff     (remains unchanged)
-		        sRawQuery = "author\\:stuff";
-		        sCleanQuery = es.cleanupQuery(sRawQuery);
-		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
-		        assertTrue(sCleanQuery.equalsIgnoreCase(sRawQuery));
-		
-		        // Valid:  author\/stuff     (remains unchanged)
-		        sRawQuery = "author\\/stuff";
-		        sCleanQuery = es.cleanupQuery(sRawQuery);
-		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
-		        assertTrue(sCleanQuery.equalsIgnoreCase(sRawQuery));
-		
-		        // Valid:  author\{1,2\}       (remains unchanged)
-		        sRawQuery = "author\\{1,2\\}";
-		        sCleanQuery = es.cleanupQuery(sRawQuery);
-		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
-		        assertTrue(sCleanQuery.equalsIgnoreCase(sRawQuery));
-		
-		        // Valid:  author\*       (remains unchanged)
-		        sRawQuery = "author\\*";
-		        sCleanQuery = es.cleanupQuery(sRawQuery);
-		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
-		        assertTrue(sCleanQuery.equalsIgnoreCase(sRawQuery));
-		
-		        // Valid:  author\~3       (remains unchanged)
-		        sRawQuery = "author\\~3";
-		        sCleanQuery = es.cleanupQuery(sRawQuery);
-		        logger.debug("Raw-->{}<--   Clean-->{}<--", sRawQuery, sCleanQuery);
-		        assertTrue(sCleanQuery.equalsIgnoreCase(sRawQuery));
-		
-		    }
-		}
+    b. Copy this to your file:
     
+		<beans xmlns="http://www.springframework.org/schema/beans"
+		       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		       xmlns:context="http://www.springframework.org/schema/context"
+		       xsi:schemaLocation="http://www.springframework.org/schema/beans
+		                http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+		                http://www.springframework.org/schema/context
+		                http://www.springframework.org/schema/context/spring-context.xsd">
+		
+		    <!-- Read the app.properties and make the values available within this xml file -->
+		    <context:property-placeholder location="classpath:app.properties" />
+		
+		    <!-- Create an ElasticSearchDao singleton and pass-in the es.url (found in app.properties) -->
+		    <bean id="elasticSearchDao" class="stuff.ElasticSearchDao" destroy-method="close">
+		        <constructor-arg  value="${es.url}" />
+		    </bean>
+		
+		</beans>
+        
+        
+        
+ 8. Create this file:  app.properties
+    a. Right-click on /src/main/resources/ -> Right-click -> New -> File:
+       Filename:  app.properties
     
-    
- 8. Startup your ElasticSearch Instance
+    b. Copy this to your file:
+
+		#########################################################################
+		# app.properties
+		#########################################################################
+		es.url=http://192.168.43.129:9200 
+        
+        
+        
+ 9. Startup your ElasticSearch Instance
  
  
- 9.Setup the "docs" mapping in ElasticSearch index and add some records
+ 
+10. Setup the "docs" mapping in ElasticSearch index and add some records
  	a. Startup Chrome
  	b. Startup the "Sense" plugin
  	c. Run the following commands:	
@@ -814,7 +740,7 @@ Procedure
 		   POST /docs/_search
 		   
 		   
-10. Debug the main()
+11. Debug the main()
     a. Left-click in the margins of ElasticSearchDaoApp and set a breakpoint
     b. Right-click on ElasticSearchDaoApp -> Debug 'ElasticSearchDaoApp.main()'
  
