@@ -2,13 +2,72 @@ Lesson 17:  Add an ElasticSearch Service to the Web App
 -------------------------------------------------------
 
 Assumptions:
- A) You have an ElasticSearch instance running
- 
+ A) You have an ElasticSearch instance running at 192.168.1.165:9200
+
  
 
 Procedure
 ---------
- 1. Add these dependencies to your webapp's pom.xml
+ 1. Setup the "docs" mapping in ElasticSearch index and add some records
+ 	a. Startup Chrome
+ 	b. Startup the "Sense" plugin
+ 	c. Run the following commands:	
+	 
+		1) Delete the index called "docs" [and all records and the mapping, too!]
+	    	DELETE /docs
+	
+	
+	 	2) Create a mappings for the index called "docs"
+		    PUT /docs
+	    	{
+		       "mappings": {
+		          "record": {
+		             "properties": {
+		                "title": {
+		                   "type": "string",
+		                   "analyzer": "snowball"
+		                },	                
+		                "source": {
+		                   "type": "string",
+		                   "index": "not_analyzed"
+		                },
+		                "ingestDate": {
+		                   "type": "date",
+		                   "format": "yyyyMMdd",
+		                   "index": "not_analyzed"
+		                },
+		                "createDate": {
+		                   "type": "date",
+		                   "format": "yyyyMMdd",
+		                   "index": "not_analyzed"
+		                },	
+		                "description": {
+		                   "type": "string",
+		                   "analyzer": "snowball"
+		                }
+		             }
+		          }
+		       }
+		    }
+ 
+
+ 
+		3) Add some sample records to this index
+	    	POST _bulk
+	    	{ "create": { "_index": "docs", "_type": "record"}}
+	    	{ "title": "Record #1", "source": "log format1", "ingestDate": "20150526", "createDate": "20160124", "description": "This is the description for record #1" }
+	    	{ "create": { "_index": "docs", "_type": "record"}}
+	    	{ "title": "Record #2", "source": "log format2", "ingestDate": "20150526", "createDate": "20160225", "description": "This is the description for record #2"}
+	    	{ "create": { "_index": "docs", "_type": "record"}}
+	    	{ "title": "Record #3", "source": "log format2", "ingestDate": "20150526", "createDate": "20160401", "description": "This is the description for record #3"}
+    
+    
+		4) Show the records
+		   POST /docs/_search
+		
+		   
+		   
+ 2. Add these dependencies to your webapp's pom.xml
  
        <dependency>
           <!-- Used to convert objects to JSON -->
@@ -26,13 +85,13 @@ Procedure
       
       
       
- 2. Create this package:  services
+ 3. Create this package:  services
     Right-click on /src/main/java/app1 -> new Package
     Package Name:  services
     
     
     
- 3. Create this class:  ElasticSearchDao
+ 4. Create this class:  ElasticSearchDao
     a. Right-click on /src/main/java/app1/services -> new Java Class
        Class Name:  ElasticSearchDao
        
@@ -466,7 +525,7 @@ Procedure
     
     
  
- 4. Add this to your webapp's applicationContext.xml
+ 5. Add this to your webapp's applicationContext.xml
     a. Edit /src/main/webapp/WEB-INF/spring/applicationContext.xml
     
     b. Add this to your applicationContext.xml
@@ -478,14 +537,14 @@ Procedure
 	    
 	    
  
- 5. Add the es.url property value to your property file
+ 6. Add the es.url property value to your property file
     NOTE:  I assume that your ElasticSearch is listening at the IP address of 192.168.1.165
       
        es.url=http://192.168.1.165:9200
        
        
  
- 6. Inject the ElasticSearchDao spring-bean into your Welcome Controller
+ 7. Inject the ElasticSearchDao spring-bean into your Welcome Controller
  	a. Edit your /src/main/java/app1/controllers/WelcomeController.java class
  	
  	b. Add this to the top:
@@ -494,7 +553,7 @@ Procedure
  		
  
  
- 7. Add a method called runSearch() to your WelcomeController
+ 8. Add a method called runSearch() to your WelcomeController
     
 	    /***************************************************************************
 	     * runSearch()
@@ -574,13 +633,13 @@ Procedure
 	    }
 		    
 	    
-   8. Startup your webapp
+   9. Startup your webapp
    
    
-   9. Set a breakpoint in your new runSearch() method
+  10. Set a breakpoint in your new runSearch() method
    
    
-  10. Try it out by searching for the phrase "author"
+  11. Try it out by searching for the phrase "author"
       ASSUMPTION:  I assume that your webapp is called "webapp1"
       a. Open a browser 
       b. Go to http://localhost:8080/webapp1/search/author 
