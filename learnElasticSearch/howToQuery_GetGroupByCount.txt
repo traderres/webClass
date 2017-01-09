@@ -1,0 +1,151 @@
+How to Query for the "Group By" Aggregate Counts
+------------------------------------------------
+The trick is to run a query that 
+  a) Queries everything  	          "query": { "match_all": {} }
+  b) Returns zero matches from query  "size": 0
+  c) Run an aggregate by ipAddress
+  d) Tell the aggregate count to only list the top 5   "size": 5
+     
+
+How to find the Top 5 ip-addresses and their approximate counts from the "docs" schema
+--------------------------------------------------------------------------------------
+POST /docs3/_search
+{
+    "query": {
+        "match_all": {}
+    },
+    "size": 0,
+    "aggs" : {
+        "most_frequent_ips" : {
+            "terms": { 
+                "field": "ipAddress",
+                "size" : 5
+            }
+        }
+    }
+
+
+
+Verify it works
+---------------
+ 1. Create a "docs3" index
+	DELETE /docs3
+	
+	PUT /docs3
+	    {
+	       "mappings": {
+	          "record": {
+	             "properties": {
+	                "title": {
+	                   "type": "string",
+	                   "analyzer": "snowball"
+	                },
+	                "ipAddress" : {
+	                   "type": "ip",
+	                    "store": "yes",
+	                    "null_value": "null",
+	                    "include_in_all": true
+	                },
+	                "type": {
+	                   "type": "integer",
+	                   "index": "not_analyzed"
+	                },
+	                "createDate": {
+	                   "type": "string",
+	                   "format": "YYYYMMDD HH:mm:ss"
+	                },
+	                "description": {
+	                   "type": "string",
+	                   "analyzer": "snowball" 
+	                }
+	             }
+	          }
+	       }
+	    }    
+    
+ 2. Add some records to the "docs" index
+
+	POST _bulk
+    { "create": { "_index": "docs3", "_type": "record" }}
+    { "title": "Record #1", "ipAddress": "1.1.1.1", "type": 7, "createDate": "20161209 21:23:00", "description": "This is the description for record #1" }
+    { "create": { "_index": "docs3", "_type": "record" }}
+    { "title": "Record #2", "ipAddress": ["1.1.1.1", "2.2.2.2", "1.1.1.141"], "type": 7, "createDate": "20161209 21:23:01", "description": "This is the description for record #2" }
+    { "create": { "_index": "docs3", "_type": "record" }}
+    { "title": "Record #3", "ipAddress": "2.2.2.1", "type": 7, "createDate": "20161209 21:23:02", "description": "This is the description for record #3" }
+    { "create": { "_index": "docs3", "_type": "record" }}
+    { "title": "Record #4", "ipAddress": "2.2.2.56", "type": 7, "createDate": "20161209 21:23:03", "description": "This is the description for record #4" }
+    { "create": { "_index": "docs3", "_type": "record" }}
+    { "title": "Record #5", "ipAddress": "1.2.3.11", "type": 7, "createDate": "20161209 21:23:04", "description": "This is the description for record #5" }
+    { "create": { "_index": "docs3", "_type": "record" }}
+    { "title": "Record #6", "ipAddress": ["1.1.1.1", "2.2.2.2", "3.3.3.3"], "type": 7, "createDate": "20161209 21:23:04", "description": "This is the description for record #6" }	 
+
+ 3. View the data in the "docs3" index
+    POST /docs3/_search
+    
+     
+ 4. Get the the Top 5 IP addresses and their approximate counts
+	POST /docs3/_search
+    {
+	    "query": {
+	        "match_all": {}
+	    },
+	    "size": 0,
+	    "aggs" : {
+	        "most_frequent_ips" : {
+	            "terms": { 
+	                "field": "ipAddress",
+	                "size" : 5
+	            }
+	        }
+	    }
+    }
+	
+ 
+   You should see these results (notice that the 1.1.1.1 address is found 3 times)
+		{
+		   "took": 12,
+		   "timed_out": false,
+		   "_shards": {
+		      "total": 5,
+		      "successful": 5,
+		      "failed": 0
+		   },
+		   "hits": {
+		      "total": 6,
+		      "max_score": 0,
+		      "hits": []
+		   },
+		   "aggregations": {
+		      "most_frequent_ips": {
+		         "doc_count_error_upper_bound": 0,
+		         "sum_other_doc_count": 2,
+		         "buckets": [
+		            {
+		               "key": 16843009,
+		               "key_as_string": "1.1.1.1",       <<-- This is the most frequent IP address 
+		               "doc_count": 3
+		            },
+		            {
+		               "key": 33686018,
+		               "key_as_string": "2.2.2.2",
+		               "doc_count": 2
+		            },
+		            {
+		               "key": 16843149,
+		               "key_as_string": "1.1.1.141",
+		               "doc_count": 1
+		            },
+		            {
+		               "key": 16909067,
+		               "key_as_string": "1.2.3.11",
+		               "doc_count": 1
+		            },
+		            {
+		               "key": 33686017,
+		               "key_as_string": "2.2.2.1",
+		               "doc_count": 1
+		            }
+		         ]
+		      }
+		   }
+		}
