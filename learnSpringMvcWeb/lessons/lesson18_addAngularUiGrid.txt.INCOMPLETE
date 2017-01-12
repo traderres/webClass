@@ -1,0 +1,169 @@
+Lesson:  Add an Angular UI-Grid to your Spring MVC Web App
+----------------------------------------------------------
+
+
+  
+Assumptions:  
+ A) You have a Spring MVC web app already setup
+ B) Your spring dispatch-servlet.xml has this entry in it:   
+      <!-- Map the relative address for certain locations -->
+      <mvc:resources  mapping="/resources/**"  location="/resources/" />
+  
+
+References
+----------
+http://ui-grid.info/docs/#/tutorial
+http://ui-grid.info/
+
+
+Procedure
+---------
+ 1. Download UI-Grid 4.0.2
+    a. Browse to http://ui-grid.info/
+       click "Download"
+       click on verison "4.0.2"
+       *OR*
+       Go to https://github.com/angular-ui/ui-grid.info/tree/gh-pages/release/4.0.2
+       
+    
+    b. Make a directory on your computer:  c:/vault/ui-grid-4.0.2/
+    
+    c. Download all of the files
+       a) Get https://raw.githubusercontent.com/angular-ui/ui-grid.info/gh-pages/release/4.0.2/ui-grid.css
+       b) Get https://raw.githubusercontent.com/angular-ui/ui-grid.info/gh-pages/release/4.0.2/ui-grid.eot
+       c) Get https://raw.githubusercontent.com/angular-ui/ui-grid.info/gh-pages/release/4.0.2/ui-grid.js
+       d) Get https://raw.githubusercontent.com/angular-ui/ui-grid.info/gh-pages/release/4.0.2/ui-grid.min.css
+       e) Get https://raw.githubusercontent.com/angular-ui/ui-grid.info/gh-pages/release/4.0.2/ui-grid.min.js
+       f) Get https://raw.githubusercontent.com/angular-ui/ui-grid.info/gh-pages/release/4.0.2/ui-grid.svg
+       g) Get https://raw.githubusercontent.com/angular-ui/ui-grid.info/gh-pages/release/4.0.2/ui-grid.ttf
+       h) Get https://raw.githubusercontent.com/angular-ui/ui-grid.info/gh-pages/release/4.0.2/ui-grid.woff
+
+       *OR*
+       
+       Click on each file and save the *raw* file to your c:/vault/ui-grid-4.0.2/ directory
+       
+            
+       
+ 2. Manually add these ui-grid files to your Spring MVC Web App  
+    a. Startup Intellij
+   
+    b. Copy the directory
+       1) Right-click on c:/vault/ui-grid-4.0.2/ -> Copy   
+    
+    c. In Intellij, Right-click on  /src/main/webapp/resources/ -> Right-Click -> Paste
+       Intellij will prompt you to copy files, press OK
+                 
+          
+       Now, you should have these directories
+          /src/main/webapp/resources/ui-grid-4.0.2/ui-grid.css
+          /src/main/webapp/resources/ui-grid-4.0.2/ui-grid.eot
+          /src/main/webapp/resources/ui-grid-4.0.2/ui-grid.js
+          /src/main/webapp/resources/ui-grid-4.0.2/ui-grid.min.css
+          /src/main/webapp/resources/ui-grid-4.0.2/ui-grid.min.js
+          /src/main/webapp/resources/ui-grid-4.0.2/ui-grid.svg
+          /src/main/webapp/resources/ui-grid-4.0.2/ui-grid.ttf
+          /src/main/webapp/resources/ui-grid-4.0.2/ui-grid.woff
+
+            
+        
+    *OR*  (if you downloaded the file to your ~/Downloads directory)
+    
+     unix> cd /home/adam/intellijProjects/webapp1
+     unix> cd src/main/webapp/resources/
+     unix> mkdir ui-grid-4.0.2
+     unix> cd ui-grid-4.0.2
+     unix> cp ~/Downloads/ui-grid.css  .
+     unix> cp ~/Downloads/ui-grid.eot  .
+     unix> cp ~/Downloads/ui-grid.js  .
+     unix> cp ~/Downloads/ui-grid.min.css  .
+     unix> cp ~/Downloads/ui-grid.min.js  .
+     unix> cp ~/Downloads/ui-grid.svg  .
+     unix> cp ~/Downloads/ui-grid.ttf  .
+     unix> cp ~/Downloads/ui-grid.woff  .
+
+
+ 
+  3. Add a method to your WelcomeController  (that will load grid1.jsp page)
+ 	    
+ 	    private Gson gson = new Gson();
+ 
+ 		. . .
+ 		
+ 
+	     /**********************************************************************
+	     * showGrid1()
+	     *
+	     * The user browsed to the /grid1 page
+	     *  1) Run a SQL query to get some data from the database
+	     *  2) Add that data to the ModelAndView
+	     *  3) Forward the user to the grid1.jsp page
+	     ***********************************************************************/
+	    @RequestMapping("/grid1")
+	    public ModelAndView showGrid1( Model aModel ) throws Exception
+	    {
+	        logger.debug("showGrid1() started");
+	
+	        // Create a modelAndView object
+	        ModelAndView mav = new ModelAndView();
+	
+	        // Show the grid1.jsp page
+	        mav.setViewName("grid1.jsp");
+	
+	        // Part 1:  Get list of objects from the database
+	        ArrayList<UserInfo> users = getUserListOrderedBy("name");
+	
+	        // Part 2:  Convert the list into JSON
+	        // Convert the list of UserInfo into a JSON string
+	        String sListOfUsersAsJson = this.gson.toJson(users);
+	
+	        // Part 3:  Add the JSON to the model-and-view  (so the page can access it)
+	        mav.addObject("userInfo", sListOfUsersAsJson);
+	
+	        logger.debug("showGrid1() finished");
+	        return mav;
+	    }
+	 
+	 
+	    /***************************************************************************
+	     * getUserListOrderedBy()
+	     *  1) Run a sql call to get all userinfo from the database
+	     *
+	     *  Returns a list of UserInfo objects
+	     ****************************************************************************/
+	    private ArrayList<UserInfo> getUserListOrderedBy(String aOrderBy) throws Exception
+	    {
+	        ArrayList<UserInfo> users = new ArrayList<UserInfo>();
+	
+	        // Construct the SQL call
+	        final String sSql = "Select name from users order by " + aOrderBy;
+	
+	        JdbcTemplate jt = new JdbcTemplate(this.postgresDataSource);
+	
+	        // Get a connection from the JDBC pool, run the query, return the connection to the pool
+	        SqlRowSet rs = jt.queryForRowSet(sSql);
+	
+	        while (rs.next())
+	        {
+	            // Get the name from the read-only recordset
+	            String sUserName = rs.getString(1);
+	
+	            // Construct a new userInfo object and popuplate it with data from the database
+	            UserInfo userInfo = new UserInfo();
+	            userInfo.setUserName(sUserName);
+	            userInfo.setIsAdministrator(false);
+	
+	            users.add(userInfo);
+	        }
+	
+	        return users;
+	    }
+	 
+  
+  4. Add this file:  grid1.jsp
+     
+     a. Right-click on /src/main/webapp/WEB-INF/jsp -> New -> File
+        Filename:  grid1.jsp
+        
+     
+  
+  
