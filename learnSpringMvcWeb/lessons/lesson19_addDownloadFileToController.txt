@@ -1,0 +1,105 @@
+Lesson:  Download a File from your Spring Controller
+----------------------------------------------------
+This lesson describes how to have a user download a file from your Spring Controller
+
+  
+Assumptions:  
+ A) You have a Spring MVC web app already setup
+
+
+      
+References
+----------
+http://stackoverflow.com/questions/5673260/downloading-a-file-from-spring-controllers
+
+
+Procedure
+---------
+ 1. Add the IOUtils dependency to your web project's pom.xml
+ 
+	 <dependency>
+	    <groupId>commons-io</groupId>
+	    <artifactId>commons-io</artifactId>
+	    <version>2.5</version>
+	 </dependency>
+	 
+ 
+ 
+ 
+ 2. Download a large file to your c:\vault\CentOS-6.6-x86_64-bin-DVD1.iso
+ 
+ 
+ 3. Add this method to your WelcomeController
+ 	
+		import org.apache.commons.io.IOUtils;
+		 	
+		. . .
+		
+		@Controller
+		public class WelcomeController
+		{
+		    private final static Logger logger = LoggerFactory.getLogger(WelcomeController.class);
+		 	
+		 	
+		 	
+		 
+		    /**********************************************************************
+		     * download()
+		     ***********************************************************************/
+		    @RequestMapping(value = "/download/{fileId}", method = RequestMethod.GET)
+		    public  ResponseEntity<?> download(@PathVariable("fileId") String aFileId, HttpServletResponse response) throws Exception
+		    {
+		        logger.debug("download() started.  aFileId={}", aFileId);
+		
+		        FileInputStream fis = null;
+		
+		        try
+		        {
+		        	// Take the passed-in aFileId and use it to get a FileInputStream
+		        	// -- In this case, we hard code it to pull a large file
+		            final String sReturnedFilename = "CentOS-6.6-x86_64-bin-DVD1.iso";
+		            fis = new FileInputStream("C:\\vault\\CentOS-6.6-x86_64-bin-DVD1.iso");
+		
+		            // Copy the inputStream to the response output stream
+		            logger.debug("IOUtils.copy() started.");
+		            IOUtils.copy(fis, response.getOutputStream());
+		
+		            // Set the header (which tells the browser what default name to save the file as)
+		            response.setHeader( "Content-Disposition", "attachment; filename=\"" + sReturnedFilename + "\"");
+		
+		            // Close the file input stream
+		            fis.close();
+		
+		            // Flush the response back to the user
+		            response.flushBuffer();
+		
+		            // There is nothing to return -- we have already changed the response
+		            return null;
+		        }
+		        catch (Exception e)
+		        {
+		            logger.error("Error occurred making call to /download/{}", aFileId, e);
+		
+		            // Get a formatted error message from the exception object
+		            String sMessage = getFormattedMessageFromException(e);
+		
+		            // Tell the AJAX caller that this will be plain text being returned (and not JSON)
+		            HttpHeaders headers = new HttpHeaders();
+		            headers.setContentType(MediaType.TEXT_PLAIN);
+		
+		            // Return the error back to the caller
+		            return new ResponseEntity<String>(sMessage, headers, HttpStatus.INTERNAL_SERVER_ERROR);
+		        }
+		        finally
+		        {
+		            if (fis != null)
+		            {
+		                logger.debug("closing the fis");
+		                fis.close();
+		            }
+		
+		            logger.debug("download() finished.");
+		        }
+		    }
+
+
