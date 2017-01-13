@@ -1,0 +1,117 @@
+Lesson:  Add an "Export to CSV" option from your Spring Controller
+------------------------------------------------------------------
+This lesson describes how you could generate a CSV string 
+and download it from your Spring Controller
+
+  
+Assumptions:  
+ A) You have a Spring MVC web app already setup
+
+ 
+Procedure
+---------
+ 1. Add this dependency to your pom.xml
+ 
+        <dependency>
+            <groupId>net.sf.opencsv</groupId>
+            <artifactId>opencsv</artifactId>
+            <version>2.3</version>
+        </dependency>
+ 
+ 
+ 
+ 2. Create a ViewCSV class (that extends AbstractView)
+    Right-click on src/main/java/app1/utilities -> New -> Java Class
+    Name:  ViewCSV
+
+        package app1.utilities;
+        
+        import au.com.bytecode.opencsv.CSVWriter;
+        import org.springframework.http.MediaType;
+        import org.springframework.web.servlet.view.AbstractView;
+        
+        import javax.servlet.http.HttpServletRequest;
+        import javax.servlet.http.HttpServletResponse;
+        import java.nio.charset.Charset;
+        import java.util.List;
+        import java.util.Map;
+        
+        /**
+         * Created by adam on 11/8/2015.
+         */
+        public class ViewCSV extends AbstractView
+        {
+            private String filename;
+            private List<String[]> csvData;
+        
+            public ViewCSV(String aFilename, List<String[]> aCsvData)
+            {
+                this.filename = aFilename;
+                this.csvData = aCsvData;
+            }
+        
+        
+            @Override
+            protected void renderMergedOutputModel(Map<String, Object> aMap, HttpServletRequest aRequest, HttpServletResponse aResponse) throws Exception
+            {
+                CSVWriter writer = new CSVWriter( aResponse.getWriter() );
+        
+                MediaType mediaType = new MediaType("text", "csv", Charset.forName("utf-8"));
+        
+                try {
+                    aResponse.setHeader( "Content-Disposition", "attachment; filename=\"" + this.filename + "\"");
+                    aResponse.setContentType( mediaType.toString() );
+        
+                    // Write the list of strings to this view
+                    writer.writeAll(this.csvData);
+                }
+                finally
+                {
+                    writer.flush();
+                    writer.close();
+                }
+        
+            }
+        }
+             
+           
+ 
+ 
+ 3. Create a controller method that generate CSV output
+      
+        /**********************************************************************
+         * exportCsv()
+         ***********************************************************************/
+        @RequestMapping(value="/exportCsv", method=RequestMethod.GET)
+        @ResponseBody
+        public ModelAndView exportCsv()
+        {
+            ModelAndView mav = new ModelAndView();
+    
+            // Create an array list of stuff to be exported out
+            ArrayList<String[]> csvOutput = new ArrayList<String[]>();
+    
+            // Add the header to the csvOutput
+            csvOutput.add(new String[] {"id", "name", "position" } );
+    
+            // Add the data
+            csvOutput.add(new String[] {"1", "Adam", "Developer" } );
+            csvOutput.add(new String[] {"2", "Ben", "Developer" } );
+    
+            ViewCSV mavView = new ViewCSV("exportOutput.csv", csvOutput);
+            mav.setView(mavView);
+    
+            return(mav);
+        }
+  
+  
+  
+  
+ 4. Verify it works 
+      
+    a. Add a link to your welcome.jsp page
+     
+       <h2><a href="${contextPath}/exportCsv">exportCsv</a></h2>
+     
+    b. Click on the link and see the CSV generated
+    
