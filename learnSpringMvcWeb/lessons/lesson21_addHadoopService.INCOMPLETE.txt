@@ -17,7 +17,7 @@ http://www.folkstalk.com/2013/07/java-program-to-list-contents-of.html
 
 
 Part 1:  Setup a HDFS and insert a file into it
-------------------------------------------------
+-----------------------------------------------
  1. Install ZooKeeper and Hadoop
     -- The easier way to is to use the Accumulo Quick-install
        which will setup a ZooKeeper, Hadoop File System, and Accumulo Instance
@@ -48,13 +48,10 @@ Part 1:  Setup a HDFS and insert a file into it
     
     b. Create a file called /home/adam/stuff.txt with this 
        unix vi /home/adam/stuff.txt
-            hi mom
-            hi Ben
-            hi Peter
-            hi Dad
-            hi Will
-            hi Sam
-            Will is cool
+            
+            This is a test file
+            that will be stored in HDFS
+            
     
     c. Put that file in the /tmp/input direcory in HDFS
        unix> hadoop fs -put /home/adam/stuff.txt /tmp/input/stuff.txt 
@@ -62,15 +59,18 @@ Part 1:  Setup a HDFS and insert a file into it
     
     d. Verify that it is there
        unix> hadoop fs -ls -R /tmp
-			drwxr-xr-x   -  adam supergroup          0 2017-01-14 00:04 /tmp/input
-			-rw-r--r--   1  adam supergroup        142 2017-01-14 00:04 /tmp/input/stuff.txt
+			drwxr-xr-x   - adam supergroup          0 2017-01-15 15:59 /tmp/input
+			-rw-r--r--   1 adam supergroup         71 2017-01-15 15:59 /tmp/input/stuff.txt
 
  
 
 
-Part 2:  Create Java Program that talks with HDFS
--------------------------------------------------
-ASSUMPTION:  Your Intellij is running on the same box as the HDFS
+Part 2:  Create Java Program that talks with a local HDFS
+---------------------------------------------------------
+ASSUMPTIONS:
+  A) Your HDFS is running on localhost
+  B) Your Intellij is running on localhost
+  
  
  1. Create a Java JAR program
     [see learnJava / howToCreateJavaCommandLineProgramUsingIntellijMaven.txt]
@@ -108,8 +108,10 @@ ASSUMPTION:  Your Intellij is running on the same box as the HDFS
  
 
  3. Delete the logback.xml file
- 
+    
+    
  4. Create this file:  log4j.xml
+    NOTE:  Hadoop uses log4j so we must, too.
     a. Create this file here:  /src/main/resources/log4j.xml
     b. Copy the following to your log4j.xml
     
@@ -251,13 +253,8 @@ ASSUMPTION:  Your Intellij is running on the same box as the HDFS
 		01/14/2017 21:59:28 DEBUG IPC Client (1027007693) connection to localhost/127.0.0.1:9000 from adam org.apache.hadoop.ipc.Client IPC Client (1027007693) connection to localhost/127.0.0.1:9000 from adam got value #1
 		01/14/2017 21:59:28 DEBUG main org.apache.hadoop.ipc.ProtobufRpcEngine Call: getServerDefaults took 2ms
 		01/14/2017 21:59:28 DEBUG main org.apache.hadoop.hdfs.protocol.datatransfer.sasl.SaslDataTransferClient SASL client skipping handshake in unsecured configuration for addr = /127.0.0.1, datanodeId = 127.0.0.1:50010
-		           hi mom
-		            hi Ben
-		            hi Peter
-		            hi Dad
-		            hi Will
-		            hi Sam
-		            Will is cool
+		           This is a test file
+                   that will be stored in HDFS
 		
 		01/14/2017 21:59:28 DEBUG main com.resnick.App main() finished.
 		01/14/2017 21:59:28 DEBUG Thread-2 org.apache.hadoop.ipc.Client stopping client from cache: org.apache.hadoop.ipc.Client@16e7dcfd
@@ -270,8 +267,87 @@ ASSUMPTION:  Your Intellij is running on the same box as the HDFS
 		Process finished with exit code 0
 		    
     
+
+
+
+Part 3:  Create Java Program that talks with a remote HDFS
+----------------------------------------------------------
+ASSUMPTIONS:
+  A) Your HDFS is running on remote centOS 6 at 192.168.1.164
+  B) Your Intellij is running on localhost
+  
+  
+ 1. Change your App class to connect to the remote HDFS
+    a. Change this line to this:
+       		final String sFilePath = "hdfs://centosVM:9000/tmp/input/stuff.txt";
+      
+    b. Remove this line:
+    		System.setProperty("hadoop.home.dir", "/home/adam/quickinstall-home/hadoop-2.4.1");
+       NOTE:  This line is often optional (you might get a warning about it not being set)
     
-Part 3:  Add a HadoopClient to your Java Spring MVC Web App
+    
+ 2. Add the hostname to your local windows hosts file
+    a. Start > All Programs > Accessories
+    b. Right-click on Notepad -> Select "Run as administrator"
+    c. Edit this file:   C:\Windows\System32\drivers\etc\hosts
+    d. Add this entry:
+    
+          centosVM  192.168.1.164
+                  
+        
+         
+ 
+ 3. Add the hostname entry to your remote centoS unix machine (that is running HDFS)
+    unix> sudi vi /etc/hosts
+          
+             centosVM  192.168.1.164
+             
+               
+ 
+ 2. Adjust your HDFS so it listens on more than just localhost
+    a. Stop your HDFS
+       NOTE:  If you are using the Accumulo Quick-install, you would use these procedures
+ 	   unix> source /home/adam/quickinstall-home/bin/quickinstall-env
+	   unix> qi-stop
+     
+    b. Change the name node so that it listens on all IPs
+       1) Edit the hdfs-site.xml
+       
+       2) Make sure these entries are here:
+          ASSUMPTION:  centosVM is the hostname of the unix box running HDFS
+          
+		<property>
+		    <name>fs.default.name</name>
+		    <value>hdfs://centosVM:9000</value>
+		 </property>
+		
+		<property>
+		    <name>dfs.namenode.rpc-bind-host</name>
+		    <value>0.0.0.0</value>
+		</property>
+		
+		<property>
+		    <name>dfs.client.use.datanode.hostname</name>
+		    <value>true</value>
+		</property>
+
+   
+       
+    c. Change the data node so that it listens on all IPs
+ 
+    d. Startup your HDFS
+       NOTE:  If you are using the Accumulo Quick-install, you would use these procedures
+       unix> source /home/adam/quickinstall-home/bin/quickinstall-env
+       unix> qi-tart
+      
+  
+ 3. Run the java program again
+    -- You should see the same results
+    
+    
+ 
+    
+Part 4:  Add a HadoopClient to your Java Spring MVC Web App
 ------------------------------------------------------------
 
 INCOMPLETE
