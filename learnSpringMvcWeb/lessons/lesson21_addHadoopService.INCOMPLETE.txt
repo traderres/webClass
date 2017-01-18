@@ -70,7 +70,7 @@ Part 2:  Create Java Program that talks with a local HDFS
 ASSUMPTIONS:
   A) Your HDFS is running on localhost
   B) Your Intellij is running on localhost
-  
+  C) Your HDFS unix username is the *SAME NAME* as the Windows user account running Intellij
  
  1. Create a Java JAR program
     [see learnJava / howToCreateJavaCommandLineProgramUsingIntellijMaven.txt]
@@ -173,8 +173,6 @@ ASSUMPTIONS:
 		    {
 		        logger.debug("main() started.");
 		
-		        System.setProperty("hadoop.home.dir", "/home/adam/quickinstall-home/hadoop-2.4.1");
-		
 		        // The prefix 'hdfs://localhost:9000' should match the fs.default.name property (found in core-site.xml)
 		        final String sFilePath = "hdfs://localhost:9000/tmp/input/stuff.txt";
 		
@@ -273,19 +271,50 @@ ASSUMPTIONS:
 Part 3:  Create Java Program that talks with a remote HDFS
 ----------------------------------------------------------
 ASSUMPTIONS:
-  A) Your HDFS is running on remote centOS 6 at 192.168.1.164
-  B) Your Intellij is running on localhost
-  
+  A) Your HDFS is running on a remote host called centosVM
+  B) Your HDFS is running on a remote host with the IP of 192.168.1.164
+  C) Your HDFS file (that you want to read) as read-access to everyone
+  D) Your Intellij is running on localhost
+ 
   
  1. Change your App class to connect to the remote HDFS
     a. Change this line to this:
        		final String sFilePath = "hdfs://centosVM:9000/tmp/input/stuff.txt";
-      
-    b. Remove this line:
-    		System.setProperty("hadoop.home.dir", "/home/adam/quickinstall-home/hadoop-2.4.1");
-       NOTE:  This line is often optional (you might get a warning about it not being set)
+          
     
     
+       When you are done, your main() should look like this:
+		       
+		    public static void main( String[] args ) throws Exception
+		    {
+		        logger.debug("main() started.");
+		
+		        // The prefix 'hdfs://localhost:9000' should match the fs.default.name property (found in core-site.xml)
+		        final String sFilePath = "hdfs://centosVM:9000/tmp/input/stuff.txt";
+		
+		        Configuration conf = new Configuration();
+		        FileSystem fs = FileSystem.get(URI.create(sFilePath), conf);
+		        InputStream in = null;
+		        try
+		        {
+		            in = fs.open(new Path(sFilePath));
+		
+		            // Use Hadoop's IOUtils.copyBytes() to send the file to STDOUT
+		            // NOTE:  The false argument tells copyBytes to not close the file.
+		            IOUtils.copyBytes(in, System.out, 4096, false);
+		        }
+		        finally
+		        {
+		            IOUtils.closeStream(in);
+		        }
+		
+		
+		        logger.debug("main() finished.");
+		    }
+        
+       
+       
+       
  2. Add the hostname to your local windows hosts file
     a. Start > All Programs > Accessories
     b. Right-click on Notepad -> Select "Run as administrator"
@@ -304,7 +333,7 @@ ASSUMPTIONS:
              
                
  
- 2. Adjust your HDFS so it listens on more than just localhost
+ 4. Adjust your HDFS so it listens on more than just localhost
     a. Stop your HDFS
        NOTE:  If you are using the Accumulo Quick-install, you would use these procedures
  	   unix> source /home/adam/quickinstall-home/bin/quickinstall-env
@@ -331,17 +360,15 @@ ASSUMPTIONS:
 		    <value>true</value>
 		</property>
 
-   
-       
-    c. Change the data node so that it listens on all IPs
- 
-    d. Startup your HDFS
+    
+    c. Startup your HDFS
        NOTE:  If you are using the Accumulo Quick-install, you would use these procedures
        unix> source /home/adam/quickinstall-home/bin/quickinstall-env
-       unix> qi-tart
+       unix> qi-start
       
   
- 3. Run the java program again
+  
+ 5. Run the java program again
     -- You should see the same results
     
     
@@ -349,5 +376,3 @@ ASSUMPTIONS:
     
 Part 4:  Add a HadoopClient to your Java Spring MVC Web App
 ------------------------------------------------------------
-
-INCOMPLETE
