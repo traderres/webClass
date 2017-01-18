@@ -376,3 +376,217 @@ ASSUMPTIONS:
     
 Part 4:  Add a HadoopClient to your Java Spring MVC Web App
 ------------------------------------------------------------
+ 1. Add these dependencies to your Web App's pom.xml
+    NOTE:  
+      1) The hadoop-common comes with its own logging implementation, so we exclude it
+      2) The hadoop-common comes with servlet and tomcat libraries (which is bad!)
+         Our own local Jetty will provide those for libraries, so they are excluded as well
+         
+     <dependency>
+          <!-- Using the Hadoop 2.6 libraries -->
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-common</artifactId>
+          <version>2.6.0</version>
+
+          <exclusions>
+              <exclusion>
+                  <groupId>org.slf4j</groupId>
+                  <artifactId>slf4j-log4j12</artifactId>
+              </exclusion>
+
+              <exclusion>
+                  <!-- Hadoop-common comes with its own servlet dependencies, but our own jetty must use its own servlet dependencies -->
+                  <groupId>javax.servlet</groupId>
+                  <artifactId>servlet-api</artifactId>
+              </exclusion>
+
+              <exclusion>
+                  <groupId>javax.servlet.jsp</groupId>
+                  <artifactId>jsp-api</artifactId>
+              </exclusion>
+
+              <exclusion>
+                  <groupId>tomcat</groupId>
+                  <artifactId>*</artifactId>
+              </exclusion>
+          </exclusions>
+      </dependency>
+
+      <dependency>
+          <!-- Using the Hadoop HDFS 2.6 libraries -->
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-hdfs</artifactId>
+          <version>2.6.0</version>
+
+          <exclusions>
+              <exclusion>
+                  <!-- Hadoop-hdfs comes with its own servlet dependencies, but our own jetty must use its own servlet dependencies -->
+                  <groupId>javax.servlet.jsp</groupId>
+                  <artifactId>jsp-api</artifactId>
+              </exclusion>
+
+              <exclusion>
+                  <groupId>javax.servlet</groupId>
+                  <artifactId>servlet-api</artifactId>
+              </exclusion>
+
+              <exclusion>
+                  <groupId>tomcat</groupId>
+                  <artifactId>*</artifactId>
+              </exclusion>
+          </exclusions>
+      </dependency> 
+ 
+ 
+ 
+ 2. Create this class:  HadoopClient
+    a. Right-click on /src/main/java/app1/services -> New -> Java Class
+       Filename:  HadoopClient
+   
+    b. Copy this to your new class:
+    
+		package app1.services;
+		
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		
+		import java.io.InputStream;
+		import java.net.URI;
+		import org.apache.hadoop.conf.Configuration;
+		import org.apache.hadoop.fs.FileSystem;
+		import org.apache.hadoop.fs.Path;
+		
+		
+		/**
+		 * Created by adam on 1/17/2017.
+		 */
+		public class HadoopClient
+		{
+		    private static final Logger logger = LoggerFactory.getLogger(HadoopClient.class);
+		
+		    String        hadoopUrl   = null;
+		    Configuration hadoopConf  = new Configuration();
+		
+		    /************************************************************************
+		     * HadoopClient()  Constructor
+		     ************************************************************************/
+		    public HadoopClient(String aHadoopUrl)
+		    {
+		        logger.debug("HadoopClient() started.  aHadoopUrl={}", aHadoopUrl);
+		        this.hadoopUrl = aHadoopUrl;
+		    }
+		
+		
+		    /************************************************************************
+		     * getInputStreamForHdfsFile()
+		     *
+		     * ASSUMPTIONS:
+		     *  1) The namenode port is not blocked
+		     *  2) The HDFS file has read-only turned-on
+		     ************************************************************************/
+		    public InputStream getInputStreamForHdfsFile(String aHadoopFilePath) throws Exception
+		    {
+		        logger.debug("getInputStreamForHdfsFile() started.  aHadoopFilePath={}", aHadoopFilePath);
+		
+		        if ((this.hadoopUrl == null) || (this.hadoopUrl.length() == 0))
+		        {
+		            throw new RuntimeException("Critical Error in getInputStreamFromHDFS():  The hadoopUrl is either null or empty.");
+		        }
+		        else if ((aHadoopFilePath == null) || (aHadoopFilePath.length() == 0))
+		        {
+		            throw new RuntimeException("Critical Error in getInputStreamFromHDFS():  The passed-in aHadoopFilePath is either null or empty.");
+		        }
+		
+		        // The final path should be something like this:  hdfs://centosVM:9000/tmp/input/stuff.txt
+		        String sCompleteFilePath = this.hadoopUrl + aHadoopFilePath;
+		        logger.debug("Looking in HDFS for this:  {}", sCompleteFilePath);
+		
+		        // Connect to the HDFS and get an InputStream for this file
+		        // NOTE:  Please be sure that you close this InputStream when you're done with it.
+		        FileSystem fs = FileSystem.get(URI.create(sCompleteFilePath), this.hadoopConf);
+		        InputStream in = fs.open(new Path(sCompleteFilePath));
+		
+		        logger.debug("getInputStreamForHdfsFile() finished.");
+		        return in;
+		    }
+		
+		}
+		    
+
+
+ 3. Add this method to your WelcomeController
+ 
+		
+		@Controller
+		public class WelcomeController
+		{
+		    private final static Logger logger = LoggerFactory.getLogger(WelcomeController.class);
+		
+			@Resource
+		    private HadoopClient hadoopClient;    // inject the hadoopClient
+		        
+		 
+ 
+		    /**********************************************************************
+		     * downloadHdfs()
+		     ***********************************************************************/
+		    @RequestMapping(value = "/downloadHdfs/{fileId}", method = RequestMethod.GET)
+		    public  ResponseEntity<?> downloadHdfs(@PathVariable("fileId") String aFileId, HttpServletResponse response) throws Exception
+		    {
+		        logger.debug("downloadHdfs() started.  aFileId={}", aFileId);
+		
+		        // Use the passed-in fileId to generate a full-path
+		        //    String sHdfsPath = stuffService.figureOutFileNameFor(stuffId);
+		        String sHdfsPath = "/tmp/input/stuff.txt";
+		
+		        InputStream inputStreamOfHdfsFile = null;
+		        try
+		        {
+		            // Get an InputStream of the file (found in HDFS)
+		            inputStreamOfHdfsFile = this.hadoopClient.getInputStreamForHdfsFile(sHdfsPath);
+		
+		            // Convert the InputStrema into an InputStreamResource
+		            InputStreamResource isr = new InputStreamResource(inputStreamOfHdfsFile);
+		
+		            HttpHeaders headers = new HttpHeaders();
+		
+		
+		            // I do not recommend reading the entire file just to get the size
+		            // It would be better if this was stored in a database or somewhere else.
+		            // -- If you set the header with the file size then your web browser
+		            //    can tell you what percentage of the download has compmleted
+		       //     long lHdfsFileLength = this.hadoopClient.getFileSizeInBytes(sHdfsPath);
+		       //     headers.setContentLength(lHdfsFileLength);
+		
+		            // Set a header with the default name to save this file as
+		            headers.setContentDispositionFormData("attachment", "stuff.txt");
+		
+		            return new ResponseEntity<InputStreamResource>(isr, headers, HttpStatus.OK);
+		        }
+		        catch (Exception e)
+		        {
+		            logger.error("Error occurred making call to /downloadHdfs/{}", aFileId, e);
+		
+		            // Get a formatted error message from the exception object
+		            String sMessage = getFormattedMessageFromException(e);
+		
+		            // Tell the AJAX caller that this will be plain text being returned (and not JSON)
+		            HttpHeaders headers = new HttpHeaders();
+		            headers.setContentType(MediaType.TEXT_PLAIN);
+		
+		            // Return the error back to the caller
+		            return new ResponseEntity<String>(sMessage, headers, HttpStatus.INTERNAL_SERVER_ERROR);
+		        }
+		        finally
+		        {
+		            logger.debug("download() finished.");
+		        }
+		    }
+		    
+		    
+ 4. Verify it works
+    a. Startup your Spring MVC Web App in debug mode
+    b. Go to http://localhost:8080/webapp1/downloadHdfs/57
+       -- You should be prompted to download the file from HDFS
+       
+       
