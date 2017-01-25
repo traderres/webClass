@@ -32,7 +32,7 @@ Procedure
 	    root@accumulo docs> insert "fred smith" "contact" "address" "444 main street" -l billing
 	    root@accumulo docs> insert "fred smith" "contact" "city" "other town" -l billing
 	    root@accumulo docs> insert "fred smith" "purchases" "glasses" "$30" -l "billing&inventory"
-	    root@accumulo docs> insert "fred smith" "purchases" "hat" "$20" -l "billing&inventory"    
+	    root@accumulo docs> insert "fred smith" "purchases" "hat" "$20" -l "billing&inventory"
          
     c. Give the root user authorization to see the data
        root@accumulo docs> setauths -u root -s inventory,billing
@@ -52,7 +52,9 @@ Procedure
        root@accumulo docs> scan -s billing
        root@accumulo docs> scan -s billing,inventory
        
- 
+    g. Quit out of the Accumulo Shell
+       root@accumulo docs> quit
+       
  
  3. Create a Java JAR program wih the name 'queryAcc'
     [see learnJava / howToCreateJavaCommandLineProgramUsingIntellijMaven.txt]
@@ -61,15 +63,75 @@ Procedure
     
  4. Add these dependencies to your java project's pom.xml
 
-      <dependency>
-          <groupId>org.apache.accumulo</groupId>
-          <artifactId>accumulo-core</artifactId>
-          <version>1.6.1</version>
-      </dependency> 
+	    <dependency>
+	      <groupId>org.apache.accumulo</groupId>
+	      <artifactId>accumulo-core</artifactId>
+	      <version>1.6.1</version>
+	      <exclusions>
+	        <exclusion>
+	          <groupId>org.slf4j</groupId>
+	          <artifactId>slf4j-log4j12</artifactId>
+	        </exclusion>
+	      </exclusions>
+	    </dependency>
+	
+	    <dependency>
+	      <groupId>org.apache.commons</groupId>
+	      <artifactId>commons-lang3</artifactId>
+	      <version>3.3.2</version>
+	    </dependency>
+	
+	    <dependency>
+	      <groupId>org.slf4j</groupId>
+	      <artifactId>slf4j-api</artifactId>
+	      <version>1.7.5</version>
+	    </dependency>
+	
+	    <dependency>
+	      <!-- Accumulo uses log4j so use SLF4j w/log4j bridge -->
+	      <groupId>org.slf4j</groupId>
+	      <artifactId>slf4j-log4j12</artifactId>
+	      <version>1.7.12</version>
+	    </dependency>
+
+ 
+ 5. Delete the logback.xml
  
  
+ 6. Insert this log4j.xml file 
+    NOTE:  Accumulo uses log4j so we must, too.... 
+
+		<?xml version="1.0" encoding="UTF-8" ?>
+		<!DOCTYPE log4j:configuration SYSTEM "log4j.dtd">
+		
+		<log4j:configuration xmlns:log4j="http://jakarta.apache.org/log4j/">
+		    <appender name="CONSOLE" class="org.apache.log4j.ConsoleAppender">
+		        <param name="Target" value="System.out"/>
+		        <layout class="org.apache.log4j.PatternLayout">
+		            <param name="ConversionPattern" value="%d{MM/dd/yyyy HH:mm:ss} %-5p %t %c %m%n"/>
+		        </layout>
+		    </appender>
+		
+		
+		    <logger name="com.stuff" additivity="false">
+		        <level value="debug" />
+		        <appender-ref ref="CONSOLE" />
+		    </logger>
+		
+		    <logger name="org.apache.accumulo" additivity="false">
+		        <level value="debug" />
+		        <appender-ref ref="CONSOLE" />
+		    </logger>
+		
+		    <root>
+		        <priority value="info" />
+		        <appender-ref ref="CONSOLE" />
+		    </root>
+		
+		</log4j:configuration>
+    
  
- 5. Add this class:  AccumuloDao
+ 7. Add this class:  AccumuloDao
 
 		package com.stuff;
 		
@@ -77,26 +139,98 @@ Procedure
 		import org.apache.accumulo.core.client.Instance;
 		import org.apache.accumulo.core.client.ZooKeeperInstance;
 		import org.apache.accumulo.core.client.security.tokens.PasswordToken;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
 		
 		/**
 		 * Created by Adam on 1/24/2017.
 		 */
 		public class AccumuloDao
 		{
-		    private Connector connector;
+		    private static final Logger logger = LoggerFactory.getLogger(AccumuloDao.class);
+		
+		    private Connector connector = null;
 		
 		    public AccumuloDao(String aInstanceName, String aZookeepers, String aUsername, String aPassword) throws Exception
 		    {
+		        logger.debug("AccumuloDao() started.  aInstanceName={}   aZookeepers={}   aUsername={}", aInstanceName, aZookeepers, aUsername);
 		        Instance inst = new ZooKeeperInstance(aInstanceName, aZookeepers);
 		
 		        this.connector = inst.getConnector(aUsername, new PasswordToken(aPassword));
+		        logger.debug("AccumuloDao() finished.");
+		    }
+		
+		
+		
+		    public Connector getConnector()
+		    {
+		        return this.connector;
+		    }
+		} 
+		 
+		 
+ 8. Update your App class to this:
+
+		package com.stuff;
+		
+		import org.apache.accumulo.core.client.Connector;
+		import org.apache.accumulo.core.client.Scanner;
+		import org.apache.accumulo.core.data.Key;
+		import org.apache.accumulo.core.data.Value;
+		import org.apache.accumulo.core.security.Authorizations;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import java.util.Map;
+		
+		/**
+		 * App class.
+		 *
+		 * This is a class that simply instantiates the AccumuloDao class and uses it list all records in a table
+		 *
+		 */
+		public class App 
+		{
+		    private static final Logger logger = LoggerFactory.getLogger(App.class);
+		
+		    public static void main( String[] args ) throws Exception
+		    {
+		        logger.debug("main() started.");
+		
+		        final String ACC_INSTANCE_NAME = "accumulo";
+		        final String ACC_ZOOKEEPERS    = "192.168.1.161";   // default port is 2181
+		        final String ACC_USERNAME      = "root";
+		        final String ACC_PASSWORD      = "secret";
+		
+		
+		        AccumuloDao accumuloDao = new AccumuloDao(ACC_INSTANCE_NAME, ACC_ZOOKEEPERS, ACC_USERNAME, ACC_PASSWORD);
+		
+		        Connector conn = accumuloDao.getConnector();
+		
+		        final String ACC_TABLE_NAME = "docs";
+		        logger.debug("Scanning {}", ACC_TABLE_NAME);
+		
+		        Authorizations authorizations = conn.securityOperations().getUserAuthorizations(ACC_USERNAME);
+		        logger.debug("authorizations={}", authorizations.toString());
+		
+		        String row = null;
+		        Scanner scanner = conn.createScanner(ACC_TABLE_NAME, authorizations);
+		
+		        // Loop through all rows in this table
+		        for (Map.Entry<Key,Value> entry: scanner)
+		        {
+		            logger.debug("  {}  {}", entry.getKey(), entry.getValue());
+		        }
+		
+		        scanner.close();
+		
+		        logger.debug("main() finished.");
 		    }
 		}
+
  
  
  
- 
- 6. Add these properties to your property file
+ 9. Add these properties to your property file
  
  
  7. Add a JSP page to display some values
