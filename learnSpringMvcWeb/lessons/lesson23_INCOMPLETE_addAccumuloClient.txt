@@ -3,20 +3,61 @@ How to Add an Accumulo Client to your Spring MVC Web App
 
 Assumptions:
  A) You want your Spring MVC Web App to talk to an Accumulo data store
- B) You have installed the Accumulo quick-install and it is running
+ B) You have installed the Accumulo quick-install 
+ C) Your Accumulo has a zookeeper listening on the unix server at 192.168.43.129:2181
+ D) Your Accumulo instance has a username=root and password=secret
+ 
  
 Procedure
 ---------
  1. Startup your Accumulo Quick Install
+    unix> source ~/quickinstall-home/bin/quickinstall-env
+    unix> qi-start
+    
+ 
+ 2. Create an Accumulo Table and add some data records
+    unix> source ~/quickinstall-home/bin/quickinstall-env
+    unix> accumulo shell -u root -p secret
+    
+    a. Create the table
+       	root@accumulo> createtable docs
+    
+    
+    b. Insert some data
+	    root@accumulo docs> insert "bob jones" "contact" "address" "123 any street" -l billing
+	    root@accumulo docs> insert "bob jones" "contact" "city" "anytown" -l "billing"
+	    root@accumulo docs> insert "bob jones" "contact" "phone" "555-1212" -l "billing"
+	    root@accumulo docs> insert "bob jones" "purchases" "sneakers" "$60" -l "billing&inventory"
+	    
+	    root@accumulo docs> insert "fred smith" "contact" "address" "444 main street" -l billing
+	    root@accumulo docs> insert "fred smith" "contact" "city" "other town" -l billing
+	    root@accumulo docs> insert "fred smith" "purchases" "glasses" "$30" -l "billing&inventory"
+	    root@accumulo docs> insert "fred smith" "purchases" "hat" "$20" -l "billing&inventory"    
+         
+    c. Give the root user authorization to see the data
+       root@accumulo docs> setauths -u root -s inventory,billing
+       
+       root@accumulo docs> getauths
+       -- You should see inventory,billing
+       
+    d. Look at the data
+       root@accumulo docs> scan
+       -- You should see all of the data
+    
+    e. Look at the data related to the "bob jones" row ID
+       root@accumulo docs> scan -r "bob jones"
+       -- You should only see the data related to "bob jones" 
+    
+    f. Look at the data that is under the billing authorization
+       root@accumulo docs> scan -s billing
+       root@accumulo docs> scan -s billing,inventory
+       
  
  
- 2. Create an Accumulo Table
- 
- 
- 3. Add a record or two
- 
- 
- 4. Add these dependencies to your webapp's pom.xml
+ 3. Create a Java JAR program wih the name 'queryAcc'
+    [see learnJava / howToCreateJavaCommandLineProgramUsingIntellijMaven.txt]
+    
+ 4. Add these dependencies to your java project's pom.xml
  
  
  5. Add this class:  AccumuloClient
