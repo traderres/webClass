@@ -78,74 +78,92 @@ ASSUMPTIONS:
  
  2. Add these dependencies to your pom.xml
  
-   <dependency>
-      <!-- Hadoop uses log4j so use SLF4j w/log4j bridge -->
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-log4j12</artifactId>
-      <version>1.7.12</version>
-    </dependency>
-
-    <dependency>
-      <!-- Using the Hadoop 2.6 libraries -->
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-common</artifactId>
-      <version>2.6.0</version>
-      
-      <exclusions>
-        <exclusion>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-log4j12</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <dependency>
-      <!-- Using the Hadoop HDFS 2.6 libraries -->
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-hdfs</artifactId>
-      <version>2.6.0</version>
-    </dependency>
+    	<dependency>
+	      <!--  H A D O O P - C O M M O N   2.6 libraries -->
+	      <groupId>org.apache.hadoop</groupId>
+	      <artifactId>hadoop-common</artifactId>
+	      <version>2.6.0</version>
+	
+	      <exclusions>
+	        <!-- Hadoop-common comes with log4j but we will use logback so strip it out -->
+	        <exclusion>
+	          <groupId>org.slf4j</groupId>
+	          <artifactId>slf4j-log4j12</artifactId>
+	        </exclusion>
+	
+	        <exclusion>
+	          <groupId>log4j</groupId>
+	          <artifactId>log4j</artifactId>
+	        </exclusion>
+	
+	        <exclusion>
+	           <groupId>org.slf4j</groupId>
+	          <artifactId>slf4j-log4j12</artifactId>
+	        </exclusion>
+	      </exclusions>
+	    </dependency>
+	
+	    <dependency>
+	      <!-- H A D O O P - H D F S   2.6  libraries -->
+	      <groupId>org.apache.hadoop</groupId>
+	      <artifactId>hadoop-hdfs</artifactId>
+	      <version>2.6.0</version>
+	
+	      <exclusions>
+	        <!-- Hadoop-hdfs comes with log4j but we will use logback so strip it out -->
+	        <exclusion>
+	          <groupId>log4j</groupId>
+	          <artifactId>log4j</artifactId>
+	        </exclusion>
+	      </exclusions>
+	    </dependency>
+	
+	
+	    <dependency>
+	      <!-- Tell log4j to forward its logging to slf4j -->
+	      <groupId>org.slf4j</groupId>
+	      <artifactId>log4j-over-slf4j</artifactId>
+	      <version>1.7.12</version>
+	    </dependency>
+	
+	    <dependency>
+	      <!-- Logback is the logging implementation that slf4j will use -->
+	      <groupId>ch.qos.logback</groupId>
+	      <artifactId>logback-classic</artifactId>
+	      <version>1.0.13</version>
+	    </dependency>
  
-
- 3. Delete the logback.xml file
     
     
- 4. Create this file:  log4j.xml
-    NOTE:  Hadoop uses log4j so we must, too.
-    a. Create this file here:  /src/main/resources/log4j.xml
-    b. Copy the following to your log4j.xml
+ 3. Update your logback.xml so that it shows debugging for "org.apache.hadoop"
     
-		<?xml version="1.0" encoding="UTF-8" ?>
-		<!DOCTYPE log4j:configuration SYSTEM "log4j.dtd">
+		<?xml version="1.0" encoding="windows-1252" ?>
+		<!DOCTYPE project>
 		
-		<log4j:configuration xmlns:log4j="http://jakarta.apache.org/log4j/">
-		    <appender name="CONSOLE" class="org.apache.log4j.ConsoleAppender">
-		        <param name="Target" value="System.out"/>
-		        <layout class="org.apache.log4j.PatternLayout">
-		            <param name="ConversionPattern" value="%d{MM/dd/yyyy HH:mm:ss} %-5p %t %c %m%n"/>
-		        </layout>
+		<configuration debug="false">
+		    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+		        <encoder>
+		            <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+		        </encoder>
 		    </appender>
 		
 		
-		    <logger name="com.resnick" additivity="false">
-		        <level value="debug" />
-		        <appender-ref ref="CONSOLE" />
+		    <logger name="org.apache.hadoop" level="DEBUG" additivity="false">
+		        <appender-ref ref="CONSOLE"/>
 		    </logger>
 		
-		    <logger name="org.apache.hadoop" additivity="false">
-		        <level value="debug" />
-		        <appender-ref ref="CONSOLE" />
+		    <logger name="com.resnick" level="DEBUG" additivity="false">
+		        <appender-ref ref="CONSOLE"/>
 		    </logger>
 		
-		    <root>
-		        <priority value="info" />
-		        <appender-ref ref="CONSOLE" />
+		    <root level="DEBUG">
+		        <appender-ref ref="CONSOLE"/>
 		    </root>
-		
-		</log4j:configuration>
+		</configuration>
+
 
     
- 5. Create this App class
+ 4. Create this App class
     ASSUMPTION:  You have a local HDFS listening on localhost:9000
     
 		package com.resnick;
@@ -199,7 +217,7 @@ ASSUMPTIONS:
 
  
               
- 6. Debug the program
+ 5. Debug the program
     a. In Intellij, Set a breakpoint in the main()
     b. In Intellij, right-click in this App.class -> Debug 'App.main()'
     c. You should see the following:
@@ -377,18 +395,34 @@ ASSUMPTIONS:
 Part 4:  Add a HadoopClient to your Java Spring MVC Web App
 ------------------------------------------------------------
  1. Add these dependencies to your Web App's pom.xml
-    NOTE:  
-      1) The hadoop-common comes with its own logging implementation, so we exclude it
-      2) The hadoop-common comes with servlet and tomcat libraries (which is bad!)
-         Our own local Jetty will provide those for libraries, so they are excluded as well
+
+    <!-- Tell Log4j to forward its logging to slf4j -->
+    <dependency>
+          <groupId>org.slf4j</groupId>
+          <artifactId>log4j-over-slf4j</artifactId>
+          <version>1.7.12</version>
+    </dependency>
+
          
-     <dependency>
-          <!-- Using the Hadoop 2.6 libraries -->
+    <dependency>
+          <!--  H A D O O P - C O M M O N   2.6 libraries -->
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-common</artifactId>
           <version>2.6.0</version>
 
           <exclusions>
+             
+              <exclusion>
+                  <groupId>org.slf4j</groupId>
+                  <artifactId>slf4j-log4j12</artifactId>
+              </exclusion>
+
+              <exclusion>
+                  <!-- Hadoop-common comes with log4j but we will use logback so strip it out -->
+                  <groupId>log4j</groupId>
+                  <artifactId>log4j</artifactId>
+              </exclusion>
+
               <exclusion>
                   <groupId>org.slf4j</groupId>
                   <artifactId>slf4j-log4j12</artifactId>
@@ -413,12 +447,18 @@ Part 4:  Add a HadoopClient to your Java Spring MVC Web App
       </dependency>
 
       <dependency>
-          <!-- Using the Hadoop HDFS 2.6 libraries -->
+          <!-- H A D O O P - H D F S   2.6  libraries -->
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-hdfs</artifactId>
           <version>2.6.0</version>
 
           <exclusions>
+               <exclusion>
+                   <!-- Hadoop-hdfs comes with log4j but we will use logback so strip it out -->
+                   <groupId>log4j</groupId>
+                  <artifactId>log4j</artifactId>
+              </exclusion>
+
               <exclusion>
                   <!-- Hadoop-hdfs comes with its own servlet dependencies, but our own jetty must use its own servlet dependencies -->
                   <groupId>javax.servlet.jsp</groupId>
@@ -435,7 +475,7 @@ Part 4:  Add a HadoopClient to your Java Spring MVC Web App
                   <artifactId>*</artifactId>
               </exclusion>
           </exclusions>
-      </dependency> 
+      </dependency>
  
  
  
