@@ -53,6 +53,11 @@ Procedure
       <version>1.7.12</version>
     </dependency>
 
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+      <version>2.6.2</version>
+    </dependency>
     
   
 
@@ -207,43 +212,45 @@ Procedure
 
 		    try
 		    {
-	 		    // Get the Accumulo Connector object (used to perform accumulo operations)
-			    Connector conn = this.accumuloDao.getConnector();
+		        // Get the Accumulo Connector object (used to perform accumulo operations)
+		        Connector conn = this.accumuloDao.getConnector();
 
-			    final String ACC_TABLE_NAME = "docs";
+		        final String ACC_TABLE_NAME = "docs";
 
-			    // Get the authorizations for our user
-			    Authorizations authorizations = conn.securityOperations().getUserAuthorizations("root");
-			    logger.debug("authorizations={}", authorizations.toString());
+		        // Get the authorizations for our user
+		        Authorizations authorizations = conn.securityOperations().getUserAuthorizations("root");
+		        logger.debug("authorizations={}", authorizations.toString());
 
-			    logger.debug("Scanning {}", ACC_TABLE_NAME);
-			    String row = null;
-			    Scanner scanner = conn.createScanner(ACC_TABLE_NAME, authorizations);
+		        logger.debug("Scanning {}", ACC_TABLE_NAME);
+		        String row = null;
+		        Scanner scanner = conn.createScanner(ACC_TABLE_NAME, authorizations);
 
-		        StringBuilder sbResponse = new StringBuilder();
 
-			    // Loop through all rows in this table
-			    for (Map.Entry<Key,Value> entry: scanner)
-			    {
-		            sbResponse.append(entry.getKey())
-		                      .append("-->")
-		                      .append(entry.getValue());
 
-			        logger.debug("  {}  {}", entry.getKey(), entry.getValue());
-			    }
+		        // Run a SQL call to get the list of users
+		        HashMap<String, String> hshMap = new HashMap<String, String>();
 
-			    scanner.close();
+		        // Loop through all rows in this table and add them to the HashMap
+		        for (Map.Entry<Key,Value> entry: scanner)
+		        {
+		            hshMap.put(entry.getKey().toString(), entry.getValue().toString());
+		            logger.debug("  {}  {}", entry.getKey(), entry.getValue());
+		        }
 
-		        HttpHeaders headers = new HttpHeaders();
-		        headers.setContentType(MediaType.TEXT_PLAIN);
+		        scanner.close();
 
-		        // Return respnose code of 200 and the string string
-		        return new ResponseEntity<String>(sbResponse.toString(), headers, HttpStatus.OK);
+
+		        // Convert the HashMap into a JSON string
+		        Gson gson = new Gson();
+		        String sJson = gson.toJson(hshMap);
+
+		        // Return the JSON string a response code of 200
+		        return new ResponseEntity<String>(sJson, HttpStatus.OK);
 		    }
 		    catch (Exception e)
 		    {
 		        // Tell the AJAX call that this call failed
-		        logger.error("Error occurred making rest call to /search", e);
+		        logger.error("Error occurred making rest call to /accumulo", e);
 
 		        // Get a formatted error message from the exception object
 		        String sMessage = getFormattedMessageFromException(e);
@@ -255,9 +262,7 @@ Procedure
 		        // Return the error back to the caller
 		        return new ResponseEntity<String>(sMessage, headers, HttpStatus.INTERNAL_SERVER_ERROR);
 		    }
-		}
-    
-	    
+		}	
 	    
 	    /***************************************************************************
 	     * getFormattedMessageFromException()
@@ -296,6 +301,197 @@ Procedure
 	    }
 		    
 	    
+    NOTE:  When finished, your WelcomeController should look something like this:
+    
+
+	package app1.controllers;
+
+	import app1.services.AccumuloDao;
+	import com.google.gson.Gson;
+	import org.apache.accumulo.core.client.Connector;
+	import org.apache.accumulo.core.client.Scanner;
+	import org.apache.accumulo.core.data.Key;
+	import org.apache.accumulo.core.data.Value;
+	import org.apache.accumulo.core.security.Authorizations;
+	import org.slf4j.Logger;
+	import org.slf4j.LoggerFactory;
+	import org.springframework.http.HttpHeaders;
+	import org.springframework.http.HttpStatus;
+	import org.springframework.http.MediaType;
+	import org.springframework.http.ResponseEntity;
+	import org.springframework.stereotype.Controller;
+	import org.springframework.ui.Model;
+	import org.springframework.web.bind.annotation.PathVariable;
+	import org.springframework.web.bind.annotation.RequestMapping;
+	import org.springframework.web.bind.annotation.RequestMethod;
+	import org.springframework.web.servlet.ModelAndView;
+	import app1.model.UserInfo;
+
+	import javax.annotation.Resource;
+	import java.util.ArrayList;
+	import java.util.HashMap;
+	import java.util.Map;
+
+
+	@Controller
+	public class WelcomeController
+	{
+	   private final static Logger logger = LoggerFactory.getLogger(WelcomeController.class);
+
+	   @Resource
+	   private AccumuloDao accumuloDao;
+
+	   /**********************************************************************
+	   * handleDefaultPage()
+	   *
+	   * The user browsed to the   http://www.myserver.com/webapp
+	   * So, forward the user to   http://www.myserver.com/webapp/forward
+	   ***********************************************************************/
+	   @RequestMapping("/")
+	   public ModelAndView handleDefaultPage( Model aModel )
+	   {
+		   // By default, forward users to the /welcome page
+		   return new ModelAndView("forward:/welcome");
+	   }
+
+
+
+	   /**********************************************************************
+	   * mainPage()
+	   *
+	   * The user browsed to the /welcome page
+	   *  1) Get a userinfo object setup
+	   *  2) Forward the user to the welcome.jsp page
+	   ***********************************************************************/
+	   @RequestMapping("/welcome")
+	   public ModelAndView mainPage( Model aModel )
+	   {
+		   logger.debug("mainPage() started");
+
+		   // Create a modelAndView object
+		   ModelAndView mav = new ModelAndView();
+
+		   // Show the welcome.jsp page
+		   mav.setViewName("welcome.jsp");
+
+		   // Create a userInfo object
+		   UserInfo userInfo = new UserInfo();
+		   userInfo.setUserName("Adam");
+		   userInfo.setIsAdministrator(true);
+
+		   // Add the userInfo information to the view
+		   mav.addObject("userInfo", userInfo);
+
+		   logger.debug("mainPage() finished");
+		   return mav;
+	   }
+
+
+	   /***************************************************************************
+	   * runAccQuery()
+	   *
+	   * Returns the JSON holding a list of users
+	   ****************************************************************************/
+	   @RequestMapping(value="/accumulo/{rawQuery}", method = RequestMethod.GET, produces = "application/json")
+	   public ResponseEntity<?> runAccQuery(@PathVariable(value="rawQuery") String aRawQuery)
+		{
+		    logger.debug("runAccQuery() started.  aRawQuery={}", aRawQuery);
+
+		    try
+		    {
+		        // Get the Accumulo Connector object (used to perform accumulo operations)
+		        Connector conn = this.accumuloDao.getConnector();
+
+		        final String ACC_TABLE_NAME = "docs";
+
+		        // Get the authorizations for our user
+		        Authorizations authorizations = conn.securityOperations().getUserAuthorizations("root");
+		        logger.debug("authorizations={}", authorizations.toString());
+
+		        logger.debug("Scanning {}", ACC_TABLE_NAME);
+		        String row = null;
+		        Scanner scanner = conn.createScanner(ACC_TABLE_NAME, authorizations);
+
+
+
+		        // Run a SQL call to get the list of users
+		        HashMap<String, String> hshMap = new HashMap<String, String>();
+
+		        // Loop through all rows in this table and add them to the HashMap
+		        for (Map.Entry<Key,Value> entry: scanner)
+		        {
+		            hshMap.put(entry.getKey().toString(), entry.getValue().toString());
+		            logger.debug("  {}  {}", entry.getKey(), entry.getValue());
+		        }
+
+		        scanner.close();
+
+
+		        // Convert the HashMap into a JSON string
+		        Gson gson = new Gson();
+		        String sJson = gson.toJson(hshMap);
+
+		        // Return the JSON string a response code of 200
+		        return new ResponseEntity<String>(sJson, HttpStatus.OK);
+		    }
+		    catch (Exception e)
+		    {
+		        // Tell the AJAX call that this call failed
+		        logger.error("Error occurred making rest call to /accumulo", e);
+
+		        // Get a formatted error message from the exception object
+		        String sMessage = getFormattedMessageFromException(e);
+
+		        // Tell the AJAX caller that this will be plain text being returned (and not JSON)
+		        HttpHeaders headers = new HttpHeaders();
+		        headers.setContentType(MediaType.TEXT_PLAIN);
+
+		        // Return the error back to the caller
+		        return new ResponseEntity<String>(sMessage, headers, HttpStatus.INTERNAL_SERVER_ERROR);
+		    }
+		}
+
+
+
+		/***************************************************************************
+		 * getFormattedMessageFromException()
+		 ****************************************************************************/
+		private String getFormattedMessageFromException(Exception aException)
+		{
+		    StringBuilder sbMessage = new StringBuilder();
+
+		    String sStackTrace = getStackTraceAsString(aException);
+
+		    sbMessage.append("Message: ")
+		            .append(aException.getMessage())
+		            .append("\n\n")
+		            .append("Cause: ")
+		            .append(aException.getCause())
+		            .append("\n\n")
+		            .append("StackTrace:\n")
+		            .append(sStackTrace);
+
+		    return sbMessage.toString();
+		}
+
+
+
+		/***************************************************************************
+		 * getStackTraceAsString()
+		 ****************************************************************************/
+		public String getStackTraceAsString(Exception aException)
+		{
+		    StringBuilder sb = new StringBuilder();
+		    for (StackTraceElement element : aException.getStackTrace()) {
+		        sb.append(element.toString());
+		        sb.append("\n");
+		    }
+		    return sb.toString();
+		}
+
+
+	}
+   
 
         
 13. Startup your Accumulo Quick Install
@@ -345,176 +541,13 @@ Procedure
  
  
 
- 		
-
-15. Add the SpringApplicationUtils class to your project
-    NOTE:  This will be used to get access to spring beans from anywhere within your web app
-    a. Right-click on src/main/java/app1/utilities -> New -> Java Class
-       Name:  SpringAppContextUtils
-       
-    b. Copy the following code to your SpringAppContextUtils class
-       
-       package app1.utilities;
-        
-        
-      /**
-        * To work, this line must be in the applicationContext.xml file
-        *    <bean id="applicationContextProvider" class="app1.utilities.SpringAppContextUtils" />
-        * 
-        *  MySpringBean mySpringBean = (MySpringBean) SpringApplicationContext.getBean("mySpringBean");
-        * 
-        * This class implements ApplicationContextAware. 
-        * The method, �setApplicationContext(�)� gets called during the creation of this bean
-        * providing the reference to the context. 
-        * 
-        */
-        import org.springframework.beans.BeansException;
-        import org.springframework.context.ApplicationContext;
-        import org.springframework.context.ApplicationContextAware;
-        
-        public class SpringAppContextUtils implements ApplicationContextAware
-        {
-             private static ApplicationContext applicationContext = null;
-        
-              public static ApplicationContext getApplicationContext()
-              {
-                  return applicationContext;
-              }
-              
-              public void setApplicationContext(ApplicationContext aApplicationContext) throws BeansException
-              {
-                   // Assign the ApplicationContext into a static variable
-                   applicationContext = aApplicationContext;
-              }
-              
-              
-              public static Object getBean(String aName)
-              {
-                  if (applicationContext == null)
-                  {
-                      throw new RuntimeException("Error in SpringAppContextUtils.getBean().  The applicationContext is null");
-                  }
-                  
-                  return applicationContext.getBean(aName);
-              }
-              
-        }
 
 
-16. Setup SpringAppContextUtils so that it has the applicationContext passed into it
-    Add this line to your applicationContext.xml file 
 
-      <bean id="applicationContextProvider" class="app1.utilities.SpringAppContextUtils" />
-  
- 
- 
-17. Update the MyApplicationWatcher so that the webapp verifies that ElasticSearch is up and running on startup
-    a. Edit MyApplicationWatcher.contextInitialized()
-    
-    b. Change the contextInitialized() method so that it looks like this:
-    
-		package app1.utilities;
-		
-		import javax.servlet.ServletContextEvent;
-		import app1.services.ElasticSearchDao;
-		import org.slf4j.Logger;
-		import org.slf4j.LoggerFactory;
-		import org.springframework.web.context.ContextLoaderListener;
-		
-		public class MyApplicationWatcher extends ContextLoaderListener
-		{
-		    private static final Logger logger = LoggerFactory.getLogger( MyApplicationWatcher.class );
-		
-		
-		    /***********************************************************************************
-		     * contextInitialized()
-		     *  1) Read the property file for this webapp
-		     *  2) Initialize the Spring Context
-		     *
-		     * NOTE:  If a runtime exception is thrown, then the webapp will *not* startup
-		     ************************************************************************************/
-		    @Override
-		    public void contextInitialized( ServletContextEvent aContextEvent )
-		    {
-		        // Get the name of the web application
-		        final String sWebAppName = aContextEvent.getServletContext().getContextPath().substring(1);
-		
-		        logger.debug("{} contextInitialized() started", sWebAppName);
-		
-		        try
-		        {
-		            // I N I T I A T E      S P R I N G       C O N T E X T
-		            super.contextInitialized( aContextEvent );
-		
-		            // Verify Accumulo is up
-		            verifyAccumulo();
-		        }
-		        catch (Exception e)
-		        {
-		            logger.error("{} WILL NOT STARTUP", sWebAppName);
-		
-		            // Throw a runtime exception so that this webapp will *not* startup
-		            RuntimeException runtimeException = new RuntimeException(e);
-		            runtimeException.setStackTrace(e.getStackTrace());
-		            throw runtimeException;
-		        }
-		
-		        logger.debug("{} contextInitialized() finished", sWebAppName);
-		    }
-		
-		
-		    /***********************************************************************************
-		     * contextDestroyed()
-		     * The webapp is about to be shutdown
-		     *   1) Shutdown any database connection pools manually
-		     *   2) Shutdown the spring context
-		     ************************************************************************************/
-		    @Override
-		    public void contextDestroyed( ServletContextEvent aContextEvent )
-		    {
-		        // Get the name of the web application
-		        final String sWebAppName = aContextEvent.getServletContext().getContextPath().substring(1);
-		
-		        logger.debug("{} contextDestroyed() started", sWebAppName);
-		
-		
-		        // S H U T D O W N       S P R I N G       C O N T E X T
-		        super.contextDestroyed(aContextEvent);
-		
-		        // At this point, all spring-beans are destroyed
-		
-		
-		        logger.debug("{} contextDestroyed() finished", sWebAppName);
-		    }
-		
-		
-		    /***********************************************************************************
-		     * verifyAccumulo()
-		     *
-		     * Attempt to connect to Accumulo
-		     * NOTE:  If ElasticSearch does not respond or gives us a non-200 response, then throw an exception
-		     ************************************************************************************/
-		    private void verifyAccumulo() throws Exception
-		    {
-		        AccumuloDao accumuloDao = (AccumuloDao) SpringAppContextUtils.getBean("accumuloDao");
-		
-		        if (accumuloDao.getConnector() == null)
-		        {
-		            throw new RuntimeException("Error in verifyAccumulo():  I could not connect to Accumulo.");
-		        }
-		
-		        // If I got this far, then it is running
-		    }
-		
-		}
- 
- 
- 
- 
-18. Set a breakpoint in your runSearch() method in your WelcomeController
+15. Set a breakpoint in your runSearch() method in your WelcomeController
 
 		   
-19. Debug your Webapp
+16. Debug your Webapp
     a. Pull Run -> Debug webapp1 [jetty:run]
         
     NOTE:  If you do not see this option, then
@@ -530,12 +563,15 @@ Procedure
              Run -> Debug '<your webapp's name>' [jetty:run]'
  
  
-20. Attempt to connect to your webapp
+17. Attempt to connect to your webapp
     a. Startup a web browser
     b. Connect to http://localhost:8080/webapp1/accumulo/5
 
     You should see these results
     
-     	
+    {"fred smith contact:city [billing] 1485468730242 false":"other town","fred smith contact:address [billing] 1485468726881 false":"444 main street","bob jones contact:phone [billing] 1485468719410 false":"555-1212","fred smith purchases:hat [billing\u0026inventory] 1485468737945 false":"$20","bob jones contact:address [billing] 1485468712664 false":"123 any street","bob jones contact:city [billing] 1485468716093 false":"anytown","bob jones purchases:sneakers [billing\u0026inventory] 1485468722826 false":"$60","fred smith purchases:glasses [billing\u0026inventory] 1485468733752 false":"$30"}
+    
+    
+    
  		
  		
