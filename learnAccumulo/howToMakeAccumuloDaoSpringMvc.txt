@@ -25,7 +25,7 @@ Procedure
     [see learnSpringMvcWeb / lessons / lesson08_addPropertyFile.txt]
     
     
- 5. Add these dependencies to your pom.xml
+ 5. Add these dependencies to your pom.xml:
 
    <dependency>
       <!-- A C C U M U L O       C O R E      1.5.1        -->
@@ -47,51 +47,13 @@ Procedure
     </dependency>
 
     <dependency>
-      <groupId>org.apache.commons</groupId>
-      <artifactId>commons-lang3</artifactId>
-      <version>3.3.2</version>
-    </dependency>
-
-    <dependency>
       <!-- Tell log4j to forward its logging to slf4j -->
       <groupId>org.slf4j</groupId>
       <artifactId>log4j-over-slf4j</artifactId>
       <version>1.7.12</version>
     </dependency>
 
-    <dependency>
-      <!-- Logback is the logging implementation that slf4j will use -->
-      <groupId>ch.qos.logback</groupId>
-      <artifactId>logback-classic</artifactId>
-      <version>1.0.13</version>
-    </dependency>
     
-    <!-- Spring Core -->
-    <dependency>
-      <groupId>org.springframework</groupId>
-      <artifactId>spring-core</artifactId>
-      <version>4.1.1.RELEASE</version>
-      <exclusions>
-        <exclusion>
-          <groupId>commons-logging</groupId>
-          <artifactId>commons-logging</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <!-- Spring Context -->
-    <dependency>
-      <groupId>org.springframework</groupId>
-      <artifactId>spring-context</artifactId>
-      <version>4.1.1.RELEASE</version>
-    </dependency>
-
-    <!-- Spring sends logging to Java Common Logging.  But, this will send this logging to SLF4J -->
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>jcl-over-slf4j</artifactId>
-      <version>1.7.5</version>
-    </dependency>  
   
 
  6. Update your logback.xml file to look like this:
@@ -106,8 +68,12 @@ Procedure
 		        <encoder>
 		            <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
 		        </encoder>
+			
 		    </appender>
-		
+		    
+		    <logger name="org.springframework" level="INFO" additivity="false">
+		        <appender-ref ref="CONSOLE"/>
+		    </logger>
 		
 		    <logger name="org.apache.accumulo" level="DEBUG" additivity="false">
 		        <appender-ref ref="CONSOLE"/>
@@ -198,18 +164,18 @@ Procedure
 	    <!-- Read the property values and allows us to use them in this xml file as ${es.url} -->
 	    <context:property-placeholder location="classpath:webapp1.properties" />
 	
-		  <!-- Create an AccumuloDao singleton and pass-in the es.url (found in app.properties) -->
-		  <bean id="accumuloDao" class="com.stuff.AccumuloDao">
-		        <constructor-arg  value="${acc.instancename}" />
-		        <constructor-arg  value="${acc.zookeepers}" />
-		        <constructor-arg  value="${acc.username}" />
-		        <constructor-arg  value="${acc.password}" />
-		  </bean>
+	    <!-- Create an AccumuloDao singleton and pass-in the properties  (found in webapp1.properties) -->
+	    <bean id="accumuloDao" class="app1.services.AccumuloDao">
+	       <constructor-arg  value="${acc.instancename}" />
+	       <constructor-arg  value="${acc.zookeepers}" />
+	       <constructor-arg  value="${acc.username}" />
+	       <constructor-arg  value="${acc.password}" />
+	    </bean>
         
         
         
-10. Add the es.url property value to your webapp1.properties file
-    NOTE:  I assume that your ElasticSearch is listening at the IP address of 192.168.1.165
+10. Add the accumulo properties to your webapp1.properties file
+    NOTE:  I assume that your Accumulo's zookeeper is listening on the computer called centosVM on port 2181
       
 		acc.instancename=accumulo
 		acc.zookeepers=centosvm:2181
@@ -222,65 +188,75 @@ Procedure
  	a. Edit your /src/main/java/app1/controllers/WelcomeController.java class
  	
  	b. Add this to the top:
-      @Resource
-    	private AccumuloDao accumuloDao;
+	    @Resource
+	    private AccumuloDao accumuloDao;
  		
  
  
-12. Add a method called runSearch() to your WelcomeController
+12. Add a method called runAccQuery() to your WelcomeController
     
-	    /***************************************************************************
-	     * runSearch()
-	     *
-	     * Returns the JSON holding a list of users
-	     ****************************************************************************/
-	    @RequestMapping(value="/search/{rawQuery}", method = RequestMethod.GET, produces = "application/json")
-	    public ResponseEntity<?> runSearch(@PathVariable(value="rawQuery") String aRawQuery)
-	    {
-	        logger.debug("runSearch() started.  aRawQuery={}", aRawQuery);
-	
-  
-  	        // Get the Accumulo Connector object (used to perform accumulo operations)
-		        Connector conn = this.accumuloDao.getConnector();
-		
-		        final String ACC_TABLE_NAME = "docs";
-		
-		        // Get the authorizations for our user
-		        Authorizations authorizations = conn.securityOperations().getUserAuthorizations("root");
-		        logger.debug("authorizations={}", authorizations.toString());
-		
-		        logger.debug("Scanning {}", ACC_TABLE_NAME);
-		        String row = null;
-		        Scanner scanner = conn.createScanner(ACC_TABLE_NAME, authorizations);
-		
-		        // Loop through all rows in this table
-		        for (Map.Entry<Key,Value> entry: scanner)
-		        {
-		            logger.debug("  {}  {}", entry.getKey(), entry.getValue());
-		        }
-		
-		        scanner.close();
-  
-	          // Return respnose code of 200 and the JSON string
-	          return new ResponseEntity<String>(sJsonResults, HttpStatus.OK);
-	        }
-	        catch (Exception e)
-	        {
-	            // Tell the AJAX call that this call failed
-	            logger.error("Error occurred making rest call to /search", e);
-	
-	            // Get a formatted error message from the exception object
-	            String sMessage = getFormattedMessageFromException(e);
-	
-	            // Tell the AJAX caller that this will be plain text being returned (and not JSON)
-	            HttpHeaders headers = new HttpHeaders();
-	            headers.setContentType(MediaType.TEXT_PLAIN);
-	
-	            // Return the error back to the caller
-	            return new ResponseEntity<String>(sMessage, headers, HttpStatus.INTERNAL_SERVER_ERROR);
-	        }
-	    }
+		 /***************************************************************************
+		 * runAccQuery()
+		 *
+		 * Returns the JSON holding a list of users
+		 ****************************************************************************/
+		@RequestMapping(value="/accumulo/{rawQuery}", method = RequestMethod.GET, produces = "application/json")
+		public ResponseEntity<?> runAccQuery(@PathVariable(value="rawQuery") String aRawQuery)
+		{
+		    logger.debug("runAccQuery() started.  aRawQuery={}", aRawQuery);
 
+		    try
+		    {
+	 		    // Get the Accumulo Connector object (used to perform accumulo operations)
+			    Connector conn = this.accumuloDao.getConnector();
+
+			    final String ACC_TABLE_NAME = "docs";
+
+			    // Get the authorizations for our user
+			    Authorizations authorizations = conn.securityOperations().getUserAuthorizations("root");
+			    logger.debug("authorizations={}", authorizations.toString());
+
+			    logger.debug("Scanning {}", ACC_TABLE_NAME);
+			    String row = null;
+			    Scanner scanner = conn.createScanner(ACC_TABLE_NAME, authorizations);
+
+		        StringBuilder sbResponse = new StringBuilder();
+
+			    // Loop through all rows in this table
+			    for (Map.Entry<Key,Value> entry: scanner)
+			    {
+		            sbResponse.append(entry.getKey())
+		                      .append("-->")
+		                      .append(entry.getValue());
+
+			        logger.debug("  {}  {}", entry.getKey(), entry.getValue());
+			    }
+
+			    scanner.close();
+
+		        HttpHeaders headers = new HttpHeaders();
+		        headers.setContentType(MediaType.TEXT_PLAIN);
+
+		        // Return respnose code of 200 and the string string
+		        return new ResponseEntity<String>(sbResponse.toString(), headers, HttpStatus.OK);
+		    }
+		    catch (Exception e)
+		    {
+		        // Tell the AJAX call that this call failed
+		        logger.error("Error occurred making rest call to /search", e);
+
+		        // Get a formatted error message from the exception object
+		        String sMessage = getFormattedMessageFromException(e);
+
+		        // Tell the AJAX caller that this will be plain text being returned (and not JSON)
+		        HttpHeaders headers = new HttpHeaders();
+		        headers.setContentType(MediaType.TEXT_PLAIN);
+
+		        // Return the error back to the caller
+		        return new ResponseEntity<String>(sMessage, headers, HttpStatus.INTERNAL_SERVER_ERROR);
+		    }
+		}
+    
 	    
 	    
 	    /***************************************************************************
@@ -556,7 +532,7 @@ Procedure
  
 20. Attempt to connect to your webapp
     a. Startup a web browser
-    b. Connect to http://localhost:8080/webapp1/search/description
+    b. Connect to http://localhost:8080/webapp1/accumulo/5
 
     You should see these results
     
