@@ -1,0 +1,565 @@
+How to Make an AccumuloDAO Service within a Spring MVC Web App
+--------------------------------------------------------------
+
+Assumptions:
+ A) You have an Accumulo Instance instance up and running
+    [see howToSetupAccumuloQuickInstall.txt]
+ B) Your Accumulo instance is listening on a unix machine called centosVM port 2181
+ C) You want to use Java to view the contents of an Accumulo table
+ D) You want Spring to create your AccumuloDao singleton
+    by defining it within the applicationContext.xml
+    
+
+Procedure
+---------
+ 1. Create a Java Spring MVC Web App
+    [see learnSpringMvcWeb / lessons / lesson03_createSpringMvcWebApp_usingIntellijMaven.txt
+    
+ 2. Setup the Jetty Plugin
+    [see learnSpringMvcWeb / lessons / lesson04c_debugWebAppUsingIntellijUsingJettyPlugin..txt
+    
+ 3. Add the ApplicationWatcher
+    [see learnSpringMvcWeb / lessons / lesson06_addApplicationWatcher.txt]
+ 
+ 4. Add the property file
+    [see learnSpringMvcWeb / lessons / lesson08_addPropertyFile.txt]
+    
+    
+ 5. Add these dependencies to your pom.xml
+
+   <dependency>
+      <!-- A C C U M U L O       C O R E      1.5.1        -->
+      <groupId>org.apache.accumulo</groupId>
+      <artifactId>accumulo-core</artifactId>
+      <version>1.6.1</version>
+      <exclusions>
+        <!-- accumulo-core comes with log4j but we will use logback so strip it out -->
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
+        </exclusion>
+
+        <exclusion>
+          <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>3.3.2</version>
+    </dependency>
+
+    <dependency>
+      <!-- Tell log4j to forward its logging to slf4j -->
+      <groupId>org.slf4j</groupId>
+      <artifactId>log4j-over-slf4j</artifactId>
+      <version>1.7.12</version>
+    </dependency>
+
+    <dependency>
+      <!-- Logback is the logging implementation that slf4j will use -->
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <version>1.0.13</version>
+    </dependency>
+    
+    <!-- Spring Core -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-core</artifactId>
+      <version>4.1.1.RELEASE</version>
+      <exclusions>
+        <exclusion>
+          <groupId>commons-logging</groupId>
+          <artifactId>commons-logging</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <!-- Spring Context -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-context</artifactId>
+      <version>4.1.1.RELEASE</version>
+    </dependency>
+
+    <!-- Spring sends logging to Java Common Logging.  But, this will send this logging to SLF4J -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>jcl-over-slf4j</artifactId>
+      <version>1.7.5</version>
+    </dependency>  
+  
+
+ 6. Update your logback.xml file to look like this:
+    a. Edit /src/main/resources/logback.xml
+    b. Replace your logback.xml with this:
+    
+		<?xml version="1.0" encoding="windows-1252" ?>
+		<!DOCTYPE project>
+		
+		<configuration debug="false">
+		    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+		        <encoder>
+		            <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+		        </encoder>
+		    </appender>
+		
+		
+		    <logger name="org.apache.accumulo" level="DEBUG" additivity="false">
+		        <appender-ref ref="CONSOLE"/>
+		    </logger>
+		
+		    <logger name="app1" level="DEBUG" additivity="false">
+		        <appender-ref ref="CONSOLE"/>
+		    </logger>
+		
+		    <root level="DEBUG">
+		        <appender-ref ref="CONSOLE"/>
+		    </root>
+		</configuration>
+
+		        
+		       		        	              
+ 
+ 7. Create a package called "services"
+    a. Right-click on /src/main/java/app1 -> New -> Package
+       Name:  app1.services
+       
+ 
+				
+ 8. Create this class:  AccumuloDao
+    a. Right-click on /src/main/java/app1/services -> New -> Java Class
+       Name:  AccumuloDao
+       Kind:  Class
+       Press OK
+       
+    b. Copy this to to your java class
+
+		package app1.services;
+		
+		import org.apache.accumulo.core.client.Connector;
+		import org.apache.accumulo.core.client.Instance;
+		import org.apache.accumulo.core.client.ZooKeeperInstance;
+		import org.apache.accumulo.core.client.security.tokens.PasswordToken;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		
+		/**
+		 * Created by Adam on 1/24/2017.
+		 */
+		public class AccumuloDao
+		{
+		    private static final Logger logger = LoggerFactory.getLogger(AccumuloDao.class);
+		
+		    private Connector connector = null;
+		
+		    /*****************************************************************************************
+		     * AccumuloDao() Constructor
+		     *
+		     * Attempt to connect to the Accumulo instance
+		     * NOTE:  Throws an exception if it cannot connect to Accumulo
+		     ******************************************************************************************/
+		    public AccumuloDao(String aInstanceName, String aZookeepers, String aUsername, String aPassword) throws Exception
+		    {
+		        logger.debug("AccumuloDao() started.  aInstanceName={}   aZookeepers={}   aUsername={}", aInstanceName, aZookeepers, aUsername);
+		        Instance inst = new ZooKeeperInstance(aInstanceName, aZookeepers);
+		
+		        this.connector = inst.getConnector(aUsername, new PasswordToken(aPassword));
+		        logger.debug("AccumuloDao() finished.");
+		    }
+
+
+		
+		    /*****************************************************************************************
+		     * getConnector()
+		     *
+		     * Returns the connector
+		     ******************************************************************************************/
+		    public Connector getConnector()
+		    {
+		        return this.connector;
+		    }
+		}
+    
+
+		
+		
+ 9. Edit this file:  applicationContext.xml
+    NOTE:  This tells spring to create your ElasticSearchDao singleton
+    a. Right-click on /src/main/resources/ -> Right-click -> New -> File:
+       Filename:  applicationContexts.xml
+    
+    b. Add this to your file:
+    
+	    <!-- Read the property values and allows us to use them in this xml file as ${es.url} -->
+	    <context:property-placeholder location="classpath:webapp1.properties" />
+	
+		  <!-- Create an AccumuloDao singleton and pass-in the es.url (found in app.properties) -->
+		  <bean id="accumuloDao" class="com.stuff.AccumuloDao">
+		        <constructor-arg  value="${acc.instancename}" />
+		        <constructor-arg  value="${acc.zookeepers}" />
+		        <constructor-arg  value="${acc.username}" />
+		        <constructor-arg  value="${acc.password}" />
+		  </bean>
+        
+        
+        
+10. Add the es.url property value to your webapp1.properties file
+    NOTE:  I assume that your ElasticSearch is listening at the IP address of 192.168.1.165
+      
+		acc.instancename=accumulo
+		acc.zookeepers=centosvm:2181
+		acc.username=root
+		acc.password=secret
+       
+       
+ 
+11. Inject the AccumuloDao spring-bean into your Welcome Controller
+ 	a. Edit your /src/main/java/app1/controllers/WelcomeController.java class
+ 	
+ 	b. Add this to the top:
+      @Resource
+    	private AccumuloDao accumuloDao;
+ 		
+ 
+ 
+12. Add a method called runSearch() to your WelcomeController
+    
+	    /***************************************************************************
+	     * runSearch()
+	     *
+	     * Returns the JSON holding a list of users
+	     ****************************************************************************/
+	    @RequestMapping(value="/search/{rawQuery}", method = RequestMethod.GET, produces = "application/json")
+	    public ResponseEntity<?> runSearch(@PathVariable(value="rawQuery") String aRawQuery)
+	    {
+	        logger.debug("runSearch() started.  aRawQuery={}", aRawQuery);
+	
+  
+  	        // Get the Accumulo Connector object (used to perform accumulo operations)
+		        Connector conn = this.accumuloDao.getConnector();
+		
+		        final String ACC_TABLE_NAME = "docs";
+		
+		        // Get the authorizations for our user
+		        Authorizations authorizations = conn.securityOperations().getUserAuthorizations("root");
+		        logger.debug("authorizations={}", authorizations.toString());
+		
+		        logger.debug("Scanning {}", ACC_TABLE_NAME);
+		        String row = null;
+		        Scanner scanner = conn.createScanner(ACC_TABLE_NAME, authorizations);
+		
+		        // Loop through all rows in this table
+		        for (Map.Entry<Key,Value> entry: scanner)
+		        {
+		            logger.debug("  {}  {}", entry.getKey(), entry.getValue());
+		        }
+		
+		        scanner.close();
+  
+	          // Return respnose code of 200 and the JSON string
+	          return new ResponseEntity<String>(sJsonResults, HttpStatus.OK);
+	        }
+	        catch (Exception e)
+	        {
+	            // Tell the AJAX call that this call failed
+	            logger.error("Error occurred making rest call to /search", e);
+	
+	            // Get a formatted error message from the exception object
+	            String sMessage = getFormattedMessageFromException(e);
+	
+	            // Tell the AJAX caller that this will be plain text being returned (and not JSON)
+	            HttpHeaders headers = new HttpHeaders();
+	            headers.setContentType(MediaType.TEXT_PLAIN);
+	
+	            // Return the error back to the caller
+	            return new ResponseEntity<String>(sMessage, headers, HttpStatus.INTERNAL_SERVER_ERROR);
+	        }
+	    }
+
+	    
+	    
+	    /***************************************************************************
+	     * getFormattedMessageFromException()
+	     ****************************************************************************/
+	    private String getFormattedMessageFromException(Exception aException)
+	    {
+	        StringBuilder sbMessage = new StringBuilder();
+	
+	        String sStackTrace = getStackTraceAsString(aException);
+	
+	        sbMessage.append("Message: ")
+	                .append(aException.getMessage())
+	                .append("\n\n")
+	                .append("Cause: ")
+	                .append(aException.getCause())
+	                .append("\n\n")
+	                .append("StackTrace:\n")
+	                .append(sStackTrace);
+	
+	        return sbMessage.toString();
+	    }
+	
+	
+	
+	    /***************************************************************************
+	     * getStackTraceAsString()
+	     ****************************************************************************/
+	    public String getStackTraceAsString(Exception aException)
+	    {
+	        StringBuilder sb = new StringBuilder();
+	        for (StackTraceElement element : aException.getStackTrace()) {
+	            sb.append(element.toString());
+	            sb.append("\n");
+	        }
+	        return sb.toString();
+	    }
+		    
+	    
+
+        
+13. Startup your Accumulo Quick Install
+    unix> source ~/quickinstall-home/bin/quickinstall-env
+    unix> qi-start
+
+
+
+14. Create an Accumulo Table and add some data records
+    unix> source ~/quickinstall-home/bin/quickinstall-env
+    unix> accumulo shell -u root -p secret
+    
+    a. Create the table
+       	root@accumulo> createtable docs
+      
+    b. Insert some data
+	    root@accumulo docs> insert "bob jones" "contact" "address" "123 any street" -l billing
+	    root@accumulo docs> insert "bob jones" "contact" "city" "anytown" -l "billing"
+	    root@accumulo docs> insert "bob jones" "contact" "phone" "555-1212" -l "billing"
+	    root@accumulo docs> insert "bob jones" "purchases" "sneakers" "$60" -l "billing&inventory"
+	    
+	    root@accumulo docs> insert "fred smith" "contact" "address" "444 main street" -l billing
+	    root@accumulo docs> insert "fred smith" "contact" "city" "other town" -l billing
+	    root@accumulo docs> insert "fred smith" "purchases" "glasses" "$30" -l "billing&inventory"
+	    root@accumulo docs> insert "fred smith" "purchases" "hat" "$20" -l "billing&inventory"
+         
+    c. Give the root user authorization to see the data
+       root@accumulo docs> setauths -u root -s inventory,billing
+       
+       root@accumulo docs> getauths
+       -- You should see inventory,billing
+       
+    d. Look at the data
+       root@accumulo docs> scan
+       -- You should see all of the data
+    
+    e. Look at the data related to the "bob jones" row ID
+       root@accumulo docs> scan -r "bob jones"
+       -- You should only see the data related to "bob jones" 
+    
+    f. Look at the data that is under the billing authorization
+       root@accumulo docs> scan -s billing
+       root@accumulo docs> scan -s billing,inventory
+       
+    g. Quit out of the Accumulo Shell
+       root@accumulo docs> quit    
+ 
+ 
+
+ 		
+
+15. Add the SpringApplicationUtils class to your project
+    NOTE:  This will be used to get access to spring beans from anywhere within your web app
+    a. Right-click on src/main/java/app1/utilities -> New -> Java Class
+       Name:  SpringAppContextUtils
+       
+    b. Copy the following code to your SpringAppContextUtils class
+       
+       package app1.utilities;
+        
+        
+      /**
+        * To work, this line must be in the applicationContext.xml file
+        *    <bean id="applicationContextProvider" class="app1.utilities.SpringAppContextUtils" />
+        * 
+        *  MySpringBean mySpringBean = (MySpringBean) SpringApplicationContext.getBean("mySpringBean");
+        * 
+        * This class implements ApplicationContextAware. 
+        * The method, �setApplicationContext(�)� gets called during the creation of this bean
+        * providing the reference to the context. 
+        * 
+        */
+        import org.springframework.beans.BeansException;
+        import org.springframework.context.ApplicationContext;
+        import org.springframework.context.ApplicationContextAware;
+        
+        public class SpringAppContextUtils implements ApplicationContextAware
+        {
+             private static ApplicationContext applicationContext = null;
+        
+              public static ApplicationContext getApplicationContext()
+              {
+                  return applicationContext;
+              }
+              
+              public void setApplicationContext(ApplicationContext aApplicationContext) throws BeansException
+              {
+                   // Assign the ApplicationContext into a static variable
+                   applicationContext = aApplicationContext;
+              }
+              
+              
+              public static Object getBean(String aName)
+              {
+                  if (applicationContext == null)
+                  {
+                      throw new RuntimeException("Error in SpringAppContextUtils.getBean().  The applicationContext is null");
+                  }
+                  
+                  return applicationContext.getBean(aName);
+              }
+              
+        }
+
+
+16. Setup SpringAppContextUtils so that it has the applicationContext passed into it
+    Add this line to your applicationContext.xml file 
+
+      <bean id="applicationContextProvider" class="app1.utilities.SpringAppContextUtils" />
+  
+ 
+ 
+17. Update the MyApplicationWatcher so that the webapp verifies that ElasticSearch is up and running on startup
+    a. Edit MyApplicationWatcher.contextInitialized()
+    
+    b. Change the contextInitialized() method so that it looks like this:
+    
+		package app1.utilities;
+		
+		import javax.servlet.ServletContextEvent;
+		import app1.services.ElasticSearchDao;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import org.springframework.web.context.ContextLoaderListener;
+		
+		public class MyApplicationWatcher extends ContextLoaderListener
+		{
+		    private static final Logger logger = LoggerFactory.getLogger( MyApplicationWatcher.class );
+		
+		
+		    /***********************************************************************************
+		     * contextInitialized()
+		     *  1) Read the property file for this webapp
+		     *  2) Initialize the Spring Context
+		     *
+		     * NOTE:  If a runtime exception is thrown, then the webapp will *not* startup
+		     ************************************************************************************/
+		    @Override
+		    public void contextInitialized( ServletContextEvent aContextEvent )
+		    {
+		        // Get the name of the web application
+		        final String sWebAppName = aContextEvent.getServletContext().getContextPath().substring(1);
+		
+		        logger.debug("{} contextInitialized() started", sWebAppName);
+		
+		        try
+		        {
+		            // I N I T I A T E      S P R I N G       C O N T E X T
+		            super.contextInitialized( aContextEvent );
+		
+		            // Verify Accumulo is up
+		            verifyAccumulo();
+		        }
+		        catch (Exception e)
+		        {
+		            logger.error("{} WILL NOT STARTUP", sWebAppName);
+		
+		            // Throw a runtime exception so that this webapp will *not* startup
+		            RuntimeException runtimeException = new RuntimeException(e);
+		            runtimeException.setStackTrace(e.getStackTrace());
+		            throw runtimeException;
+		        }
+		
+		        logger.debug("{} contextInitialized() finished", sWebAppName);
+		    }
+		
+		
+		    /***********************************************************************************
+		     * contextDestroyed()
+		     * The webapp is about to be shutdown
+		     *   1) Shutdown any database connection pools manually
+		     *   2) Shutdown the spring context
+		     ************************************************************************************/
+		    @Override
+		    public void contextDestroyed( ServletContextEvent aContextEvent )
+		    {
+		        // Get the name of the web application
+		        final String sWebAppName = aContextEvent.getServletContext().getContextPath().substring(1);
+		
+		        logger.debug("{} contextDestroyed() started", sWebAppName);
+		
+		
+		        // S H U T D O W N       S P R I N G       C O N T E X T
+		        super.contextDestroyed(aContextEvent);
+		
+		        // At this point, all spring-beans are destroyed
+		
+		
+		        logger.debug("{} contextDestroyed() finished", sWebAppName);
+		    }
+		
+		
+		    /***********************************************************************************
+		     * verifyAccumulo()
+		     *
+		     * Attempt to connect to Accumulo
+		     * NOTE:  If ElasticSearch does not respond or gives us a non-200 response, then throw an exception
+		     ************************************************************************************/
+		    private void verifyAccumulo() throws Exception
+		    {
+		        AccumuloDao accumuloDao = (AccumuloDao) SpringAppContextUtils.getBean("accumuloDao");
+		
+		        if (accumuloDao.getConnector() == null)
+		        {
+		            throw new RuntimeException("Error in verifyAccumulo():  I could not connect to Accumulo.");
+		        }
+		
+		        // If I got this far, then it is running
+		    }
+		
+		}
+ 
+ 
+ 
+ 
+18. Set a breakpoint in your runSearch() method in your WelcomeController
+
+		   
+19. Debug your Webapp
+    a. Pull Run -> Debug webapp1 [jetty:run]
+        
+    NOTE:  If you do not see this option, then
+      1) Open the Maven Projects window
+         Pull View -> Tool Window -> Maven Project
+    
+      2) Single-click on Plugins -> jetty -> jetty:run
+    
+      3) Right-click on jetty:run -> Debug....  
+          -- This will activate the jetty maven plugin in debug mode
+             *AND*
+          -- This will create a menu option :
+             Run -> Debug '<your webapp's name>' [jetty:run]'
+ 
+ 
+20. Attempt to connect to your webapp
+    a. Startup a web browser
+    b. Connect to http://localhost:8080/webapp1/search/description
+
+    You should see these results
+    
+     	
+ 		
+ 		
