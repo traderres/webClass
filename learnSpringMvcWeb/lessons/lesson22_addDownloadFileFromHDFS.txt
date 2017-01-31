@@ -1,0 +1,632 @@
+Lesson:  How to Add a Controller and HadoopClient that will download from your HDFS
+-----------------------------------------------------------------------------------
+This lesson describes how to add a Hadoop Client and
+demonstrates how a Spring MVC controller could pull a file from Hadoop and return it
+
+  
+Assumptions:  
+ A) You have a Spring MVC web app already setup
+
+
+References
+----------
+http://stackoverflow.com/questions/17072543/reading-hdfs-and-local-files-in-java
+http://stackoverflow.com/questions/30124206/getting-files-in-hadoop-into-a-web-application
+http://www.folkstalk.com/2013/07/java-program-to-list-contents-of.html
+
+
+
+Part 1:  Setup a HDFS and insert a file into it
+-----------------------------------------------
+ 1. Install ZooKeeper and Hadoop
+    -- The easier way to is to use the Accumulo Quick-install
+       which will setup a ZooKeeper, Hadoop File System, and Accumulo Instance
+       [see learnAccumulo / howToSetupAccumuloQuickInstall ]
+ 
+ 
+ 2. If your hadoop HDFS is running on a different box, then enable remote connections
+    a. Edit hdfs-site.xml
+		  <property>
+		    <name>dfs.namenode.rpc-bind-host</name>
+		    <value>0.0.0.0</value>
+		  </property>
+    
+    
+ 
+ 3. Start-up your Hadoop File System
+    unix> source /home/adam/quickinstall-home/bin/quickinstall-env
+    unix> qi-start
+    
+    -- Now, you have a running hadoop file system
+          
+ 
+
+    
+ 4. Add a file to your Hadoop File System
+    a. Create a directory in the HDFS called /tmp/input
+       unix> hadoop fs -mkdir -p /tmp/input
+    
+    b. Create a file called /home/adam/stuff.txt with this 
+       unix vi /tmp/stuff.txt
+            
+            This is a test file
+            that will be stored in HDFS
+            
+    
+    c. Put that file in the /tmp/input direcory in HDFS
+       unix> hadoop fs -put /tmp/stuff.txt /tmp/input/stuff.txt 
+    
+    
+    d. Verify that it is there
+       unix> hadoop fs -ls -R /tmp
+			drwxr-xr-x   - adam supergroup          0 2017-01-15 15:59 /tmp/input
+			-rw-r--r--   1 adam supergroup         71 2017-01-15 15:59 /tmp/input/stuff.txt
+
+ 
+
+
+Part 2:  Create Java Program that talks with a local HDFS
+---------------------------------------------------------
+ASSUMPTIONS:
+  A) Your HDFS is running on localhost
+  B) Your Intellij is running on localhost
+  C) Your HDFS unix username is the *SAME NAME* as the Windows user account running Intellij
+ 
+ 1. Create a Java JAR program
+    [see learnJava / howToCreateJavaCommandLineProgramUsingIntellijMaven.txt]
+    
+ 
+ 2. Add these dependencies to your pom.xml
+ 
+    	<dependency>
+	      <!--  H A D O O P - C O M M O N   2.6 libraries -->
+	      <groupId>org.apache.hadoop</groupId>
+	      <artifactId>hadoop-common</artifactId>
+	      <version>2.6.0</version>
+	
+	      <exclusions>
+	        <!-- Hadoop-common comes with log4j but we will use logback so strip it out -->
+	        <exclusion>
+	          <groupId>org.slf4j</groupId>
+	          <artifactId>slf4j-log4j12</artifactId>
+	        </exclusion>
+	
+	        <exclusion>
+	          <groupId>log4j</groupId>
+	          <artifactId>log4j</artifactId>
+	        </exclusion>
+	
+	        <exclusion>
+	           <groupId>org.slf4j</groupId>
+	          <artifactId>slf4j-log4j12</artifactId>
+	        </exclusion>
+	      </exclusions>
+	    </dependency>
+	
+	    <dependency>
+	      <!-- H A D O O P - H D F S   2.6  libraries -->
+	      <groupId>org.apache.hadoop</groupId>
+	      <artifactId>hadoop-hdfs</artifactId>
+	      <version>2.6.0</version>
+	
+	      <exclusions>
+	        <!-- Hadoop-hdfs comes with log4j but we will use logback so strip it out -->
+	        <exclusion>
+	          <groupId>log4j</groupId>
+	          <artifactId>log4j</artifactId>
+	        </exclusion>
+	      </exclusions>
+	    </dependency>
+	
+	
+	    <dependency>
+	      <!-- Tell log4j to forward its logging to slf4j -->
+	      <groupId>org.slf4j</groupId>
+	      <artifactId>log4j-over-slf4j</artifactId>
+	      <version>1.7.12</version>
+	    </dependency>
+	
+	    <dependency>
+	      <!-- Logback is the logging implementation that slf4j will use -->
+	      <groupId>ch.qos.logback</groupId>
+	      <artifactId>logback-classic</artifactId>
+	      <version>1.0.13</version>
+	    </dependency>
+ 
+    
+    
+ 3. Update your logback.xml so that it shows debugging for "org.apache.hadoop"
+    
+		<?xml version="1.0" encoding="windows-1252" ?>
+		<!DOCTYPE project>
+		
+		<configuration debug="false">
+		    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+		        <encoder>
+		            <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+		        </encoder>
+		    </appender>
+		
+		
+		    <logger name="org.apache.hadoop" level="DEBUG" additivity="false">
+		        <appender-ref ref="CONSOLE"/>
+		    </logger>
+		
+		    <logger name="com.resnick" level="DEBUG" additivity="false">
+		        <appender-ref ref="CONSOLE"/>
+		    </logger>
+		
+		    <root level="DEBUG">
+		        <appender-ref ref="CONSOLE"/>
+		    </root>
+		</configuration>
+
+
+    
+ 4. Create this App class
+    ASSUMPTION:  You have a local HDFS listening on localhost:9000
+    
+		package com.resnick;
+		
+		import org.apache.hadoop.conf.Configuration;
+		import org.apache.hadoop.fs.FileSystem;
+		import org.apache.hadoop.fs.Path;
+		import org.apache.hadoop.io.IOUtils;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		
+		import java.io.InputStream;
+		import java.net.URI;
+		
+		
+		/**
+		 * Sample Class that talks to HDFS, reads a HDFS file, and displays it
+		 *
+		 */
+		public class App
+		{
+		    private static final Logger logger = LoggerFactory.getLogger(App.class);
+		
+		    public static void main( String[] args ) throws Exception
+		    {
+		        logger.debug("main() started.");
+		
+		        // The prefix 'hdfs://localhost:9000' should match the fs.default.name property (found in core-site.xml)
+		        final String sFilePath = "hdfs://localhost:9000/tmp/input/stuff.txt";
+		
+		        Configuration conf = new Configuration();
+		        FileSystem fs = FileSystem.get(URI.create(sFilePath), conf);
+		        InputStream in = null;
+		        try
+		        {
+		            in = fs.open(new Path(sFilePath));
+		
+		            // Use Hadoop's IOUtils.copyBytes() to send the file to STDOUT
+		            // NOTE:  The false argument tells copyBytes to not close the file.
+		            IOUtils.copyBytes(in, System.out, 4096, false);
+		        }
+		        finally
+		        {
+		            IOUtils.closeStream(in);
+		        }
+		
+		
+		        logger.debug("main() finished.");
+		    }
+		}
+
+ 
+              
+ 5. Debug the program
+    a. In Intellij, Set a breakpoint in the main()
+    b. In Intellij, right-click in this App.class -> Debug 'App.main()'
+    c. You should see the following:
+    
+		01/14/2017 21:59:27 DEBUG main com.resnick.App main() started.
+		01/14/2017 21:59:27 DEBUG main org.apache.hadoop.metrics2.lib.MutableMetricsFactory field org.apache.hadoop.metrics2.lib.MutableRate org.apache.hadoop.security.UserGroupInformation$UgiMetrics.loginSuccess with annotation @org.apache.hadoop.metrics2.annotation.Metric(about=, sampleName=Ops, always=false, type=DEFAULT, valueName=Time, value=[Rate of successful kerberos logins and latency (milliseconds)])
+		01/14/2017 21:59:27 DEBUG main org.apache.hadoop.metrics2.lib.MutableMetricsFactory field org.apache.hadoop.metrics2.lib.MutableRate org.apache.hadoop.security.UserGroupInformation$UgiMetrics.loginFailure with annotation @org.apache.hadoop.metrics2.annotation.Metric(about=, sampleName=Ops, always=false, type=DEFAULT, valueName=Time, value=[Rate of failed kerberos logins and latency (milliseconds)])
+		01/14/2017 21:59:27 DEBUG main org.apache.hadoop.metrics2.lib.MutableMetricsFactory field org.apache.hadoop.metrics2.lib.MutableRate org.apache.hadoop.security.UserGroupInformation$UgiMetrics.getGroups with annotation @org.apache.hadoop.metrics2.annotation.Metric(about=, sampleName=Ops, always=false, type=DEFAULT, valueName=Time, value=[GetGroups])
+		01/14/2017 21:59:27 DEBUG main org.apache.hadoop.metrics2.impl.MetricsSystemImpl UgiMetrics, User and group related metrics
+		01/14/2017 21:59:27 DEBUG main org.apache.hadoop.security.Groups  Creating new Groups object
+		01/14/2017 21:59:27 DEBUG main org.apache.hadoop.util.NativeCodeLoader Trying to load the custom-built native-hadoop library...
+		01/14/2017 21:59:27 DEBUG main org.apache.hadoop.util.NativeCodeLoader Failed to load native-hadoop with error: java.lang.UnsatisfiedLinkError: no hadoop in java.library.path
+		01/14/2017 21:59:27 DEBUG main org.apache.hadoop.util.NativeCodeLoader java.library.path=/opt/idea-IU-143.1821.5/bin::/usr/java/packages/lib/amd64:/usr/lib64:/lib64:/lib:/usr/lib
+		01/14/2017 21:59:27 WARN  main org.apache.hadoop.util.NativeCodeLoader Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+		01/14/2017 21:59:27 DEBUG main org.apache.hadoop.util.PerformanceAdvisory Falling back to shell based
+		01/14/2017 21:59:27 DEBUG main org.apache.hadoop.security.JniBasedUnixGroupsMappingWithFallback Group mapping impl=org.apache.hadoop.security.ShellBasedUnixGroupsMapping
+		01/14/2017 21:59:27 DEBUG main org.apache.hadoop.util.Shell setsid exited with exit code 0
+		01/14/2017 21:59:27 DEBUG main org.apache.hadoop.security.Groups Group mapping impl=org.apache.hadoop.security.JniBasedUnixGroupsMappingWithFallback; cacheTimeout=300000; warningDeltaMs=5000
+		01/14/2017 21:59:27 DEBUG main org.apache.hadoop.security.UserGroupInformation hadoop login
+		01/14/2017 21:59:27 DEBUG main org.apache.hadoop.security.UserGroupInformation hadoop login commit
+		01/14/2017 21:59:27 DEBUG main org.apache.hadoop.security.UserGroupInformation using local user:UnixPrincipal: adam
+		01/14/2017 21:59:27 DEBUG main org.apache.hadoop.security.UserGroupInformation Using user: "UnixPrincipal: adam" with name adam
+		01/14/2017 21:59:27 DEBUG main org.apache.hadoop.security.UserGroupInformation User entry: "adam"
+		01/14/2017 21:59:27 DEBUG main org.apache.hadoop.security.UserGroupInformation UGI loginUser:adam (auth:SIMPLE)
+		01/14/2017 21:59:27 DEBUG main org.apache.hadoop.hdfs.BlockReaderLocal dfs.client.use.legacy.blockreader.local = false
+		01/14/2017 21:59:27 DEBUG main org.apache.hadoop.hdfs.BlockReaderLocal dfs.client.read.shortcircuit = false
+		01/14/2017 21:59:27 DEBUG main org.apache.hadoop.hdfs.BlockReaderLocal dfs.client.domain.socket.data.traffic = false
+		01/14/2017 21:59:27 DEBUG main org.apache.hadoop.hdfs.BlockReaderLocal dfs.domain.socket.path = 
+		01/14/2017 21:59:27 DEBUG main org.apache.hadoop.hdfs.DFSClient No KeyProvider found.
+		01/14/2017 21:59:27 DEBUG main org.apache.hadoop.io.retry.RetryUtils multipleLinearRandomRetry = null
+		01/14/2017 21:59:27 DEBUG main org.apache.hadoop.ipc.Server rpcKind=RPC_PROTOCOL_BUFFER, rpcRequestWrapperClass=class org.apache.hadoop.ipc.ProtobufRpcEngine$RpcRequestWrapper, rpcInvoker=org.apache.hadoop.ipc.ProtobufRpcEngine$Server$ProtoBufRpcInvoker@501edcf1
+		01/14/2017 21:59:27 DEBUG main org.apache.hadoop.ipc.Client getting client out of cache: org.apache.hadoop.ipc.Client@16e7dcfd
+		01/14/2017 21:59:28 DEBUG main org.apache.hadoop.util.PerformanceAdvisory Both short-circuit local reads and UNIX domain socket are disabled.
+		01/14/2017 21:59:28 DEBUG main org.apache.hadoop.hdfs.protocol.datatransfer.sasl.DataTransferSaslUtil DataTransferProtocol not using SaslPropertiesResolver, no QOP found in configuration for dfs.data.transfer.protection
+		01/14/2017 21:59:28 DEBUG main org.apache.hadoop.ipc.Client The ping interval is 60000 ms.
+		01/14/2017 21:59:28 DEBUG main org.apache.hadoop.ipc.Client Connecting to localhost/127.0.0.1:9000
+		01/14/2017 21:59:28 DEBUG IPC Client (1027007693) connection to localhost/127.0.0.1:9000 from adam org.apache.hadoop.ipc.Client IPC Client (1027007693) connection to localhost/127.0.0.1:9000 from adam: starting, having connections 1
+		01/14/2017 21:59:28 DEBUG IPC Parameter Sending Thread #0 org.apache.hadoop.ipc.Client IPC Client (1027007693) connection to localhost/127.0.0.1:9000 from adam sending #0
+		01/14/2017 21:59:28 DEBUG IPC Client (1027007693) connection to localhost/127.0.0.1:9000 from adam org.apache.hadoop.ipc.Client IPC Client (1027007693) connection to localhost/127.0.0.1:9000 from adam got value #0
+		01/14/2017 21:59:28 DEBUG main org.apache.hadoop.ipc.ProtobufRpcEngine Call: getBlockLocations took 33ms
+		01/14/2017 21:59:28 DEBUG main org.apache.hadoop.hdfs.DFSClient newInfo = LocatedBlocks{
+		  fileLength=142
+		  underConstruction=false
+		  blocks=[LocatedBlock{BP-979332524-127.0.0.1-1466551605417:blk_1073742201_1381; getBlockSize()=142; corrupt=false; offset=0; locs=[127.0.0.1:50010]; storageIDs=[DS-516b443c-fb2a-4c1f-80f8-7076cf6ae0d5]; storageTypes=[DISK]}]
+		  lastLocatedBlock=LocatedBlock{BP-979332524-127.0.0.1-1466551605417:blk_1073742201_1381; getBlockSize()=142; corrupt=false; offset=0; locs=[127.0.0.1:50010]; storageIDs=[DS-516b443c-fb2a-4c1f-80f8-7076cf6ae0d5]; storageTypes=[DISK]}
+		  isLastBlockComplete=true}
+		01/14/2017 21:59:28 DEBUG main org.apache.hadoop.hdfs.DFSClient Connecting to datanode 127.0.0.1:50010
+		01/14/2017 21:59:28 DEBUG IPC Parameter Sending Thread #0 org.apache.hadoop.ipc.Client IPC Client (1027007693) connection to localhost/127.0.0.1:9000 from adam sending #1
+		01/14/2017 21:59:28 DEBUG IPC Client (1027007693) connection to localhost/127.0.0.1:9000 from adam org.apache.hadoop.ipc.Client IPC Client (1027007693) connection to localhost/127.0.0.1:9000 from adam got value #1
+		01/14/2017 21:59:28 DEBUG main org.apache.hadoop.ipc.ProtobufRpcEngine Call: getServerDefaults took 2ms
+		01/14/2017 21:59:28 DEBUG main org.apache.hadoop.hdfs.protocol.datatransfer.sasl.SaslDataTransferClient SASL client skipping handshake in unsecured configuration for addr = /127.0.0.1, datanodeId = 127.0.0.1:50010
+		           This is a test file
+                   that will be stored in HDFS
+		
+		01/14/2017 21:59:28 DEBUG main com.resnick.App main() finished.
+		01/14/2017 21:59:28 DEBUG Thread-2 org.apache.hadoop.ipc.Client stopping client from cache: org.apache.hadoop.ipc.Client@16e7dcfd
+		01/14/2017 21:59:28 DEBUG Thread-2 org.apache.hadoop.ipc.Client removing client from cache: org.apache.hadoop.ipc.Client@16e7dcfd
+		01/14/2017 21:59:28 DEBUG Thread-2 org.apache.hadoop.ipc.Client stopping actual client because no more references remain: org.apache.hadoop.ipc.Client@16e7dcfd
+		01/14/2017 21:59:28 DEBUG Thread-2 org.apache.hadoop.ipc.Client Stopping client
+		01/14/2017 21:59:28 DEBUG IPC Client (1027007693) connection to localhost/127.0.0.1:9000 from adam org.apache.hadoop.ipc.Client IPC Client (1027007693) connection to localhost/127.0.0.1:9000 from adam: closed
+		01/14/2017 21:59:28 DEBUG IPC Client (1027007693) connection to localhost/127.0.0.1:9000 from adam org.apache.hadoop.ipc.Client IPC Client (1027007693) connection to localhost/127.0.0.1:9000 from adam: stopped, remaining connections 0
+		
+		Process finished with exit code 0
+		    
+    
+
+
+
+Part 3:  Create Java Program that talks with a remote HDFS
+----------------------------------------------------------
+ASSUMPTIONS:
+  A) Your HDFS is running on a remote host called centosVM
+  B) Your HDFS is running on a remote host with the IP of 192.168.1.164
+  C) Your HDFS file (that you want to read) as read-access to everyone
+  D) Your Intellij is running on localhost
+ 
+  
+ 1. Change your App class to connect to the remote HDFS
+    a. Change this line to this:
+       		final String sFilePath = "hdfs://centosVM:9000/tmp/input/stuff.txt";
+          
+    
+    
+       When you are done, your main() should look like this:
+		       
+		    public static void main( String[] args ) throws Exception
+		    {
+		        logger.debug("main() started.");
+		
+		        // The prefix 'hdfs://localhost:9000' should match the fs.default.name property (found in core-site.xml)
+		        final String sFilePath = "hdfs://centosVM:9000/tmp/input/stuff.txt";
+		
+		        Configuration conf = new Configuration();
+		        FileSystem fs = FileSystem.get(URI.create(sFilePath), conf);
+		        InputStream in = null;
+		        try
+		        {
+		            in = fs.open(new Path(sFilePath));
+		
+		            // Use Hadoop's IOUtils.copyBytes() to send the file to STDOUT
+		            // NOTE:  The false argument tells copyBytes to not close the file.
+		            IOUtils.copyBytes(in, System.out, 4096, false);
+		        }
+		        finally
+		        {
+		            IOUtils.closeStream(in);
+		        }
+		
+		
+		        logger.debug("main() finished.");
+		    }
+        
+       
+       
+       
+ 2. Add the hostname to your local windows hosts file
+    a. Start > All Programs > Accessories
+    b. Right-click on Notepad -> Select "Run as administrator"
+    c. Edit this file:   C:\Windows\System32\drivers\etc\hosts
+    d. Add this entry:
+    
+          centosVM  192.168.1.164
+                  
+        
+         
+ 
+ 3. Add the hostname entry to your remote centoS unix machine (that is running HDFS)
+    unix> sudi vi /etc/hosts
+          
+             centosVM  192.168.1.164
+             
+               
+ 
+ 4. Adjust your HDFS so it listens on more than just localhost
+    a. Stop your HDFS
+       NOTE:  If you are using the Accumulo Quick-install, you would use these procedures
+ 	   unix> source /home/adam/quickinstall-home/bin/quickinstall-env
+	   unix> qi-stop
+     
+    b. Change the name node so that it listens on all IPs
+       1) Edit the hdfs-site.xml
+       
+       2) Make sure these entries are here:
+          ASSUMPTION:  centosVM is the hostname of the unix box running HDFS
+          
+		<property>
+		    <name>fs.default.name</name>
+		    <value>hdfs://centosVM:9000</value>
+		 </property>
+		
+		<property>
+		    <name>dfs.namenode.rpc-bind-host</name>
+		    <value>0.0.0.0</value>
+		</property>
+		
+		<property>
+		    <name>dfs.client.use.datanode.hostname</name>
+		    <value>true</value>
+		</property>
+
+    
+    c. Startup your HDFS
+       NOTE:  If you are using the Accumulo Quick-install, you would use these procedures
+       unix> source /home/adam/quickinstall-home/bin/quickinstall-env
+       unix> qi-start
+      
+  
+  
+ 5. Run the java program again
+    -- You should see the same results
+    
+    
+ 
+    
+Part 4:  Add a HadoopClient to your Java Spring MVC Web App
+------------------------------------------------------------
+ 1. Add these dependencies to your Web App's pom.xml
+
+    <!-- Tell Log4j to forward its logging to slf4j -->
+    <dependency>
+          <groupId>org.slf4j</groupId>
+          <artifactId>log4j-over-slf4j</artifactId>
+          <version>1.7.12</version>
+    </dependency>
+
+         
+    <dependency>
+          <!--  H A D O O P - C O M M O N   2.6 libraries -->
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-common</artifactId>
+          <version>2.6.0</version>
+
+          <exclusions>
+             
+              <exclusion>
+                  <groupId>org.slf4j</groupId>
+                  <artifactId>slf4j-log4j12</artifactId>
+              </exclusion>
+
+              <exclusion>
+                  <!-- Hadoop-common comes with log4j but we will use logback so strip it out -->
+                  <groupId>log4j</groupId>
+                  <artifactId>log4j</artifactId>
+              </exclusion>
+
+              <exclusion>
+                  <groupId>org.slf4j</groupId>
+                  <artifactId>slf4j-log4j12</artifactId>
+              </exclusion>
+
+              <exclusion>
+                  <!-- Hadoop-common comes with its own servlet dependencies, but our own jetty must use its own servlet dependencies -->
+                  <groupId>javax.servlet</groupId>
+                  <artifactId>servlet-api</artifactId>
+              </exclusion>
+
+              <exclusion>
+                  <groupId>javax.servlet.jsp</groupId>
+                  <artifactId>jsp-api</artifactId>
+              </exclusion>
+
+              <exclusion>
+                  <groupId>tomcat</groupId>
+                  <artifactId>*</artifactId>
+              </exclusion>
+          </exclusions>
+      </dependency>
+
+      <dependency>
+          <!-- H A D O O P - H D F S   2.6  libraries -->
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-hdfs</artifactId>
+          <version>2.6.0</version>
+
+          <exclusions>
+               <exclusion>
+                   <!-- Hadoop-hdfs comes with log4j but we will use logback so strip it out -->
+                   <groupId>log4j</groupId>
+                  <artifactId>log4j</artifactId>
+              </exclusion>
+
+              <exclusion>
+                  <!-- Hadoop-hdfs comes with its own servlet dependencies, but our own jetty must use its own servlet dependencies -->
+                  <groupId>javax.servlet.jsp</groupId>
+                  <artifactId>jsp-api</artifactId>
+              </exclusion>
+
+              <exclusion>
+                  <groupId>javax.servlet</groupId>
+                  <artifactId>servlet-api</artifactId>
+              </exclusion>
+
+              <exclusion>
+                  <groupId>tomcat</groupId>
+                  <artifactId>*</artifactId>
+              </exclusion>
+          </exclusions>
+      </dependency>
+ 
+ 
+ 
+ 2. Create this class:  HadoopClient
+    a. Right-click on /src/main/java/app1/services -> New -> Java Class
+       Filename:  HadoopClient
+   
+    b. Copy this to your new class:
+    
+		package app1.services;
+		
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		
+		import java.io.InputStream;
+		import java.net.URI;
+		import org.apache.hadoop.conf.Configuration;
+		import org.apache.hadoop.fs.FileSystem;
+		import org.apache.hadoop.fs.Path;
+		
+		
+		/**
+		 * Created by adam on 1/17/2017.
+		 */
+		public class HadoopClient
+		{
+		    private static final Logger logger = LoggerFactory.getLogger(HadoopClient.class);
+		
+		    String        hadoopUrl   = null;
+		    Configuration hadoopConf  = new Configuration();
+		
+		    /************************************************************************
+		     * HadoopClient()  Constructor
+		     ************************************************************************/
+		    public HadoopClient(String aHadoopUrl)
+		    {
+		        logger.debug("HadoopClient() started.  aHadoopUrl={}", aHadoopUrl);
+		        this.hadoopUrl = aHadoopUrl;
+		    }
+		
+		
+		    /************************************************************************
+		     * getInputStreamForHdfsFile()
+		     *
+		     * ASSUMPTIONS:
+		     *  1) The namenode port is not blocked
+		     *  2) The HDFS file has read-only turned-on
+		     ************************************************************************/
+		    public InputStream getInputStreamForHdfsFile(String aHadoopFilePath) throws Exception
+		    {
+		        logger.debug("getInputStreamForHdfsFile() started.  aHadoopFilePath={}", aHadoopFilePath);
+		
+		        if ((this.hadoopUrl == null) || (this.hadoopUrl.length() == 0))
+		        {
+		            throw new RuntimeException("Critical Error in getInputStreamFromHDFS():  The hadoopUrl is either null or empty.");
+		        }
+		        else if ((aHadoopFilePath == null) || (aHadoopFilePath.length() == 0))
+		        {
+		            throw new RuntimeException("Critical Error in getInputStreamFromHDFS():  The passed-in aHadoopFilePath is either null or empty.");
+		        }
+		
+		        // The final path should be something like this:  hdfs://centosVM:9000/tmp/input/stuff.txt
+		        String sCompleteFilePath = this.hadoopUrl + aHadoopFilePath;
+		        logger.debug("Looking in HDFS for this:  {}", sCompleteFilePath);
+		
+		        // Connect to the HDFS and get an InputStream for this file
+		        // NOTE:  Please be sure that you close this InputStream when you're done with it.
+		        FileSystem fs = FileSystem.get(URI.create(sCompleteFilePath), this.hadoopConf);
+		        InputStream in = fs.open(new Path(sCompleteFilePath));
+		
+		        logger.debug("getInputStreamForHdfsFile() finished.");
+		        return in;
+		    }
+		
+		}
+		    
+
+
+ 3. Add this method to your WelcomeController
+ 
+		
+		@Controller
+		public class WelcomeController
+		{
+		    private final static Logger logger = LoggerFactory.getLogger(WelcomeController.class);
+		
+			@Resource
+		    private HadoopClient hadoopClient;    // inject the hadoopClient
+		        
+		 
+ 
+		    /**********************************************************************
+		     * downloadHdfs()
+		     ***********************************************************************/
+		    @RequestMapping(value = "/downloadHdfs/{fileId}", method = RequestMethod.GET)
+		    public  ResponseEntity<?> downloadHdfs(@PathVariable("fileId") String aFileId, HttpServletResponse response) throws Exception
+		    {
+		        logger.debug("downloadHdfs() started.  aFileId={}", aFileId);
+		
+		        // Use the passed-in fileId to generate a full-path
+		        //    String sHdfsPath = stuffService.figureOutFileNameFor(stuffId);
+		        String sHdfsPath = "/tmp/input/stuff.txt";
+		
+		        InputStream inputStreamOfHdfsFile = null;
+		        try
+		        {
+		            // Get an InputStream of the file (found in HDFS)
+		            inputStreamOfHdfsFile = this.hadoopClient.getInputStreamForHdfsFile(sHdfsPath);
+		
+		            // Convert the InputStrema into an InputStreamResource
+		            InputStreamResource isr = new InputStreamResource(inputStreamOfHdfsFile);
+		
+		            HttpHeaders headers = new HttpHeaders();
+		
+		
+		            // I do not recommend reading the entire file just to get the size
+		            // It would be better if this was stored in a database or somewhere else.
+		            // -- If you set the header with the file size then your web browser
+		            //    can tell you what percentage of the download has compmleted
+		       //     long lHdfsFileLength = this.hadoopClient.getFileSizeInBytes(sHdfsPath);
+		       //     headers.setContentLength(lHdfsFileLength);
+		
+		            // Set a header with the default name to save this file as
+		            headers.setContentDispositionFormData("attachment", "stuff.txt");
+		
+		            return new ResponseEntity<InputStreamResource>(isr, headers, HttpStatus.OK);
+		        }
+		        catch (Exception e)
+		        {
+		            logger.error("Error occurred making call to /downloadHdfs/{}", aFileId, e);
+		
+		            // Get a formatted error message from the exception object
+		            String sMessage = getFormattedMessageFromException(e);
+		
+		            // Tell the AJAX caller that this will be plain text being returned (and not JSON)
+		            HttpHeaders headers = new HttpHeaders();
+		            headers.setContentType(MediaType.TEXT_PLAIN);
+		
+		            // Return the error back to the caller
+		            return new ResponseEntity<String>(sMessage, headers, HttpStatus.INTERNAL_SERVER_ERROR);
+		        }
+		        finally
+		        {
+		            logger.debug("download() finished.");
+		        }
+		    }
+		    
+		    
+ 4. Verify it works
+    a. Startup your Spring MVC Web App in debug mode
+    b. Go to http://localhost:8080/webapp1/downloadHdfs/57
+       -- You should be prompted to download the file from HDFS
+       
+       
