@@ -3,18 +3,107 @@ How do tell Controller Method to Check for Spring Security Roles
 
 
 
-Procedure
----------
- If your ControllerMethod returns a ModelAndView, then use this code
+Approach #1:  Use the response.sendError() method
+-------------------------------------------------
+    @RequestMapping("/welcome")
+    public ModelAndView mainPage( Model aModel, HttpServletRequest aRequest, HttpServletResponse aResponse ) throws Exception
+    {
+        logger.debug("mainPage() started");
 
-      if (! aRequest.isUserInRole("Admin"))
-      {
-          // Return the error back to the caller
-          throw new AccessDeniedException("You don't have the Admin role");
-      }
-      
-      
+        if (! aRequest.isUserInRole("Reader"))
+        {
+            // Return a 401 error code and this message
+            aResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED, "You need the Reader role to see this page.");
+        }
 
-If your Controller Method returns a ResponseEntity, then use this code:
+
+        // Create a modelAndView object
+        ModelAndView mav = new ModelAndView();
+
+        // Show the welcome.jsp page
+        mav.setViewName("welcome.jsp");
+
+        // Get the userinfo object from spring
+        UserInfo userInfo = (UserInfo) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+        // Add the userInfo information to the view
+        mav.addObject("userInfo", userInfo);
+
+        logger.debug("mainPage() finished");
+        return mav;
+  }
  
  
+ 
+Approach #2:  throw AccessDeniedException()
+-------------------------------------------
+    @RequestMapping("/welcome")
+    public ModelAndView mainPage( Model aModel, HttpServletRequest aRequest, HttpServletResponse aResponse ) throws Exception
+    {
+        logger.debug("mainPage() started");
+
+        if (! aRequest.isUserInRole("Reader"))
+        {
+            // Return a 403 access denied exception and show the message
+            throw new AccessDeniedException("You need the Reader role to see this page");
+        }
+
+        // Create a modelAndView object
+        ModelAndView mav = new ModelAndView();
+
+        // Show the welcome.jsp page
+        mav.setViewName("welcome.jsp");
+
+        // Get the userinfo object from spring
+        UserInfo userInfo = (UserInfo) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+        // Add the userInfo information to the view
+        mav.addObject("userInfo", userInfo);
+
+        logger.debug("mainPage() finished");
+        return mav;
+  }
+  
+
+      
+      
+ 
+Approach #3:  return ResponseEntity with forbidden status
+---------------------------------------------------------
+    @RequestMapping( value = "/forIndicator/{id}", method = RequestMethod.GET, produces = "application/json" )
+    public ResponseEntity<?> getForIndicator( @PathVariable Long id, HttpServletRequest aRequest)
+    {
+  
+        if (! aRequest.isUserInRole("Reader"))
+        {
+            // Return a 403 error code and this message
+           return ResponseEntity.status( HttpStatus.FORBIDDEN )
+                                .contentType( MediaType.TEXT_PLAIN )
+                                .body( "You need the Reader role to see this page" );
+        }
+
+        String msg;
+
+        try
+        {
+            return ResponseEntity.ok( this.reportDAO.getForIndicator( id ) );
+        }
+        catch ( Exception e )
+        {
+            // Query failed to complete; either the query/params are invalid,
+            // or there is an issue with the database
+            logger.error( "Reports query failed", e );
+
+            // Return INTERNAL_SERVER_ERROR to the client
+            msg = HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase() +
+                    ": Query failed to complete";
+            if ( logger.isDebugEnabled() ) msg += ": " + e.getMessage();
+
+            return ResponseEntity.status( HttpStatus.INTERNAL_SERVER_ERROR )
+                                 .contentType( MediaType.TEXT_PLAIN )
+                                 .body( msg );
+        }
+    }
+
+             
+
