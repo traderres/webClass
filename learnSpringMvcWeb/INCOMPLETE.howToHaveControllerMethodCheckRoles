@@ -70,23 +70,50 @@ Approach #2:  throw AccessDeniedException()
  
 Approach #3:  return ResponseEntity with forbidden status
 ---------------------------------------------------------
-    @RequestMapping( value = "/forIndicator/{id}", method = RequestMethod.GET, produces = "application/json" )
-    public ResponseEntity<?> getForIndicator( @PathVariable Long id, HttpServletRequest aRequest)
+ASSUMPTIONS:
+ A) You have the GSON dependency added to your pom.xml
+
+      <dependency>
+          <groupId>com.google.code.gson</groupId>
+          <artifactId>gson</artifactId>
+          <version>2.6.2</version>
+      </dependency>
+
+ B) You are using spring-web 4.3.1.RELEASE
+ 
+      <dependency>
+          <groupId>org.springframework</groupId>
+          <artifactId>spring-web</artifactId>
+          <version>4.3.1.RELEASE</version>
+      </dependency>
+ 
+ 
+ 
+    @RequestMapping( value = "/details/{aId}", method = RequestMethod.GET, produces = "application/json" )
+    public ResponseEntity<?> getDetailsForid(@PathVariable Long aId, HttpServletRequest aRequest)
     {
-  
+
         if (! aRequest.isUserInRole("Reader"))
         {
             // Return a 403 error code and this message
-           return ResponseEntity.status( HttpStatus.FORBIDDEN )
-                                .contentType( MediaType.TEXT_PLAIN )
-                                .body( "You need the Reader role to see this page" );
+            return ResponseEntity.status( HttpStatus.FORBIDDEN )
+                                 .contentType( MediaType.TEXT_PLAIN )
+                                 .body( "You need the Reader role to see this page" );
         }
-
-        String msg;
 
         try
         {
-            return ResponseEntity.ok( this.reportDAO.getForIndicator( id ) );
+            HashMap<String, String> mapDetails = new HashMap<String, String>();
+            mapDetails.put("id", String.valueOf(aId));
+            mapDetails.put("description", "This is the description");
+
+            // Convert the HashMap into a JSON string
+            Gson gson = new Gson();
+            String sJson = gson.toJson(mapDetails);
+
+            return ResponseEntity.status( HttpStatus.OK )
+                                 .contentType(MediaType.APPLICATION_JSON_UTF8)
+                                 .body( sJson );
         }
         catch ( Exception e )
         {
@@ -95,15 +122,12 @@ Approach #3:  return ResponseEntity with forbidden status
             logger.error( "Reports query failed", e );
 
             // Return INTERNAL_SERVER_ERROR to the client
-            msg = HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase() +
+            String msg = HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase() +
                     ": Query failed to complete";
             if ( logger.isDebugEnabled() ) msg += ": " + e.getMessage();
 
             return ResponseEntity.status( HttpStatus.INTERNAL_SERVER_ERROR )
-                                 .contentType( MediaType.TEXT_PLAIN )
-                                 .body( msg );
+                    .contentType( MediaType.TEXT_PLAIN )
+                    .body( msg );
         }
     }
-
-             
-
