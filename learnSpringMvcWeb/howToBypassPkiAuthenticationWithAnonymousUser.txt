@@ -1,0 +1,125 @@
+How to Bypass PKI authentication with anonymous user authentication
+-------------------------------------------------------------------
+
+
+Assumptions
+ A) You have a Spring MVC Web App setup
+ B) You are using PKI authentication with SSL 
+    [see learnSpringMvcWeb / lessons / lesson16_addSecurityPkiEncryptionUsingSSL.txt]
+ C) You want to use regular http://localhost:8080/ to connect to the webapp
+ D) You want to hard-code an authentication object
+
+
+References
+----------
+https://github.com/spring-projects/spring-security/issues/4011
+https://github.com/spring-projects/spring-security/issues/2232
+
+
+
+Procedure
+---------
+ 1. Modify your SpringSecurityConfig class so that the configure() method looks like this:
+           
+	    @Override
+	    public void configure(HttpSecurity aHttp) throws Exception
+	    {
+	        logger.debug("configure() #1 started");
+	
+	        // Create a list of granted authorities
+	        ArrayList<GrantedAuthority> grantedAuthorities = new ArrayList<GrantedAuthority>();
+	        grantedAuthorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+	        grantedAuthorities.add(new SimpleGrantedAuthority("ROLE_Reader"));
+	
+	        // Create your UserInfo object
+	        UserInfo anonymousUserInfo = new UserInfo("BogusUserDN", grantedAuthorities);
+	
+	
+	        aHttp.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
+	             .and()
+	             .authorizeRequests()
+	             .antMatchers("/**").permitAll()
+	             .and()
+	             .anonymous().authorities("ROLE_USER", "ROLE_Reader")
+	             .and()
+	             .anonymous().principal(anonymousUserInfo);
+	
+	
+	
+	        logger.debug("configure() #1 finished");
+	    }
+
+
+    NOTE:  We removed a few entries:
+      1) Removed this line:  
+            .requiresChannel().antMatchers("/**").requiresSecure()
+         Which forwards calls from http:// to https://
+         
+      2) Removed this line:
+            .addFilter(x509Filter())
+         Which looks for a PKI certificate and pulls the principal from it
+         
+      3) Removed this line:
+            .anonymous().disable()
+         Because we are using anonymous authentication
+         
+           
+
+ 
+ 2. Add this Spring Bean to the bottom of your SpringSecurityConfig class
+
+	    @Bean
+	    public AuthenticationTrustResolver trustResolver()
+	    {
+	        return new AuthenticationTrustResolver()
+	        {
+	
+	            @Override
+	            public boolean isRememberMe(final Authentication authentication)
+	            {
+	                return false;
+	            }
+	
+	            @Override
+	            public boolean isAnonymous(final Authentication authentication)
+	            {
+	                // Normally isAnonymous() returns TRUE when using anonymous authentication
+	
+	                // However, we want isAnonymous() to return FALSE in this case so that
+	                // the aRequest.isUserInRole("Reader") calls work correctly in the controller methods
+	                return false;
+	            }
+	        };
+	    }
+
+
+
+ 3. Modify your pom.xml so that you are using regular http:// in your app server
+    ASSUMPTION:  You want your jetty to listen on port 8100
+    
+    a. Edit the pom.xml by adjusting the jetty-maven-plugin to look like this:
+        
+          <plugin>
+              <groupId>org.eclipse.jetty</groupId>
+              <artifactId>jetty-maven-plugin</artifactId>
+
+              <!-- NOTE:  The jetty 9.1.5.v2014050 version works with Java 1.7 -->
+              <version>9.1.5.v20140505</version>
+
+              <configuration>
+                  <httpConnector>
+                      <!-- Your local jetty listens on port 8100 -->
+                      <port>8100</port>
+                  </httpConnector>
+
+                  <webApp>
+                      <!-- If your project is called webapp1, then jetty listens on http://localhost:8080/webapp1  -->
+                      <contextPath>/${project.artifactId}</contextPath>
+                  </webApp>
+
+                  <!-- Jetty will scan every 10 seconds to pickup front-end changes -->
+                  <scanIntervalSeconds>10</scanIntervalSeconds>
+              </configuration>
+          </plugin>
+    
+ 
