@@ -8,4 +8,96 @@ Assumptions
  
 Procedure
 ---------
- 1. 
+ 1. Add these method to your WelcomeController.java
+ 
+ 
+    /***************************************************************************
+     * getUserListOrderedByWithIds()
+     *  1) Run a sql call to get all userinfo from the database
+     *  2) Loop through the results, creating UserInfo objects
+     *
+     *  Returns a list of UserInfo objects
+     ****************************************************************************/
+    private ArrayList<UserInfo> getUserListOrderedByWithIds(List<Integer> aIds, String aOrderBy) throws Exception
+    {
+        ArrayList<UserInfo> users = new ArrayList<UserInfo>();
+
+        String csvOfIds = StringUtils.join(aIds, ",");
+
+        // Construct the SQL call
+        final String sSql = "select name " +
+                            "from users " +
+                            "where id IN (" + csvOfIds + ") " +
+                            "order by " + aOrderBy;
+
+        JdbcTemplate jt = new JdbcTemplate(this.postgresDataSource);
+
+
+        // Get a connection from the JDBC pool, run the query, return the connection to the pool
+        SqlRowSet rs = jt.queryForRowSet(sSql);
+
+        while (rs.next())
+        {
+            // Get the name from the read-only recordset
+            String sUserName = rs.getString("name");
+
+            // Construct a new userInfo object and popuplate it with data from the database
+            UserInfo userInfo = new UserInfo();
+            userInfo.setUserName(sUserName);
+            userInfo.setIsAdministrator(false);
+
+            users.add(userInfo);
+        }
+
+        return users;
+    }
+
+
+
+
+    /***************************************************************************
+     * getDetailsForMultipleIds()
+     ****************************************************************************/
+    @RequestMapping(value="/rest/many/{ids}", method = RequestMethod.GET, produces = "application/json")
+    public ResponseEntity<?> getDetailsForMultipleIds(@PathVariable("ids") List<Integer> aIds)
+    {
+        logger.debug("getDetailsForMultipleIds() started.  aIds={}", aIds);
+
+        try
+        {
+            // Run a SQL call to get the list of users
+            ArrayList<UserInfo> users = getUserListOrderedByWithIds(aIds, "name");
+
+            // Convert the list of Users into a JSON string
+            Gson gson = new Gson();
+            String sJson = gson.toJson(users);
+
+            // Return respnose code of 200 and the JSON string
+            return new ResponseEntity<String>(sJson, HttpStatus.OK);
+        }
+        catch (Exception e)
+        {
+            // Tell the AJAX call that this call failed
+            logger.error("Error occurred making rest call to /rest/many/", e);
+
+            // Get a formatted error message from the exception object
+            String sMessage = getFormattedMessageFromException(e);
+
+            // Tell the AJAX caller that this will be plain text being returned (and not JSON)
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.TEXT_PLAIN);
+
+            // Return the error back to the caller
+            return new ResponseEntity<String>(sMessage, headers, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+ 2. Activate your Debugger
+ 
+ 3. Simulate a rest call
+    a. Open a web browser
+    b. Go to http://localhost:8080/webapp1/rest/many/1,2,3,100,505
+       -- Spring MVC will create a list of integers and pass-it in
+       
+       
+
