@@ -1,0 +1,48 @@
+How to Get ElasticSearch Document Counts (using unix)
+-----------------------------------------------------
+
+
+View 1:  Get the document counts for all indeces in ElasticSearch
+-----------------------------------------------------------------
+unix> ssh admin@192.168.20.8
+unix> sudo -s
+unix> curl -k --cert "/etc/pki/private/`hostname`.pem" -XGET "https://`hostname`:9200/_cat/indices?v" 
+
+health status index                   pri rep docs.count docs.deleted store.size pri.store.size 
+green  open   bdplogs-2017.04.29        5   1   13052184            0      3.3gb          1.6gb 
+green  open   afdheader_1477581899092   5   1        882            7      1.4mb        754.6kb 
+green  open   bdplogs-2017.04.28        5   1    1371712            0    381.2mb        190.6mb 
+
+
+View  2:  Sort by data by index name, but skip the header
+---------------------------------------------------------
+unix> curl -k --cert "/etc/pki/private/`hostname`.pem" -XGET "https://`hostname`:9200/_cat/indices?v" > s; (head -n 1 s && tail -n +2 s | sort -k 3) 
+
+NOTE:  sort -k 3  # sort by 3rd colulmn
+
+
+health status index                   pri rep docs.count docs.deleted store.size pri.store.size 
+green  open   afdheader_1477581899092   5   1        882            7      1.4mb        754.6kb 
+green  open   bdplogs-2017.04.28        5   1    1371712            0    381.2mb        190.6mb 
+green  open   bdplogs-2017.04.29        5   1   13052184            0      3.3gb          1.6gb 
+
+
+
+View 3:  Sort by data document count [largest counts on top]
+------------------------------------------------------------
+NOTE:  use the sort -g -k 6 -r
+unix> curl -k --cert "/etc/pki/private/`hostname`.pem" -XGET "https://`hostname`:9200/_cat/indices?v" > s; (head -n 1 s && tail -n +2 s | sort -g -k 6 -r) > es.txt
+unix> cat es.txt
+
+
+health status index                   pri rep docs.count docs.deleted store.size pri.store.size 
+green  open   bdplogs-2017.04.29        5   1   13052184            0      3.3gb          1.6gb 
+green  open   bdplogs-2017.04.28        5   1    1371712            0    381.2mb        190.6mb 
+green  open   afdheader_1477581899092   5   1        882            7      1.4mb        754.6kb 
+
+
+View 3: Get the total
+---------------------
+unix> tail -n +2 es.txt | awk '{total += $6} END {print "Total:", total/1000000, "million records" }' >> es.txt
+
+Total: 14.42 million records
