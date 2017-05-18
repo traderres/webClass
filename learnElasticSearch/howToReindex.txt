@@ -58,7 +58,8 @@ NOTE:  ES 1.x does not have a reindex function built-in
        unix> ls -l /usr/share/elasticsearch/plugins/reindexing
        -rw-r--r--. 1 root root 48705 May 18 09:58 elasticsearch-reindexing-1.7.0.jar
 
- 3. Restart ElasticSearch & Verify
+
+ 3. Restart ElasticSearch & verify the plugin was loaded
     a. Restart ElasticSearch
        unix> sudo service elasticsearch restart
     
@@ -68,17 +69,105 @@ NOTE:  ES 1.x does not have a reindex function built-in
 
 
  4. Create an index called "docs_v1"
+    PUT /docs_v1
+    {
+      "mappings":
+      {
+        "record": {
+          "properties": {
+            "main_id": {
+              "type": "string",
+              "index": "analyzed",
+              "include_in_all": true,
+              "fields": {
+                "raw": {
+                  "type": "string",
+                  "index": "not_analyzed"
+                }
+              }
+            },
+            "incident_date": 
+            {
+              "type": "date",
+              "ignore_malformed": true,
+              "format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||S",
+              "index": "not_analyzed",
+              "include_in_all": true
+            }
+          }
+        }
+      }
+    }  
+ 
  
  5. Create an alias called "docs" that points to "docs_v1"
+    POST /_aliases
+    {
+     "actions" : [
+       { "add"    : { "index" : "docs_v1", "alias" : "docs" } }
+     ]
+    } 
  
- 6. Add some sample data to "docs_v1"
+ 
+ 6. Add 3 sample records to "docs_v1"
+    POST _bulk
+    { "create": { "_index": "docs", "_type": "record", "_id": "1" }}
+    { "main_id": "1", "incident_date": "2016-02-25"}
+    { "create": { "_index": "docs", "_type": "record", "_id": "2" }}
+    { "main_id": "2", "incident_date": "2016-02-25 15:02:02"}
+    { "create": { "_index": "docs", "_type": "record", "_id": "3" }}
+    { "main_id": "3", "incident_date": "2016-02-14T15:01:02-07"}
+
+    POST /docs/_search  
+ 
  
  7. Create a 2nd index called "docs_v2"
-    NOTE:  This is the index that has the changes
+    NOTE:  This is the index has a change to the date field
     
- 8. Reindex the data
- 
+    PUT /docs_v2
+    {
+      "mappings":
+      {
+        "record": {
+          "properties": {
+            "main_id": {
+              "type": "string",
+              "index": "analyzed",
+              "include_in_all": true,
+              "fields": {
+                "raw": {
+                  "type": "string",
+                  "index": "not_analyzed"
+                }
+              }
+            },
+            "incident_date": 
+            {
+              "type": "date",
+              "ignore_malformed": true,
+              "format": "yyyy-MM-dd'T'HH:mm:ssZ||yyyy-MM-dd'T'HH:mm:ss||yyyy-MM-dd HH:mm:ssZ||yyyy-MM-dd HH:mm:ss.SSS||yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||S",
+              "index": "not_analyzed",
+              "include_in_all": true
+            }
+          }
+        }
+      }
+    }
+
+
+ 8. Reindex the data from "docs_v1" to "docs_v2"
+    POST /docs_v1/_reindex/docs_v2
+    
+    
  9. Switch the alias so it points to "docs_v2"
+    POST /_aliases
+    {
+     "actions" : [
+       { "remove" : { "index" : "docs_v1", "alias" : "docs" } },
+       { "add"    : { "index" : "docs_v2", "alias" : "docs" } }
+     ]
+    }
+    
  
  
  
