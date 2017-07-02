@@ -1,11 +1,383 @@
 How to Query ElasticSearch and Highlight Values
 -----------------------------------------------
 
+Assumptions:
+ A) You have an ES cluster running ES 1.7.5
+ B) Your ES cluster is up and running
 
-Case #1:  Highlight results against a single index
---------------------------------------------------
+
+Case #1:  Highlight results when it matches a single field
+----------------------------------------------------------
+ 1. Create a "docs" index
+	DELETE /docs
+
+	PUT /docs
+	{
+       "mappings": {
+          "record": {
+             "properties": {
+                "title": {
+                   "type": "string",
+                   "index": "analyzed",
+                    "include_in_all": true
+                },
+                "source": {
+                   "type": "string",
+                    "index": "analyzed",
+                    "include_in_all": true
+                },
+                "ip-address": {
+                   "type": "ip",
+                   "ignore_malformed": true,
+                   "store": true,
+                   "include_in_all": true,
+                   "fields": {
+                      "raw": {
+                          "type": "string",
+                          "index": "not_analyzed"
+                       }
+                   }
+                },
+                "createDate": {
+                      "ignore_malformed": true,
+                      "type": "date",
+                      "format": "yyyyMMdd HH:mm:ss||yyyy/MM/dd HH:mm:ss.SSS||yyyy/MM/dd HH:mm:ss||yyyy/MM/dd||S",
+                      "index": "not_analyzed",
+                      "include_in_all": true
+                },
+                "description": {
+                     "type": "string",
+                      "index": "analyzed",
+                      "include_in_all": true
+                }
+             }
+          }
+       }
+    }
+
+
+ 2. Add some records to the "docs" index
+
+	POST _bulk
+    { "create": { "_index": "docs", "_type": "record"}}
+    { "title": "Record #1", "ip-address": "1.2.3.4", "source": "log format 1", "createDate": "20101117 03:21:53", "description": "This is the description for record #1" }
+    { "create": { "_index": "docs", "_type": "record"}}
+    { "title": "Record #2", "ip-address": "2.2.2.2", "source": "log format 2", "createDate": "20121109 05:08:26", "description": "This is the description for record #2"}
+    { "create": { "_index": "docs", "_type": "record"}}
+    { "title": "Record #3", "ip-address": "2.2.2.15", "source": "log format 3", "createDate": "20140511 04:06:25", "description": "This is the description for record #3"}
+    { "create": { "_index": "docs", "_type": "record"}}
+    { "title": "Record #4", "ip-address": "3.1.1.15", "source": "log format 4 with the IP address of 3.1.1.15", "createDate": "20140511 04:06:25", "description": "This is the description for record #3"}
+    { "create": { "_index": "docs", "_type": "record"}}
+    { "title": "Record #5", "ip-address": "3.1.1.165", "source": "log format 5", "createDate": "20140511 04:06:25", "description": "This is the description for record #3"}
+
+
+ 3. Search the IP range of 2.2.2.X
+    POST /docs/_search
+    {
+        "size": 5,
+        "query":
+        {
+            "query_string": {
+               "query": "[2.2.2.0 TO 2.2.2.255]"
+            }
+        }
+    }
+
+    Generates these results  [WITHOUT highlighitng]
+    {
+       "took": 3,
+       "timed_out": false,
+       "_shards": {
+          "total": 5,
+          "successful": 5,
+          "failed": 0
+       },
+       "hits": {
+          "total": 2,
+          "max_score": 1,
+          "hits": [
+             {
+                "_index": "docs",
+                "_type": "record",
+                "_id": "AV0FGZJyu1TzrR5iTpQ2",
+                "_score": 1,
+                "_source": {
+                   "title": "Record #2",
+                   "ip-address": "2.2.2.2",
+                   "source": "log format2",
+                   "createDate": "20121109 05:08:26",
+                   "description": "This is the description for record #2"
+                }
+             },
+             {
+                "_index": "docs",
+                "_type": "record",
+                "_id": "AV0FGZJyu1TzrR5iTpQ3",
+                "_score": 1,
+                "_source": {
+                   "title": "Record #3",
+                   "ip-address": "2.2.2.15",
+                   "source": "log format2",
+                   "createDate": "20140511 04:06:25",
+                   "description": "This is the description for record #3"
+                }
+             }
+          ]
+       }
+    }
+
+ 4. Run the search again and tell ES to provide highlighting information in the results
+    NOTE:  We are using the html encoder
+
+    POST /docs/_search
+    {
+        "size": 5,
+        "query":
+        {
+            "query_string": {
+               "query": "[2.2.2.0 TO 2.2.2.255]"
+            }
+        },
+         "highlight" : {
+            "pre_tags" : [ "<span class=\"mark\">" ],
+            "post_tags" : [ "</span>" ],
+            "order" : "score",
+            "encoder" : "html",
+            "require_field_match" : false,
+            "fields" : {
+              "*" : { }
+            }
+          }
+    }
+
+    Generates these results  [WITH highlighitng]
+    {
+       "took": 8,
+       "timed_out": false,
+       "_shards": {
+          "total": 5,
+          "successful": 5,
+          "failed": 0
+       },
+       "hits": {
+          "total": 2,
+          "max_score": 1,
+          "hits": [
+             {
+                "_index": "docs",
+                "_type": "record",
+                "_id": "AV0FGZJyu1TzrR5iTpQ2",
+                "_score": 1,
+                "_source": {
+                   "title": "Record #2",
+                   "ip-address": "2.2.2.2",
+                   "source": "log format2",
+                   "createDate": "20121109 05:08:26",
+                   "description": "This is the description for record #2"
+                },
+                "highlight": {
+                   "ip-address.raw": [
+                      "<span class=\"mark\">2.2.2.2</span>"
+                   ]
+                }
+             },
+             {
+                "_index": "docs",
+                "_type": "record",
+                "_id": "AV0FGZJyu1TzrR5iTpQ3",
+                "_score": 1,
+                "_source": {
+                   "title": "Record #3",
+                   "ip-address": "2.2.2.15",
+                   "source": "log format2",
+                   "createDate": "20140511 04:06:25",
+                   "description": "This is the description for record #3"
+                },
+                "highlight": {
+                   "ip-address.raw": [
+                      "<span class=\"mark\">2.2.2.15</span>"
+                   ]
+                }
+             }
+          ]
+       }
+    }
 
 
 
-Case #2:  Highlight results against multiple indeces
-----------------------------------------------------
+ 5. Search for "log" and highlight the results
+    POST /docs/_search
+    {
+        "size": 5,
+        "query":
+        {
+            "query_string": {
+               "query": "log"
+            }
+        },
+         "highlight" : {
+            "pre_tags" : [ "<span class=\"mark\">" ],
+            "post_tags" : [ "</span>" ],
+            "order" : "score",
+            "encoder" : "html",
+            "require_field_match" : false,
+            "fields" : {
+              "*" : { }
+            }
+          }
+    }
+
+    Generates these results:
+    {
+       "took": 13,
+       "timed_out": false,
+       "_shards": {
+          "total": 5,
+          "successful": 5,
+          "failed": 0
+       },
+       "hits": {
+          "total": 3,
+          "max_score": 0.076713204,
+          "hits": [
+             {
+                "_index": "docs",
+                "_type": "record",
+                "_id": "AV0FIq6k41SoCGoe_z18",
+                "_score": 0.076713204,
+                "_source": {
+                   "title": "Record #3",
+                   "ip-address": "2.2.2.15",
+                   "source": "log format2",
+                   "createDate": "20140511 04:06:25",
+                   "description": "This is the description for record #3"
+                },
+                "highlight": {
+                   "source": [
+                      "<span class=\"mark\">log</span> format2"
+                   ]
+                }
+             },
+             {
+                "_index": "docs",
+                "_type": "record",
+                "_id": "AV0FIq6k41SoCGoe_z16",
+                "_score": 0.076713204,
+                "_source": {
+                   "title": "Record #1",
+                   "ip-address": "1.2.3.4",
+                   "source": "log format1",
+                   "createDate": "20101117 03:21:53",
+                   "description": "This is the description for record #1"
+                },
+                "highlight": {
+                   "source": [
+                      "<span class=\"mark\">log</span> format1"
+                   ]
+                }
+             },
+             {
+                "_index": "docs",
+                "_type": "record",
+                "_id": "AV0FIq6k41SoCGoe_z17",
+                "_score": 0.076713204,
+                "_source": {
+                   "title": "Record #2",
+                   "ip-address": "2.2.2.2",
+                   "source": "log format2",
+                   "createDate": "20121109 05:08:26",
+                   "description": "This is the description for record #2"
+                },
+                "highlight": {
+                   "source": [
+                      "<span class=\"mark\">log</span> format2"
+                   ]
+                }
+             }
+          ]
+       }
+    }
+
+
+
+Case #2:  Highlight results against multiple fields
+---------------------------------------------------
+ 1. Run a search against 3.1.x.x IP address
+    NOTE:  This matches 2 results.  One of those results has 3.1.1.15 in two fields
+
+    POST /docs/_search
+    {
+        "size": 5,
+        "query":
+        {
+            "query_string": {
+               "query": "[3.1.0.0 TO 3.1.255.255]"
+            }
+        },
+         "highlight" : {
+            "pre_tags" : [ "<span class=\"mark\">" ],
+            "post_tags" : [ "</span>" ],
+            "order" : "score",
+            "encoder" : "html",
+            "require_field_match" : false,
+            "fields" : {
+              "*" : { }
+            }
+          }
+    }
+
+    You get the following results:
+    {
+       "took": 6,
+       "timed_out": false,
+       "_shards": {
+          "total": 5,
+          "successful": 5,
+          "failed": 0
+       },
+       "hits": {
+          "total": 2,
+          "max_score": 1,
+          "hits": [
+             {
+                "_index": "docs",
+                "_type": "record",
+                "_id": "AV0FJd0j41SoCGoe_4Mo",
+                "_score": 1,
+                "_source": {
+                   "title": "Record #4",
+                   "ip-address": "3.1.1.15",
+                   "source": "log format 4 with the IP address of 3.1.1.15",
+                   "createDate": "20140511 04:06:25",
+                   "description": "This is the description for record #3"
+                },
+                "highlight": {
+                   "ip-address.raw": [
+                      "<span class=\"mark\">3.1.1.15</span>"
+                   ],
+                   "source": [
+                      "log format 4 with the IP address of <span class=\"mark\">3.1.1.15</span>"
+                   ]
+                }
+             },
+             {
+                "_index": "docs",
+                "_type": "record",
+                "_id": "AV0FJd0j41SoCGoe_4Mp",
+                "_score": 1,
+                "_source": {
+                   "title": "Record #5",
+                   "ip-address": "3.1.1.165",
+                   "source": "log format 5",
+                   "createDate": "20140511 04:06:25",
+                   "description": "This is the description for record #3"
+                },
+                "highlight": {
+                   "ip-address.raw": [
+                      "<span class=\"mark\">3.1.1.165</span>"
+                   ]
+                }
+             }
+          ]
+       }
+    }
