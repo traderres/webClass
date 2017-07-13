@@ -1,0 +1,220 @@
+How to Run Nested Queries in ElasticSearch
+-------------------------------------------
+Problem: 
+  1) We want to allow the query_string to query the nested fields  (but this suffers from the cross-object-domain problem)
+  2) We want to perform nested queries
+  3) We want to combine query strings with nested queries
+  
+Design
+ A) In the ES mapping, set nested=true, set include_in_root=true [so ES will create an object and nested versions]
+ 
+
+Sample Code
+------------
+ 1. Create an ES mapping that has nested fields
+ 
+    DELETE /docs_v1
+
+    PUT /docs_v1
+        {
+          "settings":{
+            "analysis": {
+              "analyzer": {
+                "lowercaseSpaceAnalyzer": {
+                  "type": "custom",
+                  "tokenizer": "whitespace",
+                  "filter": ["lowercase"]
+                }
+              }
+            }
+          },
+          "mappings":
+          {
+
+            "record":  {
+              "properties": {
+                "report_id": {
+                    "type": "integer",
+                    "index": "not_analyzed",
+                    "include_in_all": true,
+                    "copy_to": "suggest"
+                },
+                "report_name": {
+                  "type": "string",
+                  "index": "analyzed",
+                  "include_in_all": true,
+                  "copy_to": "suggest",
+                  "fields": {
+                        "raw": {
+                          "type": "string",
+                          "index": "not_analyzed"
+                        }
+                      }
+                 },
+
+                "location": {
+                  "type": "nested",
+                  "include_in_root": true,
+                  "properties": {
+                     "city": {
+                        "type": "string",
+                        "index": "analyzed",
+                        "include_in_all": true,
+                        "copy_to": "suggest"
+                     },
+                     "state": {
+                        "type": "string",
+                        "index": "analyzed",
+                        "include_in_all": true,
+                        "copy_to": "suggest"
+                     },
+                     "type": {
+                        "type": "string",
+                        "index": "analyzed",
+                        "include_in_all": true,
+                        "copy_to": "suggest"
+                     }
+
+
+                  }
+               },
+                "suggest":
+                {
+                  "type": "completion",
+                  "index_analyzer": "lowercaseSpaceAnalyzer",
+                  "search_analyzer": "lowercaseSpaceAnalyzer",
+                  "preserve_separators": false
+                }
+
+              }
+            }
+          }
+        }    
+
+
+    PUT /docs_v1/_alias/docs     
+
+
+
+ 2. Insert 4 sample records 
+ 
+    POST _bulk
+    { "create": { "_index": "docs", "_type": "record", "_id": "1" }}
+    { "report_id": "1", "report_name": "file1.txt", "location": [ {"type": "retail", "city": "Washington", "state": "DC"}, {"type": "commercial", "city":"Albany", "state": "NY"} ] }
+    { "create": { "_index": "docs", "_type": "record", "_id": "2" }}
+    { "report_id": "2", "report_name": "file2.doc",  "location": [ {"type": "retail", "city": "Portland",  "state": "OR"}, {"type": "commercial", "city":"San Diago", "state": "CA"} ] }
+    { "create": { "_index": "docs", "_type": "record", "_id": "3" }}
+    { "report_id": "3", "report_name": "file3.pdf",  "location": [ {"type": "retail", "city": "Annapolis", "state": "MD"}, {"type": "commercial", "city":"Richmond", "state": "VA"} ] }
+    { "create": { "_index": "docs", "_type": "record", "_id": "4" }}
+    { "report_id": "4", "report_name": "file4.pdf",  "location": [ {"type": "commercial", "city": "Washington", "state": "DC"} ] }
+
+    IMPORTANT:  You must have a carriage return after every line (including the last one)
+
+
+ 3. Examine your records
+    POST /docs/_search
+    
+    
+ 4. Use query_string to search for type=commercial AND city=washington
+    NOTE:
+      1) This *should* return 1 record   (record #4)
+      2) ES actually returns 2 records (record #1 and #4) 
+         This is because of the cross-object-domain problem.
+         
+    
+    POST /docs/_search
+    {
+       "query": {
+          "query_string" : {
+              "query": "location.type:commercial AND  location.city:washington"
+          }
+       }
+    }
+    
+    
+    
+ 5. Use a nested_query to search for type=commercial AND city=washington
+    NOTE:
+     1) This query works properly:  It returns the 1 record  (record #4)
+     
+     
+    POST /docs/_search
+    {
+        "query":
+        {
+            "nested":
+            {
+                "path": "location",
+                "query":
+                {
+                    "bool": 
+                    {
+                        "must":
+                        [
+                           {
+                                "term":
+                                {
+                                    "location.type": "commercial"
+                                }
+                           },        
+                           {
+                                "term": 
+                                {
+                                    "location.city": "washington"
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    }        
+ 
+ 
+ 6. Search using the query_string *AND* nested query
+    NOTE
+      1) Use the query_string to search for all items with report_name that starts with flie
+      2) Use the nested query to search for all items with location.city=washington *AND* location.type=commercial
+    
+    POST /docs/_search
+    {
+      "query": {
+        "bool": {
+          "must": [
+            {
+              "query_string": {
+                "query": "report_name:/file.*/"
+              }
+            },
+            {
+                "nested": 
+                {
+                    "path": "location",
+                    "query":
+                    {
+                        "bool": 
+                        {
+                            "must":
+                            [
+                               {
+                                    "term":
+                                    {
+                                        "location.type": "commercial"
+                                    }
+                               },        
+                               {
+                                    "term": 
+                                    {
+                                        "location.city": "washington"
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+          ]
+        }
+      }
+    }
+
