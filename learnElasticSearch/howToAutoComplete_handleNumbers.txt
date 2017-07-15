@@ -1,65 +1,377 @@
 How to AutoComplete and handle Numeric Fields
 ---------------------------------------------
-Problem:  The "copy_to" trick requires the same field type in the source and destination field
-          So, you cannot "copy_to" from an "integer" to a "completion" field
+Problem:  You have an ES mapping with multiple fields that you want to copy to a "suggest" column
+          But, the "copy_to" trick does not work with numberic fields
+          -- The "copy_to" command only works with the *SAME* field type in the source and destination field
+          -- So, you cannot "copy_to" from an "integer" to a "completion" field
 
 
-Possible Solutions
-------------------
+Possible Approaches
+-------------------
  1) Index the number as a string
-    -- When you index the data, put your numeric field in as a string
-    -- ES (by default) will coerce the numeric field to a string
-    -- And, then the copy_to action will copy the string to your "completion" field
+ 2) Change the ES mapping:  Remove copy_to from the numeric field.  Leave it as an Integer
+ 3) Change the ES mapping:  Keep copy_to on all fields & change numeric field to a String
+ 4) Change the ES mapping:  Remove copy_to from all & set the numeric field as a Integer
 
- 2)
 
-		DELETE /bogusindex
 
-		PUT /bogusindex
-		{
-		    "settings":{
-		      "analysis": {
-		        "analyzer": {
-		          "lowercaseSpaceAnalyzer": {
-		            "type": "custom",
-		            "tokenizer": "whitespace",
-		            "filter": [ "lowercase"]
-		          }
-		        }
-		      }
-		  },
-		"mappings":
-		   {
-		      "record":
-		      {
-		         "properties":
-		         {
-		            "start_ip": {
-		               "type": "ip",
-		               "store": true,
-		               "copy_to": "suggest",
-		               "include_in_all": true
-		            },
-		            "country": {
-		               "type": "string",
-		               "index": "not_analyzed",
-		               "copy_to": "suggest",
-		               "include_in_all": true
-		            },
-		            "source": {
-		               "type": "string",
-		               "index": "not_analyzed",
-		               "copy_to": "suggest",
-		               "include_in_all": true
-		            },
-		            "suggest":
-		            {
-		                "type": "completion",
-		                "index_analyzer": "lowercaseSpaceAnalyzer",
-		                "search_analyzer": "lowercaseSpaceAnalyzer",
-		                "preserve_separators": false
-		            }
-		          }
-		      }
-		   }
-		}
+Approach #1:  Index the number as a string
+------------------------------------------
+Index the number as a string
+-- When you index the data, put your numeric field in as a string
+-- ES (by default) will coerce the numeric field to a string
+-- And, then the copy_to action will copy the string to your "completion" field
+
+
+    a. Create a mapping for TEST with port defined as an integer
+       NOTE:  The "copy_to" will only work if the port is indexed as a string
+
+        DELETE /test
+
+        PUT /test
+        {
+          "settings":{
+            "analysis": {
+              "analyzer": {
+                "lowercaseSpaceAnalyzer": {
+                  "type": "custom",
+                  "tokenizer": "whitespace",
+                  "filter": ["lowercase"]
+                }
+              }
+            }
+          },
+          "mappings":
+          {
+            "record":  {
+              "properties": {
+                "port": {
+                    "type": "integer",
+                    "index": "not_analyzed",
+                    "include_in_all": true,
+                    "coerce": true,
+                    "copy_to":    "suggest"
+                },
+                "name": {
+                  "type": "string",
+                  "index": "analyzed",
+                  "include_in_all": true,
+                  "copy_to":    "suggest",
+                  "fields": {
+                        "raw": {
+                          "type": "string",
+                          "index": "not_analyzed"
+                        }
+                      }
+                 },
+                "suggest":
+                {
+                  "type": "completion",
+                  "analyzer": "lowercaseSpaceAnalyzer",
+                  "preserve_separators": false
+                }
+
+              }
+            }
+          }
+        }
+
+
+     b. Add some records using a POST _bulk
+        NOTE:  The port field as the numbers passed-in as **strings**
+
+        POST _bulk
+        { "index": { "_index": "test", "_type": "record", "_id": "1" }}
+        { "name": "item #1", "port": "8002"}
+        { "index": { "_index": "test", "_type": "record", "_id": "2" }}
+        { "name": "item #2", "port": "8080" }
+        { "index": { "_index": "test", "_type": "record", "_id": "3" }}
+        { "name": "item #3", "port": "443" }
+        { "index": { "_index": "test", "_type": "record", "_id": "4" }}
+        { "name": "item #4", "port": "8443" }
+
+
+     c. Simulate the auto-complete as if a user entered "8"
+        NOTE:  I should get 3 results back and I do.
+
+        POST /test/_suggest
+        {
+            "suggest": {
+                "text": "8",
+                "completion": {
+                    "field": "suggest",
+                    "size": 5
+                }
+            }
+        }
+
+        The returned output is this:
+        {
+           "_shards": {
+              "total": 5,
+              "successful": 5,
+              "failed": 0
+           },
+           "suggest": [
+              {
+                 "text": "8",
+                 "offset": 0,
+                 "length": 1,
+                 "options": [
+                    {
+                       "text": "8002",
+                       "score": 1
+                    },
+                    {
+                       "text": "8080",
+                       "score": 1
+                    },
+                    {
+                       "text": "8443",
+                       "score": 1
+                    }
+                 ]
+              }
+           ]
+        }
+
+
+
+Approach #2:  Change the ES mapping:  Remove copy_to from the numeric field.  Leave it as an Integer
+----------------------------------------------------------------------------------------------------
+In this case, we remove the "copy_to" from the numeric field
++ We can index the data as an integer or Stirng
+- But, the numeric value will not be in the "suggest" so we will *NOT* be able to auto-complete on numeric fields
+
+
+
+Approach #3:  Change the ES mapping:  Keep copy_to on all fields & change numeric field to a String
+---------------------------------------------------------------------------------------------------
+In this case, we set the numeric field as a string
++ We can auto-complete on the numeric field
+- Because ES stores this numeric field as a String, we cannot do range searches
+  So, we cannot do port:[100 To 1000] on this field as the field is not an integer
+
+
+    a. Create a mapping for TEST with port defined as a string
+
+        DELETE /test
+
+        PUT /test
+        {
+          "settings":{
+            "analysis": {
+              "analyzer": {
+                "lowercaseSpaceAnalyzer": {
+                  "type": "custom",
+                  "tokenizer": "whitespace",
+                  "filter": ["lowercase"]
+                }
+              }
+            }
+          },
+          "mappings":
+          {
+            "record":  {
+              "properties": {
+                "port": {
+                  "type": "string",
+                  "index": "analyzed",
+                  "include_in_all": true,
+                  "copy_to":    "suggest",
+                  "fields": {
+                        "raw": {
+                          "type": "string",
+                          "index": "not_analyzed"
+                        }
+                      }
+                 },
+                "name": {
+                  "type": "string",
+                  "index": "analyzed",
+                  "include_in_all": true,
+                  "copy_to":    "suggest",
+                  "fields": {
+                        "raw": {
+                          "type": "string",
+                          "index": "not_analyzed"
+                        }
+                      }
+                 },
+                "suggest":
+                {
+                  "type": "completion",
+                  "analyzer": "lowercaseSpaceAnalyzer",
+                  "preserve_separators": false
+                }
+
+              }
+            }
+          }
+        }
+
+
+     b. Add some records using a POST _bulk
+        NOTE:  The port field as the numbers passed-in as **strings**
+
+        POST _bulk
+        { "index": { "_index": "test", "_type": "record", "_id": "1" }}
+        { "name": "item #1", "port": "8002"}
+        { "index": { "_index": "test", "_type": "record", "_id": "2" }}
+        { "name": "item #2", "port": "8080" }
+        { "index": { "_index": "test", "_type": "record", "_id": "3" }}
+        { "name": "item #3", "port": "443" }
+        { "index": { "_index": "test", "_type": "record", "_id": "4" }}
+        { "name": "item #4", "port": "8443" }
+
+
+     c. Simulate the auto-complete as if a user entered "8"
+        NOTE:  I should get 3 results back and I do.
+
+        POST /test/_suggest
+        {
+            "suggest": {
+                "text": "8",
+                "completion": {
+                    "field": "suggest",
+                    "size": 5
+                }
+            }
+        }
+
+
+
+Approach #4:  Change the ES mapping:  Remove copy_to from all & set the numeric field as an Integer
+---------------------------------------------------------------------------------------------------
+In this approach, we must manually index the "suggest" field
+NOTE:  I added _meta data to the index so that whoever indexes this field knows which fields to send
+
+
+    a. Create a mapping for TEST with port defined as an integer
+       NOTE:  The "copy_to" will only work if the port is indexed as a string
+
+        DELETE /test
+
+        PUT /test
+        {
+          "settings":{
+            "analysis": {
+              "analyzer": {
+                "lowercaseSpaceAnalyzer": {
+                  "type": "custom",
+                  "tokenizer": "whitespace",
+                  "filter": ["lowercase"]
+                }
+              }
+            }
+          },
+          "mappings":
+          {
+            "record":  {
+               "_meta": {
+                    "suggest_columns": "port, name"
+              },
+
+              "properties": {
+                "port": {
+                    "type": "integer",
+                    "index": "not_analyzed",
+                    "include_in_all": true,
+                    "coerce": true
+                },
+                "name": {
+                  "type": "string",
+                  "index": "analyzed",
+                  "include_in_all": true,
+                  "fields": {
+                        "raw": {
+                          "type": "string",
+                          "index": "not_analyzed"
+                        }
+                      }
+                 },
+                "suggest":
+                {
+                  "type": "completion",
+                  "analyzer": "lowercaseSpaceAnalyzer",
+                  "preserve_separators": false
+                }
+
+              }
+            }
+          }
+        }
+
+
+    b. Get the mapping metadata which shows which columns to send to suggest
+        GET /test/_mapping
+
+        Generates this output
+        {
+           "test": {
+              "mappings": {
+                 "record": {
+                    "_meta": {
+                       "suggest_columns": "port, name"
+                    },
+                    "properties": {
+                       "name": {
+                          "type": "string",
+                          "fields": {
+                             "raw": {
+                                "type": "string",
+                                "index": "not_analyzed"
+                             }
+                          },
+                          "include_in_all": true
+                       },
+                       "port": {
+                          "type": "integer",
+                          "coerce": true,
+                          "include_in_all": true
+                       },
+                       "suggest": {
+                          "type": "completion",
+                          "analyzer": "lowercaseSpaceAnalyzer",
+                          "payloads": false,
+                          "preserve_separators": false,
+                          "preserve_position_increments": true,
+                          "max_input_length": 50
+                       }
+                    }
+                 }
+              }
+           }
+        }
+
+
+    c. Add some records using a POST _bulk
+        NOTE:  The port field is indexed as a **integer**
+               The suggest field is manually set
+
+        POST _bulk
+        { "index": { "_index": "test", "_type": "record", "_id": "1" }}
+        { "name": "item #1", "port": 8002, "suggest": ["item #1", "8002"] }
+        { "index": { "_index": "test", "_type": "record", "_id": "2" }}
+        { "name": "item #2", "port": 8080, "suggest": ["item #1", "8080"] }
+        { "index": { "_index": "test", "_type": "record", "_id": "3" }}
+        { "name": "item #3", "port": 443, "suggest": ["item #1", "443"] }
+        { "index": { "_index": "test", "_type": "record", "_id": "4" }}
+        { "name": "item #4", "port": 8443, "suggest": ["item #1", "8443"] }
+
+
+    d. Simulate the auto-complete as if a user entered "8"
+        NOTE:  I should get 3 results back and I do.
+
+        POST /test/_suggest
+        {
+            "suggest": {
+                "text": "8",
+                "completion": {
+                    "field": "suggest",
+                    "size": 5
+                }
+            }
+        }
+
+
