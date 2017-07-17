@@ -1,0 +1,121 @@
+How to Filter using an N-gram Tokenizer
+---------------------------------------
+Problem:  You want to filter the results based on a single-character match
+
+Solution: Create an n-gram tokenizer to look for ngrams of size=1 to size=25 chars
+
+
+Design
+ 1) Create a tokenizer called "my_ngram_tokenizer"
+ 2) Create an analyzer called my_ngram_analyzer which will convert to lowercase and grab the tokens
+ 3) Create a field called "report_name"
+
+
+
+Procedure
+---------
+ 1. Delete the existing index
+    DELETE /test3
+
+ 2. Create the index with 3 versions of report_name
+      report_name           will be for searching
+      report_name.raw       will hold the raw text
+      report_name.filtered  will be used for filtering by single-char
+
+
+    PUT /test3
+    {
+            "settings" : {
+                "analysis" : {
+                    "tokenizer" : {
+                        "my_ngram_tokenizer" : {
+                            "type" : "nGram",
+                            "min_gram" : "1",
+                            "max_gram" : "25",
+                            "token_chars": [ ]
+                        }
+                    },
+                   "analyzer" : {
+                        "my_ngram_analyzer" : {
+                            "tokenizer" : "my_ngram_tokenizer",
+                             "filter": ["lowercase"]
+                        }
+                    }
+                }
+            },
+           "mappings":
+           {
+              "record": {
+                 "properties": {
+                    "report_name" : {
+                        "type": "string",
+                        "analyzer": "standard",
+
+                        "fields" : {
+                            "raw": {
+                                "type": "string",
+                                "index": "not_analyzed"
+                            },
+                            "filtered" : {
+                                "type": "string",
+                                "index_analyzer": "my_ngram_analyzer",
+                                "term_vector": "no"
+                            }
+                        }
+
+                     }
+                }
+              }
+           }
+    }
+
+
+ 3. Add some data
+    POST _bulk
+    { "index": { "_index": "test3", "_type": "record", "_id": 1 }}
+    { "report_name": "Email One.pdf"}
+    { "index": { "_index": "test3", "_type": "record", "_id": 2 }}
+    { "report_name": "Email TWO.txt"}
+    { "index": { "_index": "test3", "_type": "record", "_id": 3 }}
+    { "report_name": "Email Three.pdf"}
+    { "index": { "_index": "test3", "_type": "record", "_id": 4 }}
+
+
+ 4. Search everything
+    POST /test3/_search
+
+
+ 5. View the term vectors for the 1st document
+    GET /test3/record/2/_termvector?fields=report_name
+
+
+ 6. Simulate doing a filter on the report_name like '%email t%'
+    NOTES
+     1) We use the "term" query so you have put the search text in lower case
+     2) Should return 2 results
+
+    POST /test3/_search
+    {
+        "query": {
+            "term": {
+               "report_name.filtered": "email t"
+            }
+        }
+    }
+
+
+  7. Simulate doing a filter on the report_name like '%p%'
+    NOTES
+     1) We use the "term" query so you have put the search text in lower case
+     2) Should return 1 result
+
+    POST /test3/_search
+    {
+        "query": {
+            "term": {
+               "report_name.filtered": "email one"
+            }
+        }
+    }
+
+
