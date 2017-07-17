@@ -1,0 +1,113 @@
+How to Filter using an N-gram Filter
+------------------------------------
+Problem:  You want to filter the results based on a single-character match
+
+Solution: Create an n-gram filter to look for ngrams of size=1 to size=25 chars
+
+
+
+Procedure
+---------
+ 1. Delete the existing index
+    DELETE /test
+
+ 2. Create the index with 3 versions of report_name
+      report_name           will be for searching
+      report_name.raw       will hold the raw text
+      report_name.filtered  will be used for filtering by single-char
+
+
+     PUT /test
+     {
+        "settings": {
+           "number_of_shards": 1,
+           "analysis": {
+              "filter": {
+                 "ngram_filter": {
+                    "type": "ngram",
+                    "min_gram": 1,
+                    "max_gram": 20
+                 }
+              },
+              "analyzer": {
+                 "ngram_analyzer": {
+                    "type": "custom",
+                    "tokenizer": "standard",
+                    "filter": [
+                       "lowercase",
+                       "ngram_filter"
+                    ]
+                 }
+              }
+           }
+        },
+       "mappings": {
+           "record": {
+              "properties": {
+                 "report_name" : {
+                     "type": "string",
+                     "analyzer": "standard",
+
+                       "fields" : {
+                            "raw": {
+                                "type": "string",
+                                "index": "not_analyzed"
+                            },
+                            "filtered" : {
+                                "type": "string",
+                                 "index_analyzer": "ngram_analyzer",
+                                 "search_analyzer": "standard"
+                            }
+                        }
+                    }
+                   }
+                }
+         }
+      }
+
+
+ 3. Add some data
+    POST _bulk
+    { "index": { "_index": "test", "_type": "record", "_id": 1 }}
+    { "report_name": "Email One.pdf"}
+    { "index": { "_index": "test", "_type": "record", "_id": 2 }}
+    { "report_name": "Email TWO.txt"}
+    { "index": { "_index": "test", "_type": "record", "_id": 3 }}
+    { "report_name": "Email Three.pdf"}
+    { "index": { "_index": "test", "_type": "record", "_id": 4 }}
+
+
+ 4. Search everything
+    POST /test/_search
+
+
+ 5. View the term vectors for the 1st document
+    GET /test/record/2/_termvector?fields=report_name
+
+
+ 6. Simulate doing a filter on the report_name like '%email t%'
+    It Should return 2 results
+
+    POST /test/_search
+    {
+        "query": {
+            "match_phrase": {
+               "report_name.filtered": "email t"
+            }
+        }
+    }
+
+
+ 7. Simulate doing a filter on the report_name like '%p%'
+    It Should return 1 result
+
+    POST /test/_search
+    {
+        "query": {
+            "term": {
+               "report_name.filtered": "email one"
+            }
+        }
+    }
+
+
