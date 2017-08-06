@@ -1,5 +1,6 @@
 How to Empty a Kafka Topic (fully)
 ----------------------------------
+The trick is to set the retention time to 1 second, give Kafka a minute to process, and then set the retention time back
 
 Assumptions:
  A) You have a $KAFKA_HOME variable set
@@ -10,12 +11,20 @@ Procedure
  1. Create this bash script
     unix> vi emptyTopic.sh
 
+    NOTE:  Remove any leading spaces
+
         #!/bin/bash
+
         echo "Enter name of topic to empty:"
         read topicName
+
+        echo Setting the retention.ms to be 1000
         $KAFKA_HOME/bin/kafka-configs.sh --zookeeper localhost:2181 --alter --entity-type topics --entity-name $topicName --add-config retention.ms=1000
-        echo sleeping for 90 secs (so kafka will process the change)
+
+        echo 'sleeping for 90 secs (so kafka will process the change)'
         sleep 90
+
+        echo Deleting the rention.ms time
         $KAFKA_HOME/bin/kafka-configs.sh --zookeeper localhost:2181 --alter --entity-type topics --entity-name $topicName --delete-config retention.ms
 
 
