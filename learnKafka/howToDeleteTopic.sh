@@ -1,0 +1,48 @@
+How to Delete a Kafka Topic (fully)
+-----------------------------------
+
+Assumptions:
+ A) You have a $KAFKA_HOME variable set
+
+
+Procedure
+---------
+ 1. Create this bash script
+    unix> vi deleteTopic.sh
+
+        #!/bin/bash
+        echo "Enter name of topic to delete from zookeeper:"
+        read topicName
+        $KAFKA_HOME/bin/zookeeper-shell.sh localhost:2181 <<EOF
+        rmr /brokers/topics/$topicName
+        ls /brokers/topics
+        quit
+        EOF
+
+ 2. Make this script executable
+    unix> chmod ugo+x deleteTopics.sh
+
+
+ 3. Create a sample topic called "stuff"
+    unix> cd $KAFKA_HOME
+    unix> bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic stuff
+
+
+ 4. List the topics
+    unix> cd $KAFKA_HOME
+    unix>  bin/kafka-topics.sh --list --zookeeper localhost:2181
+    -- You should see the topic called "stuff"
+
+
+ 5. Delete your topic
+    unix> ./deleteTopic.sh
+
+    Enter name of topic to delete from zookeeper: stuff <enter>
+
+
+ 6. List the topics (you should see that "stuff" is not present)
+     unix> cd $KAFKA_HOME
+     unix>  bin/kafka-topics.sh --list --zookeeper localhost:2181
+     -- You should see the topic called "stuff" is not present
+
+
