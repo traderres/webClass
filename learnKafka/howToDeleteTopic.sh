@@ -20,7 +20,7 @@ Procedure
         EOF
 
  2. Make this script executable
-    unix> chmod ugo+x deleteTopics.sh
+    unix> chmod ugo+x deleteTopic.sh
 
 
  3. Create a sample topic called "stuff"
