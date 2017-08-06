@@ -1,6 +1,6 @@
-How to Empty a Kafka Topic (fully)
-----------------------------------
-The trick is to set the retention time to 1 second, give Kafka a minute to process, and then set the retention time back
+How to Empty a Kafka Topic (without restarting Kafka)
+-----------------------------------------------------
+The trick is to set the retention time to 1 second, give Kafka 300 seconds to process, and then set the retention time back
 
 Assumptions:
  A) You have a $KAFKA_HOME variable set
