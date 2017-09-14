@@ -1,0 +1,460 @@
+How to Use Bash to Age Off ElasticSearch Data
+---------------------------------------------
+
+
+Sample Bash Script
+------------------
+
+#!/bin/bash 
+#######################################################
+# Filename:  ageOffData.sh
+#######################################################
+# Purpose:
+#   Provide a way to age-off old ElasticSearch data
+#
+# Design:
+#   1) Verify that the base index exists    -- e.g., verify that eemsg exists
+#   2) Identify the oldest index to age-off -- e.g., identify eemsg_20170801
+#   3) Create a new index for today         -- e.g., create eemsg_{YYYYMMDD} for today
+#   4) Adjust the aliases:
+#      a) Remove the oldest index from the base index -- e.g., remove eemsg_20170801
+#      b) Add newly created index to the alias -- e.g., add eemsg_{YYYYMMDD} to eemsg
+#      c) Set the ingest write alias to today's index -- e.g., set eemsg_ingest = eemsg{YYYYMMDD}
+#   5) Delete the oldest index              -- e.g., delete eemsg_20170801
+#
+# Usage:
+#   1) unix> ./ageOffData.sh <enter>
+#
+# Assumptions:
+#   1) This script would create indexes using this name:  <index_root_name>_YYYYMMDD
+#   2) The web app would search this ES index:            <index_root_name>
+#   3) The ingest would write records to this ES index:   <index_root_name>_ingest
+# 
+# History:
+#   Create Date:  09/12/2017
+#######################################################
+gsIndexRootName="docs"
+gsIngestWriteAlias="docs_ingest"            # Holds the alias that ingest will write to (alias to today's index)
+giTotalDaysToHold=30
+
+
+
+gsScriptName=`basename $0`                   # Holds the name of this bash script
+gsEsHostname=`hostname`                      # Holds the hostname of one of the ES nodes
+gsTmpFilePath=/tmp/${gsScriptName}.$$.tmp    # Holds the path of temporary files
+declare -a glIndexesToDelete=( )
+
+
+#######################################################
+# cleanup()
+#
+# This method is always called before the script ends
+#######################################################
+function cleanup() 
+{
+  # Clean-up the tmp file
+  rm -f $gsTmpFilePath
+
+  echo "${gsScriptName} finished as of `date`"
+}
+
+# Tell bash to call cleanup() when the program ends
+# NOTE:  Whether the program crashes or succeeds, this method is the last method called
+trap cleanup EXIT
+
+
+#######################################################
+# dieIfElasticSearchCallFailed()
+#
+# If the ES call failed, then die
+#######################################################
+function dieIfElasticSearchCallFailed()
+{
+  local aEsResponse=$1
+  local iStatusCode=200
+  local quoted_regexp='\"status\":([0-9]+)'
+  local quoted_ack='{"acknowledged":true}'
+
+  # Verify passed-in arguments to this function are valid
+  [[ -z $aEsResponse ]] && die "The passed-in aEsResponse is an empty string"
+
+  if [ "$aEsResponse" == $quoted_ack ]; then
+    # ES responded with "acknowledged:true" so this ES call is valid
+    iStatusCode=200
+  elif [[ $aEsResponse =~ $quoted_regexp ]]; then
+    # Get the status code from the passed-in aEsResponse string
+    iStatusCode=${BASH_REMATCH[1]}
+  fi
+
+  if [ $iStatusCode -ne 200 ]; then
+      # The status code (returned from ES) is not 200 -- so something failed
+      echo -e "\tElasticSearch call failed on line ${BASH_LINENO[0]}\n\tError in function ${FUNCNAME[1]}\n\t${aEsResponse}\n" >&2
+      exit 1
+  fi
+
+  echo -e "\tLast ES call succeeded."
+}
+
+
+
+#######################################################
+# doesIndexExist()
+# If index exists, return status code of zero
+# If index does not exist, return a status code of a positive number
+#######################################################
+function doesIndexExist()
+{
+  local aIndexName=$1
+
+  echo -e "\ndoesIndexExist()  aIndexName=$aIndexName"
+
+  # Verify passed-in arguments to this function are valid
+  [[ -z $aIndexName ]] && die "The passed-in aIndexName is an empty string"
+  
+  # Make an ES call to verify if this Index exists
+  # NOTE:  We use the --fail option so that curl will return an exit code of zero if the call works (and if the index exists)
+  curl -k --fail --cert "/etc/pki/private/${gsEsHostname}.pem" -XGET "https://${gsEsHostname}:9200/${aIndexName}/_mappings" > /dev/null 2>/dev/null
+  local iReturnCode=$?
+  if [ $iReturnCode -eq 0 ]; then
+    echo -e "\tYes, this index exists:  ${aIndexName}\n"
+  else
+    echo -e "\tNo, this index does not exist:  ${aIndexName}\n"
+  fi 
+
+  return $iReturnCode
+}
+
+
+
+#######################################################
+# deleteIndex()
+#
+# If delete operation successed, return status code of zero
+# If delete operation fails, return status code of positive number
+#######################################################
+function deleteIndex()
+{
+  local aIndexName=$1
+
+  echo -e "\ndeleteIndex()  aIndexName=$aIndexName"
+
+  # Verify passed-in arguments to this function are valid
+  [[ -z $aIndexName ]] && die "The passed-in aIndexName is an empty string"
+  
+  # Make the ES call to delete this index
+  # NOTE:  The --fail command will return an exist status code of a positive number if the ES call fails
+  curl -k --fail --cert "/etc/pki/private/${gsEsHostname}.pem" -XDELETE "https://${gsEsHostname}:9200/${aIndexName}" >/dev/null 2>/dev/null
+  local iReturnCode=$?
+  if [ $iReturnCode -eq 0 ]; then
+    echo -e "\tSuccessfully deleted this index: ${aIndexName}\n"
+  else
+    die "Failed to delete this index ${aIndexName}\n"
+  fi 
+  
+  return $iReturnCode
+}
+
+
+
+
+#######################################################
+# deleteIndexIfExists()
+#
+# If the index does not exist, do nothing
+# If the index exists, then attempt to delete it
+# 
+# NOTE:  If the delete operation fails, then die
+#######################################################
+function deleteIndexIfExists()
+{
+  local aIndexName=$1
+
+  echo -e "\ndeleteIndexIfExists()  aIndexName=$aIndexName"
+
+  # Verify passed-in arguments to this function are valid
+  [[ -z $aIndexName ]] && die "The passed-in aIndexName is an empty string"
+
+  doesIndexExist $aIndexName
+  if [ $? -eq 0 ]; then
+     # This index exists -- so attempt to delete it
+     deleteIndex $aIndexName
+
+     if [ $? -ne 0 ]; then
+         die "I failed to delete this index:  $aIndexName"
+     fi
+  fi
+
+}
+
+
+
+
+#######################################################
+# die()
+# Display the message and return an exit status of 1
+#######################################################
+function die()
+{
+  local sMessage=$1
+  if [ -z "sMessage" ]; then
+     $sMessage = "Died"
+  fi 
+
+   echo -e "\n${gsScriptName} died as of `date`\nError on line ${BASH_LINENO[0]}\nError in function ${FUNCNAME[1]}\n${sMessage}\n" >&2
+   exit 1
+}
+
+
+#######################################################
+# createTodaysIndexIfNeeded()
+#  1) Get the mapping for the passed-in root name
+#  2) Create a new index with the index name of {index_root_name}_YYYYMMDD
+#######################################################
+function createTodaysIndexIfNeeded()
+{
+  local aIndexNameSourceMapping=$1
+  local aTodaysIndexName=$2
+  local output=""
+
+  echo -e "\ncreateTodaysIndexIfNeeded()  aIndexNameSourceMapping=$aIndexNameSourceMapping   aTodaysIndexName=${aTodaysIndexName}"
+
+  doesIndexExist $aTodaysIndexName
+  if [ $? -eq 0 ]; then
+     echo -e "\tToday's index already exists: ${aTodaysIndexName}"
+     return
+  fi
+
+  # Verify passed-in arguments to this function are valid
+  [[ -z $aIndexNameSourceMapping ]] && die "The passed-in aIndexNameSourceMapping is an empty string"
+  [[ -z $aTodaysIndexName ]] && die "The passed-in aTodaysIndexName is an empty string"
+
+  # Get the mapping for the index and write them to the temporary file
+  echo -e "\tGetting the mapping for this index:  ${aIndexRootName}"
+  curl -k --cert "/etc/pki/private/${gsEsHostname}.pem" -XGET "https://${gsEsHostname}:9200/${aIndexNameSourceMapping}/_mappings?pretty" > $gsTmpFilePath 2>/dev/null
+  if [ $? -ne 0 ]; then
+     die "I failed to get the mappings for this index: ${aIndexRootName}"
+  fi
+
+  # Create index for today
+  echo -e "\tCreating an index for today:  ${aTodaysIndexName}"
+  output=`curl -k --cert "/etc/pki/private/${gsEsHostname}.pem" -XPUT "https://${gsEsHostname}:9200/${aTodaysIndexName}" --data-binary @${gsTmpFilePath} 2>/dev/null` 
+  dieIfElasticSearchCallFailed "$output"
+
+  echo -e "\tSuccessfully created this index for today:  ${aTodaysIndexName}"
+}
+
+
+ 
+#######################################################
+# verifyIndexExists()
+# 1) Run an ES call to see if the passed-in index name exists
+# 2) If the index does not exist, then die
+#######################################################
+function verifyIndexExists()
+{
+  local aIndexName=$1
+
+  echo -e "\nverifyIndexExists()  aIndexName=${aIndexName}"
+
+  # Verify passed-in arguments to this function are valid
+  [[ -z $aIndexName ]] && die "The passed-in aIndexName is an empty string"
+
+  # Make an ES call to verify that this index exists
+  curl -k --fail --cert "/etc/pki/private/${gsEsHostname}.pem" -XGET "https://${gsEsHostname}:9200/${aIndexName}" >/dev/null 2>/dev/null
+  if [ $? -ne 0 ]; then
+     die "This index does not exist:  ${aIndexName}"
+  fi
+
+  echo -e "\tThis index exists:  ${aIndexName}"
+} 
+
+
+
+#######################################################
+# identifyIndexesToAgeOff()
+# 1) Determine the date that of the oldest valid index date
+# 2) Get a list of all indexes for this index root name
+# 3) Loop through the list of indexes
+#    If the index name has a date is older than the oldest vlaid date
+#    Then add it to the list of indexes to delete
+#
+# NOTE:  This method stores the indexes to delete in a
+#        global list called glIndexesToDelete
+#######################################################
+function identifyIndexesToAgeOff()
+{
+  local aIndexRootName=$1
+  local aiTotalDaysToHold=$2
+
+  local sOldestIndexDateFragment=""
+  local iTotalIndexesToAgeOff=0
+  local sIndexToDelete=""
+
+  echo -e "\nidentifyIndexesToAgeOff()  aIndexRootName=${aIndexRootName}  aiTotalDAysToHold=$aiTotalDaysToHold"
+
+  # Verify passed-in arguments to this function are valid
+  [[ -z $aIndexRootName ]] && die "The passed-in aIndexRootName is an empty string"
+  [[ -z "$aiTotalDaysToHold" ]] && die "The passed-in aiTotalDaysToHold is an empty string"
+
+
+  # Use the data command to calculate the oldest *valid* index date
+  local iOldestValidDate=`date +%Y%m%d -d "${aiTotalDaysToHold} day ago" `
+  echo -e "\tAny index older than ${iOldestValidDate} will be deleted."
+
+  echo -e "\tExamining these indices:"
+  curl -k --cert "/etc/pki/private/${gsEsHostname}.pem" -XGET "https://${gsEsHostname}:9200/_cat/indices" 2>/dev/null | awk '{print $3}' | grep "${aIndexRootName}_[0-9]\{8\}" | sort | sed 's/^/\t\t/'
+  echo " "
+
+  local indexList=( `curl -k --cert "/etc/pki/private/${gsEsHostname}.pem" -XGET "https://${gsEsHostname}:9200/_cat/indices" 2>/dev/null | awk '{print $3}' | grep "${aIndexRootName}_[0-9]\{8\}" | grep -o "[0-9]\{8\}" | sort `)
+  for indexDate in "${indexList[@]}"
+  do
+     if [[ $indexDate -lt $iOldestValidDate ]]; then
+       # I found an index that should be aged off
+
+       # Build the name of this index (that will be deleted)
+       sIndexToDelete="${aIndexRootName}_${indexDate}"
+
+       # Append this index name to the global list of index names to delete
+       glIndexesToDelete+=" ${sIndexToDelete}"
+
+       (( iTotalIndexesToAgeOff++ ))
+     fi
+  done
+
+  echo -e "\tI found a total of ${iTotalIndexesToAgeOff} indexes to age off"
+
+  if [[ $iTotalIndexesToAgeOff -gt 0 ]]; then
+    # There are no indexes to age off
+    echo -e "\tThese indexes will be deleted:  ${glIndexesToDelete[@]}"
+    exit 0
+  fi
+}
+
+
+#######################################################
+# adjustAliases()
+# 1) Determine which indexes are using the ingest-write alias
+# 2) Determine which indexes are using the search alias
+# 3) Construct a single ES call that will
+#    a) Add newly created index to the ingest-write alias -- e.g., add eemsg_{YYYYMMDD} to eemsg_ingest
+#    b) Add newly created index to the search index alias -- e.g., add eemsg_{YYYYMMDD} to eemsg
+#    c) Remove the old ingest-write alias
+#    d) Remove the old search alias
+# 4) Run the Call
+# 5) Verify the call worked or die
+#######################################################
+function adjustAliases()
+{
+  local aSearchIndexAlias=$1
+  local aTodaysIndexName=$2
+  local aIngestWriteAlias=$3
+  local output=""
+  local vIndexesPointingToIngestWrite=( )
+  local vIndexesPointingToSearchAlias=( )
+  local sRemoveIngestWriteAliasJson=""
+  local sRemoveIngestSearchAliasJson=""
+
+  echo -e "\nadjustAliases()\n\taSearchIndexAlias=${aSearchIndexAlias}  aTodaysIndexName=${aTodaysIndexName}  aIngestWriteAlias=${aIngestWriteAlias}"
+
+  # Verify passed-in arguments to this function are valid
+  [[ -z $aSearchIndexAlias ]] && die "The passed-in aSearchIndexAlias is an empty string"
+  [[ -z $aTodaysIndexName ]]  && die "The passed-in aTodaysIndexName is an empty string"
+  [[ -z $aIngestWriteAlias ]] && die "The passed-in aIngestWriteAlias is an empty string"
+
+ 
+  # Determine which indexes are using the ingest-write alias
+  vIndexesPointingToIngestWrite=( `curl -k --cert "/etc/pki/private/${gsEsHostname}.pem" -XGET "https://${gsEsHostname}:9200/_cat/aliases?pretty" 2>/dev/null | grep "^${aIngestWriteAlias}" | awk '{print $2}' | grep "${aSearchIndexAlias}_[0-9]\{8\}" | grep -v "${aTodaysIndexName}" ` )
+  echo -e "vIndexesPointingToIngestWrite=${vIndexesPointingToIngestWrite[@]}"
+
+  # Construct the JSON to remove these indexes from the ingest-write alias
+  if [[ ${#vIndexesPointingToIngestWrite[@]} -gt 0 ]]; then
+    # There are indexes mapped to the ingets-write alias
+
+    for indexName in ${vIndexesPointingToIngestWrite[@]}
+    do
+       echo -e "\tindexName=${indexName}"
+       sRemoveIngestWriteAliasJson="${sRemoveIngestWriteAliasJson} ,{\"remove\": { \"index\": \"${indexName}\", \"alias\": \"${aIngestWriteAlias}\" } }"
+    done
+  fi
+
+ 
+  # Determine which indexes are using the search alias
+  vIndexesPointingToSearchAlias=( `curl -k --cert "/etc/pki/private/${gsEsHostname}.pem" -XGET "https://${gsEsHostname}:9200/_cat/aliases?pretty" 2>/dev/null | grep "^${aSearchIndexAlias}" | awk '{print $2}' | grep "${aSearchIndexAlias}_[0-9]\{8\}" | grep -v "${aTodaysIndexName}" ` )
+  echo -e "vIndexesPointingToSearchAlias=${vIndexesPointingToSearchAlias[@]}"
+
+  # Construct the JSON to remove these indexes from the search alias
+  if [[ ${#vIndexesPointingToSearchAlias[@]} -gt 0 ]]; then
+    # There are indexes mapped to the search alias
+
+    for indexName in ${vIndexesPointingToSearchAlias[@]}
+    do
+       echo -e "\tindexName=${indexName}"
+       sRemoveIngestSearchAliasJson="${sRemoveIngestSearchAliasJson} ,{\"remove\": { \"index\": \"${indexName}\", \"alias\": \"${aSearchIndexAlias}\" } }"
+    done
+  fi
+
+
+
+  # Create a file with the JSON (to remove the current index and add the newly created index to the alias)
+  cat >$gsTmpFilePath <<EOL
+  {
+     "actions": [
+       $sRemoveIngestWriteAliasJson 
+       $sRemoveIngestSearchAliasJson 
+       {
+         "add": {
+             "index": "${aTodaysIndexName}",
+             "alias": "${aSearchIndexAlias}"
+          }
+       },
+       {
+         "add": {
+             "index": "${aTodaysIndexName}",
+             "alias": "${aIngestWriteAlias}"
+          }
+       } 
+     ]
+  }
+EOL
+
+  cat $gsTmpFilePath
+
+  echo -e "\tAdding     to alias ${aSearchIndexAlias} : ${aTodaysIndexName}"
+  echo -e "\tAdding     to alias ${aIngestWriteAlias} : ${aTodaysIndexName}"
+   
+  # Run the ES call to switch the aliases
+  output=`curl -k --cert "/etc/pki/private/${gsEsHostname}.pem" -XPOST "https://${gsEsHostname}:9200/_aliases" --data-binary @${gsTmpFilePath} 2>/dev/null` 
+
+  # Verify that the ES call worked  (by examining the output string)
+  dieIfElasticSearchCallFailed "$output"
+
+  echo -e "\tSuccessfully adjusted the aliases."
+}
+
+
+# S C R I P T        S T A R T S       H E R E 
+echo "${gsScriptName} started as of `date`"
+
+# Part 1:  Verify the base alias exists
+verifyIndexExists "$gsIndexRootName"
+
+# Part 2:  Identify those indexes that should be aged off
+identifyIndexesToAgeOff "$gsIndexRootName" $giTotalDaysToHold
+
+# Part 3:  Create today's index  (if needed)
+gsTodaysIndexName=`date +"${gsIndexRootName}_%Y%m%d"`
+createTodaysIndexIfNeeded "$gsIndexRootName" "$gsTodaysIndexName"
+
+# Part 4:  Adjust the aliases
+adjustAliases "$gsIndexRootName" "$gsTodaysIndexName" "$gsIngestWriteAlias"
+
+# Part 5:  Delete the list of index names
+for indexToDelete in ${glIndexesToDelete[@]}
+do
+   deleteIndex "$indexToDelete"
+done
+
+
+# S C R I P T         E N D S        H E R E 
+exit 0
+
