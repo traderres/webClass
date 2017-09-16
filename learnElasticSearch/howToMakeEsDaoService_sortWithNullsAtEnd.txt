@@ -1,0 +1,112 @@
+How to make your ElasticSearch Service Sort With Nulls switched from beginning/end
+----------------------------------------------------------------------------------
+
+Problem:  ElasticSearch sorts and usually puts nulls at the end (regardless of which way you sort)
+Solutoin: You want to tell ES to put the nulls at the top when sorting one way
+          You want to tell ES to put the nulls at the bottom when sorting the other way
+
+
+Solution
+--------
+ 1. Add this method to your ElasticSearchDao class
+
+
+           /**************************************************************************
+             * getSortJsonFromListOfOrderByParams()
+             *
+             * Convert a passed-in list of order-by parameters into a JSON string for sorting
+             * Also, if a single field has a "raw" version of the field, then sort by that field instead
+             *
+             * "<field1"  ">field2" --> String that holds this
+             *                           [{ "field1": {"order": "desc"}},
+             *                            { "field2": {"order": "asc"}}]
+             *
+             * Returns a String that holds the JSON for ElasticSearch sorting
+             *
+             * NOTE:  ElasticSearch requires the order by direction to be lowercase -- e.g., 'asc' or 'desc'
+             ***************************************************************************/
+            private String getSortJsonFromListOfOrderByParams(final String aIndexName,
+                                                              final List<String> aOrderByParams)
+            {
+                if ((aOrderByParams == null) || (aOrderByParams.size() == 0))
+                {
+                    throw new RuntimeException("Critical Error in getSortJsonFromListOfOrderByParams():  The passed-in aOrderByParams is empty or null.");
+                }
+
+                String sSortDirection;
+                String sSortFieldName;
+                String sMissingDirection;
+                StringBuilder sbJson = new StringBuilder();
+
+
+                sbJson.append("[");
+
+                for (String sort: aOrderByParams)
+                {
+                    // Check string lenth for sanity; throw IllegalArgument if violated
+                    if (sort.length() < 2) {
+                        throw new RuntimeException("Error in getSortJsonFromListOfOrderByParams:  Invalid sorting command");
+                    }
+
+                    // Validate ordering
+                    // The first char in the string should specify the ordering
+                    if (sort.charAt(0) == '>')
+                    {
+                        sSortDirection = "desc";
+                        sMissingDirection = "_first";   // ES will retrieve nulls values first
+                    }
+                    else if (sort.charAt(0) == '<')
+                    {
+                        sSortDirection = "asc";
+                        sMissingDirection = "_last";    // ES will retrieve nulls values last
+                    }
+                    else
+                    {
+                        // Throw RuntimeException if the ordering char is invalid
+                        throw new RuntimeException("Error in getSortJsonFromListOfOrderByParams:  Invalid sorting parameter: " + sort);
+                    }
+
+                    sSortFieldName = sort.substring(1);
+
+                    // Get the sortable ES field name
+                    // If the field name is "category" [which is a string], then the sortable field may be "category.raw"
+                    sSortFieldName = getSortableFieldNameForIndexAndfield(aIndexName, sSortFieldName);
+
+                    sbJson.append("{ \"")
+                            .append(sSortFieldName)
+                            .append("\": { \"order\": \"")
+                            .append(sSortDirection)
+                            .append("\", \"missing\": \"")
+                            .append(sMissingDirection)
+                            .append("\"}},");
+                }
+
+                // Remove the last comma
+                sbJson.deleteCharAt(sbJson.length() - 1);
+
+                // Add the trailling square bracket
+                sbJson.append("]");
+
+                // Return the JSON as a string
+                return sbJson.toString();
+            }
+
+
+ 2. Call your method
+
+           // Convert the passed-in list of strings holding sort-parameters into a JSON string that ES will use to sort the results
+            String sJsonSortFields = getSortJsonFromListOfOrderByParams(aIndexName, aOrderByParams);
+
+            sJsonSearchRequest =
+                    "{  \"explain\": false, " +
+                        "\"query\": { " +
+                            "\"simple_query_string\": { " +
+                                "\"query\": " + "\"" + sCleanQuery + "\"," +
+                                "\"default_operator\": \"and\" " +
+                            "}" +
+                        "}," +
+                        "\"from\":" + aStartingRecord + "," +
+                        "\"size\":" + aPageSize + "," +
+                        "\"sort\":" + sJsonSortFields +
+                    "}";
+
