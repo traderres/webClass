@@ -1,0 +1,63 @@
+How to Tell Maven Jetty App to *not* scan every file on startup (to speed up startup)
+-------------------------------------------------------------------------------------
+Problem:  Your web app has a large number of spring beans
+          So, it takes Jetty about 2 minutes to scan all of the files
+          It's a pain for developers to wait 2 minutes to debug
+
+Solution: Tell Jetty to not load every spring bean until it's needed
+
+References
+----------
+https://stackoverflow.com/questions/28914233/limit-jetty-scanning-in-maven-plugin
+
+
+Procedure
+---------
+ 1. Change your jetty maven app (within your pom.xml) to look like this:
+    Add these parts to your <configuration><webApp>...</webApp></configuration> section:
+
+            <!-- Tell Jetty to *not* scan anything as we're using servlet 2.5 and moreover, we're not using ServletContainerInitializer(s) -->
+            <!-- for more relevant information regarding scanning of classes refer to https://java.net/jira/browse/SERVLET_SPEC-36 -->
+            <webInfIncludeJarPattern>^$</webInfIncludeJarPattern>
+            <containerIncludeJarPattern>^$</containerIncludeJarPattern>
+
+
+ 2. Here's what the completed maven jetty plugin looks like
+
+
+             <plugin>
+                <groupId>org.eclipse.jetty</groupId>
+                <artifactId>jetty-maven-plugin</artifactId>
+
+                <!-- NOTE:  The jetty 9.4.6.v20170531 version works with Java 1.7 -->
+                <version>9.4.6.v20170531</version>
+
+                <configuration>
+                    <!-- When running locally, add this to your Intellij Configuratino to tell JAWR to not combine JS and CSS -->
+                    <!--    -Dnet.jawr.debug.on=true                                                                          -->
+                    <webApp>
+                        <!-- If your appname is called "cde", then jetty listens on https://localhost:8443/cde-->
+                        <contextPath>/${appname}</contextPath>
+
+                        <!-- Tell maven to look for the property files in src/main/config -->
+                        <extraClasspath>${project.basedir}/src/main/config</extraClasspath>
+
+                        <!-- Tell Jetty to *not* scan anything as we're using servlet 2.5 and moreover, we're not using ServletContainerInitializer(s) -->
+                        <!-- for more relevant information regarding scanning of classes refer to https://java.net/jira/browse/SERVLET_SPEC-36 -->
+                        <webInfIncludeJarPattern>^$</webInfIncludeJarPattern>
+                        <containerIncludeJarPattern>^$</containerIncludeJarPattern>
+                    </webApp>
+
+                    <!-- Jetty will scan every 10 seconds to pickup front-end changes -->
+                    <scanIntervalSeconds>10</scanIntervalSeconds>
+
+
+                    <jettyXml>
+
+                        <!-- Configure your local Jetty to use LDAP on the BDP 30 cluster -->
+                        ${project.parent.basedir}/docs/cluster-30/jetty.xml,${project.parent.basedir}/docs/cluster-30/jetty-ssl.xml,${project.parent.basedir}/docs/cluster-30/jetty-https.xml
+
+                    </jettyXml>
+                </configuration>
+            </plugin>
+
