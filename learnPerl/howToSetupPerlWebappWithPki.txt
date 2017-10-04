@@ -94,8 +94,7 @@ Chapter 2:  Add SSL to the Apache Httpd listening on port 8443
       [Tue Oct 03 21:50:33 2017] [error] (13)Permission denied: Init: Can't open server certificate file /tmp/server.crt
   
    This tells you that the context is unconfined_u:system_r:httpd_t:s0
-   
-   
+
  
  3. Change apache httpd so it listens on port 8443 and enable SSL
     unix> vi /etc/httpd/conf/httpd.conf 
@@ -185,13 +184,12 @@ Chapter 3:  Change Apache Httpd to require a PKI Client be sent
     
  4. Restart the httpd service
     unix> sudo service httpd 
-  
-    
+
  5. Import the PKI Client Cert (client.p12) into your browser
  
- 5. Import the public CA (/tmp/ca.crt) into your browser as a trusted authority
+ 6. Import the public CA (/tmp/ca.crt) into your browser as a trusted authority
  
- 6. Attempt to connect to Apache httpd using your PKI Client with SSL on port 8443
+ 7. Attempt to connect to Apache httpd using your PKI Client with SSL on port 8443
     a. Open a browser
     b. Go to https://localhost:8443/bogus.pl
     -- You sohuld be prompted to select a certificate, press OK
@@ -212,7 +210,7 @@ Chapter 4:  Setup nginx as the proxy listening on port 443
         user  nginx;
         worker_processes  1;
 
-        # error_log  /var/log/nginx/error.log debug;
+        error_log  /var/log/nginx/error.log warn;
         pid        /var/run/nginx.pid;
 
 
@@ -220,77 +218,117 @@ Chapter 4:  Setup nginx as the proxy listening on port 443
             worker_connections  1024;
         }
 
+
         http {
+            log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                              '$status $body_bytes_sent "$http_referer" '
+                              '"$http_user_agent" "$http_x_forwarded_for"';
 
-            # enable reverse proxy
-            proxy_redirect              off;
-            proxy_set_header            Host            $http_host;
-            proxy_set_header            X-Real-IP       $remote_addr;
-            proxy_set_header            X-Forwared-For  $proxy_add_x_forwarded_for;
+            access_log  /var/log/nginx/access.log  main;
+
+            ## Request Content Configs
+            include /etc/nginx/mime.types;
+            default_type application/octet-stream;
+            client_max_body_size 2m;
+            client_header_buffer_size 1k;
+            large_client_header_buffers 4 8k;
+
+            ## Connection Configs
+            sendfile on;
+            tcp_nopush on;
+            tcp_nodelay on;
+            keepalive_disable none;
+            keepalive_requests 100;
+            keepalive_timeout 15;
+            underscores_in_headers on;
+
+            ## Compression Configs
+            gzip on;
+            gzip_http_version 1.1;
+            gzip_comp_level 2;
+            gzip_proxied any;
+            gzip_static on;
+            gzip_types text/plain text/css application/x-javascript text/xml application/xml application/xml+rss text/javascript application/json;
+
+
+            include /etc/nginx/conf.d/*.conf;
+
+
+            proxy_headers_hash_bucket_size 64;
+            proxy_redirect  off;
             proxy_ssl_session_reuse off;
+            proxy_ssl_server_name on;
+            proxy_set_header Host mycentos;
 
-            upstream streaming_example_com
-            {
-                  server 127.0.0.1:8443;
+
+            upstream backendWebApp {
+                server 127.0.0.1:8443;
             }
 
-            server
-            {
-                listen       443 default ssl;
-                server_name  mycentos;
-                access_log   /var/log/nginx/access.log;
-                error_log    /var/log/nginx/error.log debug;
 
+           server {
+                listen               443 ssl default;
+                server_name          mycentos;
+                server_tokens off;
+
+                ssl                    on;
                 ssl_certificate        /tmp/server.crt;
                 ssl_certificate_key    /tmp/rsa.key;
                 ssl_client_certificate /tmp/ca.crt;
-                ssl_verify_client optional;
-
-
-                ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+                ssl_session_timeout  5m;
+                ssl_session_cache shared:SSL:10m;
+                ssl_protocols TLSv1.1 TLSv1.2 SSLv3;
+                ssl_ciphers 'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:ECDHE-RSA-DES-CBC3-SHA:ECDHE-ECDSA-DES-CBC3-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:AES:CAMELLIA:DES-CBC3-SHA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA'; # https://wiki.mozilla.org/Security/Server_Side_TLS#Intermediate_compatibility_.28default.29
                 ssl_prefer_server_ciphers on;
-                ssl_ciphers 'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:AES:CAMELLIA:DES-CBC3-SHA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA';
-                ssl_session_timeout 30m;
-                ssl_session_cache shared:SSL:50m;
-                add_header Strict-Transport-Security max-age=15768000;
+
+                ssl_verify_client on;
+                ssl_verify_depth 1;
 
 
-                location /myapp
-                {
-                    proxy_set_header Host $http_host;
-                    proxy_set_header X-Real-IP $remote_addr;
-                    proxy_set_header X-Forwarded-Ssl on;
-                    proxy_set_header X-Forwarded-Proto $scheme;
-                    proxy_set_header X-Frame-Options  SAMEORIGIN;
-                    proxy_set_header X-Forwarded-Host $http_host;
-                    proxy_set_header X-Forwarded-Server $http_host;
-                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                    proxy_set_header X-UA-Compatible IE=Edge;
+                if ($request_method !~ ^(HEAD|GET|DELETE|POST|PUT|OPTIONS)$ ) { return 444; }  ## TraceEnable off
 
-                    # Clear out the SSL headers
-                    proxy_set_header SSL_CLIENT_S_DN "";
-                    proxy_set_header SSL_CLIENT_I_DN "";
-                    proxy_set_header SSL_CLIENT_VERIFY "";
-                    proxy_set_header SSL_CLIENT_CERT "";
+                set $cors "";
 
-                    # Set SSL Headers for C3 Security
-                    proxy_set_header SSL_CLIENT_S_DN $ssl_client_s_dn;
-                    proxy_set_header SSL_CLIENT_CERT $ssl_client_cert;
+                location /myapp {
 
-                    proxy_set_header X-Forwarded-Host $host;
-                    proxy_set_header X-Forwarded-Server $host;
-                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                    proxy_pass  https://streaming_example_com;
-                }
-            }
+                   proxy_pass https://backendWebApp;
+                 }
+          }
+
         }
-
 
     
  4. Restart nginx
     unix> sudo service nginx restart 
-    
- 5. Verify that https://localhost/myapp/bogus.pl  forwards you to https://localhost:8443/bogus.pl
+
+ 5. Update the Apache httpd conf file
+     a. Edit the httpd.conf
+       unix> vi /etc/httpd/conf/httpd.conf
+
+     b. Change the <VirtualHost...> section to this
+
+            <VirtualHost *:8443>
+               LimitRequestLine 512
+               LimitRequestFields 100
+               LimitRequestFieldSize 1024
+               LimitRequestBody 102400
+
+                ServerAdmin webmaster@dummy-host.example.com
+                DocumentRoot /var/www/html
+                ServerName myCentos
+                ErrorLog logs/error_log
+                CustomLog logs/access_log common
+
+                SSLEngine on
+                SSLCertificateFile    "/tmp/server.crt"
+                SSLCertificateKeyFile "/tmp/rsa.key"
+                SSLOptions +ExportCertData +FakeBasicAuth +StdEnvVars
+            </VirtualHost>
+
+ 6. Restart the httpd service
+    unix> sudo service httpd
+
+ 7. Verify that https://localhost/myapp/bogus.pl  forwards you to https://localhost:8443/bogus.pl
     a. Open a browser
     b. Connect to https://localhost/myapp/bogus.pl
        -- You should see the welcome page
