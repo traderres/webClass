@@ -9,8 +9,9 @@ Assumptions:
 References
 ----------
 https://www.dwheeler.com/essays/apache-cac-configuration.html
-
-INCOMPLETE
+http://fm4dd.com/security/apache-ldap-active-directory.htm
+http://www.librarywebchic.net/2006/04/20/configuring-apache-for-ssl-and-ldap-authentication/
+https://alvinalexander.com/perl/edu/articles/pl010012
 
  
 Chapter 1:  Setup Apache Httpd to run Perl scripts on port 8080
@@ -366,6 +367,89 @@ Chapter 4:  Setup nginx as the proxy listening on port 443
        
        
     
- 
+
+Chapter 5:  Configure Apache Httpd to authenticate against Postgres DB Table
+----------------------------------------------------------------------------
+At this point, Apache httpd is getting the user's PKI connection info cn=John Smith.... in the header called SSL_CLIENT_S_DN
+Now, we want to have Apache httpd authenticate against a database table called Users
+
+ 1. Install a Postgres database
+    [see learnPostgreSQL / howToInstallPostgresOnCentOS.txt
+
+ 2. Setup a postgres database with some data
+    a. Create a database and user
+        unix> sudo -s
+        unix> su - postgres
+        unix> psql
+        postgres=#  Create database bogus;
+        postgres=#  Create user bogus_user with password 'secret';
+        postgres=#  Grant all privileges on database bogus to bogus_user;
+        postgres=#  Alter database bogus set search_path=bogus;
+        postgres=#  Alter role bogus_user set search_path=bogus;
+        postgres=#  \q
+
+    b. Create users table
+        unix> sudo -s
+        unix> su - postgres
+        unix> psql
+        postgres=#  \c bogus
+        bogus=#     Create table users( id serial primary key, username varchar(50) not null, cn varchar(50) not null, dn varchar(150) not null);
+
+        bogus=#     Insert into users(username, cn, dn) values('john.smith', 'John Smith', 'John Smith,OU=Secure,O=Secure,ST=Virginia,C=US');
+        bogus=#     Insert into users(username, cn, dn) values('indiana.jones', 'Indiana Jones', 'Indian Jones,OU=Secure,O=Secure,ST=Virginia,C=US');
+
+
+ 3. Add a perl script that will perform authentication
+
+
+    #!/usr/bin/perl
+    #######################################################
+    # Name:  authenticate.pl
+    #######################################################
+    # Purpose:  To authenticate the user against a Database table
+    #
+    #######################################################
+    use DBI;
+    use CGI;
+    use strict;
+
+    my $q = CGI->new;
+    my %headers = map { $_ => $q->http($_) } $q->http();
+    my $sUserDn = $headers{'HTTP_SSL_CLIENT_S_DN'};
+    my $iTotalRecords=0;
+
+
+
+    # connect to the database
+    my $dbh = DBI->connect("DBI:Pg:dbname=bogus;host=localhost", "bogus_user", "secret", {'RaiseError' => 1});
+
+    # execute SELECT query
+    my $sth = $dbh->prepare("SELECT count(id) as count FROM users where cn=?"");
+    $sth->bind_param( 1, $sUserDn );
+    $sth->execute();
+
+    # iterate through resultset
+    # print values
+    if(my $ref = $sth->fetchrow_hashref())
+    {
+        $iTotalRecords = $ref->{'count'};
+    }
+
+    # clean up
+    $dbh->disconnect();
+
+    if ($iTotalRecords == 1)
+    {
+        // User is authenticated -- set cookie
+
+        my $cookie = $q->cookie(-name=>'auth',
+            -value=>'BEST_COOKIE=chocolatechip',
+            -expires=>'+4h',
+            -path=>'/');
+    }
+    else
+    {
+
+    }
 
 
