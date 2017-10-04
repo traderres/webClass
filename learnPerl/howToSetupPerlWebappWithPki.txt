@@ -16,28 +16,35 @@ INCOMPLETE
 Chapter 1:  Setup Apache Httpd to run Perl scripts on port 8080
 ---------------------------------------------------------------
  1. Configure httpd to run perl web apps
-    a. unix> vi /etc/httpd/conf/httpd.conf 
+    a. Open the file for editing
+       unix> vi /etc/httpd/conf/httpd.conf 
        
-    b. Find this line within httpd.conf 
+    a. Find this line
           Options Indexes FollowSymLinks
        Replace with this line
           Options Indexes FollowSymLinks ExecCGI
  
-    c. Find this line within httpd.conf 
+    c. Find this line
           #AddHandler cgi-script .cgi
        Replace with this line
           AddHandler cgi-script .cgi .pl 
     
     d. Add this to the end of the httpd.conf file
     
-          <VirtualHost *:80>
+          <VirtualHost *:8080>
              ServerAdmin webmaster@dummy-host.example.com
              DocumentRoot /var/www/html
              ServerName myCentos
              ErrorLog logs/error_log 
              CustomLog logs/access_log common
           </VirtualHost>
-       
+     
+    e. Find this line within httpd.conf 
+          Listen 80
+       Replace with this line
+          Listen 8080
+
+
  2. Make sure apache:apache owns the /etc/httpd directory
     unix> sudo -s
     unix> chown apa-R /etc/httpd
@@ -60,41 +67,64 @@ Chapter 1:  Setup Apache Httpd to run Perl scripts on port 8080
     unix> chown apache:apache /var/www/html/bogus.pl
     unix> chmod ugo+x /var/www/html/bogus.pl
     
- 6. Attempt to run this perl script through apache by connecting to port 80
-    a. Open a browser
-    b. Go to http://localhost/bogus.pl
-    -- You should see "Test Page"
-    
-        
- 7. Change apache to it is listening on port 8080
-    unix> vi /etc/httpd/conf/httpd.conf 
-    
-     b. Find this line within httpd.conf 
-          Listen 80
-       Replace with this line
-          Listen 8080
- 
-    c. Find this line within httpd.conf 
-          <VirtualHost *:80>
-       Replace with this line
-          <VirtualHost *:8080>
-
- 8. Restart the httpd service
-    unix> sudo service httpd restart
-    
- 9. Attempt to run this perl script through apache by connecting to port 8080
+ 6. Attempt to run this perl script through apache by connecting to port 8080
     a. Open a browser
     b. Go to http://localhost:8080/bogus.pl
-    -- You should see "Test Page" 
+    -- You should see "Test Page"
+    
   
 
 Chapter 2:  Add SSL to the Apache Httpd listening on port 8443
 --------------------------------------------------------------
+ 1. Change apache to it is listening on port 8443 and enable SSL
+    unix> vi /etc/httpd/conf/httpd.conf 
 
+   a. Tell Apache to lod mod_ssl
+       Add this line at the top:
+          LoadModule ssl_module modules/mod_ssl.so
 
+   b. Find this line within httpd.conf 
+          Listen 8080
+       Replace with this line
+          Listen 8443
     
-Chapter 3:  Setup nginx as the proxy
-------------------------------------
+   c. Remove this section
+          <VirtualHost *:8080>
+             ServerAdmin webmaster@dummy-host.example.com
+             DocumentRoot /var/www/html
+             ServerName myCentos
+             ErrorLog logs/error_log 
+             CustomLog logs/access_log common
+          </VirtualHost>
+  
+    e. Add this section
+         <VirtualHost *:8443>
+             ServerAdmin webmaster@dummy-host.example.com
+             DocumentRoot /var/www/html
+             ServerName myCentos
+             ErrorLog logs/error_log
+             CustomLog logs/access_log common
+ 
+             SSLEngine on
+             SSLCertificateFile    "/tmp/server.crt"
+             SSLCertificateKeyFile "/tmp/server.key"
+             SSLVerifyClient require
+             SSLVerifyDepth 1
+         </VirtualHost>t
+
+ 2. Restart the httpd service
+    unix> sudo service httpd restart
+    
+ 3. Attempt to run this perl script through apache by connecting to port 8443
+    a. Open a browser
+    b. Go to https://localhost:8443/bogus.pl
+    -- You should see "Test Page"
+ 
+    
+    
+    
+Chapter 3:  Setup nginx as the proxy listening on port 443
+----------------------------------------------------------
  1. Install nginx on centos 6
     [see learnNginx / howToInstallNginx.txt]
     
