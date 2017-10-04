@@ -97,7 +97,7 @@ Chapter 2:  Add SSL to the Apache Httpd listening on port 8443
    
    
  
- 3. Change apache to it is listening on port 8443 and enable SSL
+ 3. Change apache httpd so it listens on port 8443 and enable SSL
     unix> vi /etc/httpd/conf/httpd.conf 
 
    a. Tell Apache to lod mod_ssl
@@ -145,7 +145,7 @@ Chapter 2:  Add SSL to the Apache Httpd listening on port 8443
     
 Chapter 3:  Change Apache Httpd to require a PKI Client be sent
 ---------------------------------------------------------------
- 1. Generate a PKI Client Cert (client.p12)
+ 1. Generate a PKI Client Cert (client.p12) and get the ca.crt
     NOTE:  The /tmp/ca.crt is the root-ca/public/root.pem file
     
  2. Allow Apache httpd SELinux access to the server.crt and rsa.key  (with SELinux enforcement)
@@ -194,6 +194,7 @@ Chapter 3:  Change Apache Httpd to require a PKI Client be sent
  6. Attempt to connect to Apache httpd using your PKI Client with SSL on port 8443
     a. Open a browser
     b. Go to https://localhost:8443/bogus.pl
+    -- You sohuld be prompted to select a certificate, press OK
     -- You should see "Test Page" 
  
  
@@ -205,7 +206,8 @@ Chapter 4:  Setup nginx as the proxy listening on port 443
     
  2. By default, nginx will load any conf file (under /etc/nginx) that ends with .conf
     unix> sudo -s
-    unix> vi /etc/nginx/app.conf
+    unix> mkdir -p /etc/nginx/conf.d/apps
+    unix> vi /etc/nginx/conf.d/apps/app.conf
 
      location /myapp {
        ## Proxy Header Configs (Some of these might not be needed)
@@ -235,16 +237,71 @@ Chapter 4:  Setup nginx as the proxy listening on port 443
        proxy_pass https://localhost:8443/;
      }
 
- 3. Give everyone read access to the app.conf
-    unix> sudo -s
-    unix> chmod ugo+r /etc/nginx/app.conf
+ 3. Modify nginx.conf to listen on 443
+    unix> sudo vi /etc/nginx/nginx.conf
     
- 3. Restart nginx
+    Change it to this:
+    
+         user  nginx;
+        worker_processes  1;
+        
+        error_log  /var/log/nginx/error.log warn;
+        pid        /var/run/nginx.pid;
+        
+        
+        events {
+            worker_connections  1024;
+        }
+        
+        
+        http {
+            include       /etc/nginx/mime.types;
+            default_type  application/octet-stream;
+        
+            log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                              '$status $body_bytes_sent "$http_referer" '
+                              '"$http_user_agent" "$http_x_forwarded_for"';
+        
+            access_log  /var/log/nginx/access.log  main;
+        
+            sendfile        on;
+            #tcp_nopush     on;
+            keepalive_timeout  65;
+            #gzip  on;
+            include /etc/nginx/conf.d/*.conf;
+        
+        
+        
+        server {
+            listen         443 ssl;
+            
+            server_name          mycentos;
+            if ($request_method !~ ^(HEAD|GET|DELETE|POST|PUT|OPTIONS)$ ) { return 444; }  ## TraceEnable off
+        
+            set $cors "";
+        
+            ssl_certificate      /tmp/server.crt;
+            ssl_certificate_key  /tmp/rsa.key;
+            ssl_session_timeout  5m;
+        
+            ssl_protocols        TLSv1.1 TLSv1.2;
+            ssl_ciphers          HIGH:-SSLv2:!EXP;
+            ssl_prefer_server_ciphers   on;
+        
+            include conf.d/proxy/*.conf;
+            include conf.d/apps/*.conf;
+          }
+        
+        }
+
+
+    
+ 4. Restart nginx
     unix> sudo service nginx restart 
     
- 4. Verify that https://localhost/myapp forwards you to https://localhost:8443/
+ 5. Verify that https://localhost/myapp/bogus.pl  forwards you to https://localhost:8443/bogus.pl
     a. Open a browser
-    b. Connect to https://localhost/myapp
+    b. Connect to https://localhost/myapp/bogus.pl
        -- You should see the welcome page
        
        
