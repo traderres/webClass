@@ -203,95 +203,86 @@ Chapter 4:  Setup nginx as the proxy listening on port 443
 ----------------------------------------------------------
  1. Install nginx on centos 6
     [see learnNginx / howToInstallNginx.txt]
-    
- 2. By default, nginx will load any conf file (under /etc/nginx) that ends with .conf
-    unix> sudo -s
-    unix> mkdir -p /etc/nginx/conf.d/apps
-    unix> vi /etc/nginx/conf.d/apps/app.conf
 
-     location /myapp {
-       ## Proxy Header Configs (Some of these might not be needed)
-       proxy_set_header Host $http_host;
-       proxy_set_header X-Real-IP $remote_addr;
-       proxy_set_header X-Forwarded-Ssl on;
-       proxy_set_header X-Forwarded-Proto $scheme;
-       proxy_set_header X-Frame-Options  SAMEORIGIN;
-       proxy_set_header X-Forwarded-Host $http_host;
-       proxy_set_header X-Forwarded-Server $http_host;
-       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-       proxy_set_header X-UA-Compatible IE=Edge;
-
-       # Clear out the SSL headers
-       proxy_set_header SSL_CLIENT_S_DN "";
-       proxy_set_header SSL_CLIENT_I_DN "";
-       proxy_set_header SSL_CLIENT_VERIFY "";
-       proxy_set_header SSL_CLIENT_CERT "";
-
-       # Set SSL Headers for C3 Security
-       proxy_set_header SSL_CLIENT_S_DN $ssl_client_s_dn;
-       proxy_set_header SSL_CLIENT_CERT $ssl_client_cert;
-
-       proxy_set_header X-Forwarded-Host $host;
-       proxy_set_header X-Forwarded-Server $host;
-       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-       proxy_pass https://localhost:8443/;
-     }
-
- 3. Modify nginx.conf to listen on 443
+ 2. Modify nginx.conf to forward requests to the apache httpd listening on port 8443
     unix> sudo vi /etc/nginx/nginx.conf
     
     Change it to this:
     
-         user  nginx;
+        user  nginx;
         worker_processes  1;
-        
-        error_log  /var/log/nginx/error.log warn;
+
+        # error_log  /var/log/nginx/error.log debug;
         pid        /var/run/nginx.pid;
-        
-        
+
+
         events {
             worker_connections  1024;
         }
-        
-        
+
         http {
-            include       /etc/nginx/mime.types;
-            default_type  application/octet-stream;
-        
-            log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
-                              '$status $body_bytes_sent "$http_referer" '
-                              '"$http_user_agent" "$http_x_forwarded_for"';
-        
-            access_log  /var/log/nginx/access.log  main;
-        
-            sendfile        on;
-            #tcp_nopush     on;
-            keepalive_timeout  65;
-            #gzip  on;
-            include /etc/nginx/conf.d/*.conf;
-        
-        
-        
-        server {
-            listen         443 ssl;
-            
-            server_name          mycentos;
-            if ($request_method !~ ^(HEAD|GET|DELETE|POST|PUT|OPTIONS)$ ) { return 444; }  ## TraceEnable off
-        
-            set $cors "";
-        
-            ssl_certificate      /tmp/server.crt;
-            ssl_certificate_key  /tmp/rsa.key;
-            ssl_session_timeout  5m;
-        
-            ssl_protocols        TLSv1.1 TLSv1.2;
-            ssl_ciphers          HIGH:-SSLv2:!EXP;
-            ssl_prefer_server_ciphers   on;
-        
-            include conf.d/proxy/*.conf;
-            include conf.d/apps/*.conf;
-          }
-        
+
+            # enable reverse proxy
+            proxy_redirect              off;
+            proxy_set_header            Host            $http_host;
+            proxy_set_header            X-Real-IP       $remote_addr;
+            proxy_set_header            X-Forwared-For  $proxy_add_x_forwarded_for;
+            proxy_ssl_session_reuse off;
+
+            upstream streaming_example_com
+            {
+                  server 127.0.0.1:8443;
+            }
+
+            server
+            {
+                listen       443 default ssl;
+                server_name  mycentos;
+                access_log   /var/log/nginx/access.log;
+                error_log    /var/log/nginx/error.log debug;
+
+                ssl_certificate        /tmp/server.crt;
+                ssl_certificate_key    /tmp/rsa.key;
+                ssl_client_certificate /tmp/ca.crt;
+                ssl_verify_client optional;
+
+
+                ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+                ssl_prefer_server_ciphers on;
+                ssl_ciphers 'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:AES:CAMELLIA:DES-CBC3-SHA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA';
+                ssl_session_timeout 30m;
+                ssl_session_cache shared:SSL:50m;
+                add_header Strict-Transport-Security max-age=15768000;
+
+
+                location /myapp
+                {
+                    proxy_set_header Host $http_host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-Ssl on;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                    proxy_set_header X-Frame-Options  SAMEORIGIN;
+                    proxy_set_header X-Forwarded-Host $http_host;
+                    proxy_set_header X-Forwarded-Server $http_host;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-UA-Compatible IE=Edge;
+
+                    # Clear out the SSL headers
+                    proxy_set_header SSL_CLIENT_S_DN "";
+                    proxy_set_header SSL_CLIENT_I_DN "";
+                    proxy_set_header SSL_CLIENT_VERIFY "";
+                    proxy_set_header SSL_CLIENT_CERT "";
+
+                    # Set SSL Headers for C3 Security
+                    proxy_set_header SSL_CLIENT_S_DN $ssl_client_s_dn;
+                    proxy_set_header SSL_CLIENT_CERT $ssl_client_cert;
+
+                    proxy_set_header X-Forwarded-Host $host;
+                    proxy_set_header X-Forwarded-Server $host;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_pass  https://streaming_example_com;
+                }
+            }
         }
 
 
