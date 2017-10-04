@@ -13,8 +13,8 @@ https://www.dwheeler.com/essays/apache-cac-configuration.html
 INCOMPLETE
 
  
-Chapter 1:  Setup apache Httpd to run Perl scripts
---------------------------------------------------
+Chapter 1:  Setup Apache Httpd to run Perl scripts on port 8080
+---------------------------------------------------------------
  1. Configure httpd to run perl web apps
     a. unix> vi /etc/httpd/conf/httpd.conf 
        
@@ -87,11 +87,63 @@ Chapter 1:  Setup apache Httpd to run Perl scripts
     b. Go to http://localhost:8080/bogus.pl
     -- You should see "Test Page" 
   
-  
+
+Chapter 2:  Add SSL to the Apache Httpd listening on port 8443
+--------------------------------------------------------------
+
+
     
-Chapter 2:  Setup nginx as the proxy
+Chapter 3:  Setup nginx as the proxy
 ------------------------------------
  1. Install nginx on centos 6
     [see learnNginx / howToInstallNginx.txt]
     
- 2. 
+ 2. By default, nginx will load any conf file (under /etc/nginx) that ends with .conf
+    unix> sudo -s
+    unix> vi /etc/nginx/app.conf
+
+     location /myapp {
+       ## Proxy Header Configs (Some of these might not be needed)
+       proxy_set_header Host $http_host;
+       proxy_set_header X-Real-IP $remote_addr;
+       proxy_set_header X-Forwarded-Ssl on;
+       proxy_set_header X-Forwarded-Proto $scheme;
+       proxy_set_header X-Frame-Options  SAMEORIGIN;
+       proxy_set_header X-Forwarded-Host $http_host;
+       proxy_set_header X-Forwarded-Server $http_host;
+       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+       proxy_set_header X-UA-Compatible IE=Edge;
+
+       # Clear out the SSL headers
+       proxy_set_header SSL_CLIENT_S_DN "";
+       proxy_set_header SSL_CLIENT_I_DN "";
+       proxy_set_header SSL_CLIENT_VERIFY "";
+       proxy_set_header SSL_CLIENT_CERT "";
+
+       # Set SSL Headers for C3 Security
+       proxy_set_header SSL_CLIENT_S_DN $ssl_client_s_dn;
+       proxy_set_header SSL_CLIENT_CERT $ssl_client_cert;
+
+       proxy_set_header X-Forwarded-Host $host;
+       proxy_set_header X-Forwarded-Server $host;
+       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+       proxy_pass https://localhost:8443/;
+     }
+
+ 3. Give everyone read access to the app.conf
+    unix> sudo -s
+    unix> chmod ugo+r /etc/nginx/app.conf
+    
+ 3. Restart nginx
+    unix> sudo service nginx restart 
+    
+ 4. Verify that https://localhost/myapp forwards you to https://localhost:8443/
+    a. Open a browser
+    b. Connect to https://localhost/myapp
+       -- You should see the welcome page
+       
+       
+    
+ 
+
+
