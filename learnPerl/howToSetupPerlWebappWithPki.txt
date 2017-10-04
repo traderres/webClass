@@ -67,7 +67,7 @@ Chapter 1:  Setup Apache Httpd to run Perl scripts on port 8080
     unix> chown apache:apache /var/www/html/bogus.pl
     unix> chmod ugo+x /var/www/html/bogus.pl
     
- 6. Attempt to run this perl script through apache by connecting to port 8080
+ 6. Attempt to connect to Apache httpd using port 8080
     a. Open a browser
     b. Go to http://localhost:8080/bogus.pl
     -- You should see "Test Page"
@@ -76,7 +76,28 @@ Chapter 1:  Setup Apache Httpd to run Perl scripts on port 8080
 
 Chapter 2:  Add SSL to the Apache Httpd listening on port 8443
 --------------------------------------------------------------
- 1. Change apache to it is listening on port 8443 and enable SSL
+ 1. Generate SSL Server Cert
+    NOTE:  When complete, you should have these files:
+           /tmp/server.crt
+           /tmp/rsa.key
+           
+ 2. Allow Apache httpd SELinux access to the server.crt and rsa.key  (with SELinux enforcement)
+    NOTE:  I had problems with Centos.  Here's my fix:
+    unix> sudo -s
+    unix> chcon unconfined_u:object_r:httpd_config_t:s0 /tmp/rsa.key
+    unix> chcon unconfined_u:object_r:httpd_config_t:s0 /tmp/server.crt
+    
+    How do you know the context?  Look in the /etc/httpd/logs/error_log
+    You should see this:
+      [Tue Oct 03 21:50:33 2017] [notice] SELinux policy enabled; httpd running as context unconfined_u:system_r:httpd_t:s0
+      [Tue Oct 03 21:50:33 2017] [notice] suEXEC mechanism enabled (wrapper: /usr/sbin/suexec)
+      [Tue Oct 03 21:50:33 2017] [error] (13)Permission denied: Init: Can't open server certificate file /tmp/server.crt
+  
+   This tells you that the context is unconfined_u:system_r:httpd_t:s0
+   
+   
+ 
+ 3. Change apache to it is listening on port 8443 and enable SSL
     unix> vi /etc/httpd/conf/httpd.conf 
 
    a. Tell Apache to lod mod_ssl
@@ -107,23 +128,77 @@ Chapter 2:  Add SSL to the Apache Httpd listening on port 8443
  
              SSLEngine on
              SSLCertificateFile    "/tmp/server.crt"
-             SSLCertificateKeyFile "/tmp/server.key"
-             SSLVerifyClient require
+             SSLCertificateKeyFile "/tmp/rsa.key"
+             SSLVerifyClient none
              SSLVerifyDepth 1
          </VirtualHost>t
 
- 2. Restart the httpd service
+ 4. Restart the httpd service
     unix> sudo service httpd restart
     
- 3. Attempt to run this perl script through apache by connecting to port 8443
+ 5. Attempt to connect to Apache httpd using SSL on port 8443
     a. Open a browser
     b. Go to https://localhost:8443/bogus.pl
     -- You should see "Test Page"
  
     
     
+Chapter 3:  Change Apache Httpd to require a PKI Client be sent
+---------------------------------------------------------------
+ 1. Generate a PKI Client Cert (client.p12)
+    NOTE:  The /tmp/ca.crt is the root-ca/public/root.pem file
     
-Chapter 3:  Setup nginx as the proxy listening on port 443
+ 2. Allow Apache httpd SELinux access to the server.crt and rsa.key  (with SELinux enforcement)
+    unix> sudo -s
+    unix> chcon unconfined_u:object_r:httpd_config_t:s0 /tmp/ca.crt
+    
+ 3. Change Apache httpd to require a PKI Client Certificate
+    a. Edit the httpd.conf
+       unix> vi /etc/httpd/conf/httpd.conf 
+   
+    b. Change this line:
+         SSLVerifyClient none
+       To this line:
+         SSLVerifyClient require
+
+    c. Add this line
+         SSLCACertificateFile  "/tmp/ca.crt"
+
+
+    When completed, your virtualhost section should look like this:
+        <VirtualHost *:8443>
+            ServerAdmin webmaster@dummy-host.example.com
+            DocumentRoot /var/www/html
+            ServerName myCentos
+            ErrorLog logs/error_log
+            CustomLog logs/access_log common
+
+            SSLEngine on
+            SSLCertificateFile    "/tmp/server.crt"
+            SSLCertificateKeyFile "/tmp/rsa.key"
+            SSLCACertificateFile  "/tmp/ca.crt"
+            SSLVerifyClient require
+            SSLVerifyDepth 1
+        </VirtualHost>
+    
+    
+    
+ 4. Restart the httpd service
+    unix> sudo service httpd 
+  
+    
+ 5. Import the PKI Client Cert (client.p12) into your browser
+ 
+ 5. Import the public CA (/tmp/ca.crt) into your browser as a trusted authority
+ 
+ 6. Attempt to connect to Apache httpd using your PKI Client with SSL on port 8443
+    a. Open a browser
+    b. Go to https://localhost:8443/bogus.pl
+    -- You should see "Test Page" 
+ 
+ 
+    
+Chapter 4:  Setup nginx as the proxy listening on port 443
 ----------------------------------------------------------
  1. Install nginx on centos 6
     [see learnNginx / howToInstallNginx.txt]
