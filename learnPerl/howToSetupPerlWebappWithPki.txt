@@ -52,16 +52,31 @@ Chapter 1:  Setup Apache Httpd to run Perl scripts on port 8080
  3. Restart the httpd service
     unix> sudo service httpd restart
     
- 4. Create a test perl script to run within httpd
+ 4. Create a test perl script to run within httpd (that displays the headers)
     unix> vi /var/www/html/bogus.pl
     
-      #!/usr/bin/perl
-      print "Content-type: text/html; charset=iso-8859-1\n\n";
-      print "<phtml>";
-      print "<body>";
-      print "Test Page";
-      print "</body>";
-      print "</html>";
+        #!/usr/bin/perl
+        use strict;
+        use warnings;
+        use CGI;
+
+        my $q = CGI->new;
+        my %headers = map { $_ => $q->http($_) } $q->http();
+
+        print "Content-type: text/html; charset=iso-8859-1\n\n";
+        print "<html lang='en'>";
+        print "<body>";
+        print "<h2>bogus.pl</h2><br><br>";
+
+        print $q->header('text/plain');
+        print "Got the following headers:<br>";
+        for my $header ( sort keys %headers ) {
+            print "$header: $headers{$header}<br>";
+        }
+
+        print "</body>";
+        print "</html>";
+
 
  5. Give this new file execute permission
     unix> chown apache:apache /var/www/html/bogus.pl
@@ -176,6 +191,7 @@ Chapter 3:  Change Apache Httpd to require a PKI Client be sent
             SSLCertificateFile    "/tmp/server.crt"
             SSLCertificateKeyFile "/tmp/rsa.key"
             SSLCACertificateFile  "/tmp/ca.crt"
+            SSLOptions +ExportCertData +FakeBasicAuth +StdEnvVars
             SSLVerifyClient require
             SSLVerifyDepth 1
         </VirtualHost>
@@ -290,8 +306,22 @@ Chapter 4:  Setup nginx as the proxy listening on port 443
                 set $cors "";
 
                 location /myapp {
+                    # Pass the headers upstream
+                    proxy_set_header Host $http_host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-Ssl on;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                    proxy_set_header X-Frame-Options  SAMEORIGIN;
+                    proxy_set_header X-Forwarded-Host $http_host;
+                    proxy_set_header X-Forwarded-Server $http_host;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-UA-Compatible IE=Edge;
+                    proxy_set_header X-Forwarded-Host $host;
+                    proxy_set_header X-Forwarded-Server $host;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header SSL_CLIENT_S_DN $ssl_client_s_dn;
 
-                   proxy_pass https://backendWebApp;
+                    proxy_pass https://backendWebApp;
                  }
           }
 
@@ -322,6 +352,7 @@ Chapter 4:  Setup nginx as the proxy listening on port 443
                 SSLEngine on
                 SSLCertificateFile    "/tmp/server.crt"
                 SSLCertificateKeyFile "/tmp/rsa.key"
+                SSLCACertificateFile  "/tmp/ca.crt"
                 SSLOptions +ExportCertData +FakeBasicAuth +StdEnvVars
             </VirtualHost>
 
@@ -331,7 +362,7 @@ Chapter 4:  Setup nginx as the proxy listening on port 443
  7. Verify that https://localhost/myapp/bogus.pl  forwards you to https://localhost:8443/bogus.pl
     a. Open a browser
     b. Connect to https://localhost/myapp/bogus.pl
-       -- You should see the welcome page
+       -- You should see the bogus.pl page
        
        
     
