@@ -1,0 +1,368 @@
+How to Setup Perl Web App with nginx forwarding to the Apache Httpd site on Centos 6
+-------------------------------------------------------------------------------------
+
+Assumptions:
+ A) You have an Apache http service already installed
+ B) You have perl installed already
+ C) You want to use nginx to forward requests to your apache httpd service (which runs your Perl web app)
+
+ 
+References
+----------
+https://www.dwheeler.com/essays/apache-cac-configuration.html
+http://fm4dd.com/security/apache-ldap-active-directory.htm
+http://www.librarywebchic.net/2006/04/20/configuring-apache-for-ssl-and-ldap-authentication/
+https://alvinalexander.com/perl/edu/articles/pl010012
+
+ 
+Chapter 1:  Setup Apache Httpd to run Perl scripts on port 8080
+---------------------------------------------------------------
+ 1. Configure httpd to run perl web apps
+    a. Open the file for editing
+       unix> vi /etc/httpd/conf/httpd.conf 
+       
+    a. Find this line
+          Options Indexes FollowSymLinks
+       Replace with this line
+          Options Indexes FollowSymLinks ExecCGI
+ 
+    c. Find this line
+          #AddHandler cgi-script .cgi
+       Replace with this line
+          AddHandler cgi-script .cgi .pl 
+    
+    d. Add this to the end of the httpd.conf file
+    
+          <VirtualHost *:8080>
+             ServerAdmin webmaster@dummy-host.example.com
+             DocumentRoot /var/www/html
+             ServerName myCentos
+             ErrorLog logs/error_log 
+             CustomLog logs/access_log common
+          </VirtualHost>
+     
+    e. Find this line within httpd.conf 
+          Listen 80
+       Replace with this line
+          Listen 8080
+
+
+ 2. Make sure apache:apache owns the /etc/httpd directory
+    unix> sudo -s
+    unix> chown apa-R /etc/httpd
+    
+ 3. Restart the httpd service
+    unix> sudo service httpd restart
+    
+ 4. Create a test perl script to run within httpd (that displays the headers)
+    unix> vi /var/www/html/bogus.pl
+    
+        #!/usr/bin/perl
+        use strict;
+        use warnings;
+        use CGI;
+
+        my $q = CGI->new;
+        my %headers = map { $_ => $q->http($_) } $q->http();
+
+        print "Content-type: text/html; charset=iso-8859-1\n\n";
+        print "<html lang='en'>";
+        print "<body>";
+        print "<h2>bogus.pl</h2><br><br>";
+
+        print $q->header('text/plain');
+        print "Got the following headers:<br>";
+        for my $header ( sort keys %headers ) {
+            print "$header: $headers{$header}<br>";
+        }
+
+        print "</body>";
+        print "</html>";
+
+
+ 5. Give this new file execute permission
+    unix> chown apache:apache /var/www/html/bogus.pl
+    unix> chmod ugo+x /var/www/html/bogus.pl
+    
+ 6. Attempt to connect to Apache httpd using port 8080
+    a. Open a browser
+    b. Go to http://localhost:8080/bogus.pl
+    -- You should see "Test Page"
+    
+  
+
+Chapter 2:  Add SSL to the Apache Httpd listening on port 8443
+--------------------------------------------------------------
+ 1. Generate SSL Server Cert
+    NOTE:  When complete, you should have these files:
+           /tmp/server.crt
+           /tmp/rsa.key
+           
+ 2. Allow Apache httpd SELinux access to the server.crt and rsa.key  (with SELinux enforcement)
+    NOTE:  I had problems with Centos.  Here's my fix:
+    unix> sudo -s
+    unix> chcon unconfined_u:object_r:httpd_config_t:s0 /tmp/rsa.key
+    unix> chcon unconfined_u:object_r:httpd_config_t:s0 /tmp/server.crt
+    
+    How do you know the context?  Look in the /etc/httpd/logs/error_log
+    You should see this:
+      [Tue Oct 03 21:50:33 2017] [notice] SELinux policy enabled; httpd running as context unconfined_u:system_r:httpd_t:s0
+      [Tue Oct 03 21:50:33 2017] [notice] suEXEC mechanism enabled (wrapper: /usr/sbin/suexec)
+      [Tue Oct 03 21:50:33 2017] [error] (13)Permission denied: Init: Can't open server certificate file /tmp/server.crt
+  
+   This tells you that the context is unconfined_u:system_r:httpd_t:s0
+
+ 
+ 3. Change apache httpd so it listens on port 8443 and enable SSL
+    unix> vi /etc/httpd/conf/httpd.conf 
+
+   a. Tell Apache to lod mod_ssl
+       Add this line at the top:
+          LoadModule ssl_module modules/mod_ssl.so
+
+   b. Find this line within httpd.conf 
+          Listen 8080
+       Replace with this line
+          Listen 8443
+    
+   c. Remove this section
+          <VirtualHost *:8080>
+             ServerAdmin webmaster@dummy-host.example.com
+             DocumentRoot /var/www/html
+             ServerName myCentos
+             ErrorLog logs/error_log 
+             CustomLog logs/access_log common
+          </VirtualHost>
+  
+    e. Add this section
+         <VirtualHost *:8443>
+             ServerAdmin webmaster@dummy-host.example.com
+             DocumentRoot /var/www/html
+             ServerName myCentos
+             ErrorLog logs/error_log
+             CustomLog logs/access_log common
+ 
+             SSLEngine on
+             SSLCertificateFile    "/tmp/server.crt"
+             SSLCertificateKeyFile "/tmp/rsa.key"
+             SSLVerifyClient none
+             SSLVerifyDepth 1
+         </VirtualHost>t
+
+ 4. Restart the httpd service
+    unix> sudo service httpd restart
+    
+ 5. Attempt to connect to Apache httpd using SSL on port 8443
+    a. Open a browser
+    b. Go to https://localhost:8443/bogus.pl
+    -- You should see "Test Page"
+ 
+    
+    
+Chapter 3:  Change Apache Httpd to require a PKI Client be sent
+---------------------------------------------------------------
+ 1. Generate a PKI Client Cert (client.p12) and get the ca.crt
+    NOTE:  The /tmp/ca.crt is the root-ca/public/root.pem file
+    
+ 2. Allow Apache httpd SELinux access to the server.crt and rsa.key  (with SELinux enforcement)
+    unix> sudo -s
+    unix> chcon unconfined_u:object_r:httpd_config_t:s0 /tmp/ca.crt
+    
+ 3. Change Apache httpd to require a PKI Client Certificate
+    a. Edit the httpd.conf
+       unix> vi /etc/httpd/conf/httpd.conf 
+   
+    b. Change this line:
+         SSLVerifyClient none
+       To this line:
+         SSLVerifyClient require
+
+    c. Add this line
+         SSLCACertificateFile  "/tmp/ca.crt"
+
+
+    When completed, your virtualhost section should look like this:
+        <VirtualHost *:8443>
+            ServerAdmin webmaster@dummy-host.example.com
+            DocumentRoot /var/www/html
+            ServerName myCentos
+            ErrorLog logs/error_log
+            CustomLog logs/access_log common
+
+            SSLEngine on
+            SSLCertificateFile    "/tmp/server.crt"
+            SSLCertificateKeyFile "/tmp/rsa.key"
+            SSLCACertificateFile  "/tmp/ca.crt"
+            SSLOptions +ExportCertData +FakeBasicAuth +StdEnvVars
+            SSLVerifyClient require
+            SSLVerifyDepth 1
+        </VirtualHost>
+    
+    
+    
+ 4. Restart the httpd service
+    unix> sudo service httpd 
+
+ 5. Import the PKI Client Cert (client.p12) into your browser
+ 
+ 6. Import the public CA (/tmp/ca.crt) into your browser as a trusted authority
+ 
+ 7. Attempt to connect to Apache httpd using your PKI Client with SSL on port 8443
+    a. Open a browser
+    b. Go to https://localhost:8443/bogus.pl
+    -- You sohuld be prompted to select a certificate, press OK
+    -- You should see "Test Page" 
+ 
+ 
+    
+Chapter 4:  Setup nginx as the proxy listening on port 443
+----------------------------------------------------------
+ 1. Install nginx on centos 6
+    [see learnNginx / howToInstallNginx.txt]
+
+ 2. Modify nginx.conf to forward requests to the apache httpd listening on port 8443
+    unix> sudo vi /etc/nginx/nginx.conf
+    
+    Change it to this:
+    
+        user  nginx;
+        worker_processes  1;
+
+        error_log  /var/log/nginx/error.log warn;
+        pid        /var/run/nginx.pid;
+
+
+        events {
+            worker_connections  1024;
+        }
+
+
+        http {
+            log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                              '$status $body_bytes_sent "$http_referer" '
+                              '"$http_user_agent" "$http_x_forwarded_for"';
+
+            access_log  /var/log/nginx/access.log  main;
+
+            ## Request Content Configs
+            include /etc/nginx/mime.types;
+            default_type application/octet-stream;
+            client_max_body_size 2m;
+            client_header_buffer_size 1k;
+            large_client_header_buffers 4 8k;
+
+            ## Connection Configs
+            sendfile on;
+            tcp_nopush on;
+            tcp_nodelay on;
+            keepalive_disable none;
+            keepalive_requests 100;
+            keepalive_timeout 15;
+            underscores_in_headers on;
+
+            ## Compression Configs
+            gzip on;
+            gzip_http_version 1.1;
+            gzip_comp_level 2;
+            gzip_proxied any;
+            gzip_static on;
+            gzip_types text/plain text/css application/x-javascript text/xml application/xml application/xml+rss text/javascript application/json;
+
+
+            include /etc/nginx/conf.d/*.conf;
+
+
+            proxy_headers_hash_bucket_size 64;
+            proxy_redirect  off;
+            proxy_ssl_session_reuse off;
+            proxy_ssl_server_name on;
+            proxy_set_header Host mycentos;
+
+
+            upstream backendWebApp {
+                server 127.0.0.1:8443;
+            }
+
+
+           server {
+                listen               443 ssl default;
+                server_name          mycentos;
+                server_tokens off;
+
+                ssl                    on;
+                ssl_certificate        /tmp/server.crt;
+                ssl_certificate_key    /tmp/rsa.key;
+                ssl_client_certificate /tmp/ca.crt;
+                ssl_session_timeout  5m;
+                ssl_session_cache shared:SSL:10m;
+                ssl_protocols TLSv1.1 TLSv1.2 SSLv3;
+                ssl_ciphers 'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:ECDHE-RSA-DES-CBC3-SHA:ECDHE-ECDSA-DES-CBC3-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:AES:CAMELLIA:DES-CBC3-SHA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA'; # https://wiki.mozilla.org/Security/Server_Side_TLS#Intermediate_compatibility_.28default.29
+                ssl_prefer_server_ciphers on;
+
+                ssl_verify_client on;
+                ssl_verify_depth 1;
+
+
+                if ($request_method !~ ^(HEAD|GET|DELETE|POST|PUT|OPTIONS)$ ) { return 444; }  ## TraceEnable off
+
+                set $cors "";
+
+                location /myapp {
+                    # Pass the headers upstream
+                    proxy_set_header Host $http_host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-Ssl on;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                    proxy_set_header X-Frame-Options  SAMEORIGIN;
+                    proxy_set_header X-Forwarded-Host $http_host;
+                    proxy_set_header X-Forwarded-Server $http_host;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-UA-Compatible IE=Edge;
+                    proxy_set_header X-Forwarded-Host $host;
+                    proxy_set_header X-Forwarded-Server $host;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header SSL_CLIENT_S_DN $ssl_client_s_dn;
+
+                    proxy_pass https://backendWebApp;
+                 }
+          }
+
+        }
+
+    
+ 4. Restart nginx
+    unix> sudo service nginx restart 
+
+ 5. Update the Apache httpd conf file
+     a. Edit the httpd.conf
+       unix> vi /etc/httpd/conf/httpd.conf
+
+     b. Change the <VirtualHost...> section to this
+
+            <VirtualHost *:8443>
+               LimitRequestLine 512
+               LimitRequestFields 100
+               LimitRequestFieldSize 1024
+               LimitRequestBody 102400
+
+                ServerAdmin webmaster@dummy-host.example.com
+                DocumentRoot /var/www/html
+                ServerName myCentos
+                ErrorLog logs/error_log
+                CustomLog logs/access_log common
+
+                SSLEngine on
+                SSLCertificateFile    "/tmp/server.crt"
+                SSLCertificateKeyFile "/tmp/rsa.key"
+                SSLCACertificateFile  "/tmp/ca.crt"
+                SSLOptions +ExportCertData +FakeBasicAuth +StdEnvVars
+            </VirtualHost>
+
+ 6. Restart the httpd service
+    unix> sudo service httpd
+
+ 7. Verify that https://localhost/myapp/bogus.pl  forwards you to https://localhost:8443/bogus.pl
+    a. Open a browser
+    b. Connect to https://localhost/myapp/bogus.pl
+       -- You should see the bogus.pl page
+       
