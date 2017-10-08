@@ -12,95 +12,100 @@ Procedure
     If args.length==0, then use the /src/main/resources/default.properties
     If args.lengt==1, then use the psased-in property file path
 
-
-    /***************************************************************************************
-     * main()
-     *
-     * If the class has zero arguments, then get properties from /src/main/resources/default.properties
-     * If the class has 1 argument, then get properties from that file
-     ***************************************************************************************/
-     public static void main(String[] args) throws Exception
-     {
-        logger.debug("main() started.");
-
-        Properties appProps;
-
-        if (args.length == 0)
-        {
-            // Use the default.properties file (found in /src/main/resources/default.properties
-            appProps = getPropertiesFromInsideTheJar();
-        }
-        else if (args.length == 1)
-        {
-            // One program argument was passed-in and it should be the path of the property file
-            appProps = getPropertiesFromFilePath(args[0]);
-        }
-        else
-        {
-            // Use the property file passed-in on the command-line
-            throw new RuntimeException("Critical Exception in main():  There can be zero or one program argument.  But, there cannot be more than 1 program argument");
-        }
-
-        // Do more stuff with the properties
-     }
-
-
-
-    /***************************************************************************************
-     * getPropertiesFromFilePath()
-     * @param aFilePath
-     * @return Properties object with the contents of the file
-     * @throws Exception
-     ***************************************************************************************/
-    private static Properties getPropertiesFromFilePath(String aFilePath) throws Exception
+    public class MigrateData
     {
-        if ((aFilePath == null) || (aFilePath.length() == 0))
+        private static final Logger logger = LoggerFactory.getLogger(MigrateData.class);
+
+
+        /***************************************************************************************
+         * main()
+         *
+         * If the class has zero arguments, then get properties from /src/main/resources/default.properties
+         * If the class has 1 argument, then get properties from that file
+         ***************************************************************************************/
+         public static void main(String[] args) throws Exception
+         {
+            logger.debug("main() started.");
+
+            Properties appProps;
+
+            if (args.length == 0)
+            {
+                // Use the default.properties file (found in /src/main/resources/default.properties
+                appProps = getPropertiesFromInsideTheJar();
+            }
+            else if (args.length == 1)
+            {
+                // One program argument was passed-in and it should be the path of the property file
+                appProps = getPropertiesFromFilePath(args[0]);
+            }
+            else
+            {
+                // Use the property file passed-in on the command-line
+                throw new RuntimeException("Critical Exception in main():  There can be zero or one program argument.  But, there cannot be more than 1 program argument");
+            }
+
+            // Do more stuff with the properties
+         }
+
+
+
+        /***************************************************************************************
+         * getPropertiesFromFilePath()
+         * @param aFilePath
+         * @return Properties object with the contents of the file
+         * @throws Exception
+         ***************************************************************************************/
+        private static Properties getPropertiesFromFilePath(String aFilePath) throws Exception
         {
-            throw new RuntimeException("Critical Error in getPropertiesFromFilePath():  The passed-id file path is null or empty.");
+            if ((aFilePath == null) || (aFilePath.length() == 0))
+            {
+                throw new RuntimeException("Critical Error in getPropertiesFromFilePath():  The passed-id file path is null or empty.");
+            }
+
+            File f = new File(aFilePath);
+            if (f.exists() && f.isDirectory() )
+            {
+                // The passed-in filepath is a directory path
+                throw new RuntimeException("Critical Error in getPropertiesFromFilePath():  The passed-id file path is a directory [not a file]:   " + aFilePath);
+            }
+            else if (! f.exists())
+            {
+                // The psased-in file path does not exist
+                throw new RuntimeException("Critical Error in getPropertiesFromFilePath():  The passed-id file path does not exist:  " + aFilePath);
+            }
+            else if (! f.canRead())
+            {
+                // The psased-in file path exists, but I cannot read it
+                throw new RuntimeException("Critical Error in getPropertiesFromFilePath():  The passed-id file path exists but I cannot read it:  " + aFilePath);
+            }
+
+            // If I got this far, the passed-in path is a file path exists and is readable
+
+            // Read the properties file into a Properties object and return it
+            FileInputStream fis = new FileInputStream(aFilePath);
+            Properties props = new Properties();
+            props.load(fis);
+            return props;
         }
 
-        File f = new File(aFilePath);
-        if (f.exists() && f.isDirectory() )
+
+        /***************************************************************************************
+         * getPropertiesFromInsideTheJar()
+         * @return Properties object
+         * @throws Exception
+         *
+         * Get the properties from the property file found in /src/main/resources/default.properties
+         * NOTE:  because this file is in src/main/resources, it will be inserted into the Java JAR
+         ***************************************************************************************/
+         private static Properties getPropertiesFromInsideTheJar() throws Exception
         {
-            // The passed-in filepath is a directory path
-            throw new RuntimeException("Critical Error in getPropertiesFromFilePath():  The passed-id file path is a directory [not a file]:   " + aFilePath);
-        }
-        else if (! f.exists())
-        {
-            // The psased-in file path does not exist
-            throw new RuntimeException("Critical Error in getPropertiesFromFilePath():  The passed-id file path does not exist:  " + aFilePath);
-        }
-        else if (! f.canRead())
-        {
-            // The psased-in file path exists, but I cannot read it
-            throw new RuntimeException("Critical Error in getPropertiesFromFilePath():  The passed-id file path exists but I cannot read it:  " + aFilePath);
+            // Get the path of the default.properties  (should be located in /src/main/resources)
+            InputStream is =  MigrateData.class.getResourceAsStream("/default.properties");
+            Properties props = new Properties();
+            props.load(is);
+            return props;
         }
 
-        // If I got this far, the passed-in path is a file path exists and is readable
 
-        // Read the properties file into a Properties object and return it
-        FileInputStream fis = new FileInputStream(aFilePath);
-        Properties props = new Properties();
-        props.load(fis);
-        return props;
-    }
-
-
-    /***************************************************************************************
-     * getPropertiesFromInsideTheJar()
-     * @return Properties object
-     * @throws Exception
-     *
-     * Get the properties from the property file found in /src/main/resources/default.properties
-     * NOTE:  because this file is in src/main/resources, it will be inserted into the Java JAR
-     ***************************************************************************************/
-     private static Properties getPropertiesFromInsideTheJar() throws Exception
-    {
-        // Get the path of the default.properties  (should be located in /src/main/resources)
-        InputStream is =  MigrateData.class.getResourceAsStream("/default.properties");
-        Properties props = new Properties();
-        props.load(is);
-        return props;
-    }
-
-
+}
