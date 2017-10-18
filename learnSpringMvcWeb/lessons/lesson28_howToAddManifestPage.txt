@@ -8,12 +8,143 @@ Solution: Create a /about page that displays the manifest in sorted order
 Procedure
 ---------
  1. Adjust your pom.xml so that it includes version information in your MANIFEST.MF
+    Edit your pom.xml to include a MANIFEST.MF with information
+    
+               <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-war-plugin</artifactId>
+                <version>2.6</version>
+                <configuration>
 
+                    <archive>
+                        <!-- Add Extra Manifest info to the WAR Manifest -->
+                        <manifest>
+                            <addClasspath>false</addClasspath>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                            <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
+                        </manifest>
+                        <manifestEntries>
+                            <!-- Add timestamp entry to the Manifest file -->
+                            <Build-timestamp>${timestamp}</Build-timestamp>
+
+                            <!-- Add jenkins build number to the Manifest file
+                                 NOTE:  This requires -Dbuild.number=${BUILD_NUMBER} in the jenkins maven command
+                            -->
+                            <Build-Number>${build.number}</Build-Number>
+
+                            <!-- Add jenkins build name to the Manifest file
+                                 NOTE:  This requires -Dbuild.name=${JOB_NAME} in the jenkins maven command
+                            -->
+                            <Build-Name>${build.name}</Build-Name>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+            
+            
+            
  2. Add a Method to your WelcomeController
 
+    /**********************************************************************
+     * aboutPage()
+     *
+     * The user browsed to the /about page
+     *  1) Read the contents of the MANIFEST.MF file into a Properties Object
+     *  2) Load the Properties object into a SortedMap object
+     *  3) Return the SortedMap object to the view (where it will be displayed in sorted order)
+     ***********************************************************************/
+    @RequestMapping("/about")
+    public ModelAndView aboutPage( Model aModel, HttpServletRequest aRequest, HttpServletResponse aResponse ) throws Exception
+    {
+        logger.debug("aboutPage() started");
+
+        // Create a modelAndView object
+        ModelAndView mav = new ModelAndView();
+
+        // Show the welcome.jsp page
+        mav.setViewName("about.jsp");
+
+
+        Properties props = new Properties();
+
+        // Read the contents of the MANIFEST.MF
+        InputStream manifestInputStream = this.servletContext.getResourceAsStream("/META-INF/MANIFEST.MF");
+        if (manifestInputStream != null)
+        {
+            // Load the MANIFEST.MF into the Properties object
+            props.load( manifestInputStream );
+        }
+
+        // Sort the properties by loading them into a SortedMap object
+        SortedMap<String, String> sortedMap = new TreeMap(props);
+
+        // Add the linkedHashMap to the view
+        mav.addObject("props", sortedMap);
+
+        logger.debug("aboutPage() finished");
+        return mav;
+    }
+
+
+
  3. Add an about.jsp page
+    <%@ include file="/WEB-INF/jsp/stdJspIncludes.jsp" %>
+
+    <!DOCTYPE HTML>
+
+    <html xmlns="http://www.w3.org/1999/xhtml">
+
+    <head>
+        <title>About Page</title>
+
+        <style type="text/css">
+
+            .manifestTable
+            {
+                border: 1px solid white;
+            }
+
+            .manifestTable tr td
+            {
+                padding-left: 25px;
+            }
+
+        </style>
+    </head>
+
+    <body>
+
+    <%-- S T A N D A R D       H E A D E R  --%>
+    <%@ include file="/WEB-INF/jsp/stdHeader.jsp" %>
+
+    <h2>About Us</h2>
+
+
+    <table class="manifestTable">
+        <c:forEach items="${props}" var="p">
+            <tr>
+                <td>${p.key}</td>
+                <td>${p.value}</td>
+            </tr>
+        </c:forEach>
+    </table>
+    <br/>
+
+    <%-- S T A N D A R D       F O O T E R  --%>
+    <%@ include file="/WEB-INF/jsp/stdFooter.jsp" %>
+
+    </body>
+    </html>
+
 
  4. Try it out
     NOTE:  It will show nothing in debug mode
-    a. Build a WAR file
-    b. Deploy t
+    
+    a. Add some bogus properties after creating the Properties object
+        props.setProperty("x-wars", "x-ware stuff");
+        props.setProperty("build-number", "1");
+        props.setProperty("zztop-stuff", "music");
+        props.setProperty("build-job", "Job #1");
+
+    b. Go to http://localhost/webapp/about
+    
