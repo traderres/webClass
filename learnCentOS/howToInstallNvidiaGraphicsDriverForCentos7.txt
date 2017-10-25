@@ -1,0 +1,79 @@
+how to install nvidia driver for Centos 7
+-----------------------------------------
+Problem:  I have an NVIDIA graphics card but am not using the NVIDIA graphics drier
+
+
+References
+----------
+https://linuxconfig.org/nvidia-geforce-driver-installation-on-centos-7-linux-64-bit
+
+
+How to get graphics card info
+-----------------------------
+unix> /sbin/lspci | grep -i VGA
+01:00.0 VGA compatible controller: NVIDIA Corporation GK208 [GeForce GT 720] (rev a1)
+
+
+
+Procedure
+----------
+ 1. First update your system. We do not wand to build NVidia modules on based on outdated Linux kernel. 
+    Do a full updated and reboot your system:
+    unix> sudo yum update
+    unix> sudo reboot
+
+ 2. After a restart we make sure that we have kernel devel package installed matching our currently running kernel 
+    and that compiler is installed:
+    unix> sudo yum install kernel-devel-$(uname -r) gcc
+ 
+ 3. Go to nvidia.com and download the current nvidia driver -- e.g., NVIDIA-Linux-x86_64-352.30.run
+    a. Go to http://www.nvidia.com
+    b. Click on Drivers -> GEForce Drivers  
+    c. Under Manual Driver Search, press Start Search
+       Top Menu:  Choose GeForce
+       2nd Manu:  Choose GeForce 700 Series
+       3rd Menu:  Choose GeForce GT 720
+       4th menu:  Choose Linux 64-bit
+       5th Menu:  English (US)
+       6th menu:  Recommended/Certified
+       Press "Start Search"
+       -- Click to download the latest driver
+       -- Save the NVIDIA-Linux-x86_64-384.90.run
+
+ 4. Blocklist the nouveau driver 
+    At this stage we need to ensure that a new propriatery NVidia driver does not get into a conflict with currently installed  Nouveau driver thus we blacklist it: 
+    unix> sudo -s
+    unix> echo 'blacklist nouveau' >> /etc/modprobe.d/blacklist.conf
+    unix> dracut /boot/initramfs-$(uname -r).img $(uname -r) --force
+
+ 5. Temporarily disable desktop manager ( if you ar running kdm that updated the below command with kdm ):
+    unix> systemctl disable gdm
+
+ 6. Reboot your system without a desktop window manager
+    Next time your system boots it will boot to terminal only with no GUI. 
+    unix> sudo reboot
+
+ 7. Install the NVIDIA GeForce Driver
+    unix> cd ~/Downloads
+    unix> bash NVIDIA-Linux-x86_64-352.30.run
+
+ 8. If you have not configured your X11 during the driver install you can do it now: 
+    unix> nvidia-xconfig 
+
+ 9. Enable again your desktop manager and reboot to GUI with new NVidia driver: 
+    unix> sudo systemctl enable gdm
+    unix> sudo ln -s '/usr/lib/systemd/system/gdm.service' '/etc/systemd/system/display-manager.service'
+    unix> sudo reboot
+
+
+How to revert the change
+------------------------
+You  should be able to revert by removing line 'blacklist nouveau' from /etc/modprobe.d/blacklist.conf and re-run the dracut command.
+  unix> sudo -s
+  unix> vi /etc/modprobe.d/blacklist.conf
+         
+        # Remove the blacklist noveau 
+
+  unix> dracut /boot/initramfs-$(uname -r).img $(uname -r) --force
+  unix> reboot
+
