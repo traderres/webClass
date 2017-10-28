@@ -46,29 +46,29 @@ function shouldRestartBeAttempted
   echo "shouldRestartBeAttempted()  sServiceName=$sServiceName  attemptServiceRestart=$attemptServiceRestart"
 
   if [ -e $statsFilePath ]; then
-	# The stats file exists
+    # The stats file exists
 
-	# Look at the stats file to see if there have been too many failed restarts 
-	local currentTimeInSecs=`date +"%s"`
+    # Look at the stats file to see if there have been too many failed restarts 
+    local currentTimeInSecs=`date +"%s"`
   
-	# Find all records for this service name that are greater than currentTimeInSecs - 3600
-	local startTime=`expr $currentTimeInSecs - $totalFailedRetriesInterval`
+    # Find all records for this service name that are greater than currentTimeInSecs - 3600
+    local startTime=`expr $currentTimeInSecs - $totalFailedRetriesInterval`
 
 
-	# Get a count of the total number of failed attempts over the last hour
-	local awk_command=$(printf '{if (($4 == "%s") && ($1 >= %s)) { print $0 }}'  "$sServiceName" "$startTime")
+    # Get a count of the total number of failed attempts over the last hour
+    local awk_command=$(printf '{if (($4 == "%s") && ($1 >= %s)) { print $0 }}'  "$sServiceName" "$startTime")
 
-	local totalFailureCountInLastHour=`awk '$awk_command' $statsFilePath | grep failed | wc -l`
-	echo -e "\ttotalFailureCountInLastHour=$totalFailureCountInLastHour"
+    local totalFailureCountInLastHour=`awk '$awk_command' $statsFilePath | grep failed | wc -l`
+    echo -e "\ttotalFailureCountInLastHour=$totalFailureCountInLastHour"
 
-	if [ $totalFailureCountInLastHour -lt $totalFailedRetriesAllowed ]; then
-		# I counted less than 3 failed attempts in the last hour.  So, attempt to restart the service
-  		attemptServiceRestart=1
-	fi
+    if [ $totalFailureCountInLastHour -lt $totalFailedRetriesAllowed ]; then
+        # I counted less than 3 failed attempts in the last hour.  So, attempt to restart the service
+          attemptServiceRestart=1
+    fi
   else
-	# The stats file does not exist
-	# So, Return 1 to indicate that a restart should be attempted
-  	attemptServiceRestart=1
+    # The stats file does not exist
+    # So, Return 1 to indicate that a restart should be attempted
+      attemptServiceRestart=1
   fi
 
 
@@ -97,40 +97,40 @@ services["ntpd"]='ntpd.* is running'
 
 # Loop through all of the keys (holding the serivce name) in the assoc array
 for serviceName in "${!services[@]}"; do 
-	serviceUpMesg=${services[$serviceName]};
-	echo -e "\nVerifying ${serviceName} is running...."; 
-	service $serviceName status | grep -E "$serviceUpMesg" > /dev/null 2>&1
-	if [ $? -ne 0 ]; then
-		# This service is not running
-   		echo "$serviceName is *NOT* running"
+    serviceUpMesg=${services[$serviceName]};
+    echo -e "\nVerifying ${serviceName} is running...."; 
+    service $serviceName status | grep -E "$serviceUpMesg" > /dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        # This service is not running
+           echo "$serviceName is *NOT* running"
 
-		# Have 3 restarts been attempted in the last hour?
-		shouldRestartBeAttempted $serviceName 
+        # Have 3 restarts been attempted in the last hour?
+        shouldRestartBeAttempted $serviceName 
                 attemptRestart=$?
 
-		if [ $attemptRestart -eq 1 ]; then
-		 
-			# A T T E M P T       T O    S T A R T    S E R V I C E
-			service $serviceName start
+        if [ $attemptRestart -eq 1 ]; then
+         
+            # A T T E M P T       T O    S T A R T    S E R V I C E
+            service $serviceName start
 
-			# Verify that the service is now up
-			service $serviceName status | grep -E "$serviceUpMesg" > /dev/null 2>&1
-			if [ $? -ne 0 ]; then
-				# Service *failed* to restart.  So, add an entry to the stats file
-				date +"%s %Y%m%d %H:%M:%S $serviceName failed to restart" >> $statsFilePath
+            # Verify that the service is now up
+            service $serviceName status | grep -E "$serviceUpMesg" > /dev/null 2>&1
+            if [ $? -ne 0 ]; then
+                # Service *failed* to restart.  So, add an entry to the stats file
+                date +"%s %Y%m%d %H:%M:%S $serviceName failed to restart" >> $statsFilePath
 
-			else
-				# Service succesfully restarted.  So, add an entry to the stats file
-				date +"%s %Y%m%d %H:%M:%S $serviceName successfully restarted" >> $statsFilePath
-			fi
-		else
-			# Do not attempt to start the service
-			echo "I will not restart $serviceName:  I have tried to restart this service too many times and failed.  Giving up on it."
-		fi
-	else
-		# This service is running
-   		echo "$serviceName is running.  Nothing to do."
-	fi
+            else
+                # Service succesfully restarted.  So, add an entry to the stats file
+                date +"%s %Y%m%d %H:%M:%S $serviceName successfully restarted" >> $statsFilePath
+            fi
+        else
+            # Do not attempt to start the service
+            echo "I will not restart $serviceName:  I have tried to restart this service too many times and failed.  Giving up on it."
+        fi
+    else
+        # This service is running
+           echo "$serviceName is running.  Nothing to do."
+    fi
 done
 
 
