@@ -1,0 +1,208 @@
+How to Install PostgreSQL on CentOS 6
+-------------------------------------
+Although CentOS contains postgres packages within its default repositories,
+we will use the packages available from the postgres project itself.
+This ensures that we have access to the latest version of the software without having to install from source.
+
+
+References
+----------
+https://www.digitalocean.com/community/tutorials/how-to-install-and-use-postgresql-on-centos-6
+
+
+
+Procedure
+---------
+ 1. Exclude CentOS Postgres Packages
+    unix> sudo vi /etc/yum.repos.d/CentOS-Base.repo
+
+    a) Add this line to the bottom of the [base] section to exclude postgres packages
+         exclude=postgresql*
+
+    b) Add this line to the bottom of the [updates] section to exclude postgres packages
+         exclude=postgresql*
+
+       When done, the [base] section looks like this:
+       [base]
+       name=CentOS-$releasever - Base
+       mirrorlist=http://mirrorlist.centos.org/?release=$releasever&arch=$basearch&repo=os&infra=$infra
+       #baseurl=http://mirror.centos.org/centos/$releasever/os/$basearch/
+       gpgcheck=1
+       gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+       exclude=postgresql*
+
+       When done, the [updates] section looks like this:
+       [updates]
+       name=CentOS-$releasever - Updates
+       mirrorlist=http://mirrorlist.centos.org/?release=$releasever&arch=$basearch&repo=updates&infra=$infra
+       #baseurl=http://mirror.centos.org/centos/$releasever/updates/$basearch/
+       gpgcheck=1
+       gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+       exclude=postgresql*
+
+
+ 2. Add Postgres Repositories to yum
+    a. Go to the site to find the latest version of postgres available for your CentOS version.
+       1) Open a browser
+       2) Go to http://yum.postgresql.org/repopackages.php
+          -- Get the url for the rpm for postgres 9.3 for centOS 6 x86_64
+             *OR*
+             https://download.postgresql.org/pub/repos/yum/9.3/redhat/rhel-6-x86_64/pgdg-centos93-9.3-2.noarch.rpm
+
+    b. Download the small rpm
+       unix> cd ~
+       unix> curl -O https://download.postgresql.org/pub/repos/yum/9.3/redhat/rhel-6-x86_64/pgdg-centos93-9.3-2.noarch.rpm
+
+    c. Install the small rpm
+       unix> sudo rpm -ivh pgdg-centos93-9.3-2.noarch.rpm
+       -- This will allow your system to pull the postgres package from the Postgres website.
+
+    d. List the packages available from the postgres website
+       unix> sudo yum list postgres*
+
+       You should see the following output
+         postgresql-jdbc.noarch                                               9.4.1208-1.rhel6               pgdg93
+         postgresql-jdbc-javadoc.noarch                                       9.4.1208-1.rhel6               pgdg93
+         postgresql-relay.x86_64                                              1.3-2.2.el6.rf                 rpmforge
+         postgresql93.x86_64                                                  9.3.13-1PGDG.rhel6             pgdg93
+         postgresql93-contrib.x86_64                                          9.3.13-1PGDG.rhel6             pgdg93
+         postgresql93-debuginfo.x86_64                                        9.3.13-1PGDG.rhel6             pgdg93
+         postgresql93-devel.x86_64                                            9.3.13-1PGDG.rhel6             pgdg93
+         postgresql93-docs.x86_64                                             9.3.13-1PGDG.rhel6             pgdg93
+         postgresql93-jdbc.x86_64                                             9.3.1101-1PGDG.rhel6           pgdg93
+         postgresql93-jdbc-debuginfo.x86_64                                   9.3.1101-1PGDG.rhel6           pgdg93
+         postgresql93-libs.x86_64                                             9.3.13-1PGDG.rhel6             pgdg93
+         postgresql93-odbc.x86_64                                             09.05.0200-1PGDG.rhel6         pgdg93
+         postgresql93-odbc-debuginfo.x86_64                                   09.03.0400-1PGDG.rhel6         pgdg93
+         postgresql93-plperl.x86_64                                           9.3.13-1PGDG.rhel6             pgdg93
+         postgresql93-plpython.x86_64                                         9.3.13-1PGDG.rhel6             pgdg93
+         postgresql93-pltcl.x86_64                                            9.3.13-1PGDG.rhel6             pgdg93
+         postgresql93-python.x86_64                                           4.2-1PGDG.rhel6                pgdg93
+         postgresql93-python-debuginfo.x86_64                                 4.2-1PGDG.rhel6                pgdg93
+         postgresql93-server.x86_64                                           9.3.13-1PGDG.rhel6             pgdg93
+         postgresql93-tcl.x86_64                                              2.1.1-1.rhel6                  pgdg93
+         postgresql93-tcl-debuginfo.x86_64                                    2.1.1-1.rhel6                  pgdg93
+         postgresql93-test.x86_64                                             9.3.13-1PGDG.rhel6             pgdg93
+
+
+
+ 3. Install the Postgres 9.3 server
+    unix> sudo yum install postgresql93-server
+
+
+ 4. Initialize the Database Environment
+    unix> sudo service postgresql-9.3 initdb
+
+
+ 5. Start the Postgres database service
+    unix> sudo service postgresql-9.3 start
+
+
+ 6. Set the postgres user's password
+    unix> sudo su - postgres
+    unix> psql
+
+    postgres-# ALTER USER Postgres WITH PASSWORD 'secret';
+    postgres-# \q
+
+    unix> exit
+
+
+
+ 7. **OPTIONAL** Setup the postgresql-9.3 service to startup on boot
+    unix> chkconfig postgresql-9.3 on
+
+
+ 8. **OPTIONAL** Open up Port 5432 (so outside clients can connect to postgres)
+    unix> sudo -s
+    unix> iptables -I INPUT -p tcp -m tcp --dport 5432 -j ACCEPT
+    unix> service iptables save
+    unix> service iptables restart
+    unix> iptables -S  # to list the current rule
+
+
+
+
+ 9. **OPTIONAL** Enable remote access to the Postgres Database
+    NOTE:  When done, users can use either localhost *OR* the IP address to connect to the database
+    a. Check to see if remote access is allowed   [it should be disabled by default]
+       unix> psql -U postgres -h 192.168.1.162       # I assume that your server's IP address is 192.168.1.162
+
+	     psql: could not connect to server: Connection refused
+	  	   Is the server running on host "192.168.1.162" and accepting
+		   TCP/IP connections on port 5432?
+
+
+    b. Modify pg_hba.conf so that everyone requires a password from localhost *AND* remote boxes
+       unix> sudo cp /var/lib/pgsql/9.3/data/pg_hba.conf  /var/lib/pgsql/9.3/data/pg_hba.conf.OLD
+       unix> sudo vi /var/lib/pgsql/9.3/data/pg_hba.conf
+
+		# Change the file so it looks like this
+
+		# "local" is for Unix domain socket connections only.
+		#  So, the system admins can login without password using this:
+		#    unix> sudo su - postgres
+		#    unix> psql
+		local   all             postgres                                peer
+
+		# IPv4 local connections require password
+		host    all             all             127.0.0.1/32            md5
+
+		# IPv6 local connections require password
+		host    all             all             ::1/128                 md5
+
+		# all remote connections require password
+		host    all             all             0.0.0.0/0               md5
+
+
+    c. Tell postgres to listen on all IP addresses (and not just localhost)
+       unix> sudo vi /var/lib/pgsql/9.3/data/postgresql.conf
+
+       	    # Add this line to that postgres listens on all IP addresses
+            listen_addresses='*'
+
+
+    d. Delete your .pgpass file (if it exists).  This file might have a passwords in it
+       unix> rm ~/.pgpass
+
+    e. Restart postgres
+       unix> sudo service postgresql-9.3 restart
+
+    f. Verify it works using an IP address
+       unix> psql -U postgres -h 192.168.1.162
+       Password for user postgres:    secret <enter>
+     
+       If it works, you should see the postgres prompt.  Use \q to exit out.
+       postgres-# \q
+       
+    g. Verify it works using localhost
+       unix> psql -U postgres -h localhost
+       Password for user postgres:    secret <enter>
+       
+       If it works, you should see the postgres prompt.  Use \q to exit out.
+       postgres-# \q        
+    
+       
+
+           
+How to Log Into the Postgres Database (using postgres unix account)
+-------------------------------------------------------------------
+unix> sudo su - postgres
+unix> psql
+
+postgres-# \q
+
+unix> exit
+
+
+
+How to Log Into the Postgres Database (using user/password)
+------------------------------------------------------------
+unix> psql -U postgres -h 192.168.1.162
+      Password for user postgres:    secret <enter>
+
+
+postgres-# \q
+
+
+
