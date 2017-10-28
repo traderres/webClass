@@ -80,43 +80,43 @@ Procedure
     a. Edit /src/main/resources/logback.xml
     b. Replace your logback.xml with this:
     
-		<?xml version="1.0" encoding="windows-1252" ?>
-		<!DOCTYPE project>
-		
-		<configuration debug="false">
-		    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-		        <encoder>
-		            <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
-		        </encoder>
-		    </appender>
-		
-		
-		    <logger name="stuff" level="DEBUG" additivity="false">
-		        <appender-ref ref="CONSOLE"/>
-		    </logger>
-		
-		    <logger name="org.elasticsearch" level="INFO" additivity="false">
-		        <appender-ref ref="CONSOLE"/>
-		    </logger>
-		
-		    <logger name="org.springframework.jdbc" level="INFO" additivity="false">
-		        <appender-ref ref="CONSOLE"/>
-		    </logger>
-		
-		    <root level="INFO">
-		        <appender-ref ref="CONSOLE"/>
-		    </root>
-		
-		</configuration>
-		        
-		       		        	              
+        <?xml version="1.0" encoding="windows-1252" ?>
+        <!DOCTYPE project>
+        
+        <configuration debug="false">
+            <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+                <encoder>
+                    <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+                </encoder>
+            </appender>
+        
+        
+            <logger name="stuff" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+        
+            <logger name="org.elasticsearch" level="INFO" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+        
+            <logger name="org.springframework.jdbc" level="INFO" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+        
+            <root level="INFO">
+                <appender-ref ref="CONSOLE"/>
+            </root>
+        
+        </configuration>
+                
+                                                 
  
  4. Create a package called "stuff"
     a. Right-click on /src/main/java -> New -> Package
        Name:  Stuff
        
  
-				
+                
  5. Create this class:  ElasticSearchDao
     a. Right-click on /src/main/java/stuff -> New -> Java Class
        Name:  ElasticSearchDao
@@ -125,577 +125,577 @@ Procedure
        
     b. Copy this to to your java class
 
-		package stuff;
-		
-		import com.google.gson.*;
-		import com.ning.http.client.AsyncHttpClient;
-		import com.ning.http.client.Response;
-		import org.slf4j.Logger;
-		import org.slf4j.LoggerFactory;
-		
-		import java.util.regex.Pattern;
-		
-		
-		/**
-		 * Created by adam on 12/30/2016.
-		 */
-		public class ElasticSearchDao
-		{
-		    private static final Logger logger = LoggerFactory.getLogger(ElasticSearchDao.class);
-		
-		    private String elasticSearchUrl;
-		    private AsyncHttpClient asyncHttpClient;
-		
-		    private Pattern patMatchDoubleQuote     = Pattern.compile("\"");
-		    private Pattern patMatchAscii1To31or128 = Pattern.compile("[\\u0000-\\u001F\\u0080]");
-		    private Pattern patMatchBackwardSlashMissingReserveChar = Pattern.compile("\\\\([^+!-><)(:/}{*~]|\\Z)");
-		
-		
-		    /**************************************************************************
-		     * cleanupQuery()
-		     *
-		     * Clean-up the passed-in raw query with the following rules:
-		     *  1) If Double quote is found, then replace it with \"
-		     *  2) If ASCII value between 1 and 31 is found or 128, then replace it with a space
-		     *  3) If "\" is found without a special reserve chars, then replace it with a space
-		     ***************************************************************************/
-		    public String cleanupQuery(String aRawQuery)
-		    {
-		        // Convert the pattern match of " to \"
-		        // NOTE:  Because of Java Regex, you have to use four backward slashes to match a \
-		        String sCleanedQuery = this.patMatchDoubleQuote.matcher(aRawQuery).replaceAll("\\\\\"");
-		
-		        // If ASCII 1-31 or 128 is found, then replace it with a space
-		        sCleanedQuery = this.patMatchAscii1To31or128.matcher(sCleanedQuery).replaceAll(" ");
-		
-		        // If a single backslash is found but the required reserve char is missing -- then replace it with a space
-		        sCleanedQuery = this.patMatchBackwardSlashMissingReserveChar.matcher(sCleanedQuery).replaceAll(" ");
-		
-		        return sCleanedQuery;
-		    }
-		
-		
-		    /**************************************************************************
-		     * ElasticSearchDao()  Constructor
-		     *
-		     ***************************************************************************/
-		    public ElasticSearchDao(String aElasticSearchUrl)
-		    {
-		        this.asyncHttpClient = new AsyncHttpClient();
-		        this.elasticSearchUrl = aElasticSearchUrl;
-		    }
-		
-		
-		    /********************************************************************************************
-		     * getJsonInPrettyFormat()
-		     *
-		     * Return the JSON in pretty format
-		     *********************************************************************************************/
-		    public static String getJsonInPrettyFormat(String aRawJson)
-		    {
-		        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-		        JsonParser jp = new JsonParser();
-		        JsonElement je = jp.parse(aRawJson);
-		        String prettyJsonString = gson.toJson(je);
-		
-		        return prettyJsonString;
-		    }
-		
-		
-		    /**************************************************************************
-		     * close()
-		     ***************************************************************************/
-		    public void close()
-		    {
-		        if (this.asyncHttpClient != null)
-		        {
-		            this.asyncHttpClient.close();
-		        }
-		    }
-		
-		
-		    /**************************************************************************
-		     * runSimpleQueryString()
-		     *  1) Verify that passed-in arguments are valid
-		     *  2) Clean-up the query so that quotes do not screw up execution
-		     *  3) Run a synchronous ES call
-		     *  4) Verify that the status code is good
-		     *  5) Return the ES JSON results
-		     *
-		     * NOTE:  ElasticSearch uses a zero-based starting record number
-		     *        So, to see the first 20 results of a search,
-		     *               aStaringRecordNumber = 0
-		     *               aPageSize = 20
-		     *
-		     * Returned hits (within the JSON) are ordered by the default ES score
-		     ***************************************************************************/
-		    public String runSimpleQueryString(String aQuery,
-		                                       String aIndexName,
-		                                       long   aStartingRecord,
-		                                       long   aPageSize) throws Exception
-		    {
-		        logger.debug("runSimpleQueryString()  aIndexName={}  aQuery={}", aIndexName, aQuery);
-		
-		        String sReturnedJson = null;
-		
-		        if ((aIndexName == null) || (aIndexName.length() == 0))
-		        {
-		            throw new RuntimeException("Critical Error in runSimpleQueryString():  The passed-in aIndexName is empty or null.");
-		        }
-		        else if (aStartingRecord < 0)
-		        {
-		            throw new RuntimeException("Critical Error in runSimpleQueryString():  The passed-in aStartingRecord is invalid:  " + aStartingRecord + ".  This number should be zero or greater");
-		        }
-		
-		        // Clean-up the raw query so quotes do not prevent it from working
-		        String sCleanQuery = cleanupQuery(aQuery);
-		
-		        // Construct the JSON call to run an ES Simple Query String
-		        final String sJsonSearchRequest =
-		                "{ \"explain\": false, " +
-		                        "\"query\": { " +
-		                        "\"simple_query_string\": { " +
-		                        " \"query\": " + "\"" + sCleanQuery + "\"," +
-		                        "\"default_operator\": \"and\" " +
-		                        "}" +
-		                        "}," +
-		                        "\"from\":" + aStartingRecord + "," +
-		                        "\"size\":" + aPageSize +
-		                        "}";
-		
-		        // Make a synchronous call to ElasticSearch (to run this query)
-		        Response response = this.asyncHttpClient.preparePost(this.elasticSearchUrl + "/" + aIndexName + "/_search")
-		                .setHeader("accept", "application/json")
-		                .setBody(sJsonSearchRequest)
-		                .execute()
-		                .get();
-		
-		
-		        if (response.getStatusCode() != 200)
-		        {
-		            // ElasticSearch returned a non-200 status response -- that's bad
-		            throw new RuntimeException("Critical Error in runSimpleQueryString():  I got a non-200 status code of " + response.getStatusCode() + ".  The error is " + response.getResponseBody());
-		        }
-		        else
-		        {
-		            // ElasticSearch returned a 200 status -- that's good
-		            sReturnedJson = response.getResponseBody();
-		        }
-		
-		
-		        logger.debug("runSimpleQueryString()  finished.");
-		        return sReturnedJson;
-		    }
-		
-		
-		    /**************************************************************************
-		     * runSimpleQueryStringOrderBy()
-		     *  1) Verify that passed-in arguments are valid
-		     *  2) Clean-up the query so that quotes do not screw up execution
-		     *  3) Run a synchronous ES call
-		     *  4) Verify that the status code is good
-		     *  5) Return the ES JSON results
-		     *
-		     * Returned hits (within the JSON) are ordered by the aOrderByField, aOrderByDirection
-		     ***************************************************************************/
-		    public String runSimpleQueryStringOrderBy(String aQuery,
-		                                              String aIndexName,
-		                                              long   aStartingRecord,
-		                                              long   aPageSize,
-		                                              String aOrderByField,
-		                                              String aOrderByDirection) throws Exception
-		    {
-		        logger.debug("runSimpleQueryStringOrderBy()  aIndexName={}  aQuery={}  aOrderByField={}  aOrderByDirection={}", aIndexName, aQuery, aOrderByField, aOrderByDirection);
-		
-		        String sReturnedJson = null;
-		
-		        if ((aIndexName == null) || (aIndexName.length() == 0))
-		        {
-		            throw new RuntimeException("Critical Error in runSimpleQueryStringOrderBy():  The passed-in aIndexName is empty or null.");
-		        }
-		        else if (aStartingRecord < 0)
-		        {
-		            throw new RuntimeException("Critical Error in runSimpleQueryStringOrderBy():  The passed-in aStartingRecord is invalid:  " + aStartingRecord + ".  This number should be zero or greater");
-		        }
-		        else if ((aOrderByField == null) || (aOrderByField.length() == 0))
-		        {
-		            throw new RuntimeException("Critical Error in runSimpleQueryStringOrderBy():  The passed-in aOrderByField is empty or null.");
-		        }
-		        else if ((aOrderByDirection == null) || (aOrderByDirection.length() == 0))
-		        {
-		            throw new RuntimeException("Critical Error in runSimpleQueryStringOrderBy():  The passed-in aOrderByDirection is empty or null.");
-		        }
-		
-		        // Clean-up the raw query so quotes do not prevent it from working
-		        String sCleanQuery = cleanupQuery(aQuery);
-		
-		        // Construct the JSON call to run an ES Simple Query String
-		        final String sJsonSearchRequest =
-		                "{ \"explain\": false, " +
-		                        "\"query\": { " +
-		                        "\"simple_query_string\": { " +
-		                        "\"query\": " + "\"" + sCleanQuery + "\"," +
-		                        "\"default_operator\": \"and\" " +
-		                        "}" +
-		                        "}," +
-		                        "\"from\":" + aStartingRecord + "," +
-		                        "\"size\":" + aPageSize + "," +
-		                        "\"sort\": [{ \"" + aOrderByField + "\":\"" + aOrderByDirection + "\"}]" +
-		                        "}";
-		
-		        // Make a synchronous call to ElasticSearch (to run this query)
-		        Response response = this.asyncHttpClient.preparePost(this.elasticSearchUrl + "/" + aIndexName + "/_search")
-		                .setHeader("accept", "application/json")
-		                .setBody(sJsonSearchRequest)
-		                .execute()
-		                .get();
-		
-		
-		        if (response.getStatusCode() != 200)
-		        {
-		            // ElasticSearch returned a non-200 status response -- that's bad
-		            throw new RuntimeException("Critical Error in runSimpleQueryStringOrderBy():  I got a non-200 status code of " + response.getStatusCode() + ".  The error is " + response.getResponseBody());
-		        }
-		        else
-		        {
-		            // ElasticSearch returned a 200 status -- that's good
-		            sReturnedJson = response.getResponseBody();
-		        }
-		
-		
-		        logger.debug("runSimpleQueryString()  finished.");
-		        return sReturnedJson;
-		    }
-		
-		
-		    /**************************************************************************
-		     * runAdvancedQuery()
-		     *  1) Verify that passed-in arguments are valid
-		     *  2) Clean-up the query so that quotes do not screw up execution
-		     *  3) Run a synchronous ES call
-		     *  4) Verify that the status code is good
-		     *  5) Return the ES JSON results
-		     *
-		     * Returned hits (within the JSON) are ordered by the default ES score
-		     ***************************************************************************/
-		    public String runAdvancedQuery(String aQuery,
-		                                   String aIndexName,
-		                                   long   aStartingRecord,
-		                                   long   aPageSize) throws Exception
-		    {
-		        logger.debug("runAdvancedQuery()  aIndexName={}  aQuery={}", aIndexName, aQuery);
-		
-		        String sReturnedJson = null;
-		
-		        if ((aIndexName == null) || (aIndexName.length() == 0))
-		        {
-		            throw new RuntimeException("Critical Error in runAdvancedQuery():  The passed-in aIndexName is empty or null.");
-		        }
-		        else if (aStartingRecord < 0)
-		        {
-		            throw new RuntimeException("Critical Error in runAdvancedQuery():  The passed-in aStartingRecord is invalid:  " + aStartingRecord + ".  This number should be zero or greater");
-		        }
-		
-		        // Clean-up the raw query so quotes do not prevent it from working
-		        String sCleanQuery = cleanupQuery(aQuery);
-		
-		        // Construct the JSON call to run an ES Advanced Query String
-		        final String sJsonSearchRequest =
-		                "{  \"explain\": false, " +
-		                        "\"query\": { " +
-		                        "\"query_string\": { " +
-		                        "\"query\": " + "\"" + sCleanQuery + "\"" +
-		                        "}" +
-		                        "}," +
-		                        "\"from\":" + aStartingRecord + "," +
-		                        "\"size\":" + aPageSize +
-		                        "}";
-		
-		        // Make a synchronous call to ElasticSearch (to run this query)
-		        Response response = this.asyncHttpClient.preparePost(this.elasticSearchUrl + "/" + aIndexName + "/_search")
-		                .setHeader("accept", "application/json")
-		                .setBody(sJsonSearchRequest)
-		                .execute()
-		                .get();
-		
-		
-		        if (response.getStatusCode() != 200)
-		        {
-		            // ElasticSearch returned a non-200 status response -- that's bad
-		            throw new RuntimeException("Critical Error in runAdvancedQuery():  I got a non-200 status code of " + response.getStatusCode() + ".  The error is " + response.getResponseBody());
-		        }
-		        else
-		        {
-		            // ElasticSearch returned a 200 status -- that's good
-		            sReturnedJson = response.getResponseBody();
-		        }
-		
-		
-		        logger.debug("runAdvancedQuery()  finished.");
-		        return sReturnedJson;
-		    }
-		
-		
-		
-		    /**************************************************************************
-		     * runAdvancedQuery()
-		     *  1) Verify that passed-in arguments are valid
-		     *  2) Clean-up the query so that quotes do not screw up execution
-		     *  3) Run a synchronous ES call
-		     *  4) Verify that the status code is good
-		     *  5) Return the ES JSON results
-		     *
-		     * Returned hits (within the JSON) are ordered by the aOrderByField, aOrderByDirection
-		     ***************************************************************************/
-		    public String runAdvancedQueryOrderBy(String aQuery,
-		                                          String aIndexName,
-		                                          long   aStartingRecord,
-		                                          long   aPageSize,
-		                                          String aOrderByField,
-		                                          String aOrderByDirection) throws Exception
-		    {
-		        logger.debug("runAdvancedQueryOrderBy()  aIndexName={}  aQuery={}", aIndexName, aQuery);
-		
-		        String sReturnedJson = null;
-		
-		        if ((aIndexName == null) || (aIndexName.length() == 0))
-		        {
-		            throw new RuntimeException("Critical Error in runAdvancedQueryOrderBy():  The passed-in aIndexName is empty or null.");
-		        }
-		        else if (aStartingRecord < 0)
-		        {
-		            throw new RuntimeException("Critical Error in runAdvancedQueryOrderBy():  The passed-in aStartingRecord is invalid:  " + aStartingRecord + ".  This number should be zero or greater");
-		        }
-		        else if ((aOrderByField == null) || (aOrderByField.length() == 0))
-		        {
-		            throw new RuntimeException("Critical Error in runAdvancedQueryOrderBy():  The passed-in aOrderByField is empty or null.");
-		        }
-		        else if ((aOrderByDirection == null) || (aOrderByDirection.length() == 0))
-		        {
-		            throw new RuntimeException("Critical Error in runAdvancedQueryOrderBy():  The passed-in aOrderByDirection is empty or null.");
-		        }
-		
-		        // Clean-up the raw query so quotes do not prevent it from working
-		        String sCleanQuery = cleanupQuery(aQuery);
-		
-		        // Construct the JSON call to run an ES Advanced Query String
-		        final String sJsonSearchRequest =
-		                "{  \"explain\": false, " +
-		                        "\"query\": { " +
-		                        "\"query_string\": { " +
-		                        "\"query\": " + "\"" + sCleanQuery + "\"" +
-		                        "}" +
-		                        "}," +
-		                        "\"from\":" + aStartingRecord + "," +
-		                        "\"size\":" + aPageSize + "," +
-		                        "\"sort\": [{ \"" + aOrderByField + "\":\"" + aOrderByDirection + "\"}]" +
-		                        "}";
-		
-		        // Make a synchronous call to ElasticSearch (to run this query)
-		        Response response = this.asyncHttpClient.preparePost(this.elasticSearchUrl + "/" + aIndexName + "/_search")
-		                .setHeader("accept", "application/json")
-		                .setBody(sJsonSearchRequest)
-		                .execute()
-		                .get();
-		
-		
-		        if (response.getStatusCode() != 200)
-		        {
-		            // ElasticSearch returned a non-200 status response -- that's bad
-		            throw new RuntimeException("Critical Error in runAdvancedQuery():  I got a non-200 status code of " + response.getStatusCode() + ".  The error is " + response.getResponseBody());
-		        }
-		        else
-		        {
-		            // ElasticSearch returned a 200 status -- that's good
-		            sReturnedJson = response.getResponseBody();
-		        }
-		
-		
-		        logger.debug("runAdvancedQueryOrderBy()  finished.");
-		        return sReturnedJson;
-		    }
-		
-		
-		    /**************************************************************************
-		     * isElasticSearchRunning()
-		     *
-		     * Returns TRUE if the ElasticSearch instance is up and running
-		     * Returns FALSE otherwise
-		     ***************************************************************************/
-		    public boolean isElasticSearchRunning()
-		    {
-		        try
-		        {
-		            // Make a synchronous call to ElasticSearch (to run this query)
-		            Response response = this.asyncHttpClient.prepareGet(this.elasticSearchUrl + "/")
-		                    .setHeader("accept", "application/json")
-		                    .execute()
-		                    .get();
-		
-		            if (response.getStatusCode() != 200)
-		            {
-		                // ElasticSearch returned a non-200 status response -- that's bad
-		                logger.warn("Warning in isElasticSearchRunning():  The call to see if ES returned a non-200 status code of {} and text of {}", response.getStatusCode(), response.getResponseBody());
-		                return false;
-		            }
-		
-		            // ElasticSearch returned a 200 status -- so we assume it is up and running
-		            return(true);
-		        }
-		        catch (Exception e)
-		        {
-		            // I got some sort of exception -- so assume it is not running
-		            logger.warn("Warning in isElasticSearchRunning():  The call to see if ES is running threw an exception.  ", e);
-		            return(false);
-		        }
-		    }
-		
-		
-		    /**************************************************************************
-		     * getLargestFieldValue()
-		     *  1) Construct a query to that matches all records but lists only 1
-		     *  2) The query will be sorted by the passed-in aFieldName
-		     *  3) Run the ES Query
-		     *  4) Parse the JSON to get the largest value
-		     *
-		     * Returns a string with the greatest value for this aIndexName found in aFieldName
-		     ***************************************************************************/
-		    public String getLargestFieldValue(String aIndexName,
-		                                       String aFieldName) throws Exception
-		    {
-		        logger.debug("getLargestFieldValue()  aIndexName={}  aFieldName={}", aIndexName, aFieldName);
-		
-		
-		        if ((aIndexName == null) || (aIndexName.length() == 0))
-		        {
-		            throw new RuntimeException("Critical Error in getLargestFieldValue():  The passed-in aIndexName is empty or null.");
-		        }
-		        else if ((aFieldName == null) || (aFieldName.length() == 0))
-		        {
-		            throw new RuntimeException("Critical Error in getLargestFieldValue():  The passed-in aFieldName is empty or null.");
-		        }
-		
-		        // Construct the JSON call to run a search that
-		        //  1) Queries for everything in this index
-		        //  2) Sorts the results descending  [so the greatest value is the 1st record]
-		        //  3) Limits the result to a size of one record
-		        //     -- So, the 1 returned record has the greatest value
-		        final String sJsonSearchRequest =
-		                "{  \"explain\": false, " +
-		                        "\"query\": { " +
-		                        "\"match_all\": {} " +
-		                        "}," +
-		                        "\"size\":1," +
-		                        "\"fields\":[\"" + aFieldName + "\"]," +
-		                        "\"sort\": [{ \"" + aFieldName+ "\": { \"order\":\"desc\"}}]" +
-		                        "}";
-		
-		        // Make a synchronous call to ElasticSearch (to run this query)
-		        Response response = this.asyncHttpClient.preparePost(this.elasticSearchUrl + "/" + aIndexName + "/_search")
-		                .setHeader("accept", "application/json")
-		                .setBody(sJsonSearchRequest)
-		                .execute()
-		                .get();
-		
-		
-		        if (response.getStatusCode() != 200)
-		        {
-		            // ElasticSearch returned a non-200 status response -- that's bad
-		            throw new RuntimeException("Critical Error in getLargestFieldValue():  I got a non-200 status code of " + response.getStatusCode() + ".  The error is " + response.getResponseBody());
-		        }
-		
-		        // Parse the JSON and get the value
-		        String sJsonResponse = response.getResponseBody();
-		        JsonElement jelement = new JsonParser().parse(sJsonResponse);
-		        JsonObject jobject = jelement.getAsJsonObject();
-		        JsonObject jHits = jobject.get("hits").getAsJsonObject();
-		
-		        JsonArray jHitsInner = jHits.getAsJsonArray("hits");
-		        JsonObject jHit1 = jHitsInner.get(0).getAsJsonObject();
-		        JsonObject jFieldsInHit1 = jHit1.get("fields").getAsJsonObject();
-		        JsonArray jFieldValuesInHit1 = jFieldsInHit1.get(aFieldName).getAsJsonArray();
-		        String sLargestFieldValue = jFieldValuesInHit1.get(0).getAsString();
-		
-		        logger.debug("getLargestFieldValue() finished.  sLargestFieldValue={}", sLargestFieldValue);
-		        return sLargestFieldValue;
-		    }
-		
-		
-		
-		    /**************************************************************************
-		     * getSmallestFieldValue()
-		     *  1) Construct a query to that matches all records but lists only 1
-		     *  2) The query will be sorted by the passed-in aFieldName
-		     *  3) Run the ES Query
-		     *  4) Parse the JSON to get the smallest value
-		     *
-		     * Returns a string with the smallest value for this aIndexName found in aFieldName
-		     ***************************************************************************/
-		    public String getSmallestFieldValue(String aIndexName,
-		                                        String aFieldName) throws Exception
-		    {
-		        logger.debug("getSmallestFieldValue()  aIndexName={}  aFieldName={}", aIndexName, aFieldName);
-		
-		
-		        if ((aIndexName == null) || (aIndexName.length() == 0))
-		        {
-		            throw new RuntimeException("Critical Error in getSmallestFieldValue():  The passed-in aIndexName is empty or null.");
-		        }
-		        else if ((aFieldName == null) || (aFieldName.length() == 0))
-		        {
-		            throw new RuntimeException("Critical Error in getSmallestFieldValue():  The passed-in aFieldName is empty or null.");
-		        }
-		
-		        // Construct the JSON call to run a search that
-		        //  1) Queries for everything in this index
-		        //  2) Sorts the results ascending  [so the smallest value is the 1st record]
-		        //  3) Limits the result to a size of one record
-		        //     -- So, the 1 returned record has the smallest value
-		        final String sJsonSearchRequest =
-		                "{  \"explain\": false, " +
-		                        "\"query\": { " +
-		                        "\"match_all\": {} " +
-		                        "}," +
-		                        "\"size\":1," +
-		                        "\"fields\":[\"" + aFieldName + "\"]," +
-		                        "\"sort\": [{ \"" + aFieldName+ "\": { \"order\":\"asc\"}}]" +
-		                        "}";
-		
-		        // Make a synchronous call to ElasticSearch (to run this query)
-		        Response response = this.asyncHttpClient.preparePost(this.elasticSearchUrl + "/" + aIndexName + "/_search")
-		                .setHeader("accept", "application/json")
-		                .setBody(sJsonSearchRequest)
-		                .execute()
-		                .get();
-		
-		
-		        if (response.getStatusCode() != 200)
-		        {
-		            // ElasticSearch returned a non-200 status response -- that's bad
-		            throw new RuntimeException("Critical Error in getSmallestFieldValue():  I got a non-200 status code of " + response.getStatusCode() + ".  The error is " + response.getResponseBody());
-		        }
-		
-		        // Parse the JSON and get the value
-		        String sJsonResponse = response.getResponseBody();
-		        JsonElement jelement = new JsonParser().parse(sJsonResponse);
-		        JsonObject jobject = jelement.getAsJsonObject();
-		        JsonObject jHits = jobject.get("hits").getAsJsonObject();
-		
-		        JsonArray jHitsInner = jHits.getAsJsonArray("hits");
-		        JsonObject jHit1 = jHitsInner.get(0).getAsJsonObject();
-		        JsonObject jFieldsInHit1 = jHit1.get("fields").getAsJsonObject();
-		        JsonArray jFieldValuesInHit1 = jFieldsInHit1.get(aFieldName).getAsJsonArray();
-		        String sSmallestFieldValue = jFieldValuesInHit1.get(0).getAsString();
-		
-		        logger.debug("getSmallestFieldValue() finished.  sSmallestFieldValue={}", sSmallestFieldValue);
-		        return sSmallestFieldValue;
-		    }
-		
-		}
+        package stuff;
+        
+        import com.google.gson.*;
+        import com.ning.http.client.AsyncHttpClient;
+        import com.ning.http.client.Response;
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        
+        import java.util.regex.Pattern;
+        
+        
+        /**
+         * Created by adam on 12/30/2016.
+         */
+        public class ElasticSearchDao
+        {
+            private static final Logger logger = LoggerFactory.getLogger(ElasticSearchDao.class);
+        
+            private String elasticSearchUrl;
+            private AsyncHttpClient asyncHttpClient;
+        
+            private Pattern patMatchDoubleQuote     = Pattern.compile("\"");
+            private Pattern patMatchAscii1To31or128 = Pattern.compile("[\\u0000-\\u001F\\u0080]");
+            private Pattern patMatchBackwardSlashMissingReserveChar = Pattern.compile("\\\\([^+!-><)(:/}{*~]|\\Z)");
+        
+        
+            /**************************************************************************
+             * cleanupQuery()
+             *
+             * Clean-up the passed-in raw query with the following rules:
+             *  1) If Double quote is found, then replace it with \"
+             *  2) If ASCII value between 1 and 31 is found or 128, then replace it with a space
+             *  3) If "\" is found without a special reserve chars, then replace it with a space
+             ***************************************************************************/
+            public String cleanupQuery(String aRawQuery)
+            {
+                // Convert the pattern match of " to \"
+                // NOTE:  Because of Java Regex, you have to use four backward slashes to match a \
+                String sCleanedQuery = this.patMatchDoubleQuote.matcher(aRawQuery).replaceAll("\\\\\"");
+        
+                // If ASCII 1-31 or 128 is found, then replace it with a space
+                sCleanedQuery = this.patMatchAscii1To31or128.matcher(sCleanedQuery).replaceAll(" ");
+        
+                // If a single backslash is found but the required reserve char is missing -- then replace it with a space
+                sCleanedQuery = this.patMatchBackwardSlashMissingReserveChar.matcher(sCleanedQuery).replaceAll(" ");
+        
+                return sCleanedQuery;
+            }
+        
+        
+            /**************************************************************************
+             * ElasticSearchDao()  Constructor
+             *
+             ***************************************************************************/
+            public ElasticSearchDao(String aElasticSearchUrl)
+            {
+                this.asyncHttpClient = new AsyncHttpClient();
+                this.elasticSearchUrl = aElasticSearchUrl;
+            }
+        
+        
+            /********************************************************************************************
+             * getJsonInPrettyFormat()
+             *
+             * Return the JSON in pretty format
+             *********************************************************************************************/
+            public static String getJsonInPrettyFormat(String aRawJson)
+            {
+                Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                JsonParser jp = new JsonParser();
+                JsonElement je = jp.parse(aRawJson);
+                String prettyJsonString = gson.toJson(je);
+        
+                return prettyJsonString;
+            }
+        
+        
+            /**************************************************************************
+             * close()
+             ***************************************************************************/
+            public void close()
+            {
+                if (this.asyncHttpClient != null)
+                {
+                    this.asyncHttpClient.close();
+                }
+            }
+        
+        
+            /**************************************************************************
+             * runSimpleQueryString()
+             *  1) Verify that passed-in arguments are valid
+             *  2) Clean-up the query so that quotes do not screw up execution
+             *  3) Run a synchronous ES call
+             *  4) Verify that the status code is good
+             *  5) Return the ES JSON results
+             *
+             * NOTE:  ElasticSearch uses a zero-based starting record number
+             *        So, to see the first 20 results of a search,
+             *               aStaringRecordNumber = 0
+             *               aPageSize = 20
+             *
+             * Returned hits (within the JSON) are ordered by the default ES score
+             ***************************************************************************/
+            public String runSimpleQueryString(String aQuery,
+                                               String aIndexName,
+                                               long   aStartingRecord,
+                                               long   aPageSize) throws Exception
+            {
+                logger.debug("runSimpleQueryString()  aIndexName={}  aQuery={}", aIndexName, aQuery);
+        
+                String sReturnedJson = null;
+        
+                if ((aIndexName == null) || (aIndexName.length() == 0))
+                {
+                    throw new RuntimeException("Critical Error in runSimpleQueryString():  The passed-in aIndexName is empty or null.");
+                }
+                else if (aStartingRecord < 0)
+                {
+                    throw new RuntimeException("Critical Error in runSimpleQueryString():  The passed-in aStartingRecord is invalid:  " + aStartingRecord + ".  This number should be zero or greater");
+                }
+        
+                // Clean-up the raw query so quotes do not prevent it from working
+                String sCleanQuery = cleanupQuery(aQuery);
+        
+                // Construct the JSON call to run an ES Simple Query String
+                final String sJsonSearchRequest =
+                        "{ \"explain\": false, " +
+                                "\"query\": { " +
+                                "\"simple_query_string\": { " +
+                                " \"query\": " + "\"" + sCleanQuery + "\"," +
+                                "\"default_operator\": \"and\" " +
+                                "}" +
+                                "}," +
+                                "\"from\":" + aStartingRecord + "," +
+                                "\"size\":" + aPageSize +
+                                "}";
+        
+                // Make a synchronous call to ElasticSearch (to run this query)
+                Response response = this.asyncHttpClient.preparePost(this.elasticSearchUrl + "/" + aIndexName + "/_search")
+                        .setHeader("accept", "application/json")
+                        .setBody(sJsonSearchRequest)
+                        .execute()
+                        .get();
+        
+        
+                if (response.getStatusCode() != 200)
+                {
+                    // ElasticSearch returned a non-200 status response -- that's bad
+                    throw new RuntimeException("Critical Error in runSimpleQueryString():  I got a non-200 status code of " + response.getStatusCode() + ".  The error is " + response.getResponseBody());
+                }
+                else
+                {
+                    // ElasticSearch returned a 200 status -- that's good
+                    sReturnedJson = response.getResponseBody();
+                }
+        
+        
+                logger.debug("runSimpleQueryString()  finished.");
+                return sReturnedJson;
+            }
+        
+        
+            /**************************************************************************
+             * runSimpleQueryStringOrderBy()
+             *  1) Verify that passed-in arguments are valid
+             *  2) Clean-up the query so that quotes do not screw up execution
+             *  3) Run a synchronous ES call
+             *  4) Verify that the status code is good
+             *  5) Return the ES JSON results
+             *
+             * Returned hits (within the JSON) are ordered by the aOrderByField, aOrderByDirection
+             ***************************************************************************/
+            public String runSimpleQueryStringOrderBy(String aQuery,
+                                                      String aIndexName,
+                                                      long   aStartingRecord,
+                                                      long   aPageSize,
+                                                      String aOrderByField,
+                                                      String aOrderByDirection) throws Exception
+            {
+                logger.debug("runSimpleQueryStringOrderBy()  aIndexName={}  aQuery={}  aOrderByField={}  aOrderByDirection={}", aIndexName, aQuery, aOrderByField, aOrderByDirection);
+        
+                String sReturnedJson = null;
+        
+                if ((aIndexName == null) || (aIndexName.length() == 0))
+                {
+                    throw new RuntimeException("Critical Error in runSimpleQueryStringOrderBy():  The passed-in aIndexName is empty or null.");
+                }
+                else if (aStartingRecord < 0)
+                {
+                    throw new RuntimeException("Critical Error in runSimpleQueryStringOrderBy():  The passed-in aStartingRecord is invalid:  " + aStartingRecord + ".  This number should be zero or greater");
+                }
+                else if ((aOrderByField == null) || (aOrderByField.length() == 0))
+                {
+                    throw new RuntimeException("Critical Error in runSimpleQueryStringOrderBy():  The passed-in aOrderByField is empty or null.");
+                }
+                else if ((aOrderByDirection == null) || (aOrderByDirection.length() == 0))
+                {
+                    throw new RuntimeException("Critical Error in runSimpleQueryStringOrderBy():  The passed-in aOrderByDirection is empty or null.");
+                }
+        
+                // Clean-up the raw query so quotes do not prevent it from working
+                String sCleanQuery = cleanupQuery(aQuery);
+        
+                // Construct the JSON call to run an ES Simple Query String
+                final String sJsonSearchRequest =
+                        "{ \"explain\": false, " +
+                                "\"query\": { " +
+                                "\"simple_query_string\": { " +
+                                "\"query\": " + "\"" + sCleanQuery + "\"," +
+                                "\"default_operator\": \"and\" " +
+                                "}" +
+                                "}," +
+                                "\"from\":" + aStartingRecord + "," +
+                                "\"size\":" + aPageSize + "," +
+                                "\"sort\": [{ \"" + aOrderByField + "\":\"" + aOrderByDirection + "\"}]" +
+                                "}";
+        
+                // Make a synchronous call to ElasticSearch (to run this query)
+                Response response = this.asyncHttpClient.preparePost(this.elasticSearchUrl + "/" + aIndexName + "/_search")
+                        .setHeader("accept", "application/json")
+                        .setBody(sJsonSearchRequest)
+                        .execute()
+                        .get();
+        
+        
+                if (response.getStatusCode() != 200)
+                {
+                    // ElasticSearch returned a non-200 status response -- that's bad
+                    throw new RuntimeException("Critical Error in runSimpleQueryStringOrderBy():  I got a non-200 status code of " + response.getStatusCode() + ".  The error is " + response.getResponseBody());
+                }
+                else
+                {
+                    // ElasticSearch returned a 200 status -- that's good
+                    sReturnedJson = response.getResponseBody();
+                }
+        
+        
+                logger.debug("runSimpleQueryString()  finished.");
+                return sReturnedJson;
+            }
+        
+        
+            /**************************************************************************
+             * runAdvancedQuery()
+             *  1) Verify that passed-in arguments are valid
+             *  2) Clean-up the query so that quotes do not screw up execution
+             *  3) Run a synchronous ES call
+             *  4) Verify that the status code is good
+             *  5) Return the ES JSON results
+             *
+             * Returned hits (within the JSON) are ordered by the default ES score
+             ***************************************************************************/
+            public String runAdvancedQuery(String aQuery,
+                                           String aIndexName,
+                                           long   aStartingRecord,
+                                           long   aPageSize) throws Exception
+            {
+                logger.debug("runAdvancedQuery()  aIndexName={}  aQuery={}", aIndexName, aQuery);
+        
+                String sReturnedJson = null;
+        
+                if ((aIndexName == null) || (aIndexName.length() == 0))
+                {
+                    throw new RuntimeException("Critical Error in runAdvancedQuery():  The passed-in aIndexName is empty or null.");
+                }
+                else if (aStartingRecord < 0)
+                {
+                    throw new RuntimeException("Critical Error in runAdvancedQuery():  The passed-in aStartingRecord is invalid:  " + aStartingRecord + ".  This number should be zero or greater");
+                }
+        
+                // Clean-up the raw query so quotes do not prevent it from working
+                String sCleanQuery = cleanupQuery(aQuery);
+        
+                // Construct the JSON call to run an ES Advanced Query String
+                final String sJsonSearchRequest =
+                        "{  \"explain\": false, " +
+                                "\"query\": { " +
+                                "\"query_string\": { " +
+                                "\"query\": " + "\"" + sCleanQuery + "\"" +
+                                "}" +
+                                "}," +
+                                "\"from\":" + aStartingRecord + "," +
+                                "\"size\":" + aPageSize +
+                                "}";
+        
+                // Make a synchronous call to ElasticSearch (to run this query)
+                Response response = this.asyncHttpClient.preparePost(this.elasticSearchUrl + "/" + aIndexName + "/_search")
+                        .setHeader("accept", "application/json")
+                        .setBody(sJsonSearchRequest)
+                        .execute()
+                        .get();
+        
+        
+                if (response.getStatusCode() != 200)
+                {
+                    // ElasticSearch returned a non-200 status response -- that's bad
+                    throw new RuntimeException("Critical Error in runAdvancedQuery():  I got a non-200 status code of " + response.getStatusCode() + ".  The error is " + response.getResponseBody());
+                }
+                else
+                {
+                    // ElasticSearch returned a 200 status -- that's good
+                    sReturnedJson = response.getResponseBody();
+                }
+        
+        
+                logger.debug("runAdvancedQuery()  finished.");
+                return sReturnedJson;
+            }
+        
+        
+        
+            /**************************************************************************
+             * runAdvancedQuery()
+             *  1) Verify that passed-in arguments are valid
+             *  2) Clean-up the query so that quotes do not screw up execution
+             *  3) Run a synchronous ES call
+             *  4) Verify that the status code is good
+             *  5) Return the ES JSON results
+             *
+             * Returned hits (within the JSON) are ordered by the aOrderByField, aOrderByDirection
+             ***************************************************************************/
+            public String runAdvancedQueryOrderBy(String aQuery,
+                                                  String aIndexName,
+                                                  long   aStartingRecord,
+                                                  long   aPageSize,
+                                                  String aOrderByField,
+                                                  String aOrderByDirection) throws Exception
+            {
+                logger.debug("runAdvancedQueryOrderBy()  aIndexName={}  aQuery={}", aIndexName, aQuery);
+        
+                String sReturnedJson = null;
+        
+                if ((aIndexName == null) || (aIndexName.length() == 0))
+                {
+                    throw new RuntimeException("Critical Error in runAdvancedQueryOrderBy():  The passed-in aIndexName is empty or null.");
+                }
+                else if (aStartingRecord < 0)
+                {
+                    throw new RuntimeException("Critical Error in runAdvancedQueryOrderBy():  The passed-in aStartingRecord is invalid:  " + aStartingRecord + ".  This number should be zero or greater");
+                }
+                else if ((aOrderByField == null) || (aOrderByField.length() == 0))
+                {
+                    throw new RuntimeException("Critical Error in runAdvancedQueryOrderBy():  The passed-in aOrderByField is empty or null.");
+                }
+                else if ((aOrderByDirection == null) || (aOrderByDirection.length() == 0))
+                {
+                    throw new RuntimeException("Critical Error in runAdvancedQueryOrderBy():  The passed-in aOrderByDirection is empty or null.");
+                }
+        
+                // Clean-up the raw query so quotes do not prevent it from working
+                String sCleanQuery = cleanupQuery(aQuery);
+        
+                // Construct the JSON call to run an ES Advanced Query String
+                final String sJsonSearchRequest =
+                        "{  \"explain\": false, " +
+                                "\"query\": { " +
+                                "\"query_string\": { " +
+                                "\"query\": " + "\"" + sCleanQuery + "\"" +
+                                "}" +
+                                "}," +
+                                "\"from\":" + aStartingRecord + "," +
+                                "\"size\":" + aPageSize + "," +
+                                "\"sort\": [{ \"" + aOrderByField + "\":\"" + aOrderByDirection + "\"}]" +
+                                "}";
+        
+                // Make a synchronous call to ElasticSearch (to run this query)
+                Response response = this.asyncHttpClient.preparePost(this.elasticSearchUrl + "/" + aIndexName + "/_search")
+                        .setHeader("accept", "application/json")
+                        .setBody(sJsonSearchRequest)
+                        .execute()
+                        .get();
+        
+        
+                if (response.getStatusCode() != 200)
+                {
+                    // ElasticSearch returned a non-200 status response -- that's bad
+                    throw new RuntimeException("Critical Error in runAdvancedQuery():  I got a non-200 status code of " + response.getStatusCode() + ".  The error is " + response.getResponseBody());
+                }
+                else
+                {
+                    // ElasticSearch returned a 200 status -- that's good
+                    sReturnedJson = response.getResponseBody();
+                }
+        
+        
+                logger.debug("runAdvancedQueryOrderBy()  finished.");
+                return sReturnedJson;
+            }
+        
+        
+            /**************************************************************************
+             * isElasticSearchRunning()
+             *
+             * Returns TRUE if the ElasticSearch instance is up and running
+             * Returns FALSE otherwise
+             ***************************************************************************/
+            public boolean isElasticSearchRunning()
+            {
+                try
+                {
+                    // Make a synchronous call to ElasticSearch (to run this query)
+                    Response response = this.asyncHttpClient.prepareGet(this.elasticSearchUrl + "/")
+                            .setHeader("accept", "application/json")
+                            .execute()
+                            .get();
+        
+                    if (response.getStatusCode() != 200)
+                    {
+                        // ElasticSearch returned a non-200 status response -- that's bad
+                        logger.warn("Warning in isElasticSearchRunning():  The call to see if ES returned a non-200 status code of {} and text of {}", response.getStatusCode(), response.getResponseBody());
+                        return false;
+                    }
+        
+                    // ElasticSearch returned a 200 status -- so we assume it is up and running
+                    return(true);
+                }
+                catch (Exception e)
+                {
+                    // I got some sort of exception -- so assume it is not running
+                    logger.warn("Warning in isElasticSearchRunning():  The call to see if ES is running threw an exception.  ", e);
+                    return(false);
+                }
+            }
+        
+        
+            /**************************************************************************
+             * getLargestFieldValue()
+             *  1) Construct a query to that matches all records but lists only 1
+             *  2) The query will be sorted by the passed-in aFieldName
+             *  3) Run the ES Query
+             *  4) Parse the JSON to get the largest value
+             *
+             * Returns a string with the greatest value for this aIndexName found in aFieldName
+             ***************************************************************************/
+            public String getLargestFieldValue(String aIndexName,
+                                               String aFieldName) throws Exception
+            {
+                logger.debug("getLargestFieldValue()  aIndexName={}  aFieldName={}", aIndexName, aFieldName);
+        
+        
+                if ((aIndexName == null) || (aIndexName.length() == 0))
+                {
+                    throw new RuntimeException("Critical Error in getLargestFieldValue():  The passed-in aIndexName is empty or null.");
+                }
+                else if ((aFieldName == null) || (aFieldName.length() == 0))
+                {
+                    throw new RuntimeException("Critical Error in getLargestFieldValue():  The passed-in aFieldName is empty or null.");
+                }
+        
+                // Construct the JSON call to run a search that
+                //  1) Queries for everything in this index
+                //  2) Sorts the results descending  [so the greatest value is the 1st record]
+                //  3) Limits the result to a size of one record
+                //     -- So, the 1 returned record has the greatest value
+                final String sJsonSearchRequest =
+                        "{  \"explain\": false, " +
+                                "\"query\": { " +
+                                "\"match_all\": {} " +
+                                "}," +
+                                "\"size\":1," +
+                                "\"fields\":[\"" + aFieldName + "\"]," +
+                                "\"sort\": [{ \"" + aFieldName+ "\": { \"order\":\"desc\"}}]" +
+                                "}";
+        
+                // Make a synchronous call to ElasticSearch (to run this query)
+                Response response = this.asyncHttpClient.preparePost(this.elasticSearchUrl + "/" + aIndexName + "/_search")
+                        .setHeader("accept", "application/json")
+                        .setBody(sJsonSearchRequest)
+                        .execute()
+                        .get();
+        
+        
+                if (response.getStatusCode() != 200)
+                {
+                    // ElasticSearch returned a non-200 status response -- that's bad
+                    throw new RuntimeException("Critical Error in getLargestFieldValue():  I got a non-200 status code of " + response.getStatusCode() + ".  The error is " + response.getResponseBody());
+                }
+        
+                // Parse the JSON and get the value
+                String sJsonResponse = response.getResponseBody();
+                JsonElement jelement = new JsonParser().parse(sJsonResponse);
+                JsonObject jobject = jelement.getAsJsonObject();
+                JsonObject jHits = jobject.get("hits").getAsJsonObject();
+        
+                JsonArray jHitsInner = jHits.getAsJsonArray("hits");
+                JsonObject jHit1 = jHitsInner.get(0).getAsJsonObject();
+                JsonObject jFieldsInHit1 = jHit1.get("fields").getAsJsonObject();
+                JsonArray jFieldValuesInHit1 = jFieldsInHit1.get(aFieldName).getAsJsonArray();
+                String sLargestFieldValue = jFieldValuesInHit1.get(0).getAsString();
+        
+                logger.debug("getLargestFieldValue() finished.  sLargestFieldValue={}", sLargestFieldValue);
+                return sLargestFieldValue;
+            }
+        
+        
+        
+            /**************************************************************************
+             * getSmallestFieldValue()
+             *  1) Construct a query to that matches all records but lists only 1
+             *  2) The query will be sorted by the passed-in aFieldName
+             *  3) Run the ES Query
+             *  4) Parse the JSON to get the smallest value
+             *
+             * Returns a string with the smallest value for this aIndexName found in aFieldName
+             ***************************************************************************/
+            public String getSmallestFieldValue(String aIndexName,
+                                                String aFieldName) throws Exception
+            {
+                logger.debug("getSmallestFieldValue()  aIndexName={}  aFieldName={}", aIndexName, aFieldName);
+        
+        
+                if ((aIndexName == null) || (aIndexName.length() == 0))
+                {
+                    throw new RuntimeException("Critical Error in getSmallestFieldValue():  The passed-in aIndexName is empty or null.");
+                }
+                else if ((aFieldName == null) || (aFieldName.length() == 0))
+                {
+                    throw new RuntimeException("Critical Error in getSmallestFieldValue():  The passed-in aFieldName is empty or null.");
+                }
+        
+                // Construct the JSON call to run a search that
+                //  1) Queries for everything in this index
+                //  2) Sorts the results ascending  [so the smallest value is the 1st record]
+                //  3) Limits the result to a size of one record
+                //     -- So, the 1 returned record has the smallest value
+                final String sJsonSearchRequest =
+                        "{  \"explain\": false, " +
+                                "\"query\": { " +
+                                "\"match_all\": {} " +
+                                "}," +
+                                "\"size\":1," +
+                                "\"fields\":[\"" + aFieldName + "\"]," +
+                                "\"sort\": [{ \"" + aFieldName+ "\": { \"order\":\"asc\"}}]" +
+                                "}";
+        
+                // Make a synchronous call to ElasticSearch (to run this query)
+                Response response = this.asyncHttpClient.preparePost(this.elasticSearchUrl + "/" + aIndexName + "/_search")
+                        .setHeader("accept", "application/json")
+                        .setBody(sJsonSearchRequest)
+                        .execute()
+                        .get();
+        
+        
+                if (response.getStatusCode() != 200)
+                {
+                    // ElasticSearch returned a non-200 status response -- that's bad
+                    throw new RuntimeException("Critical Error in getSmallestFieldValue():  I got a non-200 status code of " + response.getStatusCode() + ".  The error is " + response.getResponseBody());
+                }
+        
+                // Parse the JSON and get the value
+                String sJsonResponse = response.getResponseBody();
+                JsonElement jelement = new JsonParser().parse(sJsonResponse);
+                JsonObject jobject = jelement.getAsJsonObject();
+                JsonObject jHits = jobject.get("hits").getAsJsonObject();
+        
+                JsonArray jHitsInner = jHits.getAsJsonArray("hits");
+                JsonObject jHit1 = jHitsInner.get(0).getAsJsonObject();
+                JsonObject jFieldsInHit1 = jHit1.get("fields").getAsJsonObject();
+                JsonArray jFieldValuesInHit1 = jFieldsInHit1.get(aFieldName).getAsJsonArray();
+                String sSmallestFieldValue = jFieldValuesInHit1.get(0).getAsString();
+        
+                logger.debug("getSmallestFieldValue() finished.  sSmallestFieldValue={}", sSmallestFieldValue);
+                return sSmallestFieldValue;
+            }
+        
+        }
 
-		
-			
-		 
+        
+            
+         
  6. Create this class:  ElasticSearchDaoApp
     a. Right-click on /src/main/java/stuff -> New -> Java Class
        Name:  ElasticSearchDaoApp
@@ -703,75 +703,75 @@ Procedure
        Press OK
        
     b. Copy this to to your java class
-		    
-		package stuff;
-		
-		import org.slf4j.Logger;
-		import org.slf4j.LoggerFactory;
-		import org.springframework.context.ApplicationContext;
-		import org.springframework.context.support.ClassPathXmlApplicationContext;
-		
-		/**
-		 * Created by adam on 12/30/2016.
-		 */
-		public class ElasticSearchDaoApp
-		{
-		    private static final Logger logger = LoggerFactory.getLogger(ElasticSearchDaoApp.class);
-		
-		
-		    public static void main(String[] args) throws Exception
-		    {
-		        logger.debug("mainUsingSpring() started");
-		
-		        // S T A R T U P      S P R I N G     C O N T E X T
-		        //  1) Read spring-beans.xml
-		        //  2) Instantiate the spring beans
-		        ApplicationContext context = new ClassPathXmlApplicationContext("spring-beans.xml");
-		
-		        // Get a reference to the ElasticSearchDao Bean
-		        // NOTE:  The name used here must be match the id=".." of the spring bean
-		        ElasticSearchDao es = (ElasticSearchDao) context.getBean("elasticSearchDao");
-		
-		        String sJsonResults;
-		
-		        // Run a simple-query-string query against ElasticSearch
-		        //  -- Search the "docs" index
-		        //  -- Search query is author
-		        //  -- Return results starting from record number 0
-		        //  -- Return a page of 5 records
-		        sJsonResults = es.runSimpleQueryString("author", "docs", 0, 5);
-		        logger.debug("Query 1 Results:\n{}", es.getJsonInPrettyFormat(sJsonResults));
-		
-		        // This query should return zero results
-		        sJsonResults = es.runSimpleQueryString("+stuff +148662", "docs", 0, 10);
-		        logger.debug("Query 2 Results:\n{}", es.getJsonInPrettyFormat(sJsonResults));
-		
-		        // This query has double quotes in it
-		        sJsonResults = es.runSimpleQueryString("\"author for 148667\"", "docs", 0, 10);
-		        logger.debug("Query 3 Results:\n{}", es.getJsonInPrettyFormat(sJsonResults));
-		
-		        // This query orders the results by ingestDate/desc
-		        sJsonResults = es.runSimpleQueryStringOrderBy("author", "docs", 0, 5, "ingestDate", "desc");
-		        logger.debug("Query 4 Results:\n{}", es.getJsonInPrettyFormat(sJsonResults));
-		
-		        // Run a Advanced Query (sorted by score)
-		        sJsonResults = es.runAdvancedQuery("author", "docs", 0, 5);
-		        logger.debug("Query 5 Results:\n{}", es.getJsonInPrettyFormat(sJsonResults));
-		
-		        // Run a Advanced Query (sorted by createDate descending)
-		        sJsonResults = es.runAdvancedQueryOrderBy("author", "docs", 0, 5, "createDate", "desc");
-		        logger.debug("Query 6 Results:\n{}", es.getJsonInPrettyFormat(sJsonResults));
-		
-		
-		        // S H U T D O W N       S P R I N G     C O N T E X T
-		        // NOTE:  causes the close-method to be called on the Spring-Beans)
-		        ((ClassPathXmlApplicationContext) context).close();
-		
-		
-		        logger.debug("mainUsingSpring() finished");
-		    }
-		
-		}
+            
+        package stuff;
+        
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.context.ApplicationContext;
+        import org.springframework.context.support.ClassPathXmlApplicationContext;
+        
+        /**
+         * Created by adam on 12/30/2016.
+         */
+        public class ElasticSearchDaoApp
+        {
+            private static final Logger logger = LoggerFactory.getLogger(ElasticSearchDaoApp.class);
+        
+        
+            public static void main(String[] args) throws Exception
+            {
+                logger.debug("mainUsingSpring() started");
+        
+                // S T A R T U P      S P R I N G     C O N T E X T
+                //  1) Read spring-beans.xml
+                //  2) Instantiate the spring beans
+                ApplicationContext context = new ClassPathXmlApplicationContext("spring-beans.xml");
+        
+                // Get a reference to the ElasticSearchDao Bean
+                // NOTE:  The name used here must be match the id=".." of the spring bean
+                ElasticSearchDao es = (ElasticSearchDao) context.getBean("elasticSearchDao");
+        
+                String sJsonResults;
+        
+                // Run a simple-query-string query against ElasticSearch
+                //  -- Search the "docs" index
+                //  -- Search query is author
+                //  -- Return results starting from record number 0
+                //  -- Return a page of 5 records
+                sJsonResults = es.runSimpleQueryString("author", "docs", 0, 5);
+                logger.debug("Query 1 Results:\n{}", es.getJsonInPrettyFormat(sJsonResults));
+        
+                // This query should return zero results
+                sJsonResults = es.runSimpleQueryString("+stuff +148662", "docs", 0, 10);
+                logger.debug("Query 2 Results:\n{}", es.getJsonInPrettyFormat(sJsonResults));
+        
+                // This query has double quotes in it
+                sJsonResults = es.runSimpleQueryString("\"author for 148667\"", "docs", 0, 10);
+                logger.debug("Query 3 Results:\n{}", es.getJsonInPrettyFormat(sJsonResults));
+        
+                // This query orders the results by ingestDate/desc
+                sJsonResults = es.runSimpleQueryStringOrderBy("author", "docs", 0, 5, "ingestDate", "desc");
+                logger.debug("Query 4 Results:\n{}", es.getJsonInPrettyFormat(sJsonResults));
+        
+                // Run a Advanced Query (sorted by score)
+                sJsonResults = es.runAdvancedQuery("author", "docs", 0, 5);
+                logger.debug("Query 5 Results:\n{}", es.getJsonInPrettyFormat(sJsonResults));
+        
+                // Run a Advanced Query (sorted by createDate descending)
+                sJsonResults = es.runAdvancedQueryOrderBy("author", "docs", 0, 5, "createDate", "desc");
+                logger.debug("Query 6 Results:\n{}", es.getJsonInPrettyFormat(sJsonResults));
+        
+        
+                // S H U T D O W N       S P R I N G     C O N T E X T
+                // NOTE:  causes the close-method to be called on the Spring-Beans)
+                ((ClassPathXmlApplicationContext) context).close();
+        
+        
+                logger.debug("mainUsingSpring() finished");
+            }
+        
+        }
 
 
 
@@ -782,23 +782,23 @@ Procedure
     
     b. Copy this to your file:
     
-		<beans xmlns="http://www.springframework.org/schema/beans"
-		       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-		       xmlns:context="http://www.springframework.org/schema/context"
-		       xsi:schemaLocation="http://www.springframework.org/schema/beans
-		                http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
-		                http://www.springframework.org/schema/context
-		                http://www.springframework.org/schema/context/spring-context.xsd">
-		
-		    <!-- Read the app.properties and make the values available within this xml file -->
-		    <context:property-placeholder location="classpath:app.properties" />
-		
-		    <!-- Create an ElasticSearchDao singleton and pass-in the es.url (found in app.properties) -->
-		    <bean id="elasticSearchDao" class="stuff.ElasticSearchDao" destroy-method="close">
-		        <constructor-arg  value="${es.url}" />
-		    </bean>
-		
-		</beans>
+        <beans xmlns="http://www.springframework.org/schema/beans"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xmlns:context="http://www.springframework.org/schema/context"
+               xsi:schemaLocation="http://www.springframework.org/schema/beans
+                        http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+                        http://www.springframework.org/schema/context
+                        http://www.springframework.org/schema/context/spring-context.xsd">
+        
+            <!-- Read the app.properties and make the values available within this xml file -->
+            <context:property-placeholder location="classpath:app.properties" />
+        
+            <!-- Create an ElasticSearchDao singleton and pass-in the es.url (found in app.properties) -->
+            <bean id="elasticSearchDao" class="stuff.ElasticSearchDao" destroy-method="close">
+                <constructor-arg  value="${es.url}" />
+            </bean>
+        
+        </beans>
         
         
         
@@ -808,10 +808,10 @@ Procedure
     
     b. Copy this to your file:
 
-		#########################################################################
-		# app.properties
-		#########################################################################
-		es.url=http://192.168.43.129:9200 
+        #########################################################################
+        # app.properties
+        #########################################################################
+        es.url=http://192.168.43.129:9200 
         
         
         
@@ -820,63 +820,63 @@ Procedure
  
  
 10. Setup the "docs" mapping in ElasticSearch index and add some records
- 	a. Startup Chrome
- 	b. Startup the "Sense" plugin
- 	c. Run the following commands:	
-	 
-		1) Delete the index called "docs" [and all records and the mapping, too!]
-	    	DELETE /docs
-	
-	
-	 	2) Create a mappings for the index called "docs"
-		    PUT /docs
-	    	{
-		       "mappings": {
-		          "record": {
-		             "properties": {
-		                "title": {
-		                   "type": "string",
-		                   "analyzer": "snowball"
-		                },	                
-		                "source": {
-		                   "type": "string",
-		                   "index": "not_analyzed"
-		                },
-		                "ingestDate": {
-		                   "type": "date",
-		                   "format": "yyyyMMdd",
-		                   "index": "not_analyzed"
-		                },
-		                "createDate": {
-		                   "type": "date",
-		                   "format": "yyyyMMdd",
-		                   "index": "not_analyzed"
-		                },	
-		                "description": {
-		                   "type": "string",
-		                   "analyzer": "snowball"
-		                }
-		             }
-		          }
-		       }
-		    }
+     a. Startup Chrome
+     b. Startup the "Sense" plugin
+     c. Run the following commands:    
+     
+        1) Delete the index called "docs" [and all records and the mapping, too!]
+            DELETE /docs
+    
+    
+         2) Create a mappings for the index called "docs"
+            PUT /docs
+            {
+               "mappings": {
+                  "record": {
+                     "properties": {
+                        "title": {
+                           "type": "string",
+                           "analyzer": "snowball"
+                        },                    
+                        "source": {
+                           "type": "string",
+                           "index": "not_analyzed"
+                        },
+                        "ingestDate": {
+                           "type": "date",
+                           "format": "yyyyMMdd",
+                           "index": "not_analyzed"
+                        },
+                        "createDate": {
+                           "type": "date",
+                           "format": "yyyyMMdd",
+                           "index": "not_analyzed"
+                        },    
+                        "description": {
+                           "type": "string",
+                           "analyzer": "snowball"
+                        }
+                     }
+                  }
+               }
+            }
  
 
  
-		3) Add some sample records to this index
-	    	POST _bulk
-	    	{ "create": { "_index": "docs", "_type": "record"}}
-	    	{ "title": "Record #1", "source": "log format1", "ingestDate": "20150526", "createDate": "20160124", "description": "This is the description for record #1" }
-	    	{ "create": { "_index": "docs", "_type": "record"}}
-	    	{ "title": "Record #2", "source": "log format2", "ingestDate": "20150526", "createDate": "20160225", "description": "This is the description for record #2"}
-	    	{ "create": { "_index": "docs", "_type": "record"}}
-	    	{ "title": "Record #3", "source": "log format2", "ingestDate": "20150526", "createDate": "20160401", "description": "This is the description for record #3"}
+        3) Add some sample records to this index
+            POST _bulk
+            { "create": { "_index": "docs", "_type": "record"}}
+            { "title": "Record #1", "source": "log format1", "ingestDate": "20150526", "createDate": "20160124", "description": "This is the description for record #1" }
+            { "create": { "_index": "docs", "_type": "record"}}
+            { "title": "Record #2", "source": "log format2", "ingestDate": "20150526", "createDate": "20160225", "description": "This is the description for record #2"}
+            { "create": { "_index": "docs", "_type": "record"}}
+            { "title": "Record #3", "source": "log format2", "ingestDate": "20150526", "createDate": "20160401", "description": "This is the description for record #3"}
     
     
-		4) Show the records
-		   POST /docs/_search
-		   
-		   
+        4) Show the records
+           POST /docs/_search
+           
+           
 11. Debug the main()
     a. Left-click in the margins of ElasticSearchDaoApp and set a breakpoint
     b. Right-click on ElasticSearchDaoApp -> Debug 'ElasticSearchDaoApp.main()'

@@ -80,246 +80,246 @@ Procedures
      b. Copy this to your Java Class
      
  
-		package com.stuff;
-		
-		
-		import org.elasticsearch.client.Client;
-		import org.elasticsearch.client.transport.TransportClient;
-		import org.elasticsearch.common.transport.InetSocketTransportAddress;
-		import java.net.InetAddress;
-		
-		/**
-		 * Created by adam on 6/25/16.
-		 */
-		public enum EsClientSingleton
-		{
-		    INSTANCE;
-		
-		    private Client esClient;
-		
-		    private static final String ES_HOSTNAME = "localhost";
-		
-		    /******************************************************************
-		     * Private EsClientSingleton Constructor
-		     * -- Do one-time initialization here
-		     *******************************************************************/
-		    private EsClientSingleton()
-		    {
-		        // The very first time this singleton is called, we will initialize the ES Client
-		        initializeEsClientNoException();
-		    }
-		
-		
-		    /******************************************************************
-		     * initializeEsClientNoException()
-		     * -- Attempt to connect to the ElasticSearch Instance
-		     *******************************************************************/
-		    private void initializeEsClientNoException()
-		    {
-		        try {
-		            // Connect to the ElasticSearch instance using port 9300  [it's a binary protocol]
-		            // NOTE:  The java client does not connect to port 9200
-		            InetAddress addrEsHostname = InetAddress.getByName(ES_HOSTNAME);
-		
-		            esClient = TransportClient.builder().build()
-		                    .addTransportAddress(new InetSocketTransportAddress(addrEsHostname, 9300));
-		        }
-		        catch (Exception e)
-		        {
-		            // Convert the exception to a RunTime exception
-		            RuntimeException re = new RuntimeException(e);
-		            re.setStackTrace(e.getStackTrace());
-		            throw re;
-		        }
-		
-		    }
-		
-		    public Client getEsClient()
-		    {
-		        return esClient;
-		    }
-		}
-		 
+        package com.stuff;
+        
+        
+        import org.elasticsearch.client.Client;
+        import org.elasticsearch.client.transport.TransportClient;
+        import org.elasticsearch.common.transport.InetSocketTransportAddress;
+        import java.net.InetAddress;
+        
+        /**
+         * Created by adam on 6/25/16.
+         */
+        public enum EsClientSingleton
+        {
+            INSTANCE;
+        
+            private Client esClient;
+        
+            private static final String ES_HOSTNAME = "localhost";
+        
+            /******************************************************************
+             * Private EsClientSingleton Constructor
+             * -- Do one-time initialization here
+             *******************************************************************/
+            private EsClientSingleton()
+            {
+                // The very first time this singleton is called, we will initialize the ES Client
+                initializeEsClientNoException();
+            }
+        
+        
+            /******************************************************************
+             * initializeEsClientNoException()
+             * -- Attempt to connect to the ElasticSearch Instance
+             *******************************************************************/
+            private void initializeEsClientNoException()
+            {
+                try {
+                    // Connect to the ElasticSearch instance using port 9300  [it's a binary protocol]
+                    // NOTE:  The java client does not connect to port 9200
+                    InetAddress addrEsHostname = InetAddress.getByName(ES_HOSTNAME);
+        
+                    esClient = TransportClient.builder().build()
+                            .addTransportAddress(new InetSocketTransportAddress(addrEsHostname, 9300));
+                }
+                catch (Exception e)
+                {
+                    // Convert the exception to a RunTime exception
+                    RuntimeException re = new RuntimeException(e);
+                    re.setStackTrace(e.getStackTrace());
+                    throw re;
+                }
+        
+            }
+        
+            public Client getEsClient()
+            {
+                return esClient;
+            }
+        }
+         
      
      
   5. Update the listener class to generate a QueryBuilder object
-		  
-		package com.stuff;
-		
-		import org.apache.commons.lang3.StringUtils;
-		import org.elasticsearch.index.query.QueryBuilders;
-		import org.elasticsearch.index.query.MatchQueryBuilder;
-		import org.elasticsearch.index.query.*;
-		import org.elasticsearch.index.search.*;
-		import org.slf4j.Logger;
-		import org.slf4j.LoggerFactory;
-		
-		import java.util.ArrayList;
-		
-		import static org.elasticsearch.index.query.QueryBuilders.matchQuery;
-		
-		/**
-		 * Created by adam on 9/5/2016.
-		 */
-		public class MyQueryParser3Listener extends QueryParser3BaseListener
-		{
-		    private static final Logger logger = LoggerFactory.getLogger(MyQueryParser3Listener.class);
-		
-		    private int iTotalExitQueryNoKey = 0;
-		
-		    private QueryBuilder queryBuilder;
-		
-		    /*********************************************************************
-		     * MyQueryParser3Listener()   **CONSTRUCTOR**
-		     *********************************************************************/
-		    public MyQueryParser3Listener()
-		    {
-		    }
-		
-		
-		    public QueryBuilder getQueryBuilder()  { return this.queryBuilder; }
-		    public int getTotalExitQueryNoKey() { return this.iTotalExitQueryNoKey; }
-		
-		    /*********************************************************************
-		     * exitQueryNoOperator()
-		     *********************************************************************/
-		    public void exitQueryNoOperator(QueryParser3Parser.QueryNoOperatorContext ctx)
-		    {
-		        String sSearchKey = ctx.query().SEARCHKEY().getText();
-		        String sSearchValue = ctx.query().SEARCHVALUE().getText();
-		
-		        logger.debug("in exitQueryNoOperator():   key={}   value-->{}<--  ", sSearchKey, sSearchValue);
-		    }
-		
-		
-		    /*********************************************************************
-		     * exitQueryAndOperator()
-		     *********************************************************************/
-		    public void exitQueryAndOperator(QueryParser3Parser.QueryAndOperatorContext ctx)
-		    {
-		        String sSearchKey = ctx.query().SEARCHKEY().getText();
-		        String sSearchValue = ctx.query().SEARCHVALUE().getText();
-		        String sOperator = ctx.OPERATOR().getText();
-		
-		        logger.debug("in exitQueryAndOperator():  key={}   value-->{}<--  operator={}", sSearchKey, sSearchValue, sOperator);
-		
-		    }
-		
-		    /*********************************************************************
-		     * exitQueryNoKey()
-		     *
-		     * The user entered no operator -- e.g., AND, OR
-		     * The user entered no keys (so assume to search the text field)
-		     *********************************************************************/
-		    public void exitQueryNoKey(QueryParser3Parser.QueryNoKeyContext ctx)
-		    {
-		        this.iTotalExitQueryNoKey=ctx.SEARCHVALUE().size();
-		
-		        ArrayList<String> terms = new ArrayList<String>();
-		        for (int i=0; i<ctx.SEARCHVALUE().size(); i++)
-		        {
-		            String sSearchValue = ctx.SEARCHVALUE(i).getText();
-		            terms.add(sSearchValue);
-		            logger.debug("in exitQueryNoKey():        SEARCHVALUE({})-->{}<--",  i, ctx.SEARCHVALUE(i));
-		        }
-		
-		
-		        String sJoinedTerms = StringUtils.join(terms, " ");
-		
-		        // See the QueryBuilders abstract class
-		        this.queryBuilder = new MatchQueryBuilder("searchable_text", sJoinedTerms)
-		                               .type(MatchQueryBuilder.Type.BOOLEAN)
-		                               .operator(MatchQueryBuilder.Operator.OR);
-		    }
-		
-		}
+          
+        package com.stuff;
+        
+        import org.apache.commons.lang3.StringUtils;
+        import org.elasticsearch.index.query.QueryBuilders;
+        import org.elasticsearch.index.query.MatchQueryBuilder;
+        import org.elasticsearch.index.query.*;
+        import org.elasticsearch.index.search.*;
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        
+        import java.util.ArrayList;
+        
+        import static org.elasticsearch.index.query.QueryBuilders.matchQuery;
+        
+        /**
+         * Created by adam on 9/5/2016.
+         */
+        public class MyQueryParser3Listener extends QueryParser3BaseListener
+        {
+            private static final Logger logger = LoggerFactory.getLogger(MyQueryParser3Listener.class);
+        
+            private int iTotalExitQueryNoKey = 0;
+        
+            private QueryBuilder queryBuilder;
+        
+            /*********************************************************************
+             * MyQueryParser3Listener()   **CONSTRUCTOR**
+             *********************************************************************/
+            public MyQueryParser3Listener()
+            {
+            }
+        
+        
+            public QueryBuilder getQueryBuilder()  { return this.queryBuilder; }
+            public int getTotalExitQueryNoKey() { return this.iTotalExitQueryNoKey; }
+        
+            /*********************************************************************
+             * exitQueryNoOperator()
+             *********************************************************************/
+            public void exitQueryNoOperator(QueryParser3Parser.QueryNoOperatorContext ctx)
+            {
+                String sSearchKey = ctx.query().SEARCHKEY().getText();
+                String sSearchValue = ctx.query().SEARCHVALUE().getText();
+        
+                logger.debug("in exitQueryNoOperator():   key={}   value-->{}<--  ", sSearchKey, sSearchValue);
+            }
+        
+        
+            /*********************************************************************
+             * exitQueryAndOperator()
+             *********************************************************************/
+            public void exitQueryAndOperator(QueryParser3Parser.QueryAndOperatorContext ctx)
+            {
+                String sSearchKey = ctx.query().SEARCHKEY().getText();
+                String sSearchValue = ctx.query().SEARCHVALUE().getText();
+                String sOperator = ctx.OPERATOR().getText();
+        
+                logger.debug("in exitQueryAndOperator():  key={}   value-->{}<--  operator={}", sSearchKey, sSearchValue, sOperator);
+        
+            }
+        
+            /*********************************************************************
+             * exitQueryNoKey()
+             *
+             * The user entered no operator -- e.g., AND, OR
+             * The user entered no keys (so assume to search the text field)
+             *********************************************************************/
+            public void exitQueryNoKey(QueryParser3Parser.QueryNoKeyContext ctx)
+            {
+                this.iTotalExitQueryNoKey=ctx.SEARCHVALUE().size();
+        
+                ArrayList<String> terms = new ArrayList<String>();
+                for (int i=0; i<ctx.SEARCHVALUE().size(); i++)
+                {
+                    String sSearchValue = ctx.SEARCHVALUE(i).getText();
+                    terms.add(sSearchValue);
+                    logger.debug("in exitQueryNoKey():        SEARCHVALUE({})-->{}<--",  i, ctx.SEARCHVALUE(i));
+                }
+        
+        
+                String sJoinedTerms = StringUtils.join(terms, " ");
+        
+                // See the QueryBuilders abstract class
+                this.queryBuilder = new MatchQueryBuilder("searchable_text", sJoinedTerms)
+                                       .type(MatchQueryBuilder.Type.BOOLEAN)
+                                       .operator(MatchQueryBuilder.Operator.OR);
+            }
+        
+        }
 
-		
-		      
+        
+              
  6. Edit the AppQueryParser3 main() to actually run a query against ElasticSearch
  
-		package com.stuff;
-		
-		import org.antlr.v4.runtime.ANTLRInputStream;
-		import org.antlr.v4.runtime.CommonTokenStream;
-		import org.antlr.v4.runtime.tree.ParseTree;
-		import org.antlr.v4.runtime.tree.ParseTreeWalker;
-		import org.elasticsearch.action.search.SearchRequestBuilder;
-		import org.elasticsearch.action.search.SearchResponse;
-		import org.elasticsearch.client.Client;
-		import org.elasticsearch.index.query.QueryBuilder;
-		import org.slf4j.Logger;
-		import org.slf4j.LoggerFactory;
-		
-		import java.io.ByteArrayInputStream;
-		import java.io.InputStream;
-		
-		/**
-		 * Created by adam on 9/4/2016.
-		 */
-		public class AppQueryParser3
-		{
-		    private static final Logger logger = LoggerFactory.getLogger(AppQueryParser3.class);
-		
-		    public static void main( String[] args ) throws Exception
-		    {
-		        logger.debug("main() started");
-		
-		        String sString="luke returns";
-		        InputStream in = new ByteArrayInputStream(sString.getBytes("UTF-8"));
-		
-		        // Create aan ANTLRInputStream from our inputStream object
-		        ANTLRInputStream inputStream = new ANTLRInputStream(in);
-		
-		        // Create a lexer that feeds off of the input stream
-		        QueryParser3Lexer lexer = new QueryParser3Lexer(inputStream);
-		
-		        // Create a buffer of tokens pulled from the lexer
-		        CommonTokenStream tokens = new CommonTokenStream(lexer);
-		
-		        // Create a parser that feeds off the tokens buffer
-		        QueryParser3Parser parser = new QueryParser3Parser(tokens);
-		
-		        // Begin parsing at the "init" rule of the grammar file
-		        ParseTree tree = parser.init();
-		        logger.debug("tree={}", tree.toStringTree(parser));
-		
-		        if (parser.getNumberOfSyntaxErrors() > 0)
-		        {
-		            logger.debug("\n**PARSE FAILED**:  {} errors found.", parser.getNumberOfSyntaxErrors());
-		            System.exit(1);
-		        }
-		        else
-		        {
-		            logger.debug("\nPARSE SUCCEEDED.");
-		        }
-		
-		
-		        // Create a walker that can trigger callbacks
-		        ParseTreeWalker walker = new ParseTreeWalker();
-		
-		
-		        // Walk the tree during the prase, triggering callbacks
-		        MyQueryParser3Listener queryParserListener = new MyQueryParser3Listener();
-		        walker.walk(queryParserListener, tree);
-		
-		        // Get the QueryBuilder object from the listener
-		        QueryBuilder queryBuilder = queryParserListener.getQueryBuilder();
-		
-		
-		        // E X E C U T E       ELASTIC SEARCH    Q U E R Y
-		        Client esClient = EsClientSingleton.INSTANCE.getEsClient();
-		        SearchResponse response = esClient.prepareSearch("records_db")
-		                                          .setQuery(queryBuilder)
-		                                          .execute()
-		                                          .actionGet();
-		
-		        logger.debug("response={}", response.toString());
-		
-		        logger.debug("main() finished");
-		    }
-		}
-		 	      
+        package com.stuff;
+        
+        import org.antlr.v4.runtime.ANTLRInputStream;
+        import org.antlr.v4.runtime.CommonTokenStream;
+        import org.antlr.v4.runtime.tree.ParseTree;
+        import org.antlr.v4.runtime.tree.ParseTreeWalker;
+        import org.elasticsearch.action.search.SearchRequestBuilder;
+        import org.elasticsearch.action.search.SearchResponse;
+        import org.elasticsearch.client.Client;
+        import org.elasticsearch.index.query.QueryBuilder;
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        
+        import java.io.ByteArrayInputStream;
+        import java.io.InputStream;
+        
+        /**
+         * Created by adam on 9/4/2016.
+         */
+        public class AppQueryParser3
+        {
+            private static final Logger logger = LoggerFactory.getLogger(AppQueryParser3.class);
+        
+            public static void main( String[] args ) throws Exception
+            {
+                logger.debug("main() started");
+        
+                String sString="luke returns";
+                InputStream in = new ByteArrayInputStream(sString.getBytes("UTF-8"));
+        
+                // Create aan ANTLRInputStream from our inputStream object
+                ANTLRInputStream inputStream = new ANTLRInputStream(in);
+        
+                // Create a lexer that feeds off of the input stream
+                QueryParser3Lexer lexer = new QueryParser3Lexer(inputStream);
+        
+                // Create a buffer of tokens pulled from the lexer
+                CommonTokenStream tokens = new CommonTokenStream(lexer);
+        
+                // Create a parser that feeds off the tokens buffer
+                QueryParser3Parser parser = new QueryParser3Parser(tokens);
+        
+                // Begin parsing at the "init" rule of the grammar file
+                ParseTree tree = parser.init();
+                logger.debug("tree={}", tree.toStringTree(parser));
+        
+                if (parser.getNumberOfSyntaxErrors() > 0)
+                {
+                    logger.debug("\n**PARSE FAILED**:  {} errors found.", parser.getNumberOfSyntaxErrors());
+                    System.exit(1);
+                }
+                else
+                {
+                    logger.debug("\nPARSE SUCCEEDED.");
+                }
+        
+        
+                // Create a walker that can trigger callbacks
+                ParseTreeWalker walker = new ParseTreeWalker();
+        
+        
+                // Walk the tree during the prase, triggering callbacks
+                MyQueryParser3Listener queryParserListener = new MyQueryParser3Listener();
+                walker.walk(queryParserListener, tree);
+        
+                // Get the QueryBuilder object from the listener
+                QueryBuilder queryBuilder = queryParserListener.getQueryBuilder();
+        
+        
+                // E X E C U T E       ELASTIC SEARCH    Q U E R Y
+                Client esClient = EsClientSingleton.INSTANCE.getEsClient();
+                SearchResponse response = esClient.prepareSearch("records_db")
+                                                  .setQuery(queryBuilder)
+                                                  .execute()
+                                                  .actionGet();
+        
+                logger.debug("response={}", response.toString());
+        
+                logger.debug("main() finished");
+            }
+        }
+                   
       
       
  7. Add records to your ElasticSearch instance
@@ -328,69 +328,69 @@ Procedures
     b. Startup the "Sense" plugin
      
     c. Run these commands in them
-    	DELETE /records_db
-	    
-		PUT /records_db
-		    {
-		       "mappings": {
-		          "record": {
-		             "properties": {
-		                "title": {
-		                   "type": "string",
-		                   "analyzer": "snowball",
-		                   "copy_to": "searchable_text" 
-		                },
-		                "permissions": {
-		                   "type": "string",
-		                   "analyzer": "standard"
-		                },
-		                "type": {
-		                   "type": "integer",
-		                   "index": "not_analyzed"
-		                },
-		                "createDate": {
-		                   "type": "string",
-		                   "index": "not_analyzed"
-		                },
-		                "description": {
-		                   "type": "string",
-		                   "analyzer": "snowball",
-		                   "copy_to": "searchable_text" 
-		                },
-		                "searchable_text": {
-		                   "type": "string",
-		                   "analyzer": "snowball"
-		                }
-		             }
-		          }
-		       }
-		    }
-		
-		
-		POST _bulk
-		    { "create": { "_index": "records_db", "_type": "record", "_id": "1" }}
-		    { "title": "Star Wars New Hope", "permissions": "x,y,z", "type": 7, "createDate": "02/25/2016", "description": "Obi Wan teaches Luke about the force and gets his first light sabre.  Han Solo can really shoot.  The Falcon takes some hits." }
-		    { "create": { "_index": "records_db", "_type": "record", "_id": "2" }}
-		    { "title": "Star Wars Empire Strikes Back", "permissions": "a,b,c,d", "type": 4, "createDate": "02/25/2016", "description": "Luke gets some training from Yoda.  The falcon helps them escape at the end."}
-		    { "create": { "_index": "records_db", "_type": "record", "_id": "3" }}
-		    { "title": "More Star Wars Return of the Jedi", "permissions": "a,y,z", "type": 7, "createDate": "02/25/2016", "description": "Luke returns to kill his father"}
-		
-		
-		POST /records_db/_search
-		    {
-		       "query":
-		       {
-		          "match": 
-		          {
-		              "searchable_text":
-		              {
-		                "query": "luke returns",
-		                "operator": "and"
-		              }    
-		          }
-		      }
-		    }
-		 
-		
-		GET /records_db/_search 
+        DELETE /records_db
+        
+        PUT /records_db
+            {
+               "mappings": {
+                  "record": {
+                     "properties": {
+                        "title": {
+                           "type": "string",
+                           "analyzer": "snowball",
+                           "copy_to": "searchable_text" 
+                        },
+                        "permissions": {
+                           "type": "string",
+                           "analyzer": "standard"
+                        },
+                        "type": {
+                           "type": "integer",
+                           "index": "not_analyzed"
+                        },
+                        "createDate": {
+                           "type": "string",
+                           "index": "not_analyzed"
+                        },
+                        "description": {
+                           "type": "string",
+                           "analyzer": "snowball",
+                           "copy_to": "searchable_text" 
+                        },
+                        "searchable_text": {
+                           "type": "string",
+                           "analyzer": "snowball"
+                        }
+                     }
+                  }
+               }
+            }
+        
+        
+        POST _bulk
+            { "create": { "_index": "records_db", "_type": "record", "_id": "1" }}
+            { "title": "Star Wars New Hope", "permissions": "x,y,z", "type": 7, "createDate": "02/25/2016", "description": "Obi Wan teaches Luke about the force and gets his first light sabre.  Han Solo can really shoot.  The Falcon takes some hits." }
+            { "create": { "_index": "records_db", "_type": "record", "_id": "2" }}
+            { "title": "Star Wars Empire Strikes Back", "permissions": "a,b,c,d", "type": 4, "createDate": "02/25/2016", "description": "Luke gets some training from Yoda.  The falcon helps them escape at the end."}
+            { "create": { "_index": "records_db", "_type": "record", "_id": "3" }}
+            { "title": "More Star Wars Return of the Jedi", "permissions": "a,y,z", "type": 7, "createDate": "02/25/2016", "description": "Luke returns to kill his father"}
+        
+        
+        POST /records_db/_search
+            {
+               "query":
+               {
+                  "match": 
+                  {
+                      "searchable_text":
+                      {
+                        "query": "luke returns",
+                        "operator": "and"
+                      }    
+                  }
+              }
+            }
+         
+        
+        GET /records_db/_search 
      

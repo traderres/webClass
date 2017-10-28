@@ -77,43 +77,43 @@ Procedure
     a. Edit /src/main/resources/logback.xml
     b. Replace your logback.xml with this:
     
-		<?xml version="1.0" encoding="windows-1252" ?>
-		<!DOCTYPE project>
-		
-		<configuration debug="false">
-		    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-		        <encoder>
-		            <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
-		        </encoder>
-		    </appender>
-		
-		
-		    <logger name="stuff" level="DEBUG" additivity="false">
-		        <appender-ref ref="CONSOLE"/>
-		    </logger>
-		
-		    <logger name="org.elasticsearch" level="INFO" additivity="false">
-		        <appender-ref ref="CONSOLE"/>
-		    </logger>
-		
-		    <logger name="org.springframework.jdbc" level="INFO" additivity="false">
-		        <appender-ref ref="CONSOLE"/>
-		    </logger>
-		
-		    <root level="INFO">
-		        <appender-ref ref="CONSOLE"/>
-		    </root>
-		
-		</configuration>
-		        
-		       		        	              
+        <?xml version="1.0" encoding="windows-1252" ?>
+        <!DOCTYPE project>
+        
+        <configuration debug="false">
+            <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+                <encoder>
+                    <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+                </encoder>
+            </appender>
+        
+        
+            <logger name="stuff" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+        
+            <logger name="org.elasticsearch" level="INFO" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+        
+            <logger name="org.springframework.jdbc" level="INFO" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+        
+            <root level="INFO">
+                <appender-ref ref="CONSOLE"/>
+            </root>
+        
+        </configuration>
+                
+                                                 
  
  4. Create a package called "stuff"
     a. Right-click on /src/main/java -> New -> Package
        Name:  Stuff
        
  
-				
+                
  5. Create this class:  ElasticSearchDao
     a. Right-click on /src/main/java/stuff -> New -> Java Class
        Name:  ElasticSearchDao
@@ -122,307 +122,307 @@ Procedure
        
     b. Copy this to to your java class
 
-		package stuff;
-		
-		import com.google.gson.*;
-		import com.ning.http.client.AsyncHttpClient;
-		import com.ning.http.client.Response;
-		import org.slf4j.Logger;
-		import org.slf4j.LoggerFactory;
-		
-		import java.util.*;
-		
-		
-		/**
-		 * Created by adam on 12/30/2016.
-		 */
-		public class ElasticSearchDao
-		{
-		    private static final Logger logger = LoggerFactory.getLogger(ElasticSearchDao.class);
-		
-		    private String elasticSearchUrl;
-		    private AsyncHttpClient asyncHttpClient;
-		
-		
-		    /**************************************************************************
-		     * ElasticSearchDao()  Constructor
-		     *
-		     ***************************************************************************/
-		    public ElasticSearchDao(String aElasticSearchUrl)
-		    {
-		        this.asyncHttpClient = new AsyncHttpClient();
-		        this.elasticSearchUrl = aElasticSearchUrl;
-		    }
-		
-		
-		    /********************************************************************************************
-		     * getJsonInPrettyFormat()
-		     *
-		     * Return the JSON in pretty format
-		     *********************************************************************************************/
-		    public static String getJsonInPrettyFormat(String aRawJson)
-		    {
-		        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-		        JsonParser jp = new JsonParser();
-		        JsonElement je = jp.parse(aRawJson);
-		        String prettyJsonString = gson.toJson(je);
-		
-		        return prettyJsonString;
-		    }
-		
-		
-		    /**************************************************************************
-		     * close()
-		     ***************************************************************************/
-		    public void close()
-		    {
-		        if (this.asyncHttpClient != null)
-		        {
-		            this.asyncHttpClient.close();
-		        }
-		    }
-		
-		
-		    /**************************************************************************
-		     * isElasticSearchRunning()
-		     *
-		     * Returns TRUE if the ElasticSearch instance is up and running
-		     * Returns FALSE otherwise
-		     ***************************************************************************/
-		    public boolean isElasticSearchRunning()
-		    {
-		        try
-		        {
-		            // Make a synchronous call to ElasticSearch (to run this query)
-		            Response response = this.asyncHttpClient.prepareGet(this.elasticSearchUrl + "/")
-		                    .setHeader("accept", "application/json")
-		                    .execute()
-		                    .get();
-		
-		            if (response.getStatusCode() != 200)
-		            {
-		                // ElasticSearch returned a non-200 status response -- that's bad
-		                logger.warn("Warning in isElasticSearchRunning():  The call to see if ES is running returned a non-200 status code of {}\nThe error is {}", response.getStatusCode() , response.getResponseBody() );
-		                return false;
-		            }
-		
-		            // ElasticSearch returned a 200 status -- so we assume it is up and running
-		            return(true);
-		        }
-		        catch (Exception e)
-		        {
-		            // I got some sort of exception -- so assume it is not running
-		            logger.warn("Warning in isElasticSearchRunning():  The call to see if ES is running threw an exception.  The exception is this:  {}", e.getMessage());
-		            return(false);
-		        }
-		    }
-		
-		
-		    /********************************************************************************************
-		     * sendBulkIndexRequestToElasticSearch()
-		     *
-		     *  Submit the passed-in JSON as a bulk index request to ElasticSearch
-		     *
-		     *  If the request works perfectly, then nothing
-		     *  If the index request fails in anyway, then throw an Exception
-		     *********************************************************************************************/
-		    private void sendBulkIndexRequestToElasticSearch(String aIndexName,
-		                                                     String aJson) throws Exception
-		    {
-		        logger.debug("sendBulkIndexRequestToElasticSearch() started.   aIndexName={}", aIndexName);
-		
-		        int iTotalSuccessIndexOperations = 0;
-		        int iTotalFailIndexOperations = 0;
-		
-		        // Make a POST call to ElasticSearch  (this performs the bulk index request)
-		        long startTime = System.currentTimeMillis();
-		        Response response = this.asyncHttpClient.preparePost(this.elasticSearchUrl + "/" + aIndexName + "/_bulk")
-		                .setHeader("accept", "application/json")
-		                .setBody(aJson)
-		                .execute()
-		                .get();
-		
-		        long endTime = System.currentTimeMillis();
-		        long lTotalTimeMs = endTime - startTime;
-		        logger.debug("ElasticSearch POST finished in {} ms with status code of {}", lTotalTimeMs, response.getStatusCode());
-		
-		        if (response.getStatusCode() != 200)
-		        {
-		            // ElasticSearch returned a non-200 status response -- that's bad
-		            throw new RuntimeException("Critical Error in Sync Program:  I got a non-200 status code of " + response.getStatusCode() + ".  The error is " + response.getResponseBody());
-		        }
-		        else
-		        {
-		            // ElasticSearch returned a 200 status -- that's good
-		
-		            // Parse the returned JSON string and check the returned "errors" field  (hopefully it holds "false")
-		            String sJsonResponse = response.getResponseBody();
-		            JsonElement jelement = new JsonParser().parse(sJsonResponse);
-		            JsonObject jobject = jelement.getAsJsonObject();
-		            Boolean bErrors = jobject.get("errors").getAsBoolean();
-		            logger.debug("ElasticSearch returned errors={}", bErrors);
-		
-		            if (bErrors == false)
-		            {
-		                // B U L K    O P E R A T I O N     W A S    1 0 0 %    S U C C E S S F U L
-		                logger.debug("Index operation finished successfully.  There were no errors.");
-		            }
-		            else
-		            {
-		                // B U L K    O P E R A T I O N     P A R T I A L L Y    F A I L E D
-		                // -- The "errors" flag holds true -- so one or more items *FAILED* to index
-		                logger.error("Critical Error in Sync Program:  I got a 200 status code, but I got some errors.  Here is the returned json:  " + sJsonResponse);
-		
-		                // The Response object's JSON holds information under "create", "index", or "delete" keys
-		                // -- So, we need to look under all of them to find out which "create" operations worked, which "index" operations worked, and which "delete" operations worked
-		                List<String> operationNames = Arrays.asList("create", "index", "delete");
-		
-		                JsonArray items = jobject.getAsJsonArray("items");
-		                for (JsonElement item : items)
-		                {
-		                    JsonObject jitem = item.getAsJsonObject();
-		
-		                    for (String sIndexOperationName : operationNames)
-		                    {
-		                        if (jitem.has(sIndexOperationName))
-		                        {
-		                            JsonObject jitemDetails = jitem.get(sIndexOperationName).getAsJsonObject();
-		
-		                            int iStatus = jitemDetails.get("status").getAsInt();
-		                            String sDocid = jitemDetails.get("_id").getAsString();
-		                            logger.debug("{} operation on docid={} with status={}", sIndexOperationName, sDocid, iStatus);
-		
-		                            if ((iStatus == 200) || (iStatus == 201))
-		                            {
-		                                // Out of the N index operations, this one operation succeeded
-		                                logger.error("ElasticSearch {} operation succeeded for this docid: ", sIndexOperationName, sDocid);
-		
-		                                iTotalSuccessIndexOperations++;
-		                            }
-		                            else
-		                            {
-		                                // This item failed to index
-		                                String sErrorMesg = jitemDetails.get("error").getAsString();
-		                                logger.error("ElasticSearch {} operation failed for this docid {}.  Error is {}", sIndexOperationName, sDocid, sErrorMesg);
-		                                iTotalFailIndexOperations++;
-		                            }
-		                        }
-		
-		                    }  // end of looping thru "create", "index", and "delete" strings
-		                }
-		
-		                throw new RuntimeException("Critical Error in sendBulkIndexRequestToElasticSearch().  Some of the index operations failed.\niTotalSuccessIndexOperations=" + iTotalSuccessIndexOperations + "  iTotalFailIndexOperations=" + iTotalFailIndexOperations);
-		            }
-		        }
-		
-		        logger.debug("sendBulkIndexRequestToElasticSearch() finished.");
-		    }
-		
-		
-		    /**************************************************************************
-		     * indexListOfMaps()
-		     * -- Index all of the information into an ElasticSearch instance
-		     *
-		     * 1) Break-up the list into batches of 10,000
-		     * 2) Loop through 10,000 at-a-time
-		     *    -- Create a large JSON string (to be sent to ES)
-		     *    -- Submit the JSON string to ES
-		     *    -- Check the results
-		     ***************************************************************************/
-		    public void indexListOfMaps(String aIndexName,
-		                                String aMappingType,
-		                                long aTotalRecordsToIndexInOneRequest,
-		                                ArrayList<HashMap<String, Object>> aListOfMaps) throws Exception
-		    {
-		        logger.debug("indexListOfMaps()  aIndexName={}  aMappingType={}  aTotalRecordsToIndexInOneReques={}", aIndexName, aMappingType, aTotalRecordsToIndexInOneRequest);
-		
-		        if ((aListOfMaps == null) || (aListOfMaps.size() == 0))
-		        {
-		            throw new RuntimeException("Critical Error in indexListOfMaps():  The passed-in list of maps is empty or null.  There is nothing to do.");
-		        }
-		        else if ((aIndexName == null) || (aIndexName.length() == 0))
-		        {
-		            throw new RuntimeException("Critical Error in indexListOfMaps():  The passed-in aIndexName is null or empty.");
-		        }
-		        else if ((aMappingType == null) || (aMappingType.length() == 0))
-		        {
-		            throw new RuntimeException("Critical Error in indexListOfMaps():  The passed-in aMappingType is null or empty.");
-		        }
-		
-		        Gson gson = new Gson();
-		        StringBuilder sbJsonRequest = new StringBuilder();
-		        int iTotalRecordsInCurrentBatch=0;
-		
-		        // Generate the 1st line of JSON (used for each 'create' request)
-		        HashMap<String, String> innerMapCreate = new HashMap<String, String>();
-		        innerMapCreate.put("_index", aIndexName);
-		        innerMapCreate.put("_type",  aMappingType);
-		        HashMap<String, Object> outerMapCreate = new HashMap<String, Object>();
-		        outerMapCreate.put("create", innerMapCreate);
-		        final String sCreateLine1 = gson.toJson(outerMapCreate);
-		
-		
-		        for (int i=0; i<aListOfMaps.size(); i++)
-		        {
-		            if (((i % aTotalRecordsToIndexInOneRequest) == 0) && (i > 0))
-		            {
-		                // Process records in this *last* batch
-		                logger.debug("Submitting a batch of records to ES.  iTotalRecordsInCurrentBatch={}", iTotalRecordsInCurrentBatch);
-		
-		                // Add one more carriage return to the JSON (so the bulk request is valid)
-		                sbJsonRequest.append("\n");
-		
-		                // Submit the bulk request to ElasticSearch
-		                sendBulkIndexRequestToElasticSearch(aIndexName,  sbJsonRequest.toString());
-		
-		                // Clear the string builder object
-		                sbJsonRequest.setLength(0);
-		
-		                // Reset the count of records in this batch
-		                iTotalRecordsInCurrentBatch=0;
-		            }
-		
-		            // Get a reference to this record's map
-		            Map<String, Object> mapOfOneRecord = aListOfMaps.get(i);
-		
-		            // Convert the Map into JSON
-		            String sJsonDetailsForOneRecord = gson.toJson(mapOfOneRecord);
-		
-		            // Append 2 lines of JSON:
-		            //  1) the 1st line tells ES that this is an 'index' request -- which tells ES to create
-		            //  2) the 2nd line tells ES the data for this request
-		            sbJsonRequest.append(sCreateLine1)
-		                          .append("\n")
-		                          .append(sJsonDetailsForOneRecord)
-		                          .append("\n");
-		
-		            iTotalRecordsInCurrentBatch++;
-		        }
-		
-		
-		
-		        if (sbJsonRequest.length() > 0)
-		        {
-		            // Process records in this *last* batch
-		            logger.debug("Processing last batch of records initiated.  iTotalRecordsInCurrentBatch={}", iTotalRecordsInCurrentBatch);
-		
-		            // Add one more carriage return to the JSON (so the bulk request is valid)
-		            sbJsonRequest.append("\n");
-		
-		            // Submit the bulk request to ElasticSearch
-		            sendBulkIndexRequestToElasticSearch(aIndexName, sbJsonRequest.toString());
-		        }
-		
-		        logger.debug("indexListOfMaps()  finished.");
-		    }
-		
-		
-		}
-		
-		
-				
-			
-		 
+        package stuff;
+        
+        import com.google.gson.*;
+        import com.ning.http.client.AsyncHttpClient;
+        import com.ning.http.client.Response;
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        
+        import java.util.*;
+        
+        
+        /**
+         * Created by adam on 12/30/2016.
+         */
+        public class ElasticSearchDao
+        {
+            private static final Logger logger = LoggerFactory.getLogger(ElasticSearchDao.class);
+        
+            private String elasticSearchUrl;
+            private AsyncHttpClient asyncHttpClient;
+        
+        
+            /**************************************************************************
+             * ElasticSearchDao()  Constructor
+             *
+             ***************************************************************************/
+            public ElasticSearchDao(String aElasticSearchUrl)
+            {
+                this.asyncHttpClient = new AsyncHttpClient();
+                this.elasticSearchUrl = aElasticSearchUrl;
+            }
+        
+        
+            /********************************************************************************************
+             * getJsonInPrettyFormat()
+             *
+             * Return the JSON in pretty format
+             *********************************************************************************************/
+            public static String getJsonInPrettyFormat(String aRawJson)
+            {
+                Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                JsonParser jp = new JsonParser();
+                JsonElement je = jp.parse(aRawJson);
+                String prettyJsonString = gson.toJson(je);
+        
+                return prettyJsonString;
+            }
+        
+        
+            /**************************************************************************
+             * close()
+             ***************************************************************************/
+            public void close()
+            {
+                if (this.asyncHttpClient != null)
+                {
+                    this.asyncHttpClient.close();
+                }
+            }
+        
+        
+            /**************************************************************************
+             * isElasticSearchRunning()
+             *
+             * Returns TRUE if the ElasticSearch instance is up and running
+             * Returns FALSE otherwise
+             ***************************************************************************/
+            public boolean isElasticSearchRunning()
+            {
+                try
+                {
+                    // Make a synchronous call to ElasticSearch (to run this query)
+                    Response response = this.asyncHttpClient.prepareGet(this.elasticSearchUrl + "/")
+                            .setHeader("accept", "application/json")
+                            .execute()
+                            .get();
+        
+                    if (response.getStatusCode() != 200)
+                    {
+                        // ElasticSearch returned a non-200 status response -- that's bad
+                        logger.warn("Warning in isElasticSearchRunning():  The call to see if ES is running returned a non-200 status code of {}\nThe error is {}", response.getStatusCode() , response.getResponseBody() );
+                        return false;
+                    }
+        
+                    // ElasticSearch returned a 200 status -- so we assume it is up and running
+                    return(true);
+                }
+                catch (Exception e)
+                {
+                    // I got some sort of exception -- so assume it is not running
+                    logger.warn("Warning in isElasticSearchRunning():  The call to see if ES is running threw an exception.  The exception is this:  {}", e.getMessage());
+                    return(false);
+                }
+            }
+        
+        
+            /********************************************************************************************
+             * sendBulkIndexRequestToElasticSearch()
+             *
+             *  Submit the passed-in JSON as a bulk index request to ElasticSearch
+             *
+             *  If the request works perfectly, then nothing
+             *  If the index request fails in anyway, then throw an Exception
+             *********************************************************************************************/
+            private void sendBulkIndexRequestToElasticSearch(String aIndexName,
+                                                             String aJson) throws Exception
+            {
+                logger.debug("sendBulkIndexRequestToElasticSearch() started.   aIndexName={}", aIndexName);
+        
+                int iTotalSuccessIndexOperations = 0;
+                int iTotalFailIndexOperations = 0;
+        
+                // Make a POST call to ElasticSearch  (this performs the bulk index request)
+                long startTime = System.currentTimeMillis();
+                Response response = this.asyncHttpClient.preparePost(this.elasticSearchUrl + "/" + aIndexName + "/_bulk")
+                        .setHeader("accept", "application/json")
+                        .setBody(aJson)
+                        .execute()
+                        .get();
+        
+                long endTime = System.currentTimeMillis();
+                long lTotalTimeMs = endTime - startTime;
+                logger.debug("ElasticSearch POST finished in {} ms with status code of {}", lTotalTimeMs, response.getStatusCode());
+        
+                if (response.getStatusCode() != 200)
+                {
+                    // ElasticSearch returned a non-200 status response -- that's bad
+                    throw new RuntimeException("Critical Error in Sync Program:  I got a non-200 status code of " + response.getStatusCode() + ".  The error is " + response.getResponseBody());
+                }
+                else
+                {
+                    // ElasticSearch returned a 200 status -- that's good
+        
+                    // Parse the returned JSON string and check the returned "errors" field  (hopefully it holds "false")
+                    String sJsonResponse = response.getResponseBody();
+                    JsonElement jelement = new JsonParser().parse(sJsonResponse);
+                    JsonObject jobject = jelement.getAsJsonObject();
+                    Boolean bErrors = jobject.get("errors").getAsBoolean();
+                    logger.debug("ElasticSearch returned errors={}", bErrors);
+        
+                    if (bErrors == false)
+                    {
+                        // B U L K    O P E R A T I O N     W A S    1 0 0 %    S U C C E S S F U L
+                        logger.debug("Index operation finished successfully.  There were no errors.");
+                    }
+                    else
+                    {
+                        // B U L K    O P E R A T I O N     P A R T I A L L Y    F A I L E D
+                        // -- The "errors" flag holds true -- so one or more items *FAILED* to index
+                        logger.error("Critical Error in Sync Program:  I got a 200 status code, but I got some errors.  Here is the returned json:  " + sJsonResponse);
+        
+                        // The Response object's JSON holds information under "create", "index", or "delete" keys
+                        // -- So, we need to look under all of them to find out which "create" operations worked, which "index" operations worked, and which "delete" operations worked
+                        List<String> operationNames = Arrays.asList("create", "index", "delete");
+        
+                        JsonArray items = jobject.getAsJsonArray("items");
+                        for (JsonElement item : items)
+                        {
+                            JsonObject jitem = item.getAsJsonObject();
+        
+                            for (String sIndexOperationName : operationNames)
+                            {
+                                if (jitem.has(sIndexOperationName))
+                                {
+                                    JsonObject jitemDetails = jitem.get(sIndexOperationName).getAsJsonObject();
+        
+                                    int iStatus = jitemDetails.get("status").getAsInt();
+                                    String sDocid = jitemDetails.get("_id").getAsString();
+                                    logger.debug("{} operation on docid={} with status={}", sIndexOperationName, sDocid, iStatus);
+        
+                                    if ((iStatus == 200) || (iStatus == 201))
+                                    {
+                                        // Out of the N index operations, this one operation succeeded
+                                        logger.error("ElasticSearch {} operation succeeded for this docid: ", sIndexOperationName, sDocid);
+        
+                                        iTotalSuccessIndexOperations++;
+                                    }
+                                    else
+                                    {
+                                        // This item failed to index
+                                        String sErrorMesg = jitemDetails.get("error").getAsString();
+                                        logger.error("ElasticSearch {} operation failed for this docid {}.  Error is {}", sIndexOperationName, sDocid, sErrorMesg);
+                                        iTotalFailIndexOperations++;
+                                    }
+                                }
+        
+                            }  // end of looping thru "create", "index", and "delete" strings
+                        }
+        
+                        throw new RuntimeException("Critical Error in sendBulkIndexRequestToElasticSearch().  Some of the index operations failed.\niTotalSuccessIndexOperations=" + iTotalSuccessIndexOperations + "  iTotalFailIndexOperations=" + iTotalFailIndexOperations);
+                    }
+                }
+        
+                logger.debug("sendBulkIndexRequestToElasticSearch() finished.");
+            }
+        
+        
+            /**************************************************************************
+             * indexListOfMaps()
+             * -- Index all of the information into an ElasticSearch instance
+             *
+             * 1) Break-up the list into batches of 10,000
+             * 2) Loop through 10,000 at-a-time
+             *    -- Create a large JSON string (to be sent to ES)
+             *    -- Submit the JSON string to ES
+             *    -- Check the results
+             ***************************************************************************/
+            public void indexListOfMaps(String aIndexName,
+                                        String aMappingType,
+                                        long aTotalRecordsToIndexInOneRequest,
+                                        ArrayList<HashMap<String, Object>> aListOfMaps) throws Exception
+            {
+                logger.debug("indexListOfMaps()  aIndexName={}  aMappingType={}  aTotalRecordsToIndexInOneReques={}", aIndexName, aMappingType, aTotalRecordsToIndexInOneRequest);
+        
+                if ((aListOfMaps == null) || (aListOfMaps.size() == 0))
+                {
+                    throw new RuntimeException("Critical Error in indexListOfMaps():  The passed-in list of maps is empty or null.  There is nothing to do.");
+                }
+                else if ((aIndexName == null) || (aIndexName.length() == 0))
+                {
+                    throw new RuntimeException("Critical Error in indexListOfMaps():  The passed-in aIndexName is null or empty.");
+                }
+                else if ((aMappingType == null) || (aMappingType.length() == 0))
+                {
+                    throw new RuntimeException("Critical Error in indexListOfMaps():  The passed-in aMappingType is null or empty.");
+                }
+        
+                Gson gson = new Gson();
+                StringBuilder sbJsonRequest = new StringBuilder();
+                int iTotalRecordsInCurrentBatch=0;
+        
+                // Generate the 1st line of JSON (used for each 'create' request)
+                HashMap<String, String> innerMapCreate = new HashMap<String, String>();
+                innerMapCreate.put("_index", aIndexName);
+                innerMapCreate.put("_type",  aMappingType);
+                HashMap<String, Object> outerMapCreate = new HashMap<String, Object>();
+                outerMapCreate.put("create", innerMapCreate);
+                final String sCreateLine1 = gson.toJson(outerMapCreate);
+        
+        
+                for (int i=0; i<aListOfMaps.size(); i++)
+                {
+                    if (((i % aTotalRecordsToIndexInOneRequest) == 0) && (i > 0))
+                    {
+                        // Process records in this *last* batch
+                        logger.debug("Submitting a batch of records to ES.  iTotalRecordsInCurrentBatch={}", iTotalRecordsInCurrentBatch);
+        
+                        // Add one more carriage return to the JSON (so the bulk request is valid)
+                        sbJsonRequest.append("\n");
+        
+                        // Submit the bulk request to ElasticSearch
+                        sendBulkIndexRequestToElasticSearch(aIndexName,  sbJsonRequest.toString());
+        
+                        // Clear the string builder object
+                        sbJsonRequest.setLength(0);
+        
+                        // Reset the count of records in this batch
+                        iTotalRecordsInCurrentBatch=0;
+                    }
+        
+                    // Get a reference to this record's map
+                    Map<String, Object> mapOfOneRecord = aListOfMaps.get(i);
+        
+                    // Convert the Map into JSON
+                    String sJsonDetailsForOneRecord = gson.toJson(mapOfOneRecord);
+        
+                    // Append 2 lines of JSON:
+                    //  1) the 1st line tells ES that this is an 'index' request -- which tells ES to create
+                    //  2) the 2nd line tells ES the data for this request
+                    sbJsonRequest.append(sCreateLine1)
+                                  .append("\n")
+                                  .append(sJsonDetailsForOneRecord)
+                                  .append("\n");
+        
+                    iTotalRecordsInCurrentBatch++;
+                }
+        
+        
+        
+                if (sbJsonRequest.length() > 0)
+                {
+                    // Process records in this *last* batch
+                    logger.debug("Processing last batch of records initiated.  iTotalRecordsInCurrentBatch={}", iTotalRecordsInCurrentBatch);
+        
+                    // Add one more carriage return to the JSON (so the bulk request is valid)
+                    sbJsonRequest.append("\n");
+        
+                    // Submit the bulk request to ElasticSearch
+                    sendBulkIndexRequestToElasticSearch(aIndexName, sbJsonRequest.toString());
+                }
+        
+                logger.debug("indexListOfMaps()  finished.");
+            }
+        
+        
+        }
+        
+        
+                
+            
+         
  6. Create this class:  ElasticSearchDaoApp
     a. Right-click on /src/main/java/stuff -> New -> Java Class
        Name:  ElasticSearchDaoApp
@@ -430,76 +430,76 @@ Procedure
        Press OK
        
     b. Copy this to to your java class
-		    
-		package stuff;
-		
-		import org.slf4j.Logger;
-		import org.slf4j.LoggerFactory;
-		import org.springframework.context.ApplicationContext;
-		import org.springframework.context.support.ClassPathXmlApplicationContext;
-		
-		import java.util.ArrayList;
-		import java.util.HashMap;
-		
-		
-		/**
-		 * Created by adam on 12/30/2016.
-		 */
-		public class ElasticSearchDaoApp
-		{
-		    private static final Logger logger = LoggerFactory.getLogger(ElasticSearchDaoApp.class);
-		
-		
-		    /********************************************************************************************
-		     * main()
-		     *********************************************************************************************/
-		    public static void main(String[] args) throws Exception
-		    {
-		        // S T A R T U P      S P R I N G     C O N T E X T
-		        //  1) Read spring-beans.xml
-		        //  2) Instantiate the spring beans
-		        ApplicationContext context = new ClassPathXmlApplicationContext("spring-beans.xml");
-		
-		        // Get a reference to the ElasticSearchDao Bean
-		        // NOTE:  The name used here must be match the id=".." of the spring bean
-		        ElasticSearchDao es = (ElasticSearchDao) context.getBean("elasticSearchDao");
-		
-		
-		        boolean bEsIsRunning = es.isElasticSearchRunning();
-		        logger.debug("bEsIsRunning={}", bEsIsRunning);
-		
-		        logger.debug("testIndexListOfMaps() started.");
-		        HashMap<String, Object> map1 = new HashMap<String, Object>();
-		        map1.put("description", "this is the description for map1");
-		        map1.put("createDate", "20140111");
-		        map1.put("ingestDate", "20140112");
-		
-		        HashMap<String, Object> map2 = new HashMap<String, Object>();
-		        map2.put("description", "this is the description for map2");
-		        map2.put("createDate", "20140222");
-		        map2.put("ingestDate", "20150222");
-		
-		        HashMap<String, Object> map3 = new HashMap<String, Object>();
-		        map3.put("description", "this is the description for map3");
-		        map3.put("createDate", "20140301");
-		        map3.put("ingestDate", "20140325");
-		
-		        ArrayList<HashMap<String, Object>> listOfMaps = new ArrayList<HashMap<String, Object>>();
-		        listOfMaps.add(map1);
-		        listOfMaps.add(map2);
-		        listOfMaps.add(map3);
-		
-		        // Perform bulk index operation
-		        es.indexListOfMaps("docs", "record", 5000, listOfMaps);
-		
-		        // S H U T D O W N       S P R I N G     C O N T E X T
-		        // NOTE:  causes the close-method to be called on the Spring-Beans)
-		        ((ClassPathXmlApplicationContext) context).close();
-		    }
-		
-		
-		}
-		
+            
+        package stuff;
+        
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.context.ApplicationContext;
+        import org.springframework.context.support.ClassPathXmlApplicationContext;
+        
+        import java.util.ArrayList;
+        import java.util.HashMap;
+        
+        
+        /**
+         * Created by adam on 12/30/2016.
+         */
+        public class ElasticSearchDaoApp
+        {
+            private static final Logger logger = LoggerFactory.getLogger(ElasticSearchDaoApp.class);
+        
+        
+            /********************************************************************************************
+             * main()
+             *********************************************************************************************/
+            public static void main(String[] args) throws Exception
+            {
+                // S T A R T U P      S P R I N G     C O N T E X T
+                //  1) Read spring-beans.xml
+                //  2) Instantiate the spring beans
+                ApplicationContext context = new ClassPathXmlApplicationContext("spring-beans.xml");
+        
+                // Get a reference to the ElasticSearchDao Bean
+                // NOTE:  The name used here must be match the id=".." of the spring bean
+                ElasticSearchDao es = (ElasticSearchDao) context.getBean("elasticSearchDao");
+        
+        
+                boolean bEsIsRunning = es.isElasticSearchRunning();
+                logger.debug("bEsIsRunning={}", bEsIsRunning);
+        
+                logger.debug("testIndexListOfMaps() started.");
+                HashMap<String, Object> map1 = new HashMap<String, Object>();
+                map1.put("description", "this is the description for map1");
+                map1.put("createDate", "20140111");
+                map1.put("ingestDate", "20140112");
+        
+                HashMap<String, Object> map2 = new HashMap<String, Object>();
+                map2.put("description", "this is the description for map2");
+                map2.put("createDate", "20140222");
+                map2.put("ingestDate", "20150222");
+        
+                HashMap<String, Object> map3 = new HashMap<String, Object>();
+                map3.put("description", "this is the description for map3");
+                map3.put("createDate", "20140301");
+                map3.put("ingestDate", "20140325");
+        
+                ArrayList<HashMap<String, Object>> listOfMaps = new ArrayList<HashMap<String, Object>>();
+                listOfMaps.add(map1);
+                listOfMaps.add(map2);
+                listOfMaps.add(map3);
+        
+                // Perform bulk index operation
+                es.indexListOfMaps("docs", "record", 5000, listOfMaps);
+        
+                // S H U T D O W N       S P R I N G     C O N T E X T
+                // NOTE:  causes the close-method to be called on the Spring-Beans)
+                ((ClassPathXmlApplicationContext) context).close();
+            }
+        
+        
+        }
+        
 
 
 
@@ -510,23 +510,23 @@ Procedure
     
     b. Copy this to your file:
     
-		<beans xmlns="http://www.springframework.org/schema/beans"
-		       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-		       xmlns:context="http://www.springframework.org/schema/context"
-		       xsi:schemaLocation="http://www.springframework.org/schema/beans
-		                http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
-		                http://www.springframework.org/schema/context
-		                http://www.springframework.org/schema/context/spring-context.xsd">
-		
-		    <!-- Read the app.properties and make the values available within this xml file -->
-		    <context:property-placeholder location="classpath:app.properties" />
-		
-		    <!-- Create an ElasticSearchDao singleton and pass-in the es.url (found in app.properties) -->
-		    <bean id="elasticSearchDao" class="stuff.ElasticSearchDao" destroy-method="close">
-		        <constructor-arg  value="${es.url}" />
-		    </bean>
-		
-		</beans>
+        <beans xmlns="http://www.springframework.org/schema/beans"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xmlns:context="http://www.springframework.org/schema/context"
+               xsi:schemaLocation="http://www.springframework.org/schema/beans
+                        http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+                        http://www.springframework.org/schema/context
+                        http://www.springframework.org/schema/context/spring-context.xsd">
+        
+            <!-- Read the app.properties and make the values available within this xml file -->
+            <context:property-placeholder location="classpath:app.properties" />
+        
+            <!-- Create an ElasticSearchDao singleton and pass-in the es.url (found in app.properties) -->
+            <bean id="elasticSearchDao" class="stuff.ElasticSearchDao" destroy-method="close">
+                <constructor-arg  value="${es.url}" />
+            </bean>
+        
+        </beans>
         
         
         
@@ -536,10 +536,10 @@ Procedure
     
     b. Copy this to your file:
 
-		#########################################################################
-		# app.properties
-		#########################################################################
-		es.url=http://192.168.1.165:9200 
+        #########################################################################
+        # app.properties
+        #########################################################################
+        es.url=http://192.168.1.165:9200 
         
         
         
@@ -548,63 +548,63 @@ Procedure
  
  
 10. Setup the "docs" mapping in ElasticSearch index and add some records
- 	a. Startup Chrome
- 	b. Startup the "Sense" plugin
- 	c. Run the following commands:	
-	 
-		1) Delete the index called "docs" [and all records and the mapping, too!]
-	    	DELETE /docs
-	
-	
-	 	2) Create a mappings for the index called "docs"
-		    PUT /docs
-	    	{
-		       "mappings": {
-		          "record": {
-		             "properties": {
-		                "title": {
-		                   "type": "string",
-		                   "analyzer": "snowball"
-		                },	                
-		                "source": {
-		                   "type": "string",
-		                   "index": "not_analyzed"
-		                },
-		                "ingestDate": {
-		                   "type": "date",
-		                   "format": "yyyyMMdd",
-		                   "index": "not_analyzed"
-		                },
-		                "createDate": {
-		                   "type": "date",
-		                   "format": "yyyyMMdd",
-		                   "index": "not_analyzed"
-		                },	
-		                "description": {
-		                   "type": "string",
-		                   "analyzer": "snowball"
-		                }
-		             }
-		          }
-		       }
-		    }
+     a. Startup Chrome
+     b. Startup the "Sense" plugin
+     c. Run the following commands:    
+     
+        1) Delete the index called "docs" [and all records and the mapping, too!]
+            DELETE /docs
+    
+    
+         2) Create a mappings for the index called "docs"
+            PUT /docs
+            {
+               "mappings": {
+                  "record": {
+                     "properties": {
+                        "title": {
+                           "type": "string",
+                           "analyzer": "snowball"
+                        },                    
+                        "source": {
+                           "type": "string",
+                           "index": "not_analyzed"
+                        },
+                        "ingestDate": {
+                           "type": "date",
+                           "format": "yyyyMMdd",
+                           "index": "not_analyzed"
+                        },
+                        "createDate": {
+                           "type": "date",
+                           "format": "yyyyMMdd",
+                           "index": "not_analyzed"
+                        },    
+                        "description": {
+                           "type": "string",
+                           "analyzer": "snowball"
+                        }
+                     }
+                  }
+               }
+            }
  
 
  
-		3) Add some sample records to this index
-	    	POST _bulk
-	    	{ "create": { "_index": "docs", "_type": "record"}}
-	    	{ "title": "Record #1", "source": "log format1", "ingestDate": "20150526", "createDate": "20160124", "description": "This is the description for record #1" }
-	    	{ "create": { "_index": "docs", "_type": "record"}}
-	    	{ "title": "Record #2", "source": "log format2", "ingestDate": "20150526", "createDate": "20160225", "description": "This is the description for record #2"}
-	    	{ "create": { "_index": "docs", "_type": "record"}}
-	    	{ "title": "Record #3", "source": "log format2", "ingestDate": "20150526", "createDate": "20160401", "description": "This is the description for record #3"}
+        3) Add some sample records to this index
+            POST _bulk
+            { "create": { "_index": "docs", "_type": "record"}}
+            { "title": "Record #1", "source": "log format1", "ingestDate": "20150526", "createDate": "20160124", "description": "This is the description for record #1" }
+            { "create": { "_index": "docs", "_type": "record"}}
+            { "title": "Record #2", "source": "log format2", "ingestDate": "20150526", "createDate": "20160225", "description": "This is the description for record #2"}
+            { "create": { "_index": "docs", "_type": "record"}}
+            { "title": "Record #3", "source": "log format2", "ingestDate": "20150526", "createDate": "20160401", "description": "This is the description for record #3"}
     
     
-		4) Show the records
-		   POST /docs/_search
-		   
-		   
+        4) Show the records
+           POST /docs/_search
+           
+           
 11. Debug the main()
     a. Left-click in the margins of ElasticSearchDaoApp and set a breakpoint
     b. Right-click on ElasticSearchDaoApp -> Debug 'ElasticSearchDaoApp.main()'

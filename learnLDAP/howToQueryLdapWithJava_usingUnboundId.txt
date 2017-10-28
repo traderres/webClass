@@ -27,162 +27,162 @@ Procedure
  
  3. Add this class:  LdapSingleton
  
-		package com.whatever;
-		
-		import com.unboundid.ldap.sdk.LDAPConnection;
-		import com.unboundid.ldap.sdk.LDAPConnectionOptions;
-		import com.unboundid.ldap.sdk.LDAPConnectionPool;
-		
-		/**
-		 * Created by adam on 8/26/16.
-		 */
-		public enum LdapSingleton
-		{
-		    INSTANCE;
-		
-		    LDAPConnectionPool ldapConnectionPool;
-		
-		
-		    /******************************************************************
-		     * Private LdapSingleton Constructor
-		     * -- Do one-time initialization here
-		     *******************************************************************/
-		    private LdapSingleton()
-		    {
-		        // The very first time this singleton is called, we will initialize the ES Client
-		        initializeLdapConnectionPoolNoException();
-		    }
-		
-		
-		    /******************************************************************
-		     * initializeLdapConnectionPoolNoException()
-		     * -- Attempt to initialize the LDAP Connection Pool
-		     *******************************************************************/
-		    private void initializeLdapConnectionPoolNoException()
-		    {
-		        try {
-		
-		            LDAPConnectionOptions ldapOptions = new LDAPConnectionOptions();
-		            ldapOptions.setAbandonOnTimeout(true);
-		            ldapOptions.setBindWithDNRequiresPassword(true);
-		            ldapOptions.setResponseTimeoutMillis(60000);
-		            ldapOptions.setUsePooledSchema(true);
-		            ldapOptions.setPooledSchemaTimeoutMillis(60000);
-		            ldapOptions.setUseSynchronousMode(true);
-		
-		
-		            // Connect to the LDAP instance
-		            LDAPConnection ldapConnection = new LDAPConnection(ldapOptions, "localhost", 389, "cn=Manager,dc=my-domain,dc=com", "secret");
-		
-		            int iInitialPoolSize = 1;
-		            int iMaxPoolSize = 10;
-		            this.ldapConnectionPool = new LDAPConnectionPool(ldapConnection, iInitialPoolSize, iMaxPoolSize);
-		
-		            // The pool should create a new LDAP connection if one is requested and none are avilable
-		            ldapConnectionPool.setCreateIfNecessary(true);
-		
-		            // The maximum length of time in milliseconds to wait for
-		            // a connection to become available when trying to obtain a connection from the pool.
-		            // -- A valid of zero means that either the pool
-		            //     (1) creates a new connection  *or*
-		            //     (2) throws an exception
-		            ldapConnectionPool.setMaxWaitTimeMillis(0);
-		        }
-		        catch (Exception e)
-		        {
-		            // Convert the exception to a RunTime exception
-		            RuntimeException re = new RuntimeException(e);
-		            re.setStackTrace(e.getStackTrace());
-		            throw re;
-		        }
-		
-		    }
-		
-		    public LDAPConnectionPool getLdapConnectionPool()
-		    {
-		        return this.ldapConnectionPool;
-		    }
-		}
+        package com.whatever;
+        
+        import com.unboundid.ldap.sdk.LDAPConnection;
+        import com.unboundid.ldap.sdk.LDAPConnectionOptions;
+        import com.unboundid.ldap.sdk.LDAPConnectionPool;
+        
+        /**
+         * Created by adam on 8/26/16.
+         */
+        public enum LdapSingleton
+        {
+            INSTANCE;
+        
+            LDAPConnectionPool ldapConnectionPool;
+        
+        
+            /******************************************************************
+             * Private LdapSingleton Constructor
+             * -- Do one-time initialization here
+             *******************************************************************/
+            private LdapSingleton()
+            {
+                // The very first time this singleton is called, we will initialize the ES Client
+                initializeLdapConnectionPoolNoException();
+            }
+        
+        
+            /******************************************************************
+             * initializeLdapConnectionPoolNoException()
+             * -- Attempt to initialize the LDAP Connection Pool
+             *******************************************************************/
+            private void initializeLdapConnectionPoolNoException()
+            {
+                try {
+        
+                    LDAPConnectionOptions ldapOptions = new LDAPConnectionOptions();
+                    ldapOptions.setAbandonOnTimeout(true);
+                    ldapOptions.setBindWithDNRequiresPassword(true);
+                    ldapOptions.setResponseTimeoutMillis(60000);
+                    ldapOptions.setUsePooledSchema(true);
+                    ldapOptions.setPooledSchemaTimeoutMillis(60000);
+                    ldapOptions.setUseSynchronousMode(true);
+        
+        
+                    // Connect to the LDAP instance
+                    LDAPConnection ldapConnection = new LDAPConnection(ldapOptions, "localhost", 389, "cn=Manager,dc=my-domain,dc=com", "secret");
+        
+                    int iInitialPoolSize = 1;
+                    int iMaxPoolSize = 10;
+                    this.ldapConnectionPool = new LDAPConnectionPool(ldapConnection, iInitialPoolSize, iMaxPoolSize);
+        
+                    // The pool should create a new LDAP connection if one is requested and none are avilable
+                    ldapConnectionPool.setCreateIfNecessary(true);
+        
+                    // The maximum length of time in milliseconds to wait for
+                    // a connection to become available when trying to obtain a connection from the pool.
+                    // -- A valid of zero means that either the pool
+                    //     (1) creates a new connection  *or*
+                    //     (2) throws an exception
+                    ldapConnectionPool.setMaxWaitTimeMillis(0);
+                }
+                catch (Exception e)
+                {
+                    // Convert the exception to a RunTime exception
+                    RuntimeException re = new RuntimeException(e);
+                    re.setStackTrace(e.getStackTrace());
+                    throw re;
+                }
+        
+            }
+        
+            public LDAPConnectionPool getLdapConnectionPool()
+            {
+                return this.ldapConnectionPool;
+            }
+        }
  
  
  3. Add this class "App"
  
-		package com.whatever;
-		
-		import com.unboundid.ldap.sdk.*;
-		import org.slf4j.Logger;
-		import org.slf4j.LoggerFactory;
-		
-		import java.util.*;
-		
-		/**
-		 * Hello world!
-		 *
-		 */
-		public class App 
-		{
-		    private static final Logger logger = LoggerFactory.getLogger(App.class);
-		
-		    public static void main( String[] args ) throws Exception
-		    {
-		        logger.debug("main() started");
-		
-		        // Get a pointer to the LDAP connection pool
-		        LDAPConnectionPool ldapConnectionPool = LdapSingleton.INSTANCE.getLdapConnectionPool();
-		
-		        ArrayList<String> memberList = new ArrayList<String>();
-		        String sUid="lskywalker";
-		
-		        // Run an LDAP query against the LDAP Server
-		        // -- This search() method does the following
-		        //      1) Gets a connection from the LDAP pool
-		        //      2) Runs the LDAP query
-		        //      3) Returns the connection back to the pool:
-		        //
-		        // -- In the LDAP RFC, "*" means all user attributes
-		        //                     "+" means all operational attributes
-		        // In order to get the memberOf attribute, we must add "+"
-		        SearchResult ldapSearchResult = ldapConnectionPool.search("dc=my-domain,dc=com",
-		                                                                  SearchScope.SUBORDINATE_SUBTREE,
-		                                                                  "(uid=" + sUid +")", "+") ;
-		
-		
-		        if ((ldapSearchResult.getSearchEntries() == null) || (ldapSearchResult.getSearchEntries().size() == 0))
-		        {
-		            // No roles found for this user
-		            logger.debug("{} user was not found in LDAP.", sUid);
-		        }
-		        else
-		        {
-		            // Get the roles for this user
-		
-		            String[] memberValues =  ldapSearchResult.getSearchEntries().get(0).getAttributeValues("memberOf");
-		            if ((memberValues == null) || (memberValues.length == 0))
-		            {
-		                // The user exists in LDAP but has no memberOf roles
-		                logger.debug("{} user was found in LDAP but has no memberOf roles.", sUid);
-		            }
-		            else
-		            {
-		                // The user exists in LDAP *and* has memberOf roles
-		
-		                // Loop through all of the memberOf attributes
-		                for (String sMemberName: memberValues)
-		                {
-		                    logger.debug("{} user has this role: {}", sUid, sMemberName);
-		                    memberList.add(sMemberName);
-		                }
-		            }
-		        }
-		
-		
-		        // Close the LDAP connection pool
-		        ldapConnectionPool.close();
-		
-		        logger.debug("main() finished");
-		    }
-		
-		
-		
-		}
+        package com.whatever;
+        
+        import com.unboundid.ldap.sdk.*;
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        
+        import java.util.*;
+        
+        /**
+         * Hello world!
+         *
+         */
+        public class App 
+        {
+            private static final Logger logger = LoggerFactory.getLogger(App.class);
+        
+            public static void main( String[] args ) throws Exception
+            {
+                logger.debug("main() started");
+        
+                // Get a pointer to the LDAP connection pool
+                LDAPConnectionPool ldapConnectionPool = LdapSingleton.INSTANCE.getLdapConnectionPool();
+        
+                ArrayList<String> memberList = new ArrayList<String>();
+                String sUid="lskywalker";
+        
+                // Run an LDAP query against the LDAP Server
+                // -- This search() method does the following
+                //      1) Gets a connection from the LDAP pool
+                //      2) Runs the LDAP query
+                //      3) Returns the connection back to the pool:
+                //
+                // -- In the LDAP RFC, "*" means all user attributes
+                //                     "+" means all operational attributes
+                // In order to get the memberOf attribute, we must add "+"
+                SearchResult ldapSearchResult = ldapConnectionPool.search("dc=my-domain,dc=com",
+                                                                          SearchScope.SUBORDINATE_SUBTREE,
+                                                                          "(uid=" + sUid +")", "+") ;
+        
+        
+                if ((ldapSearchResult.getSearchEntries() == null) || (ldapSearchResult.getSearchEntries().size() == 0))
+                {
+                    // No roles found for this user
+                    logger.debug("{} user was not found in LDAP.", sUid);
+                }
+                else
+                {
+                    // Get the roles for this user
+        
+                    String[] memberValues =  ldapSearchResult.getSearchEntries().get(0).getAttributeValues("memberOf");
+                    if ((memberValues == null) || (memberValues.length == 0))
+                    {
+                        // The user exists in LDAP but has no memberOf roles
+                        logger.debug("{} user was found in LDAP but has no memberOf roles.", sUid);
+                    }
+                    else
+                    {
+                        // The user exists in LDAP *and* has memberOf roles
+        
+                        // Loop through all of the memberOf attributes
+                        for (String sMemberName: memberValues)
+                        {
+                            logger.debug("{} user has this role: {}", sUid, sMemberName);
+                            memberList.add(sMemberName);
+                        }
+                    }
+                }
+        
+        
+                // Close the LDAP connection pool
+                ldapConnectionPool.close();
+        
+                logger.debug("main() finished");
+            }
+        
+        
+        
+        }
 

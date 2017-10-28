@@ -19,124 +19,124 @@ Procedure
 ---------
  1. Create an index with some fields 
     ADD a field called "suggest"
-		    
-		    
-		DELETE /bogusindex
-		
-		PUT /bogusindex
-		{
-		    "settings":{
-		      "analysis": {
-		        "analyzer": {
-		          "lowercaseSpaceAnalyzer": {
-		            "type": "custom",
-		            "tokenizer": "whitespace",
-		            "filter": [ "lowercase"]
-		          }
-		        }
-		      }
-		  },
-		"mappings": 
-		   {
-		      "record":
-		      {
-		         "properties":
-		         {
-		            "start_ip": {
-		               "type": "ip",
-		               "store": true,
-		               "copy_to": "suggest",
-		               "include_in_all": true
-		            },
-		            "country": {
-		               "type": "string",
-		               "index": "not_analyzed",
-		               "copy_to": "suggest",
-		               "include_in_all": true
-		            },
-		            "source": {
-		               "type": "string",
-		               "index": "not_analyzed",
-		               "copy_to": "suggest",
-		               "include_in_all": true
-		            },
-		            "suggest": 
-		            {
-		                "type": "completion",
-		                "index_analyzer": "lowercaseSpaceAnalyzer",
-		                "search_analyzer": "lowercaseSpaceAnalyzer",
-		                "preserve_separators": false
-		            }
-		          }
-		      }
-		   }
-		}
+            
+            
+        DELETE /bogusindex
+        
+        PUT /bogusindex
+        {
+            "settings":{
+              "analysis": {
+                "analyzer": {
+                  "lowercaseSpaceAnalyzer": {
+                    "type": "custom",
+                    "tokenizer": "whitespace",
+                    "filter": [ "lowercase"]
+                  }
+                }
+              }
+          },
+        "mappings": 
+           {
+              "record":
+              {
+                 "properties":
+                 {
+                    "start_ip": {
+                       "type": "ip",
+                       "store": true,
+                       "copy_to": "suggest",
+                       "include_in_all": true
+                    },
+                    "country": {
+                       "type": "string",
+                       "index": "not_analyzed",
+                       "copy_to": "suggest",
+                       "include_in_all": true
+                    },
+                    "source": {
+                       "type": "string",
+                       "index": "not_analyzed",
+                       "copy_to": "suggest",
+                       "include_in_all": true
+                    },
+                    "suggest": 
+                    {
+                        "type": "completion",
+                        "index_analyzer": "lowercaseSpaceAnalyzer",
+                        "search_analyzer": "lowercaseSpaceAnalyzer",
+                        "preserve_separators": false
+                    }
+                  }
+              }
+           }
+        }
 
 
 
  2.  Add a few test records
-		POST _bulk
-		    { "create": { "_index": "bogusindex", "_type": "record"}}
-		    { "start_ip": "10.11.12.1",  "country": "Denmark", "source": "sftp" }
-		    { "create": { "_index": "bogusindex", "_type": "record"}}
-		    { "start_ip": "10.11.12.2", "country": "Israel", "source": "sftp" }
-		    { "create": { "_index": "bogusindex", "_type": "record"}}
-		    { "start_ip": "10.11.12.3", "country": "United States", "source": "ssh" }
-		    { "create": { "_index": "bogusindex", "_type": "record"}}
-		    { "start_ip": "10.11.12.3", "country": "United Kingdom", "source": "ssh" }
-		    {"create": { "_index": "bogusindex", "_type": "record"}}
-		    { "start_ip": "10.11.12.9", "country": "United Kingdom", "source": "telnet" }
+        POST _bulk
+            { "create": { "_index": "bogusindex", "_type": "record"}}
+            { "start_ip": "10.11.12.1",  "country": "Denmark", "source": "sftp" }
+            { "create": { "_index": "bogusindex", "_type": "record"}}
+            { "start_ip": "10.11.12.2", "country": "Israel", "source": "sftp" }
+            { "create": { "_index": "bogusindex", "_type": "record"}}
+            { "start_ip": "10.11.12.3", "country": "United States", "source": "ssh" }
+            { "create": { "_index": "bogusindex", "_type": "record"}}
+            { "start_ip": "10.11.12.3", "country": "United Kingdom", "source": "ssh" }
+            {"create": { "_index": "bogusindex", "_type": "record"}}
+            { "start_ip": "10.11.12.9", "country": "United Kingdom", "source": "telnet" }
 
 
 
  3. Verify that you can see all of your test records
-		POST /bogusindex/_search
+        POST /bogusindex/_search
 
 
 
  4. Verify that the IP range feature works
-		POST /bogusindex/_search
-		{
-		    "query":
-		    {
-		        "query_string": {
-		           "query": "[10.11.12.1 TO 10.11.12.9]"
-		        }
-		    }
-		}
+        POST /bogusindex/_search
+        {
+            "query":
+            {
+                "query_string": {
+                   "query": "[10.11.12.1 TO 10.11.12.9]"
+                }
+            }
+        }
 
 
  5. Simulate an auto-complete using the words "te" 
     NOTE:  We expect to see at most 3 results -- but we should see "telnet"
 
-		POST /bogusindex/_suggest
-		{
-		    "my-suggest" : 
-		    {
-		        "text" : "te",
-		        "completion" : {
-		            "field" : "suggest",
-		            "size": 3
-		        }
-		    }
-		}
+        POST /bogusindex/_suggest
+        {
+            "my-suggest" : 
+            {
+                "text" : "te",
+                "completion" : {
+                    "field" : "suggest",
+                    "size": 3
+                }
+            }
+        }
 
 
 
  6. Simulate an auto-complete using the word "10"
     NOTE:  We expect to see some IP addresses -- e.g., 10.11.12.3, ...
          
-		POST /bogusindex/_suggest
-		{
-		    "suggest" : 
-		    {
-		        "text" : "10",
-		        "completion" : {
-		            "field" : "suggest",
-		            "size": 3
-		        }
-		    }
-		}
+        POST /bogusindex/_suggest
+        {
+            "suggest" : 
+            {
+                "text" : "10",
+                "completion" : {
+                    "field" : "suggest",
+                    "size": 3
+                }
+            }
+        }
 
 
 
@@ -144,16 +144,16 @@ Procedure
     NOTE:  We expect to see the result "Denmark"
     NOTE:  We entered a lower case "de" but it should still match "Denmark"
     
-		POST /bogusindex/_suggest
-		{
-		    "suggest" : 
-		    {
-		        "text" : "de",
-		        "completion" : {
-		            "field" : "suggest",
-		              "size": 3
-		        }
-		    }
-		}
+        POST /bogusindex/_suggest
+        {
+            "suggest" : 
+            {
+                "text" : "de",
+                "completion" : {
+                    "field" : "suggest",
+                      "size": 3
+                }
+            }
+        }
 
 

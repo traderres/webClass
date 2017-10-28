@@ -37,384 +37,384 @@ Procedure
     a. Create this file /src/bolts/spouts/maketestdata.py
     b. Copy this to your testdata.py
     
-		######################################################################
-		# Filename:  maketestdata.py
-		# Author:    <your name>
-		######################################################################
-		# Purpose:
-		#   This bolt generates random data for the Apache Storm
-		#
-		# Assumptions
-		#   A) python is in the PATH
-		#   B) numpy is installed
-		######################################################################
-		import itertools
-		import random
-		import pydevd
-		from streamparse.spout import Spout
-		from collections import namedtuple
-		
-		
-		MyTuple = namedtuple("Tuple", "id component stream task values")
-		
-		
-		class MakeTestDataSpout(Spout):
-		
-		    ######################################################################
-		    # initialize()
-		    #  1) Create a list of named tuples that hold random information
-		    #  2) Use the itertools.cycle() so that self.data cycles through the list forever
-		    ######################################################################
-		    def initialize(self, stormconf, context):
-		        self.log("TestDataSpout.initialize() called")
-		
-		        TOTAL_TEST_RECORD_COUNT = 5000
-		        tupleList = []
-		
-		        # Create a list of tuples with random destination IP addresses
-		        for i in range(1, TOTAL_TEST_RECORD_COUNT):
-		            rndValue1 = random.randint(1, 256)
-		            rndValue2 = random.randint(1, 256)
-		            rndValue3 = random.randint(1, 256)
-		            rndValue4 = random.randint(1, 256)
-		            destIP = "%d.%d.%d.%d" % (rndValue1,rndValue2,rndValue3,rndValue4)
-		
-		            d = ({"uuid": i,
-		                  "src_dot": "10.2.0.5",
-		                  "dst_dot": destIP
-		                  })
-		            t = MyTuple("101", "somecomponent", "somestream", "sometask", d)
-		            tupleList.append(t)
-		
-		        # This spout will iterate through this list of tuples forever
-		        self.data = itertools.cycle(tupleList)
-		        self.log("TestDataSpout.initialize() finished")
-		
-		
-		    ######################################################################
-		    # next_tuple()
-		    #   Storm is requesting more data so emit one named tuple from self.data
-		    ######################################################################
-		    def next_tuple(self):
-		        dataItem = next(self.data)
-		        self.emit([dataItem], stream="orig")
-		
-		
+        ######################################################################
+        # Filename:  maketestdata.py
+        # Author:    <your name>
+        ######################################################################
+        # Purpose:
+        #   This bolt generates random data for the Apache Storm
+        #
+        # Assumptions
+        #   A) python is in the PATH
+        #   B) numpy is installed
+        ######################################################################
+        import itertools
+        import random
+        import pydevd
+        from streamparse.spout import Spout
+        from collections import namedtuple
+        
+        
+        MyTuple = namedtuple("Tuple", "id component stream task values")
+        
+        
+        class MakeTestDataSpout(Spout):
+        
+            ######################################################################
+            # initialize()
+            #  1) Create a list of named tuples that hold random information
+            #  2) Use the itertools.cycle() so that self.data cycles through the list forever
+            ######################################################################
+            def initialize(self, stormconf, context):
+                self.log("TestDataSpout.initialize() called")
+        
+                TOTAL_TEST_RECORD_COUNT = 5000
+                tupleList = []
+        
+                # Create a list of tuples with random destination IP addresses
+                for i in range(1, TOTAL_TEST_RECORD_COUNT):
+                    rndValue1 = random.randint(1, 256)
+                    rndValue2 = random.randint(1, 256)
+                    rndValue3 = random.randint(1, 256)
+                    rndValue4 = random.randint(1, 256)
+                    destIP = "%d.%d.%d.%d" % (rndValue1,rndValue2,rndValue3,rndValue4)
+        
+                    d = ({"uuid": i,
+                          "src_dot": "10.2.0.5",
+                          "dst_dot": destIP
+                          })
+                    t = MyTuple("101", "somecomponent", "somestream", "sometask", d)
+                    tupleList.append(t)
+        
+                # This spout will iterate through this list of tuples forever
+                self.data = itertools.cycle(tupleList)
+                self.log("TestDataSpout.initialize() finished")
+        
+        
+            ######################################################################
+            # next_tuple()
+            #   Storm is requesting more data so emit one named tuple from self.data
+            ######################################################################
+            def next_tuple(self):
+                dataItem = next(self.data)
+                self.emit([dataItem], stream="orig")
+        
+        
 
  6. Add this bolt:  ipAddressToInteger.py
     a. Create this file:  src/bolts/ipAddressToInteger.py
     b. Copy this to the ipAddressToInteger.py
-			
-			######################################################################
-			# Filename:  ipAddressToInteger.py
-			# Author:    <your name>
-			######################################################################
-			# Purpose:
-			#   This bolt converts an IP address as a string to a number
-			#
-			# Assumptions
-			#   A) python is in the PATH
-			######################################################################
-			from streamparse.bolt import Bolt
-			import json
-			
-			
-			class IpAddressToInteger(Bolt):
-			
-			    ######################################################################
-			    # initialize()
-			    ######################################################################
-			    def initialize(self, conf, ctx):
-			        self.log("IpAddressToInteger.initialize() started")
-			        self.convertFields = json.loads(conf["analytics.transforms.dottoip.fields"].replace("'", '"'))
-			        # self.convertFields = conf["analytics.transforms.dottoip.fields"]
-			        self.log("self.convertFields=%s" % self.convertFields)
-			
-			        self.stream = conf["analytics.transforms.dottoip.emitStream"]
-			
-			        self.transforms = self.convertFields['transform']
-			        self.log("IpAddressToInteger.initialize() finished")
-			
-			
-			    ######################################################################
-			    # process()
-			    ######################################################################
-			    def process(self, tup):
-			        self.log("DotToIp.initialize() process()  tup=%s" % (str(tup)))
-			
-			        try:
-			            raw = tup.values[0]['values']
-			
-			            for srcFieldName, destFieldName in self.transforms.iteritems():
-			                srcFieldValue = str(raw[srcFieldName])
-			                raw[destFieldName] = self.ip2long(srcFieldValue)
-			
-			            self.log("IpAddressToInteger.process()  finished.  Emits=%s" % (str(raw)))
-			            self.emit([raw], self.stream)
-			
-			        except Exception as e:
-			            self.log("IpAddressToInteger Error: %s %s" % (str(e), raw[srcFieldName]), 'error')
-			
-			
-			    ######################################################################
-			    # ip2long()
-			    ######################################################################
-			    def ip2long(self, ip):
-			        """
-			        Convert an IP string to long
-			        """
-			        o = map(int, ip.split('.'))
-			        res = (16777216 * o[0]) + (65536 * o[1]) + (256 * o[2]) + o[3]
-			        self.log("ip2long()  ip=%s  returns=%s" % (ip, res))
-			        return res
-			
-			
-			if __name__ == '__main__':
-			    # create a function to override the Bolt"s emit function; probably should subclass bolt in the future to support this
-			    def emit(tup, stream):
-			        """
-			            you can do whatever in this function you want; wrtie to stdout or to a file for example
-			            """
-			        print(tup)
-			
-			
-			    import collections
-			
-			    Tuple = collections.namedtuple("Tuple", "id component stream task values")
-			
-			    data1 = [{
-			        "dst_dot": "10.2.0.1",
-			        "src_dot": "10.2.0.30"
-			    }]
-			    tup1 = Tuple("123", "somecomponent", "somestream", "sometask", data1)
-			
-			    myconf = {
-			        'analytics.transforms.dottoip.emitStream': 'myEmitStream',
-			        'analytics.transforms.dottoip.fields':
-			            {'transform': {'src_dot': 'sip', 'dst_dot': 'dip'}}
-			    }
-			
-			    myBolt = IpAddressToInteger()
-			    myBolt.emit = emit
-			
-			    myBolt.initialize(myconf, None)
-			
-			    myBolt.process(tup1)
-			
-			 
+            
+            ######################################################################
+            # Filename:  ipAddressToInteger.py
+            # Author:    <your name>
+            ######################################################################
+            # Purpose:
+            #   This bolt converts an IP address as a string to a number
+            #
+            # Assumptions
+            #   A) python is in the PATH
+            ######################################################################
+            from streamparse.bolt import Bolt
+            import json
+            
+            
+            class IpAddressToInteger(Bolt):
+            
+                ######################################################################
+                # initialize()
+                ######################################################################
+                def initialize(self, conf, ctx):
+                    self.log("IpAddressToInteger.initialize() started")
+                    self.convertFields = json.loads(conf["analytics.transforms.dottoip.fields"].replace("'", '"'))
+                    # self.convertFields = conf["analytics.transforms.dottoip.fields"]
+                    self.log("self.convertFields=%s" % self.convertFields)
+            
+                    self.stream = conf["analytics.transforms.dottoip.emitStream"]
+            
+                    self.transforms = self.convertFields['transform']
+                    self.log("IpAddressToInteger.initialize() finished")
+            
+            
+                ######################################################################
+                # process()
+                ######################################################################
+                def process(self, tup):
+                    self.log("DotToIp.initialize() process()  tup=%s" % (str(tup)))
+            
+                    try:
+                        raw = tup.values[0]['values']
+            
+                        for srcFieldName, destFieldName in self.transforms.iteritems():
+                            srcFieldValue = str(raw[srcFieldName])
+                            raw[destFieldName] = self.ip2long(srcFieldValue)
+            
+                        self.log("IpAddressToInteger.process()  finished.  Emits=%s" % (str(raw)))
+                        self.emit([raw], self.stream)
+            
+                    except Exception as e:
+                        self.log("IpAddressToInteger Error: %s %s" % (str(e), raw[srcFieldName]), 'error')
+            
+            
+                ######################################################################
+                # ip2long()
+                ######################################################################
+                def ip2long(self, ip):
+                    """
+                    Convert an IP string to long
+                    """
+                    o = map(int, ip.split('.'))
+                    res = (16777216 * o[0]) + (65536 * o[1]) + (256 * o[2]) + o[3]
+                    self.log("ip2long()  ip=%s  returns=%s" % (ip, res))
+                    return res
+            
+            
+            if __name__ == '__main__':
+                # create a function to override the Bolt"s emit function; probably should subclass bolt in the future to support this
+                def emit(tup, stream):
+                    """
+                        you can do whatever in this function you want; wrtie to stdout or to a file for example
+                        """
+                    print(tup)
+            
+            
+                import collections
+            
+                Tuple = collections.namedtuple("Tuple", "id component stream task values")
+            
+                data1 = [{
+                    "dst_dot": "10.2.0.1",
+                    "src_dot": "10.2.0.30"
+                }]
+                tup1 = Tuple("123", "somecomponent", "somestream", "sometask", data1)
+            
+                myconf = {
+                    'analytics.transforms.dottoip.emitStream': 'myEmitStream',
+                    'analytics.transforms.dottoip.fields':
+                        {'transform': {'src_dot': 'sip', 'dst_dot': 'dip'}}
+                }
+            
+                myBolt = IpAddressToInteger()
+                myBolt.emit = emit
+            
+                myBolt.initialize(myconf, None)
+            
+                myBolt.process(tup1)
+            
+             
  
  7. Add this bolt:  kmeansClusterIP.py
     a. Create the file /src/bolts/kmeansClusterIP.py
     b. Copy this to the bolt
     
-			######################################################################
-			# Filename:  KmeansClusterIP.py
-			# Author:    <your name>
-			######################################################################
-			# Purpose:
-			#   This bolt generates random data for the Apache Storm
-			#
-			# Assumptions
-			#   A) python is in the PATH
-			#   B) numpy is installed
-			######################################################################
-			import json
-			import numpy as np
-			import pydevd
-			from streamparse.bolt import Bolt
-			from sklearn.cluster import KMeans
-			from utils.expiringDictWithCallback import ExpiringDictWithCallback
-			
-			
-			class KmeansClusterIP(Bolt):
-			
-			    ######################################################################
-			    # initialize()
-			    ######################################################################
-			    def initialize(self, conf, ctx):
-		#	        pydevd.settrace('localhost', port=5000, stdoutToServer=True, stderrToServer=True)
-			        self.log("initialize() started.")
-			        self.kmeansFields = json.loads(conf["analytics.bolts.kmeansclusterip.fields"].replace("'", '"'))
-			        self.outStream = conf["analytics.bolts.kmeansclusterip.outstream"]
-			        self.srcName = self.kmeansFields['src']
-			        self.dstName = self.kmeansFields['dst']
-			        self.idName = self.kmeansFields['id']
-			        self.iterator = 0
-			        self.calcWindow = 10
-			        self.buildBackLog = True
-			        self.expired = 3600  # expired age in seconds
-			        try:
-			            self.topologyMsgTimeout = 50000
-			            self.maxDictLen = 750000
-			            self.cache = ExpiringDictWithCallback(self.maxDictLen, self.topologyMsgTimeout, self.expired)
-			        except Exception as e:
-			            self.log("KMeans IP Init: %s" % (str(e)), "error")
-			
-			        self.log("initialize() Completed.")
-			
-			
-			    ######################################################################
-			    # expired()
-			    ######################################################################
-			    def expired(self, data):
-			        self.log("ClusterIP IP Expired: %s" % (data))
-			        pass
-			
-			
-			    ######################################################################
-			    # recalc()
-			    ######################################################################
-			    def recalc(self):
-			        aryTupes = []
-			        for k, v in self.cache.items():
-			            aryTupes.append(v['sdp'])
-			
-			        ipArrData = np.asarray(aryTupes)
-			
-			        # Do the clustering
-			        self.kmeans = KMeans(n_clusters=2, random_state=111)
-			
-			        self.kmeans.fit(ipArrData)
-			
-			        self.res = {}
-			
-			        self.clusterCount = {}
-			        for i in range(0, ipArrData.shape[0]):
-			
-			            if self.kmeans.labels_[i] in self.clusterCount:
-			                self.clusterCount[self.kmeans.labels_[i]] += 1
-			            else:
-			                self.clusterCount[self.kmeans.labels_[i]] = 0
-			
-			            src = ipArrData[i][0]
-			            dst = ipArrData[i][1]
-			            if src in self.res:
-			                self.res[src][dst] = self.kmeans.labels_[i]
-			            else:
-			                self.res[src] = {}
-			                self.res[src][dst] = self.res[src][dst] = self.kmeans.labels_[i]
-			
-			    ######################################################################
-			    # doBackLog()
-			    ######################################################################
-			    def doBackLog(self):
-			        self.log("Kmeans Processing Backlog: Iterator: %i BackLog: %i" % (self.iterator, len(self.cache)))
-			        for k, v in self.cache.items():
-			            idValue = v[self.idName]
-			            sdpValue1 = v['sdp'][0]
-			            sdpValue2 = v['sdp'][1]
-			
-			            self.formatEmit(idValue, sdpValue1, sdpValue2)
-			
-			        self.buildBackLog = False
-			        self.log("KmeansdoBackLog() finished")
-			
-			
-			    ######################################################################
-			    # formatEmit()
-			    ######################################################################
-			    def formatEmit(self, id, src, dst):
-			        try:
-			            try:
-			                kmeansScore = self.res[src][dst]
-			            except KeyError:
-			                self.recalc()
-			                kmeansScore = self.res[src][dst]
-			
-			            c = self.clusterCount[kmeansScore]
-			            x = self.kmeans.cluster_centers_[kmeansScore][0] - src
-			            y = self.kmeans.cluster_centers_[kmeansScore][1] - dst
-			            kmeansResult = {self.idName: id, self.srcName: src, self.dstName: dst, 'score': str(kmeansScore), 'cluster': c,
-			                            'windowcount': len(self.cache), 'x': x, 'y': y,
-			                            'cx': self.kmeans.cluster_centers_[kmeansScore][0],
-			                            'cy': self.kmeans.cluster_centers_[kmeansScore][1]}
-			
-			            # Push this data to the output stream
-			            self.emit([kmeansResult], stream=self.outStream)
-			
-			            self.log("KmeansIP.formatEmit() just emitted kmeansResult=%s" % str(kmeansResult))
-			        except Exception as e:
-			            self.log("Error %s formatting emit for: %s %i %i" % (type(e), id, src, dst))
-			
-			
-			    ######################################################################
-			    # process()
-			    ######################################################################
-			    def process(self, tup):
-		#	        pydevd.settrace('localhost', port=5000, stdoutToServer=True, stderrToServer=True)
-			        self.log("KmeansIP.process() started.")
-			        self.iterator += 1
-			        raw = tup.values[0]
-			        self.cache[self.iterator] = {self.idName: raw[self.idName], 'sdp': (raw[self.srcName], raw[self.dstName])}
-			
-			        if ((self.iterator % self.calcWindow) == 0):
-			            self.recalc()
-			            if self.buildBackLog:
-			                self.doBackLog()
-			            self.formatEmit(raw[self.idName], raw[self.srcName], raw[self.dstName])
-			        else:
-			            if not self.buildBackLog:
-			                self.formatEmit(raw[self.idName], raw[self.srcName], raw[self.dstName])
-			
-			        self.log("KmeansIP.process() finished.")
-			
-			
-			if __name__ == "__main__":
-			    def emit(tup, stream):
-			        """
-			            Override the emit() method to print
-			        """
-			        print(tup)
-			
-			
-			    # let"s build up a tuple that will work for our DC.process call;
-			    # this named tuple comes from the streamparse class
-			    from collections import namedtuple
-			
-			    conf = {
-			        'analytics.bolts.kmeansclusterip.outstream': 'myOutputStream',
-			        'analytics.bolts.kmeansclusterip.fields': {"id": "uuid",
-			                                            "src": "sip",
-			                                            "dst": "dip"}
-			    }
-			
-			    # create an instance of the class to test
-			    ki = KmeansClusterIP()
-			
-			    # smash the emit function with our test emit
-			    ki.emit = emit
-			
-			    # let"s do it; remember to set the PYTHONPATH when running ex. PYTHONPATH=../../../../ python ./domaincompare.py
-			    ki.initialize(conf, None)
-			
-			    Tuple = namedtuple("Tuple", "id component stream task values")
-			
-			    data1 = [{"uuid": "1232345",
-			              "sip": 167903262,
-			              "dip": 167903233},
-			             ]
-			    t1 = Tuple("123", "somecomponent", "somestream", "sometask", data1)
-			
-			    data2 = [{"uuid": "222222",
-			              "sip": 168903262,
-			              "dip": 168903233}]
-			    t2 = Tuple("222", "somecomponent", "somestream", "sometask", data2)
-			
-			    data3 = [{"uuid": "333333",
-			              "sip": 169903262,
-			              "dip": 169903233}]
-			    t3 = Tuple("333", "somecomponent", "somestrea", "sometask", data3)
-			
-			    data4 = [{"uuid": "44444",
-			              "sip": 169903266,
-			              "dip": 169903233}]
-			    t4 = Tuple("333", "somecomponent", "somestrea", "sometask", data4)
-			
-			    ki.process(t1)
-			    ki.process(t2)
-			    ki.process(t3)
-			    ki.process(t4)
-			
+            ######################################################################
+            # Filename:  KmeansClusterIP.py
+            # Author:    <your name>
+            ######################################################################
+            # Purpose:
+            #   This bolt generates random data for the Apache Storm
+            #
+            # Assumptions
+            #   A) python is in the PATH
+            #   B) numpy is installed
+            ######################################################################
+            import json
+            import numpy as np
+            import pydevd
+            from streamparse.bolt import Bolt
+            from sklearn.cluster import KMeans
+            from utils.expiringDictWithCallback import ExpiringDictWithCallback
+            
+            
+            class KmeansClusterIP(Bolt):
+            
+                ######################################################################
+                # initialize()
+                ######################################################################
+                def initialize(self, conf, ctx):
+        #            pydevd.settrace('localhost', port=5000, stdoutToServer=True, stderrToServer=True)
+                    self.log("initialize() started.")
+                    self.kmeansFields = json.loads(conf["analytics.bolts.kmeansclusterip.fields"].replace("'", '"'))
+                    self.outStream = conf["analytics.bolts.kmeansclusterip.outstream"]
+                    self.srcName = self.kmeansFields['src']
+                    self.dstName = self.kmeansFields['dst']
+                    self.idName = self.kmeansFields['id']
+                    self.iterator = 0
+                    self.calcWindow = 10
+                    self.buildBackLog = True
+                    self.expired = 3600  # expired age in seconds
+                    try:
+                        self.topologyMsgTimeout = 50000
+                        self.maxDictLen = 750000
+                        self.cache = ExpiringDictWithCallback(self.maxDictLen, self.topologyMsgTimeout, self.expired)
+                    except Exception as e:
+                        self.log("KMeans IP Init: %s" % (str(e)), "error")
+            
+                    self.log("initialize() Completed.")
+            
+            
+                ######################################################################
+                # expired()
+                ######################################################################
+                def expired(self, data):
+                    self.log("ClusterIP IP Expired: %s" % (data))
+                    pass
+            
+            
+                ######################################################################
+                # recalc()
+                ######################################################################
+                def recalc(self):
+                    aryTupes = []
+                    for k, v in self.cache.items():
+                        aryTupes.append(v['sdp'])
+            
+                    ipArrData = np.asarray(aryTupes)
+            
+                    # Do the clustering
+                    self.kmeans = KMeans(n_clusters=2, random_state=111)
+            
+                    self.kmeans.fit(ipArrData)
+            
+                    self.res = {}
+            
+                    self.clusterCount = {}
+                    for i in range(0, ipArrData.shape[0]):
+            
+                        if self.kmeans.labels_[i] in self.clusterCount:
+                            self.clusterCount[self.kmeans.labels_[i]] += 1
+                        else:
+                            self.clusterCount[self.kmeans.labels_[i]] = 0
+            
+                        src = ipArrData[i][0]
+                        dst = ipArrData[i][1]
+                        if src in self.res:
+                            self.res[src][dst] = self.kmeans.labels_[i]
+                        else:
+                            self.res[src] = {}
+                            self.res[src][dst] = self.res[src][dst] = self.kmeans.labels_[i]
+            
+                ######################################################################
+                # doBackLog()
+                ######################################################################
+                def doBackLog(self):
+                    self.log("Kmeans Processing Backlog: Iterator: %i BackLog: %i" % (self.iterator, len(self.cache)))
+                    for k, v in self.cache.items():
+                        idValue = v[self.idName]
+                        sdpValue1 = v['sdp'][0]
+                        sdpValue2 = v['sdp'][1]
+            
+                        self.formatEmit(idValue, sdpValue1, sdpValue2)
+            
+                    self.buildBackLog = False
+                    self.log("KmeansdoBackLog() finished")
+            
+            
+                ######################################################################
+                # formatEmit()
+                ######################################################################
+                def formatEmit(self, id, src, dst):
+                    try:
+                        try:
+                            kmeansScore = self.res[src][dst]
+                        except KeyError:
+                            self.recalc()
+                            kmeansScore = self.res[src][dst]
+            
+                        c = self.clusterCount[kmeansScore]
+                        x = self.kmeans.cluster_centers_[kmeansScore][0] - src
+                        y = self.kmeans.cluster_centers_[kmeansScore][1] - dst
+                        kmeansResult = {self.idName: id, self.srcName: src, self.dstName: dst, 'score': str(kmeansScore), 'cluster': c,
+                                        'windowcount': len(self.cache), 'x': x, 'y': y,
+                                        'cx': self.kmeans.cluster_centers_[kmeansScore][0],
+                                        'cy': self.kmeans.cluster_centers_[kmeansScore][1]}
+            
+                        # Push this data to the output stream
+                        self.emit([kmeansResult], stream=self.outStream)
+            
+                        self.log("KmeansIP.formatEmit() just emitted kmeansResult=%s" % str(kmeansResult))
+                    except Exception as e:
+                        self.log("Error %s formatting emit for: %s %i %i" % (type(e), id, src, dst))
+            
+            
+                ######################################################################
+                # process()
+                ######################################################################
+                def process(self, tup):
+        #            pydevd.settrace('localhost', port=5000, stdoutToServer=True, stderrToServer=True)
+                    self.log("KmeansIP.process() started.")
+                    self.iterator += 1
+                    raw = tup.values[0]
+                    self.cache[self.iterator] = {self.idName: raw[self.idName], 'sdp': (raw[self.srcName], raw[self.dstName])}
+            
+                    if ((self.iterator % self.calcWindow) == 0):
+                        self.recalc()
+                        if self.buildBackLog:
+                            self.doBackLog()
+                        self.formatEmit(raw[self.idName], raw[self.srcName], raw[self.dstName])
+                    else:
+                        if not self.buildBackLog:
+                            self.formatEmit(raw[self.idName], raw[self.srcName], raw[self.dstName])
+            
+                    self.log("KmeansIP.process() finished.")
+            
+            
+            if __name__ == "__main__":
+                def emit(tup, stream):
+                    """
+                        Override the emit() method to print
+                    """
+                    print(tup)
+            
+            
+                # let"s build up a tuple that will work for our DC.process call;
+                # this named tuple comes from the streamparse class
+                from collections import namedtuple
+            
+                conf = {
+                    'analytics.bolts.kmeansclusterip.outstream': 'myOutputStream',
+                    'analytics.bolts.kmeansclusterip.fields': {"id": "uuid",
+                                                        "src": "sip",
+                                                        "dst": "dip"}
+                }
+            
+                # create an instance of the class to test
+                ki = KmeansClusterIP()
+            
+                # smash the emit function with our test emit
+                ki.emit = emit
+            
+                # let"s do it; remember to set the PYTHONPATH when running ex. PYTHONPATH=../../../../ python ./domaincompare.py
+                ki.initialize(conf, None)
+            
+                Tuple = namedtuple("Tuple", "id component stream task values")
+            
+                data1 = [{"uuid": "1232345",
+                          "sip": 167903262,
+                          "dip": 167903233},
+                         ]
+                t1 = Tuple("123", "somecomponent", "somestream", "sometask", data1)
+            
+                data2 = [{"uuid": "222222",
+                          "sip": 168903262,
+                          "dip": 168903233}]
+                t2 = Tuple("222", "somecomponent", "somestream", "sometask", data2)
+            
+                data3 = [{"uuid": "333333",
+                          "sip": 169903262,
+                          "dip": 169903233}]
+                t3 = Tuple("333", "somecomponent", "somestrea", "sometask", data3)
+            
+                data4 = [{"uuid": "44444",
+                          "sip": 169903266,
+                          "dip": 169903233}]
+                t4 = Tuple("333", "somecomponent", "somestrea", "sometask", data4)
+            
+                ki.process(t1)
+                ki.process(t2)
+                ki.process(t3)
+                ki.process(t4)
+            
 
     
  
@@ -422,106 +422,106 @@ Procedure
     a. Create this file:  src/bolts/addToElasticSearch.py
     b. Copy this to the file:
  
-			######################################################################
-			# Filename:  addToElasticSearch.py
-			# Author:    <your name>
-			######################################################################
-			# Purpose:
-			#   This bolt adds records to an ElasticSearch instance
-			#
-			# Assumptions
-			#   A) python is in the PATH
-			#   B) elasticsearch python module is installed
-			######################################################################
-			from streamparse.bolt import Bolt
-			import json
-			import elasticsearch
-			import pydevd
-			
-			import logging
-			
-			logger = logging.getLogger('elasticsearch')
-			logger.addHandler(logging.NullHandler())
-			logger = logging.getLogger('elasticsearch.trace')
-			logger.addHandler(logging.NullHandler())
-			logger = logging.getLogger('urllib3')
-			logger.addHandler(logging.NullHandler())
-			logging.getLogger('elasticsearch').setLevel(logging.CRITICAL)
-			logging.getLogger('urllib3').setLevel(logging.CRITICAL)
-			logging.getLogger('elasticsearch.trace').setLevel(logging.CRITICAL)
-			
-			
-			class AddToElasticSearch(Bolt):
-			
-			
-			    ######################################################################
-			    # connectToES()
-			    ######################################################################
-			    def connectToES(self, conf):
-			        try:
-			            self.es = elasticsearch.Elasticsearch(hosts=[{'host': 'localhost', 'port': 9200}], use_ssl=False)
-			
-			            self.index = conf["analytics.bolts.addToElasticSearch.index"]
-			            self.docType = conf["analytics.bolts.addToElasticSearch.doctype"]
-			            self.idName = conf["analytics.bolts.addToElasticSearch.id"]
-			            self.output = json.loads(conf["analytics.bolts.addToElasticSearch.output"].replace("'", '"'))
-			
-			            # Create the ElasticSearch index (if it does not exist)
-			            res = self.es.indices.create(index=self.index, ignore=400)
-			            self.log("After connecting:  res=%s" % (str(res)))
-			        except KeyError as e:
-			            self.log("ES Bolt Missing Config for: %s" % (e))
-			
-			        self.log("connectToES() finished")
-			
-			    ######################################################################
-			    # initialize()
-			    ######################################################################
-			    def initialize(self, conf, context):
-			 #       pydevd.settrace('localhost', port=5000, stdoutToServer=True, stderrToServer=True)
-			        self.log("initialize() started")
-			        self.connectToES(conf)
-			        self.log("initialize(")
-			
-			
-			    ######################################################################
-			    # addRecordsToElasticSearch()
-			    ######################################################################
-			    def addRecordsToElasticSearch(self, data):
-			 #       pydevd.settrace('localhost', port=5000, stdoutToServer=True, stderrToServer=True)
-			        self.log("addRecordsToElasticSearch() started")
-			        id = data[self.idName]
-			
-			        for key in self.output:
-			            body = {}
-			            for f in self.output[key]['fields']:
-			                # Loop through all of the fields that can be indexed
-			                if f in data:
-			                    # This field was found in the tuple and was found in the list of fields to-be-added to ES
-			                    # -- So, add this field to the body
-			                    body[f] = data[f]
-			
-			            # Add this record to ElasticSearch
-			            # res = self.es.index(index=self.index, doc_type=self.docType, id=id, body=json.dumps(body))
-			            res = self.es.index(index=self.index, doc_type=self.docType, id=id, body=json.dumps(body))
-			            self.log("Attempt to add record:  res['created']=%s" % (res['created']))
-			            self.log("addRecordsToElasticSearch() finished")
-			
-			
-			    ######################################################################
-			    # process()
-			    ######################################################################
-			    def process(self, tup):
-			 #       pydevd.settrace('localhost', port=5000, stdoutToServer=True, stderrToServer=True)
-			        self.log("process() started")
-			        try:
-			            self.stream = tup.stream
-			            self.addRecordsToElasticSearch(tup.values[0])
-			        except Exception as e:
-			            self.log("ES Bolt error: %s" % (str(e)), "error")
-			
-			        self.log("process() finished")
-			
+            ######################################################################
+            # Filename:  addToElasticSearch.py
+            # Author:    <your name>
+            ######################################################################
+            # Purpose:
+            #   This bolt adds records to an ElasticSearch instance
+            #
+            # Assumptions
+            #   A) python is in the PATH
+            #   B) elasticsearch python module is installed
+            ######################################################################
+            from streamparse.bolt import Bolt
+            import json
+            import elasticsearch
+            import pydevd
+            
+            import logging
+            
+            logger = logging.getLogger('elasticsearch')
+            logger.addHandler(logging.NullHandler())
+            logger = logging.getLogger('elasticsearch.trace')
+            logger.addHandler(logging.NullHandler())
+            logger = logging.getLogger('urllib3')
+            logger.addHandler(logging.NullHandler())
+            logging.getLogger('elasticsearch').setLevel(logging.CRITICAL)
+            logging.getLogger('urllib3').setLevel(logging.CRITICAL)
+            logging.getLogger('elasticsearch.trace').setLevel(logging.CRITICAL)
+            
+            
+            class AddToElasticSearch(Bolt):
+            
+            
+                ######################################################################
+                # connectToES()
+                ######################################################################
+                def connectToES(self, conf):
+                    try:
+                        self.es = elasticsearch.Elasticsearch(hosts=[{'host': 'localhost', 'port': 9200}], use_ssl=False)
+            
+                        self.index = conf["analytics.bolts.addToElasticSearch.index"]
+                        self.docType = conf["analytics.bolts.addToElasticSearch.doctype"]
+                        self.idName = conf["analytics.bolts.addToElasticSearch.id"]
+                        self.output = json.loads(conf["analytics.bolts.addToElasticSearch.output"].replace("'", '"'))
+            
+                        # Create the ElasticSearch index (if it does not exist)
+                        res = self.es.indices.create(index=self.index, ignore=400)
+                        self.log("After connecting:  res=%s" % (str(res)))
+                    except KeyError as e:
+                        self.log("ES Bolt Missing Config for: %s" % (e))
+            
+                    self.log("connectToES() finished")
+            
+                ######################################################################
+                # initialize()
+                ######################################################################
+                def initialize(self, conf, context):
+             #       pydevd.settrace('localhost', port=5000, stdoutToServer=True, stderrToServer=True)
+                    self.log("initialize() started")
+                    self.connectToES(conf)
+                    self.log("initialize(")
+            
+            
+                ######################################################################
+                # addRecordsToElasticSearch()
+                ######################################################################
+                def addRecordsToElasticSearch(self, data):
+             #       pydevd.settrace('localhost', port=5000, stdoutToServer=True, stderrToServer=True)
+                    self.log("addRecordsToElasticSearch() started")
+                    id = data[self.idName]
+            
+                    for key in self.output:
+                        body = {}
+                        for f in self.output[key]['fields']:
+                            # Loop through all of the fields that can be indexed
+                            if f in data:
+                                # This field was found in the tuple and was found in the list of fields to-be-added to ES
+                                # -- So, add this field to the body
+                                body[f] = data[f]
+            
+                        # Add this record to ElasticSearch
+                        # res = self.es.index(index=self.index, doc_type=self.docType, id=id, body=json.dumps(body))
+                        res = self.es.index(index=self.index, doc_type=self.docType, id=id, body=json.dumps(body))
+                        self.log("Attempt to add record:  res['created']=%s" % (res['created']))
+                        self.log("addRecordsToElasticSearch() finished")
+            
+            
+                ######################################################################
+                # process()
+                ######################################################################
+                def process(self, tup):
+             #       pydevd.settrace('localhost', port=5000, stdoutToServer=True, stderrToServer=True)
+                    self.log("process() started")
+                    try:
+                        self.stream = tup.stream
+                        self.addRecordsToElasticSearch(tup.values[0])
+                    except Exception as e:
+                        self.log("ES Bolt error: %s" % (str(e)), "error")
+            
+                    self.log("process() finished")
+            
 
 
 
@@ -530,164 +530,164 @@ Procedure
     b. Add an empty file here:  src/utils/__init__.py
     c. Create a file here:      src/utils/expiringDictWithCallback.py
     d. Copy this to expiringDictWithCallback.py
-		    
-		######################################################################
-		# Filename:  expiringDictWithCallback.py
-		# Author:    <your name>
-		######################################################################
-		# Purpose:
-		#   Create a dictionary that will expire and call a method on expiration
-		#
-		# Assumptions
-		#   A) python is in the PATH
-		#   B) expiringdict and collections are installed
-		######################################################################
-		import time
-		from expiringdict import ExpiringDict
-		from collections import OrderedDict
-		
-		
-		class ExpiringDictWithCallback(ExpiringDict):
-		
-		    ######################################################################
-		    # __init__()
-		    ######################################################################
-		    def __init__(self, max_len, max_age_seconds, callback=None):
-		        ExpiringDict.__init__(self, max_len, max_age_seconds)
-		        self.callback = callback
-		
-		
-		    ######################################################################
-		    # __contains__()
-		    ######################################################################
-		    def __contains__(self, key):
-		        # Return True if the dict has a key, else return False.
-		        try:
-		            with self.lock:
-		                item = OrderedDict.__getitem__(self, key)
-		                if time.time() - item[1] < self.max_age:
-		                    return True
-		                else:
-		                    if self.callback: self.callback(item[0])
-		                    del self[key]
-		        except KeyError:
-		            pass
-		        return False
-		
-		
-		    ######################################################################
-		    # __getitem__()
-		    ######################################################################
-		    def __getitem__(self, key, with_age=False):
-		        '''
-		        Return the item of the dictionary
-		        Raises a KeyError if key is not in the map.
-		        '''
-		        with self.lock:
-		            item = OrderedDict.__getitem__(self, key)
-		            item_age = time.time() - item[1]
-		            if item_age < self.max_age:
-		                if with_age:
-		                    return item[0], item_age
-		                else:
-		                    return item[0]
-		            else:
-		                if self.callback: self.callback(item[0])
-		                del self[key]
-		                raise KeyError(key)
+            
+        ######################################################################
+        # Filename:  expiringDictWithCallback.py
+        # Author:    <your name>
+        ######################################################################
+        # Purpose:
+        #   Create a dictionary that will expire and call a method on expiration
+        #
+        # Assumptions
+        #   A) python is in the PATH
+        #   B) expiringdict and collections are installed
+        ######################################################################
+        import time
+        from expiringdict import ExpiringDict
+        from collections import OrderedDict
+        
+        
+        class ExpiringDictWithCallback(ExpiringDict):
+        
+            ######################################################################
+            # __init__()
+            ######################################################################
+            def __init__(self, max_len, max_age_seconds, callback=None):
+                ExpiringDict.__init__(self, max_len, max_age_seconds)
+                self.callback = callback
+        
+        
+            ######################################################################
+            # __contains__()
+            ######################################################################
+            def __contains__(self, key):
+                # Return True if the dict has a key, else return False.
+                try:
+                    with self.lock:
+                        item = OrderedDict.__getitem__(self, key)
+                        if time.time() - item[1] < self.max_age:
+                            return True
+                        else:
+                            if self.callback: self.callback(item[0])
+                            del self[key]
+                except KeyError:
+                    pass
+                return False
+        
+        
+            ######################################################################
+            # __getitem__()
+            ######################################################################
+            def __getitem__(self, key, with_age=False):
+                '''
+                Return the item of the dictionary
+                Raises a KeyError if key is not in the map.
+                '''
+                with self.lock:
+                    item = OrderedDict.__getitem__(self, key)
+                    item_age = time.time() - item[1]
+                    if item_age < self.max_age:
+                        if with_age:
+                            return item[0], item_age
+                        else:
+                            return item[0]
+                    else:
+                        if self.callback: self.callback(item[0])
+                        del self[key]
+                        raise KeyError(key)
  
 10. Configure the topology
     a. Create this file /topologies/streamToES.clj
     b. Copy this to streamToES.clj
 
-		(ns streamToES
-		  (:use     [streamparse.specs])
-		  (:gen-class))
-		
-		(defn streamToES [options]
-		   [
-		
-		    ;; Define the spouts in this dictionary
-		    {
-		
-		          ;; T E S T     D A T A     S P O U T
-		         "maketestdata-spout" (python-spout-spec
-		          options
-		          "spouts.maketestdata.MakeTestDataSpout"
-		            {
-		          	  ;;streams to output
-		          	  "orig" ["orig"]
-		            }
-		          )
-		    }
-		
-		    ;; Define the bolts in this dictionary
-		    {
-		
-		        ;; I P    A D D R E S S      T O      I N T E G E R       B O L T
-		        ;;
-		        ;; Converted regular IP address (with dots as a string) to a normalized number and store them as 'sip' and 'dip' fields
-		        "ipAddressToInteger-bolt" (python-bolt-spec
-		          options
-		          {["maketestdata-spout" "orig"]["orig"]}
-		          "bolts.ipAddressToInteger.IpAddressToInteger"
-		            {
-		          	  ;;streams to output
-		          	  "orig" ["orig"]
-		            }
-		          :p 1
-		          :conf {
-		            "analytics.transforms.dottoip.emitStream","orig"
-		            "analytics.transforms.dottoip.fields","{'transform':{'src_dot':'sip','dst_dot':'dip'}}"
-		            }
-		         ),
-		
-		
-		        ;; K M E A N S    C L U S T E R     I P      B O L T
-		        ;;
-		        ;; Perform kmeans clustering on the normalized IP address ('sip' and 'dip')
-		       "kmeansclusterIP-bolt" (python-bolt-spec
-		         options
-		         {["ipAddressToInteger-bolt" "orig"]["orig"]}
-		         "bolts.kmeansClusterIP.KmeansClusterIP"
-		         {
-		          	  ;;streams to output
-		          	  "orig" ["orig"]
-		         }
-		         :p 1
-		         :conf {
-		                "analytics.bolts.kmeansclusterip.outstream",    "orig"
-		                "analytics.bolts.kmeansclusterip.fields",      "{'id':'uuid','src':'sip','dst':'dip'}"
-		               }
-		         ),
-		
-		
-		         ;; E L A S T I C      S E A R C H      B O L T
-		         ;;
-		         ;; Write stuff to the ElasticSearch index called 'my-index'
-		         "esclient-bolt" (python-bolt-spec
-		         options
-		         {["kmeansclusterIP-bolt" "orig"]["orig"]}
-		         "bolts.addToElasticSearch.AddToElasticSearch"
-		         {
-		          	  ;;streams to output
-		          	  "orig" ["orig"]
-		          }
-		          :p 1
-		         :conf {
-		                "analytics.bolts.addToElasticSearch.index",   "my-index"
-		                "analytics.bolts.addToElasticSearch.doctype", "event"
-		                "analytics.bolts.addToElasticSearch.id",      "uuid"
-		                "analytics.bolts.addToElasticSearch.output","{'1':{'fields':['datestamp', 'cluster', 'score',
-		                                                                   'windowcount','x','y','cx','cy'
-		                                                                   ]
-		                                                         }
-		                                                    }"
-		                }
-		         )
-		    }
-		  ]
-		)
+        (ns streamToES
+          (:use     [streamparse.specs])
+          (:gen-class))
+        
+        (defn streamToES [options]
+           [
+        
+            ;; Define the spouts in this dictionary
+            {
+        
+                  ;; T E S T     D A T A     S P O U T
+                 "maketestdata-spout" (python-spout-spec
+                  options
+                  "spouts.maketestdata.MakeTestDataSpout"
+                    {
+                        ;;streams to output
+                        "orig" ["orig"]
+                    }
+                  )
+            }
+        
+            ;; Define the bolts in this dictionary
+            {
+        
+                ;; I P    A D D R E S S      T O      I N T E G E R       B O L T
+                ;;
+                ;; Converted regular IP address (with dots as a string) to a normalized number and store them as 'sip' and 'dip' fields
+                "ipAddressToInteger-bolt" (python-bolt-spec
+                  options
+                  {["maketestdata-spout" "orig"]["orig"]}
+                  "bolts.ipAddressToInteger.IpAddressToInteger"
+                    {
+                        ;;streams to output
+                        "orig" ["orig"]
+                    }
+                  :p 1
+                  :conf {
+                    "analytics.transforms.dottoip.emitStream","orig"
+                    "analytics.transforms.dottoip.fields","{'transform':{'src_dot':'sip','dst_dot':'dip'}}"
+                    }
+                 ),
+        
+        
+                ;; K M E A N S    C L U S T E R     I P      B O L T
+                ;;
+                ;; Perform kmeans clustering on the normalized IP address ('sip' and 'dip')
+               "kmeansclusterIP-bolt" (python-bolt-spec
+                 options
+                 {["ipAddressToInteger-bolt" "orig"]["orig"]}
+                 "bolts.kmeansClusterIP.KmeansClusterIP"
+                 {
+                        ;;streams to output
+                        "orig" ["orig"]
+                 }
+                 :p 1
+                 :conf {
+                        "analytics.bolts.kmeansclusterip.outstream",    "orig"
+                        "analytics.bolts.kmeansclusterip.fields",      "{'id':'uuid','src':'sip','dst':'dip'}"
+                       }
+                 ),
+        
+        
+                 ;; E L A S T I C      S E A R C H      B O L T
+                 ;;
+                 ;; Write stuff to the ElasticSearch index called 'my-index'
+                 "esclient-bolt" (python-bolt-spec
+                 options
+                 {["kmeansclusterIP-bolt" "orig"]["orig"]}
+                 "bolts.addToElasticSearch.AddToElasticSearch"
+                 {
+                        ;;streams to output
+                        "orig" ["orig"]
+                  }
+                  :p 1
+                 :conf {
+                        "analytics.bolts.addToElasticSearch.index",   "my-index"
+                        "analytics.bolts.addToElasticSearch.doctype", "event"
+                        "analytics.bolts.addToElasticSearch.id",      "uuid"
+                        "analytics.bolts.addToElasticSearch.output","{'1':{'fields':['datestamp', 'cluster', 'score',
+                                                                           'windowcount','x','y','cx','cy'
+                                                                           ]
+                                                                 }
+                                                            }"
+                        }
+                 )
+            }
+          ]
+        )
 
 
 
