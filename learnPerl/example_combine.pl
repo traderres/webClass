@@ -1,0 +1,169 @@
+#########################################################################
+#  Filename:    combine.pl
+#########################################################################
+#
+#  Purpose:                                          
+#   Combine smaller files into one large file
+#         
+#  Design:
+#   1) Verify that the user passed-in all of the required parameters
+#   2) Determine the number of smaller files to create
+#   3) Loop through each smaller file
+#      a) open the smaller file
+#      b) write a chunk to that smaller file
+#      c) close the smaller file
+#       
+#   4) Write the last chunk to the last smaller file
+#    
+#
+# Assumptions:
+#   1) Perl installed on the computer running this script
+#
+#  Usage:
+#   1) combine.pl -src="part*.bin" -dest=longview2.exe  -delSubFiles=Y <enter>
+#            -- this would cause the program to create a new file called longview2.exe
+#           -- it would look for all files that start with part and end with .bin in the current directory
+#
+#########################################################################
+use strict;                  # You must declare variables before using them
+use warnings "all";          # Show any compile warnings
+use diagnostics;
+
+use Time::localtime;
+use File::Basename;
+use Getopt::Long;            
+use Cwd;
+use File::DosGlob 'glob';
+ 
+  
+my $g_scriptName = basename($0);          # g_scriptName holds the name of this script without directories
+my $ga_destinationFilename = '';
+my $ga_sourceFilenames = '';
+my $ga_deleteSubFilesFlag = 'N';
+my $CWD = getcwd;
+my $fileCount;
+my $chunkFile;
+my $subFilename;
+my @g_sourcefileNameList = ();
+
+# S C R I P T       S T A R T S     H E R E
+print "$g_scriptName has started at ", ctime(), "\n";
+
+
+# P A R S E     COMMAND  LINE   PARAMTERS
+# NOTE: the option src=s means that this paramter -src requires a string
+GetOptions ('src=s' => \$ga_sourceFilenames,
+            'dest=s' => \$ga_destinationFilename,
+            'delSubFiles=s' => \$ga_deleteSubFilesFlag);
+
+# Verify that the user entered all of the necessary command-line parameters
+verifyParameters();
+
+
+
+# Open a large file for writing
+print "Opening combined file $ga_destinationFilename for writing...\n"; 
+open(LARGEFILE, ">$ga_destinationFilename") || die "$g_scriptName: Cannot open the file $ga_destinationFilename for writin: $!\n";
+binmode(LARGEFILE);
+
+
+#  C  O  M  B  I  N  E            T  H  E            P  I  E  C  E  S
+# Loop through every file in the array of source files
+foreach $chunkFile (@g_sourcefileNameList)
+ {
+    # Open this small file
+    open (SMALLFILE, "$chunkFile") or die "$g_scriptName: Cannot write to $chunkFile: $!\n";
+    binmode(SMALLFILE);
+
+    print "\tReading file $chunkFile....\n";
+    while (<SMALLFILE>)
+      {
+        print LARGEFILE $_;
+      }
+
+    close(SMALLFILE)  || die "I could not close the small file: $!\n";
+
+}
+
+close(LARGEFILE) || die "I could not close the large file: $!\n";
+print "Finished combining the files into $ga_destinationFilename.\n\n";
+
+# Delete every one of these smaller files?
+if (($ga_deleteSubFilesFlag eq 'Y') || ($ga_deleteSubFilesFlag eq 'y'))
+  {
+    # Yes, loop through and delete every subfile 
+    foreach $chunkFile (@g_sourcefileNameList)
+     {
+        print "\tDeleting $chunkFile....\n";
+        unlink $chunkFile || die "Unable to delete the file $chunkFile: $!\n";
+     }
+ }
+
+
+# S C R I P T       H A S       F I N I S H E D
+print "\n$g_scriptName has finished at ", ctime(), "\n";
+
+exit 0;
+
+
+
+
+####################################################################################
+# verifyParameters()
+#       -- Verify that the passed-in sql file is not null and is readable
+####################################################################################
+sub verifyParameters
+ {
+    my $tmpSourcefile;
+    my $arrayCount = 0;
+    my $element;
+
+    # Did the user pass-in a sql file path and name?
+    if (($ga_destinationFilename eq '') || ($ga_sourceFilenames eq ''))
+     {
+        # The user did not enter all of the parameters
+           print "USAGE STATEMENT:\n\t$g_scriptName -src=<path and filename of smaller files>\n";
+        print "\t\t   -dest=<path and filename of combined file>\n";
+        print "\t\t   -delSubFiles=<Y to delete all sub files>\n\n";
+        print "EXAMPLE:\n\t$g_scriptName -src='part*.bin' -dest=LargeFile.exe -delSubFiles=Y\n";
+        print "\tThis will combine all of the files that start with 'part' and end with 'bin' into one largefile.exe\n";
+        print "\tAlso, it will delete all of the sub files.\n";
+        exit 1;
+     }
+
+    # Get list of files from the wildcard string entered on the command-line
+    @g_sourcefileNameList = glob($ga_sourceFilenames);
+
+    # Is the list empty?
+    foreach $element ( @g_sourcefileNameList )
+     {
+       $arrayCount++;
+     }
+
+    if ($arrayCount == 0) 
+     {
+          # Yes, the array is empty
+        print "I could not find any files from the wild card $ga_sourceFilenames\n";
+        exit 1;
+     }
+
+
+
+    # Loop through every file in the array of source files
+    foreach $tmpSourcefile (@g_sourcefileNameList)
+     {
+        # Is the source file readable?
+        if (!(-r $tmpSourcefile))
+         {
+            # No, the source file is *NOT* readable
+            print "$g_scriptName: the file $tmpSourcefile is *NOT* readable.\n";
+            exit 2;
+         }
+    }
+
+
+    # Display pass-in parameters
+    print "\tDestination file is  $ga_destinationFilename\n";
+    print "\tSub files are        ", join(",", @g_sourcefileNameList), "\n\n";
+  }
+
