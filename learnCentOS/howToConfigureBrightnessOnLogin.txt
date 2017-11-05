@@ -1,0 +1,91 @@
+How to Configure Brightness on Login in Centos 7
+------------------------------------------------
+Problem:  Your laptop screen or keyboard backlit come-up some default color and you want to change it
+
+ -- The keyboard backlit is set in the /sys directory
+ -- The /sys directory gets restored after every reboot  (it's a fake filesystem)
+ -- We need to create a unix script (called configure-brightness) that will set the brightness to zero
+ -- We need to give our user the ability to run this script without a password
+
+etely
+
+
+Approach
+ 1) Determine which file (under /sys/class/leds sets the brightness
+ 2) Create a configure-brightness script (that will set the brightness on login)
+ 3) Adjust visudo so that you can run configure-brightness as root [without prompting for a password]
+ 4) Run configure-brightness when you open a shell
+
+
+Procedure
+---------
+My Dell Latitude keyboard has a backlit that goes dark and lights-up when I start typing
+Here are the steps to disable the keyboard backlit compl
+
+ 1. Look for the brightness file for your backlist
+    NOTE:  It is probably under /sys/class/leds/
+    unix> sudo -s
+
+    # On my Dell Latitude E6540, the file is located here
+    unix> cat /sys/class/leds/dell\:\:kbd_backlight/brightness
+    4
+
+    So, on my dell Latitude E6540, the default keyboard backlit is 4
+
+
+    # Attempt to run a command that turns the keyboard brightness off
+    unix> echo 0 > /sys/class/leds/dell\:\:kbd_backlight/brightness
+          -- If the keyboard backlit turns off,
+             then we have the right command to put into our configure-brightness script
+
+         Setting the number in this file to zero --> No backlit
+         Setting the number in this file to 4    --> bright keyboard backlit
+
+
+ 2. Create this file:  /usr/local/bin/configure-brightness
+    a. Create the script
+       unix> sudo -s
+       unix> vi /usr/local/bin/configure-brightness
+
+         # Disable the keyboard brightness
+         echo 0 > /sys/class/leds/dell\:\:kbd_backlight/brightness
+
+    b. Set the permissions on the script so others can run it
+       unix> chmod ugo+rx /usr/local/bin/configure-brightness
+
+
+ 3. Allow your unix account to run this script as root (without prompting for the password)
+    unix> sudo -s
+    unix> visudo
+
+        # Remove this line
+        <your unix username> ALL=(ALL) ALL
+
+        # Add these lines
+        <your unix username> ALL=(ALL) ALL
+        <your unix username> ALL=NOPASSWD: /usr/local/bin/configure-brightness
+
+
+ 4. Verify that you can run this command without prompting for a password
+    a. Open a new terminal
+       unix> sudo /usr/local/bin/configure-brightness
+          -- You should *NOT* be prompted for a password
+          -- The keyboard backlit should be adjusted
+
+
+ 5. Setup your .bashrc so that this command is run every time you open a terminal
+    unix> vi ~/.bashrc
+
+         # Add this to the end
+
+         # Set the brightness
+         sudo /usr/local/bin/configure-brightness
+
+
+ 6. Verify it works
+    a. Reboot and see if it works
+       unix> sudo reboot
+
+    b. Upon login, open a shell
+       -- The keyboard backlit should be set to what you want
+
