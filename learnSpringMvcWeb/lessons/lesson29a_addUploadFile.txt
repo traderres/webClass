@@ -1,0 +1,288 @@
+Lesson:  How to Allow users to Upload Files to your Spring MVC Web App
+----------------------------------------------------------------------
+Problem:  You want to allow users to upload files
+Solution: Setup an end point that receives the file
+
+
+
+Procedure
+---------
+ 1. Add this dependency to your web app's pom.xml
+
+        <dependency>
+            <groupId>commons-fileupload</groupId>
+            <artifactId>commons-fileupload</artifactId>
+            <version>1.3.3</version>
+        </dependency>
+
+
+ 2. Add this spring bean to your applicationContext.xml
+
+     <!-- Configure the CommonsMultipartResolver to limit all file uploads to 50 MB or smaller -->
+     <bean id="multipartResolver" class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+         <property name="defaultEncoding" value="utf-8"/>
+         <property name="maxUploadSize"   value="52428800"/>
+     </bean>
+
+
+ 3. Add an end point that will display your JSP page
+
+    a. Edit your WelcomeController.java and add this method to it
+
+
+    b. Add these 2 methods to it
+
+       /**********************************************************************
+        * uploadPage()
+        *
+        * This method is used to display the page
+        ***********************************************************************/
+        @RequestMapping("/upload")
+        public ModelAndView uploadPage( Model aModel )
+        {
+           logger.debug("uploadPage() started");
+
+           // Create a modelAndView object
+           ModelAndView mav = new ModelAndView();
+
+           // Show the welcome.jsp page
+           mav.setViewName("uploadFile.jsp");
+
+           return mav;
+        }
+
+        /***************************************************************************
+         * uploadFile() REST End point
+         *
+         * This method is called for each file upload
+         ****************************************************************************/
+        @RequestMapping(value = "/uploadFile", method = RequestMethod.POST)
+        public ResponseEntity<?> uploadFile(@RequestParam(value = "file", required = true) MultipartFile aMultipartFile)
+        {
+            logger.debug("uploadFile() started.");
+
+            logger.debug("Submitted file name is {}", aMultipartFile.getOriginalFilename() );
+            logger.debug("Submitted file is {} bytes", aMultipartFile.getSize() );
+
+            // Do some processing on your file -- e.g., store it in HDFS or a database
+
+            // Return a message back to the front-end
+            String sMessage = "I got it";
+            return ResponseEntity.status(HttpStatus.OK)
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .body(sMessage);
+        }
+
+
+
+ 4. Use NPM to install angular, angular-file-upload
+    Assumption:  You have npm installed
+
+    unix> cd src/main/webapp/resources
+    unix> npm install angular --save
+    unix> npm install angular-file-upload --save
+      -- Now, You should have these directories:
+                 src/main/webapp/resources/node_modules/angular-file-upload/
+                 src/main/webapp/resources/node_modules/angular/
+
+
+
+ 5. Create this file:  uploadFile.jsp
+    a. Right-click on src/main/webapp/WEB-INF/jsp -> New -> File
+       File name:  uploadFile.jsp
+       Press OK
+
+    b. Copy these contents into your angularPage1.jsp file
+
+         <%@ include file="/WEB-INF/jsp/stdJspIncludes.jsp" %>
+        <!DOCTYPE HTML>
+
+        <html lang="en" data-ng-app="myApp">
+
+        <head>
+            <title>Angular Page 1</title>
+        </head>
+
+        <body ng-controller="UploadController" nv-file-drop="" uploader="uploader">
+
+        <%-- S T A N D A R D       H E A D E R  --%>
+        <%@ include file="/WEB-INF/jsp/stdHeader.jsp" %>
+
+        <h2>uploadFile.jsp</h2>
+
+        <br/>
+        <div class="container">
+
+            <div class="row">
+
+                <div class="col-md-3">
+
+                    <h3>Select files</h3>
+
+                    <div ng-show="uploader.isHTML5">
+                        <!-- 3. nv-file-over uploader="link" over-class="className" -->
+                        <div class="well my-drop-zone" nv-file-over="" uploader="uploader" style="border: 1px solid black">
+                            <br/>
+                            <br/>
+                            Drag and drop a file into this box
+                            <br/>
+                            <br/>
+                        </div>
+
+                        <!-- Example: nv-file-drop="" uploader="{Object}" options="{Object}" filters="{String}" -->
+                        <div nv-file-drop="" uploader="uploader" options="{ url: '/foo' }">
+                            <div nv-file-over="" uploader="uploader" over-class="another-file-over-class" class="well my-drop-zone">
+                                Another drop zone with its own settings
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Example: nv-file-select="" uploader="{Object}" options="{Object}" filters="{String}" -->
+                    Multiple
+                    <input type="file" nv-file-select="" uploader="uploader" multiple  /><br/>
+
+                    Single
+                    <input type="file" nv-file-select="" uploader="uploader" />
+                </div>
+
+                <br/>
+
+                <div class="col-md-9" style="margin-bottom: 40px; border: 1px solid black">
+
+                    <h3>Upload queue</h3>
+                    <p>Queue length: {{ uploader.queue.length }}</p>
+
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th width="50%">Name</th>
+                                <th ng-show="uploader.isHTML5">Size</th>
+                                <th ng-show="uploader.isHTML5">Progress</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr ng-repeat="item in uploader.queue">
+                                <td><strong>{{ item.file.name }}</strong></td>
+                                <td ng-show="uploader.isHTML5" nowrap>{{ item.file.size/1024/1024|number:2 }} MB</td>
+                                <td ng-show="uploader.isHTML5">
+                                    <div class="progress" style="margin-bottom: 0;">
+                                        <div class="progress-bar" role="progressbar" ng-style="{ 'width': item.progress + '%' }"></div>
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    <span ng-show="item.isSuccess"><i class="glyphicon glyphicon-ok"></i></span>
+                                    <span ng-show="item.isCancel"><i class="glyphicon glyphicon-ban-circle"></i></span>
+                                    <span ng-show="item.isError"><i class="glyphicon glyphicon-remove"></i></span>
+                                </td>
+                                <td nowrap>
+                                    <button type="button" class="btn btn-success btn-xs" ng-click="item.upload()" ng-disabled="item.isReady || item.isUploading || item.isSuccess">
+                                        <span class="glyphicon glyphicon-upload"></span> Upload
+                                    </button>
+                                    <button type="button" class="btn btn-warning btn-xs" ng-click="item.cancel()" ng-disabled="!item.isUploading">
+                                        <span class="glyphicon glyphicon-ban-circle"></span> Cancel
+                                    </button>
+                                    <button type="button" class="btn btn-danger btn-xs" ng-click="item.remove()">
+                                        <span class="glyphicon glyphicon-trash"></span> Remove
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div>
+                        <div>
+                            Queue progress:
+                            <div class="progress" style="">
+                                <div class="progress-bar" role="progressbar" ng-style="{ 'width': uploader.progress + '%' }"></div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-success btn-s" ng-click="uploader.uploadAll()" ng-disabled="!uploader.getNotUploadedItems().length">
+                            <span class="glyphicon glyphicon-upload"></span> Upload all
+                        </button>
+                        <button type="button" class="btn btn-warning btn-s" ng-click="uploader.cancelAll()" ng-disabled="!uploader.isUploading">
+                            <span class="glyphicon glyphicon-ban-circle"></span> Cancel all
+                        </button>
+                        <button type="button" class="btn btn-danger btn-s" ng-click="uploader.clearQueue()" ng-disabled="!uploader.queue.length">
+                            <span class="glyphicon glyphicon-trash"></span> Remove all
+                        </button>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <%-- S T A N D A R D       F O O T E R  --%>
+        <%@ include file="/WEB-INF/jsp/stdFooter.jsp" %>
+
+        <%-- Load Angular --%>
+        <script src="${contextPath}/resources/node_modules/angular/angular.js" type="text/javascript"></script>
+        <script src="${contextPath}/resources/node_modules/angular-file-upload/dist/angular-file-upload.js" type="text/javascript"></script>
+
+
+        <script type="text/javascript">
+            myapp = angular.module('myApp', ['angularFileUpload']);
+
+            myapp.controller('UploadController', ['$scope', 'FileUploader', Callback]);
+
+
+            function Callback($scope, FileUploader)
+            {
+                console.log('UploadController started.');
+
+                var uploader = $scope.uploader = new FileUploader({
+                    url: './uploadFile'
+                });
+
+
+                uploader.onWhenAddingFileFailed = function(item /*{File|FileLikeObject}*/, filter, options) {
+                    console.info('onWhenAddingFileFailed', item, filter, options);
+                };
+                uploader.onAfterAddingFile = function(fileItem) {
+                    console.info('onAfterAddingFile', fileItem);
+                };
+                uploader.onAfterAddingAll = function(addedFileItems) {
+                    console.info('onAfterAddingAll', addedFileItems);
+                };
+                uploader.onBeforeUploadItem = function(item) {
+                    console.info('onBeforeUploadItem', item);
+                };
+                uploader.onProgressItem = function(fileItem, progress) {
+                    console.info('onProgressItem', fileItem, progress);
+                };
+                uploader.onProgressAll = function(progress) {
+                    console.info('onProgressAll', progress);
+                };
+                uploader.onSuccessItem = function(fileItem, response, status, headers) {
+                    console.info('onSuccessItem', fileItem, response, status, headers);
+                };
+                uploader.onErrorItem = function(fileItem, response, status, headers) {
+                    console.info('onErrorItem', fileItem, response, status, headers);
+                };
+                uploader.onCancelItem = function(fileItem, response, status, headers) {
+                    console.info('onCancelItem', fileItem, response, status, headers);
+                };
+                uploader.onCompleteItem = function(fileItem, response, status, headers) {
+                    console.info('onCompleteItem', fileItem, response, status, headers);
+                };
+                uploader.onCompleteAll = function() {
+                    console.info('onCompleteAll');
+                };
+
+                console.info('uploader', uploader);
+            }
+        </script>
+
+        </body>
+        </html>
+
+
+ 6. Startup the web app and drag and drop a file into it
+    -- You should see the file being uploaded
+
+
+
+
