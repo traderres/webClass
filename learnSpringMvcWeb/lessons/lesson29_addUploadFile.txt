@@ -280,9 +280,160 @@ Procedure
         </html>
 
 
- 6. Startup the web app and drag and drop a file into it
-    -- You should see the file being uploaded
+ 6. Verify it works
+    a. Startup Intellij, set a breakpoint in WelcomeController.uploadFile()
+    b. Run the debugger
+    c. Open a browser, go to http://localhost:8080/webapp1/upload
+       1) Within the page, drag & drop a small textfile on the page
+       2) Press Upload
+          -- You should see your breakpoint hit
 
 
 
+Case #2:  Create a 2nd REST End point that receives the files *and* form fields
+--------------------------------------------------------------------------------
+ 1. Add this end point to your Welcome Controller
+
+    /***************************************************************************
+     * uploadFile2() REST End point
+     *
+     * This method receives the file and multiple form fields
+     ****************************************************************************/
+    @RequestMapping(value = "/uploadFile2", method = RequestMethod.POST)
+    public ResponseEntity<?> uploadFile2(@RequestParam(value = "file", required = true) MultipartFile aMultipartFile,
+                                         @RequestParam(value = "id", required = true) Integer aId,
+                                         @RequestParam(value = "name", required = true) String aName)
+    {
+        logger.debug("uploadFile2() started.  aId={}   aName={}", aId, aName);
+
+        logger.debug("Submitted file name is {}", aMultipartFile.getOriginalFilename());
+        logger.debug("Submitted file is {} bytes", aMultipartFile.getSize());
+
+        // Do some processing on your file -- e.g., store it in HDFS or a database
+
+        // Return a message back to the front-end
+        String sMessage = "I got it";
+        return ResponseEntity.status(HttpStatus.OK)
+                .contentType(MediaType.TEXT_PLAIN)
+                .body(sMessage);
+    }
+
+
+
+
+ 2. Modify the uploadFile.jsp
+    a. Change the uploader to upload files to the /uploadFile2 url
+
+        var uploader = $scope.uploader = new FileUploader({
+            url: './uploadFile2'
+        });
+
+    b. Before uploading one item, set some form fields
+
+        uploader.onBeforeUploadItem = function(item) {
+            // Add some form fields to this upload
+            var myformData = {
+                    'id': 25,
+                    'name': 'John Smith'
+            };
+            item.formData.push(myformData);
+
+        };
+
+ 3. Verify it works
+    a. Startup Intellij, set a breakpoint in WelcomeController.uploadFile2()
+    b. Run the debugger
+    c. Open a browser, go to http://localhost:8080/webapp1/upload
+       1) Within the page, drag & drop a small textfile on the page
+       2) Press Upload
+          -- You should see your breakpoint hit
+
+
+
+
+Case #3:  Create a 3rd REST End point that receives the files *and* JSON body
+--------------------------------------------------------------------------------
+ 1. Add a new Dto object class that acts as a wrapper for your JSON
+
+    package app1.model;
+
+    public class Dto {
+        private int id;
+        private String name;
+
+        public int getId() {
+            return id;
+        }
+
+        public void setId(int id) {
+            this.id = id;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        public String toString()
+        {
+            return "id=" + this.id + "  name=" + this.name;
+        }
+    }
+
+
+ 2. Add this end point to your Welcome Controller
+
+    /***************************************************************************
+     * uploadFile3() REST End point
+     *
+     * This method receives the file and object (from JSON body)
+     ****************************************************************************/
+    @RequestMapping(value = "/uploadFile3", method = RequestMethod.POST)
+    public ResponseEntity<?> uploadFile3(@RequestParam(value = "file", required = true) MultipartFile aMultipartFile,
+                                         final Dto aDto)
+    {
+        logger.debug("uploadFile3() started.  aDto={}", aDto);
+
+        logger.debug("Submitted file name is {}", aMultipartFile.getOriginalFilename());
+        logger.debug("Submitted file is {} bytes", aMultipartFile.getSize());
+
+        // Do some processing on your file -- e.g., store it in HDFS or a database
+
+        // Return a message back to the front-end
+        String sMessage = "I got it";
+        return ResponseEntity.status(HttpStatus.OK)
+                .contentType(MediaType.TEXT_PLAIN)
+                .body(sMessage);
+    }
+
+
+ 3. Modify the uploadFile.jsp
+    a. Change the uploader to upload files to the /uploadFile2 url
+
+        var uploader = $scope.uploader = new FileUploader({
+            url: './uploadFile3'
+        });
+
+    b. Before uploading one item,
+
+        uploader.onBeforeUploadItem = function(item) {
+            // Make sure this map matches-up with your DTO object in java
+            var dto = {
+                    'id': 25,
+                    'name': 'John Smith'
+            };
+            item.formData.push(dto);
+        };
+
+
+ 4. Verify it works
+    a. Startup Intellij, set a breakpoint in WelcomeController.uploadFile3()
+    b. Run the debugger
+    c. Open a browser, go to http://localhost:8080/webapp1/upload
+       1) Within the page, drag & drop a small textfile on the page
+       2) Press Upload
+          -- You should see your breakpoint hit
 
