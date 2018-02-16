@@ -1,0 +1,417 @@
+Lesson:  Add Flyway to the Project
+----------------------------------
+We will use flyway to manage our database changes
+
+Flyway runs SQL scripts to "migrate" the database to the correct version.
+
+
+
+Procedure
+---------
+ 1. Setup the database-migration directory structure
+    unix> cd ~/intellijProjects/app1/database-migration
+    unix> mkdir -p src/main/resources/db/migration
+    *OR*
+    Create these directories in Intellij
+
+
+ 2. Create this file:  1.1__baseline.sql
+    a. In Intellij, right-click on the new migration/ directory -> New File:
+       Filename:  V1.1__baseline.sql
+
+    b. Copy this to your new file:
+
+        -- Filename:  V1.1__baseline.sql
+        -- Assumptions:
+        --  1) You have a Postgres 9.3 or later database
+        --  2) You have created a database schema
+        --  3) Your default database schema is set
+        --     create database app1_db;
+        --       create user app1_user with password 'secret';
+        --       grant all privileges on database app1_db to app1_user;
+        --       alter database app1_db set search_path=app1_db;
+        --
+        --
+
+        Create sequence seq_table increment by 1 START WITH 1000;
+
+
+ 3. Edit the database-migration/pom.xml
+    We need to add the flyway dependencies and the JDBC dependency (so Flyway can talk to your database)
+    a. In Intellij, edit the database-migration/pom.xml
+
+    b. Change its contents to this:
+
+            <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                <parent>
+                    <artifactId>app1</artifactId>
+                    <groupId>com.lessons</groupId>
+                    <version>1.0-SNAPSHOT</version>
+                </parent>
+                <modelVersion>4.0.0</modelVersion>
+
+                <artifactId>database-migration</artifactId>
+                <packaging>jar</packaging>
+
+                <name>database-migration</name>
+
+                <properties>
+                    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+                </properties>
+
+                <dependencies>
+                    <dependency>
+                        <groupId>org.flywaydb</groupId>
+                        <artifactId>flyway-commandline</artifactId>
+                        <version>5.0.7</version>
+                    </dependency>
+
+                    <dependency>
+                        <groupId>org.flywaydb</groupId>
+                        <artifactId>flyway-core</artifactId>
+                        <version>5.0.7</version>
+                    </dependency>
+
+                    <dependency>
+                        <!-- Database Driver that Flyway will use to talk to the database -->
+                        <groupId>org.postgresql</groupId>
+                        <artifactId>postgresql</artifactId>
+                        <version>42.1.4</version>
+                    </dependency>
+                </dependencies>
+
+                <build>
+                    <plugins>
+                        <plugin>
+                            <groupId>org.flywaydb</groupId>
+                            <artifactId>flyway-maven-plugin</artifactId>
+                            <version>5.0.7</version>
+
+                            <configuration>
+                                <user>app1_user</user>
+                                <password>secret</password>
+                                <url>jdbc:postgresql://localhost:5432/app1_db</url>
+                            </configuration>
+                        </plugin>
+                    </plugins>
+                </build>
+
+            </project>
+
+
+ 4. Try it out
+    unix> cd ~/intellijProjects/app1/database-migration
+    unix> mvn flyway:info
+
+        [INFO]
+        [INFO] --- flyway-maven-plugin:5.0.7:info (default-cli) @ database-migration ---
+        [INFO] Flyway Community Edition 5.0.7 by Boxfuse
+        [INFO] Database: jdbc:postgresql://localhost:5432/app1_db (PostgreSQL 9.6)
+        [INFO] Schema version: << Empty Schema >>
+        [INFO]
+        [INFO]
+        +-----------+---------+-------------+------+--------------+---------+
+        | Category  | Version | Description | Type | Installed On | State   |
+        +-----------+---------+-------------+------+--------------+---------+
+        | Versioned | 1.1     | baseline    | SQL  |              | Pending |
+        +-----------+---------+-------------+------+--------------+---------+
+
+ 5. Upgrade your database to 1.1
+    unix> mvn flyway:migrate
+
+
+ 6. Now, look at the info.  You should see this:
+    unix> mvn flyway:info
+
+       [INFO] --- flyway-maven-plugin:5.0.7:info (default-cli) @ database-migration ---
+       [INFO] Flyway Community Edition 5.0.7 by Boxfuse
+       [INFO] Database: jdbc:postgresql://localhost:5432/app1_db (PostgreSQL 9.6)
+       [INFO] Schema version: 1.1
+       [INFO]
+       [INFO]
+       +------------+---------+------------------------------+--------+---------------------+---------+
+       | Category   | Version | Description                  | Type   | Installed On        | State   |
+       +------------+---------+------------------------------+--------+---------------------+---------+
+       | Repeatable |         | << Flyway Schema Creation >> | SCHEMA | 2018-02-16 16:44:09 | Success |
+       | Versioned  | 1.1     | baseline                     | SQL    | 2018-02-16 16:44:10 | Success |
+
+
+
+
+Part 2:  Create a runnable JAR that will migrate your database
+--------------------------------------------------------------
+ 1. Add the Maven dependencies and plugins
+    We need the logback-classic dependency (for logging)
+    We need plugins to tell Maven to create an "uber" JAR
+    We need to tell Maven to set the default class to run
+    (so we can run the jar using this command:  java -jar database-migration-1.0-SNAPSHOT.jar
+
+    a. Edit the database-migration/pom.xml
+
+    b. Replace it with this:
+
+            <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                <parent>
+                    <artifactId>app1</artifactId>
+                    <groupId>com.lessons</groupId>
+                    <version>1.0-SNAPSHOT</version>
+                </parent>
+                <modelVersion>4.0.0</modelVersion>
+
+                <artifactId>database-migration</artifactId>
+                <packaging>jar</packaging>
+
+                <name>database-migration</name>
+
+                <properties>
+                    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+                </properties>
+
+                <dependencies>
+                    <dependency>
+                        <groupId>org.flywaydb</groupId>
+                        <artifactId>flyway-commandline</artifactId>
+                        <version>5.0.7</version>
+                    </dependency>
+
+                    <dependency>
+                        <groupId>org.flywaydb</groupId>
+                        <artifactId>flyway-core</artifactId>
+                        <version>5.0.7</version>
+                    </dependency>
+
+                    <dependency>
+                        <!-- Database Driver that Flyway will use to talk to the database -->
+                        <groupId>org.postgresql</groupId>
+                        <artifactId>postgresql</artifactId>
+                        <version>42.1.4</version>
+                    </dependency>
+
+                    <dependency>
+                        <groupId>ch.qos.logback</groupId>
+                        <artifactId>logback-classic</artifactId>
+                        <version>1.0.13</version>
+                    </dependency>
+                </dependencies>
+
+                <build>
+                    <plugins>
+                        <plugin>
+                            <groupId>org.flywaydb</groupId>
+                            <artifactId>flyway-maven-plugin</artifactId>
+                            <version>5.0.7</version>
+
+                            <configuration>
+                                <!-- Default values to use when running locally -->
+                                <user>app1_user</user>
+                                <password>secret</password>
+                                <url>jdbc:postgresql://localhost:5432/app1_db</url>
+                            </configuration>
+                        </plugin>
+
+
+                        <plugin>
+                            <groupId>org.apache.maven.plugins</groupId>
+                            <artifactId>maven-jar-plugin</artifactId>
+                            <version>2.3.2</version>
+                        </plugin>
+
+                        <plugin>
+                            <!-- Tell maven to create an "uber" jar with all dependencies in it -->
+                            <artifactId>maven-assembly-plugin</artifactId>
+                            <configuration>
+                                <descriptorRefs>
+                                    <descriptorRef>jar-with-dependencies</descriptorRef>
+                                </descriptorRefs>
+                                <archive>
+                                    <manifest>
+                                        <addClasspath>true</addClasspath>
+
+                                        <!-- Tell the JAR what which class to run by default -->
+                                        <mainClass>com.lessons.Migrate</mainClass>
+                                    </manifest>
+                                </archive>
+                            </configuration>
+
+                            <executions>
+                                <execution>
+                                    <id>make-assembly</id>
+                                    <phase>package</phase>
+                                    <goals>
+                                        <goal>single</goal>
+                                    </goals>
+                                    <configuration>
+                                        <appendAssemblyId>false</appendAssemblyId>
+                                    </configuration>
+                                </execution>
+                            </executions>
+                        </plugin>
+                    </plugins>
+
+                </build>
+
+            </project>
+
+
+
+ 2. Create this file:  Migrate.java
+    a. Make sure you have a database-migration/src/main/java directory
+    b. Right-click on java -> New Package
+       Package Name:  com.lessons
+    c. Right-click on com.lessons -> New Java Class
+       Class Name:  Migrate
+    d. Copy this to your new class
+
+            package com.lessons;
+
+            import org.flywaydb.core.Flyway;
+            import org.slf4j.Logger;
+            import org.slf4j.LoggerFactory;
+
+            import java.io.InputStream;
+            import java.util.Properties;
+
+            public class Migrate {
+
+                private static final Logger logger = LoggerFactory.getLogger(Migrate.class);
+
+
+                /***************************************************************************************
+                 * main()
+                 * @return nothing
+                 * @throws Exception
+                 *
+                 * Running this class causes flyway:migrate to run
+                 * NOTE:  The jdbc information is taken from the migration.properties file
+                 ***************************************************************************************/
+                public static void main(String[] args) throws Exception {
+                    logger.debug("main() started.");
+
+                    // Get the properties from the file
+                    Properties appProps = getPropertiesFromInsideTheJar();
+
+                    Flyway flyway = new Flyway();
+
+                    flyway.setDataSource(appProps.getProperty("jdbc.url"),
+                            appProps.getProperty("jdbc.username"),
+                            appProps.getProperty("jdbc.password"));
+
+                    flyway.migrate();
+
+                    logger.debug("main() finished.");
+                }
+
+
+                /***************************************************************************************
+                 * getPropertiesFromInsideTheJar()
+                 * @return Properties object
+                 * @throws Exception
+                 *
+                 * Get the properties from the property file found in /src/main/resources/migration.properties
+                 * NOTE:  because this file is in src/main/resources, it will be inserted into the Java JAR
+                 ***************************************************************************************/
+                private static Properties getPropertiesFromInsideTheJar() throws Exception {
+                    // Get the path of the default.properties  (should be located in /src/main/resources)
+                    InputStream is = Migrate.class.getResourceAsStream("/migration.properties");
+                    Properties props = new Properties();
+                    props.load(is);
+                    return props;
+                }
+            }
+
+
+ 3. Create a logback.xml file
+    a. Right-click on database-migration/src/main/resources -> New File
+       Filename:  logback.xml
+
+    b. Copy this to your new file
+
+            <?xml version="1.0" encoding="windows-1252" ?>
+
+            <configuration debug="false">
+                <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+                    <encoder>
+                        <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+                    </encoder>
+                </appender>
+
+
+                <logger name="com.lessons" level="DEBUG" additivity="false">
+                    <appender-ref ref="CONSOLE"/>
+                </logger>
+
+                <logger name="org.flywaydb" level="DEBUG" additivity="false">
+                    <appender-ref ref="CONSOLE"/>
+                </logger>
+
+                <root level="INFO">
+                    <appender-ref ref="CONSOLE"/>
+                </root>
+
+            </configuration>
+
+
+    b. Migrate your database
+       unix> java -jar
+
+
+ 4. Create a migration.properties file
+    a. Right-click on database-migration/src/main/resources -> New File
+       Filename:  migration.properties
+
+    b. Copy this to your new file:
+          #######################################################
+          # migration.properties
+          #
+          #######################################################
+          jdbc.url=jdbc:postgresql://localhost:5432/app1_db
+          jdbc.username=app1_user
+          jdbc.password=secret
+
+
+
+ 5. Build a Java JAR that will migrate your database
+    unix> mvn clean package
+          -- You should now have this file: ./target/database-migration-1.0-SNAPSHOT.jar
+
+ 6. Run the Java JAR
+    unix> java -jar ./target/database-migration-1.0-SNAPSHOT.jar
+
+    You should see this:
+
+    02/16/2018 18:38:15 DEBUG com.lessons.Migrate main() started.
+    02/16/2018 18:38:15 INFO  org.flywaydb.core.internal.util.VersionPrinter Flyway Community Edition 5.0.7 by Boxfuse
+    02/16/2018 18:38:15 INFO  org.flywaydb.core.internal.database.DatabaseFactory Database: jdbc:postgresql://localhost:5432/app1_db (PostgreSQL 9.6)
+    02/16/2018 18:38:15 DEBUG org.flywaydb.core.Flyway DDL Transactions Supported: true
+    02/16/2018 18:38:15 DEBUG org.flywaydb.core.Flyway Schema: app1_db
+    02/16/2018 18:38:15 DEBUG org.flywaydb.core.internal.util.FeatureDetector Spring Jdbc available: false
+    02/16/2018 18:38:15 DEBUG org.flywaydb.core.internal.callback.SqlScriptFlywayCallback Scanning for SQL callbacks ...
+    02/16/2018 18:38:15 DEBUG org.flywaydb.core.internal.util.scanner.classpath.ClassPathScanner Scanning for classpath resources at 'classpath:db/migration' (Prefix: '', Suffixes: '.sql')
+    02/16/2018 18:38:15 DEBUG org.flywaydb.core.internal.util.scanner.classpath.ClassPathScanner Determining location urls for classpath:db/migration using ClassLoader sun.misc.Launcher$AppClassLoader@55f96302 ...
+    02/16/2018 18:38:15 DEBUG org.flywaydb.core.internal.util.scanner.classpath.ClassPathScanner Scanning URL: jar:file:/home/adam/intellijProjects/app1/database-migration/target/database-migration-1.0-SNAPSHOT.jar!/db/migration
+    02/16/2018 18:38:15 DEBUG org.flywaydb.core.internal.util.FeatureDetector JBoss VFS v2 available: false
+    02/16/2018 18:38:15 DEBUG org.flywaydb.core.internal.util.scanner.classpath.ClassPathScanner Filtering out resource: db/migration/ (filename: )
+    02/16/2018 18:38:15 DEBUG org.flywaydb.core.internal.util.scanner.classpath.ClassPathScanner Found resource: db/migration/V1.1__baseline.sql
+    02/16/2018 18:38:15 DEBUG org.flywaydb.core.internal.command.DbValidate Validating migrations ...
+    02/16/2018 18:38:15 DEBUG org.flywaydb.core.internal.util.scanner.classpath.ClassPathScanner Scanning for classpath resources at 'classpath:db/migration' (Prefix: 'V', Suffixes: '.sql')
+    02/16/2018 18:38:15 DEBUG org.flywaydb.core.internal.util.scanner.classpath.ClassPathScanner Scanning URL: jar:file:/home/adam/intellijProjects/app1/database-migration/target/database-migration-1.0-SNAPSHOT.jar!/db/migration
+    02/16/2018 18:38:15 DEBUG org.flywaydb.core.internal.util.FeatureDetector JBoss VFS v2 available: false
+    02/16/2018 18:38:15 DEBUG org.flywaydb.core.internal.util.scanner.classpath.ClassPathScanner Filtering out resource: db/migration/ (filename: )
+    02/16/2018 18:38:15 DEBUG org.flywaydb.core.internal.util.scanner.classpath.ClassPathScanner Found resource: db/migration/V1.1__baseline.sql
+    02/16/2018 18:38:15 DEBUG org.flywaydb.core.internal.util.scanner.classpath.ClassPathScanner Scanning for classpath resources at 'classpath:db/migration' (Prefix: 'R', Suffixes: '.sql')
+    02/16/2018 18:38:15 DEBUG org.flywaydb.core.internal.util.scanner.classpath.ClassPathScanner Scanning URL: jar:file:/home/adam/intellijProjects/app1/database-migration/target/database-migration-1.0-SNAPSHOT.jar!/db/migration
+    02/16/2018 18:38:15 DEBUG org.flywaydb.core.internal.util.FeatureDetector JBoss VFS v2 available: false
+    02/16/2018 18:38:15 DEBUG org.flywaydb.core.internal.util.scanner.classpath.ClassPathScanner Filtering out resource: db/migration/ (filename: )
+    02/16/2018 18:38:15 DEBUG org.flywaydb.core.internal.util.scanner.classpath.ClassPathScanner Filtering out resource: db/migration/V1.1__baseline.sql (filename: V1.1__baseline.sql)
+    02/16/2018 18:38:15 DEBUG org.flywaydb.core.internal.util.scanner.classpath.ClassPathScanner Scanning for classes at 'classpath:db/migration' (Implementing: 'org.flywaydb.core.api.migration.jdbc.JdbcMigration')
+    02/16/2018 18:38:15 DEBUG org.flywaydb.core.internal.util.scanner.classpath.ClassPathScanner Scanning URL: jar:file:/home/adam/intellijProjects/app1/database-migration/target/database-migration-1.0-SNAPSHOT.jar!/db/migration
+    02/16/2018 18:38:15 DEBUG org.flywaydb.core.internal.util.FeatureDetector JBoss VFS v2 available: false
+    02/16/2018 18:38:15 DEBUG org.flywaydb.core.internal.util.scanner.classpath.ClassPathScanner Filtering out resource: db/migration/ (filename: )
+    02/16/2018 18:38:15 DEBUG org.flywaydb.core.internal.util.scanner.classpath.ClassPathScanner Filtering out resource: db/migration/V1.1__baseline.sql (filename: V1.1__baseline.sql)
+    02/16/2018 18:38:15 INFO  org.flywaydb.core.internal.command.DbValidate Successfully validated 2 migrations (execution time 00:00.009s)
+    02/16/2018 18:38:15 DEBUG org.flywaydb.core.internal.command.DbSchemas Schema "app1_db" already exists. Skipping schema creation.
+    02/16/2018 18:38:15 INFO  org.flywaydb.core.internal.command.DbMigrate Current version of schema "app1_db": 1.1
+    02/16/2018 18:38:15 INFO  org.flywaydb.core.internal.command.DbMigrate Schema "app1_db" is up to date. No migration necessary.
+    02/16/2018 18:38:15 DEBUG com.lessons.Migrate main() finished.
