@@ -1,0 +1,151 @@
+Lesson:  Add a REST End Point to your SpringBoot App
+----------------------------------------------------
+
+We're going to create a REST endpoint
+  /api/dashboard/time which will return the database date/time
+
+So, if you use your browser and connect to
+  http://localhost:8080/app1//api/dashboard/time
+Then, you should see the database date/time
+
+
+Procedure
+---------
+  1. Add these dependencies to your webapp/pom.xml
+
+         <dependency>
+             <groupId>org.springframework</groupId>
+             <artifactId>spring-jdbc</artifactId>
+             <verison>5.0.3.RELEASE</verison>
+         </dependency>
+
+         <dependency>
+             <groupId>org.springframework</groupId>
+             <artifactId>spring-web</artifactId>
+             <version>5.0.3.RELEASE</version>
+         </dependency>
+
+         <dependency>
+             <!-- Implementation for converting objects to JSON -->
+             <groupId>com.fasterxml.jackson.core</groupId>
+             <artifactId>jackson-databind</artifactId>
+             <version>2.9.3</version>
+         </dependency>
+
+
+ 2. Create this class:  DashboardDao
+    a. Right-click on webapp/src/main/java/com/lessons -> New Package
+       Package Name:  services
+
+    b. Right-click on services -> New Java Class
+       Name:  DashboardDao
+
+    c. Copy this to your class
+
+            package com.lessons.services;
+
+            import org.slf4j.Logger;
+            import org.slf4j.LoggerFactory;
+            import org.springframework.jdbc.core.JdbcTemplate;
+            import org.springframework.stereotype.Service;
+
+            import javax.annotation.Resource;
+            import javax.sql.DataSource;
+
+            @Service
+            public class DashboardDao
+            {
+                private static final Logger logger = LoggerFactory.getLogger(DashboardDao.class);
+
+                @Resource
+                private DataSource dataSource;
+
+                public DashboardDao()
+                {
+                    logger.debug("DashboardDao() Constructor called");
+                }
+
+
+                public String getDatabaseTime()
+                {
+                    logger.debug("getDatabaseTime() started.");
+
+                    // Run a SQL query to get the current date time
+                    String sql = "Select NOW()";
+                    JdbcTemplate jt = new JdbcTemplate(this.dataSource);
+                    String sDateTime = jt.queryForObject(sql, String.class);
+                    logger.debug("Database Time is {}", sDateTime);
+
+                    return sDateTime;
+                }
+            }
+
+
+   3. Create this file:  DashboardController
+      a. Right-click on webapp/src/main/java/com/lessons/controllers -> New Java Class
+         Name: DashboardController
+
+      b. Copy this to your new class
+            package com.lessons.controllers;
+
+
+            import com.lessons.services.DashboardDao;
+            import org.slf4j.Logger;
+            import org.slf4j.LoggerFactory;
+            import org.springframework.http.HttpStatus;
+            import org.springframework.http.MediaType;
+            import org.springframework.http.ResponseEntity;
+            import org.springframework.stereotype.Controller;
+            import org.springframework.web.bind.annotation.RequestMapping;
+            import org.springframework.web.bind.annotation.RequestMethod;
+
+            import javax.annotation.Resource;
+
+            @Controller("com.lessons.controllers.DashboardController")
+            public class DashboardController {
+                private static final Logger logger = LoggerFactory.getLogger(DashboardController.class);
+
+                @Resource
+                private DashboardDao dashboardDao;
+
+
+                /*************************************************************************
+                 * getDateTime()
+                 * @return JSON string that holds the date/time
+                 *************************************************************************/
+                @RequestMapping(value = "/api/dashboard/time", method = RequestMethod.GET, produces = "application/json")
+                public ResponseEntity<?> getDateTime() {
+                    logger.debug("getDashboardDetails() started.");
+
+                    // Get the date/time from the database
+                    String sDateTime = dashboardDao.getDatabaseTime();
+
+                    // Return the date/time string as plain-text
+                    return ResponseEntity
+                            .status(HttpStatus.OK)
+                            .contentType(MediaType.TEXT_PLAIN)
+                            .body(sDateTime);
+                }
+            }
+
+ 4. Startup your SpringBoot App in debug mode
+    ASSUMPTION:  Your postgres database is up and it was created (see lesson07)
+    a. Set a breakpoint in the DashboardController around line 33
+    b. Go to your App.java class
+    c. Right-click on the main() -> Debug 'App'
+
+       You should see this in the console:
+
+       02/16/2018 22:39:21 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Returning cached instance of singleton bean 'springApplicationAdminRegistrar'
+       02/16/2018 22:39:21 DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory Returning cached instance of singleton bean 'autoConfigurationReport'
+       02/16/2018 22:39:21 DEBUG com.lessons.App WebApp is Up.
+
+
+ 5. Connect to your REST endpoint
+    a. Open a browser
+    b. Go to http://localhost:8080/app1/api/dashboard/time
+
+       -- You should reach your breakpoint
+       -- Press F9 to continue
+
+       -- You should see the current date/time in your browser

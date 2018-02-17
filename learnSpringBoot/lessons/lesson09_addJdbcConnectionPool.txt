@@ -1,0 +1,111 @@
+Lesson:  Add a JDBC Connection Pool to your Spring Boot Web App
+---------------------------------------------------------------
+
+Assumptions:
+ A) You have a postgres database
+ B) You can use the following database credentials to connect:
+      hostname:  localhost
+      user:      app1_user
+      password:  secret
+      schema:    app1_db
+ C) You want your webapp to talk with a postgreSQL database
+ D) You want to use C3P0 to manage the pool of connections
+ E) You want to store your jdbc properties in the application.yaml (default config file for spring boot)
+
+
+Procedure
+---------
+ 1. Add these dependencies to your webapp/pom.xml
+
+        <dependency>
+            <!-- Add the dependency for your postgreSQL JDBC driver -->
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.1.4</version>
+        </dependency>
+
+        <dependency>
+            <!-- Hikari Data Source / JDBC Connection Pool -->
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+            <verison>2.6.0</verison>
+        </dependency>
+
+
+ 2. Add the database properties to your application.yaml
+    a. Edit webapp/src/main/resources/application.yaml
+
+    b. Add these entries
+       (Don't worry, we will encode the username/password later)
+
+        ###########################################################
+        # Database Settings
+        ##########################################################
+        app.datasource:
+            driver-class-name: org.postgresql.Driver
+            url: jdbc:postgresql://localhost:5432/app1_db
+            username: app1_user
+            password: secret
+            maxPoolSize: 10
+
+
+ 3. Create this class:  DataSourceConfig
+    a. Right-click on webapp/src/main/java/com/lessons -> New Package
+       Package Name:  config
+
+    b. Right-click on config -> New Java Class
+       Name:  DataSourceConfig
+
+    c. Copy this to your new class
+
+        package com.lessons.config;
+
+        import com.zaxxer.hikari.HikariConfig;
+        import com.zaxxer.hikari.HikariDataSource;
+        import org.springframework.beans.factory.annotation.Value;
+        import org.springframework.context.annotation.Bean;
+        import org.springframework.context.annotation.Configuration;
+
+        import javax.sql.DataSource;
+
+        @Configuration
+        public class DataSourceConfig {
+
+            @Value("${app.datasource.driver-class-name}")
+            private String driverClassName;
+
+            @Value("${app.datasource.url}")
+            private String url;
+
+            @Value("${app.datasource.username}")
+            private String username;
+
+            @Value("${app.datasource.password}")
+            private String password;
+
+            @Value("${app.datasource.maxPoolSize:20}")
+            private int maxPoolSize;
+
+            @Bean
+            public DataSource dataSource() {
+                HikariConfig hikariConfig = new HikariConfig();
+
+                hikariConfig.setDriverClassName(this.driverClassName);
+                hikariConfig.setJdbcUrl(this.url);
+                hikariConfig.setUsername(this.username);
+                hikariConfig.setPassword(this.password);
+                hikariConfig.setMaximumPoolSize(this.maxPoolSize);
+                hikariConfig.setConnectionTestQuery("SELECT 1");
+                hikariConfig.setPoolName("app1_jdbc_connection_pool");
+
+                HikariDataSource dataSource = new HikariDataSource(hikariConfig);
+                return dataSource;
+            }
+
+        }
+
+
+Now, we can inject this data source into any spring bean class using this:
+    @Resource
+    private DataSource dataSource;
+
