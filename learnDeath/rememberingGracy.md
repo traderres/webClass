@@ -2,7 +2,7 @@ On Fri 3/2/2018, Gracy passed away.
 
 Tricia & I had a feeling that we were near the end, but we didn't want to admi it.  But, I want to remember Gracy for how she was:  warm, gentle, playful, and alive.
 
-In the Summer of 2000, Tricia & I got her from the Howard County shelter.  I remember all of the little kitties.  And, Tricia was begging me, "Oh honey....Can we get three?"  In the end, we saw this one lethargic cat and went with her.  And, we named her Gracy.  Although, I keep changing my mind of the spelling of her last name. 
+In the Summer of 2000, Tricia & I got her from the Howard County shelter.  I remember all of the little kitties.  And, Tricia was begging me, "Oh honey....Can we get three?"  In the end, we saw this one lethargic cat and went with her.  We had no idea if this cat would be nice or not.  All that we were sure of was the cat had surgery recently and was perhaps a year old.  And, we named her Gracy.  Although, I keep changing my mind of the spelling of her last name. 
 
 We lived in an apartment and Gracy was marking her territory:  peeing on the bed and the carpet.  But, after awhile she got passed that.  She was our kitty.
 
