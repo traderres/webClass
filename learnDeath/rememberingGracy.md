@@ -18,6 +18,8 @@ Over the last few months, we noticed that Gracy has become a "lap kitty" -- i.e.
 
 On Thursday 3/1/2018, we noticed that Gracy was having problems moving.  She could barely walk.  She wasn't eating.  I feared the worst but never told Tricia.  On Friday morning 3/2/2018, my fears came true.  The doctor asked if we wanted to be around when they put her to sleep.  No one wanted to.  We drove home to an empty house.  Memories are everwhere.  
 
-But, on this incredilby sad day, I'm grateful for a few things:  (1) We all got a chance to say good bye, (2) we ended the suffering, and (3) We get this weekend to reflect.  
+But, on this incredilby sad day, I'm grateful for a few things:  (1) We all got a chance to say good bye, (2) we ended the suffering, and (3) how lucky we were to have 18 wonderful years with her.  
+
+Goodbye, Gracy.  We will miss you.
 
 
