@@ -12,9 +12,53 @@ Procedures
     
  3. Install rsyslog
     unix> sudo yum install rsyslog
+ 
+ 4. Install rsyslog TLS utilities
+    unix> sudo yum install rsyslog-gnutls
     
- 4. Configure rsyslog
+ 5. Get the CA Certs from your administrator
+    Copy the keys to here:  /etc/rsyslog.d/keys/G2-CA-Bundle.pem
+    unix> sudo mkdir -p /etc/rsyslog.d/keys
+    unix> sudo cp /tmp/CA-Bundle.pem /etc/rsyslog.d/keys
+    
+ 6. Create this file:  /etc/rsyslog.d/22-greylog.conf
+    unix> sudo vi /etc/rsyslog.d/22-greylog.conf
+
+    ################################################################
+    # Configuration to push syslog events to syslog_server
+    ################################################################
+
+    # Setup disk assisted queues
+    $WorkDirectory /var/spool/rsyslog # where to place spool files
+    $ActionQueueFileName fwdRule1     # unique name prefix for spool files
+    $ActionQueueMaxDiskSpace 1g       # 1gb space limit (use as much as possible)
+    $ActionQueueSaveOnShutdown on     # save messages to disk on shutdown
+    $ActionQueueType LinkedList       # run asynchronously
+    $ActionResumeRetryCount -1        # infinite retries if host is down
+
+    #RsyslogGnuTLS
+    $DefaultNetstreamDriverCAFile /etc/rsyslog.d/keys/CA-Bundle.pem
+
+    template(name="G2Format" type="string"
+    string="<%pri%>%protocol-version% %timestamp:::date-rfc3339% %HOSTNAME% %app-name% %procid% %msgid% [TOKEN@41058 tag=\"RsyslogTLS\"] %msg%\n"
+    )
+
+    # Send messages to Loggly over TCP using the template.
+    action(type="omfwd" protocol="tcp" target="DESTINATION_SERVER.someone.com" port="DESTINATION_SERVER_PORT" template="G2Format" StreamDriver="gtls" StreamDriverMode="1" StreamDriverAuthMode="x509/name" StreamDriverPermittedPeers="*.g2-inc.com")
+
+ 
+ 7. Increase the message size
+    unix> sudo -s
+    unix> cp /etc/rsyslog.conf /etc/rsyslog.conf.ORIG
     unix> vi /etc/rsyslog.conf
     
-    a. Uncomment the TCP syslog reception
+    # Add this line to it
+    $MaxMessageSize 64k
+
+ 8. Restart the rsyslog service
+    unix> systemctl restart rsyslog.service
+    
+ 9. Open a tail window
+    unix> sudo tail -f /var/log/messages
+    
     
