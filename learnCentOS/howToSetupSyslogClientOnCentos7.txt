@@ -49,7 +49,7 @@ Procedures
     )
 
     # Send messages to Loggly over TCP using the template.
-    action(type="omfwd" protocol="tcp" target="DESTINATION_SERVER.someone.com" port="DESTINATION_SERVER_PORT" template="G2Format" StreamDriver="gtls" StreamDriverMode="1" StreamDriverAuthMode="x509/name" StreamDriverPermittedPeers="*.g2-inc.com")
+    action(type="omfwd" protocol="tcp" target="<DESTINATION_SERVER>.someone.com" port="<DESTINATION_SERVER_PORT>" template="G2Format" StreamDriver="gtls" StreamDriverMode="1" StreamDriverAuthMode="x509/name" StreamDriverPermittedPeers="*.<DESTINATION_SERVER_DOMAIN>.com")
 
  
  7. Increase the message size
@@ -61,9 +61,39 @@ Procedures
     $MaxMessageSize 64k
 
  8. Restart the rsyslog service
-    unix> systemctl restart rsyslog.service
+    unix> sudo systemctl restart rsyslog.service
     
  9. Open a tail window
     unix> sudo tail -f /var/log/messages
     
+    At this point, you are probably seeing this message in /var/log/messages (everytime you restart the rsyslog.service)s
     
+    Mar  7 09:41:40 myCentos python: SELinux is preventing /usr/sbin/rsyslogd from name_connect access on the tcp_socket port 5014.#012#012*****  Plugin connect_ports (92.2 confidence) suggests   *********************#012#012If you want to allow /usr/sbin/rsyslogd to connect to network port 5014#012Then you need to modify the port type.#012Do#012# semanage port -a -t PORT_TYPE -p tcp 5014#012    where PORT_TYPE is one of the following: dns_port_t, dnssec_port_t, kerberos_port_t, mysqld_port_t, ocsp_port_t, postgresql_port_t, rsh_port_t, syslog_tls_port_t, syslogd_port_t.#012#012*****  Plugin catchall_boolean (7.83 confidence) suggests   ******************#012#012If you want to allow nis to enabled#012Then you must tell SELinux about this by enabling the 'nis_enabled' boolean.#012You can read 'None' man page for more details.#012Do#012setsebool -P nis_enabled 1#012#012*****  Plugin catchall (1.41 confidence) suggests   **************************#012#012If you believe that rsyslogd should be allowed name_connect access on the port 5014 tcp_socket by default.#012Then you should report this as a bug.#012You can generate a local policy module to allow this access.#012Do#012allow this access for now by executing:#012# ausearch -c '72733A6D61696E20513A526567' --raw | audit2allow -M my-72733A6D61696E20513A526567#012# semodule -i my-72733A6D61696E20513A526567.pp#012
+
+10. Configure SELinux to allow your connections to get out of port 5014 (or change to your rsyslog port)
+    a. Install the tools
+       unix> sudo yum install policycoreutils setroubleshoot
+        
+    b. List existing open ports
+       unix> sudo semanage port -l | grep syslog
+       syslog_tls_port_t              tcp      6514
+       syslog_tls_port_t              udp      6514
+       syslogd_port_t                 tcp      601
+       syslogd_port_t                 udp      514, 601
+
+    c. Open up port 5014
+       unix> sudo semanage port -a -t syslog_tls_port_t -p tcp 5014
+   
+    d. List existing open ports (you should now see the new port)
+       syslog_tls_port_t              tcp      5014, 6514
+       syslog_tls_port_t              udp      6514
+       syslogd_port_t                 tcp      601
+       syslogd_port_t                 udp      514, 601
+
+11. Allow SE to authorize the /var/spool/rsyslog directory
+    unix> sudo mkdir -p /var/spool/rsyslog
+    unix> sudo semanage fcontext -a -t syslogd_var_lib_t "/var/spool/rsyslog/*"
+    unix> sudo restorecon -R -v /var/spool/rsyslog
+
+12. Restart the rsyslog service
+    unix> sudo systemctl restart rsyslog.service
