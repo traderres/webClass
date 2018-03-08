@@ -1,0 +1,215 @@
+How to Install Sophos AntiVirus for Linux (Free)
+------------------------------------------------
+
+References
+----------
+https://elatov.github.io/2017/07/sophos-9-on-centos-7/#compiling-the-talpa-module
+
+
+
+Procedure
+---------
+ 1. Download Sophoa Antivirus For Linux
+    a. Go to https://www.sophos.com/en-us/products/free-tools/sophos-antivirus-for-linux.aspx
+    b. Click on "Get Started"
+       or
+       Go to https://secure2.sophos.com/en-us/products/free-tools/sophos-antivirus-for-linux/download.aspx
+
+    c. Enter a bogus firstname, lastname, and bogus email address
+       Press "Submit"
+
+    d. In the Thank You page, press "Download"
+    e. In the "End User License Agreement" page,
+       Check the option next to "I accept the terms and conditions"
+       press "Submit"
+    f. In the "Software Export Compliance" page, fill-it in
+       press "Submit"
+       -- Save sav-linux-free-9.tgz to your ~/Downloads directory
+
+       *OR*
+
+       Go to https://secure2.sophos.com/Pages/DownloadRedirect.aspx?downloadKey=8f2ca4a9-f6b1-44be-816c-d7d08461b795&
+
+  2. Unzip the file
+     unix> cd ~/Downloads
+     unix> tar zxvf sav-linux-free-9.tgz
+     unix> cd sophos-av
+
+     unix> ls -l
+     -rwxr-xr-x. 1 adam adam      1415 Jan  9 10:48 install.sh*
+     -rw-r--r--. 1 adam adam 261468160 Jan  9 10:48 sav.tar
+     -rw-r--r--. 1 adam adam 300564480 Jan  9 10:48 talpa.tar
+     -rw-r--r--. 1 adam adam  29071360 Jan  9 10:48 uncdownload.tar
+
+  3. Run the installer  (install.sh)
+     unix> sudo ./install.sh
+
+            Sophos Anti-Virus
+            =================
+            Copyright 1989-2018 Sophos Limited. All rights reserved.
+
+            Welcome to the Sophos Anti-Virus installer. Sophos Anti-Virus contains an on-access scanner, an on-
+            demand command-line scanner and the Sophos Anti-Virus daemon.
+
+            On-access scanner         Scans files as they are accessed, and grants access
+                                      to only those that are threat-free.
+            On-demand scanner         Scans the computer, or parts of the computer,
+                                      immediately.
+            Sophos Anti-Virus daemon  Background process that provides control, logging,
+                                      and email alerting for Sophos Anti-Virus.
+
+
+            Press <return> to display Licence. Then press <spc> to scroll forward.
+
+      Press q
+
+
+      Do you accept the license?  Y and <Enter>
+
+      Where do you want to install Sophos Anti-Virus? [/opt/sophos-av]   <Press Enter to use default dir>
+
+      Do you want to enable on-access scanning? Yes(Y)/No(N) [Y]   Y and <Enter>
+
+      Which type of auto-updating do you want? From Sophos(s)/From own server(o)/None(n)   s and <Enter>
+
+      Do you wish to install the Free (f) or Supported (s) version of SAV for Linux?   f and <Enter>
+
+      The Free version of Sophos Anti-Virus for Linux comes with no support.
+      Forums are available for our free tools at http://openforum.sophos.com/
+      Do you need a proxy to access Sophos updates? Yes(Y)/No(N) [N]     N and <Enter>
+
+
+      Fetching free update credentials.
+      Installing Sophos Anti-Virus....
+      Selecting appropriate kernel support...
+      When Sophos Anti-Virus starts, it updates itself to try to find a Sophos kernel interface module update. This might cause a significant delay.
+      Sophos Anti-Virus starts after installation.
+
+      Installation completed.
+      Your computer is now protected by Sophos Anti-Virus.
+
+      NOTE: You are running Sophos Anti-Virus on a kernel for which Sophos does not provide binary kernel
+      modules. Therefore the kernel modules have been locally compiled. Please see KBA14377 for supported
+      platforms and kernels.
+
+
+ 5. Verify that the modules are loaded
+    unix> lsmod | grep tal
+
+    You should see this:
+        talpa_vfshook          40020  0
+        talpa_pedconnector     12509  0
+        talpa_pedevice         13563  2 talpa_pedconnector
+        talpa_vcdevice         13129  10
+        talpa_core             96717  3 talpa_vfshook,talpa_vcdevice
+        talpa_linux            34796  4 talpa_vfshook,talpa_vcdevice,talpa_core
+        talpa_syscallhook      20315  1 talpa_vfshook
+
+
+ 6. Manually update Sophos
+    Sophos is configured to run every 1 hour, but we can run it manually
+    unix> /opt/sophos-av/bin/savupdate
+
+    You should see this:
+        Updating from versions - SAV: 9.14.2, Engine: 3.70.2, Data: 5.46
+        Updating Sophos Anti-Virus....
+        Updating Talpa Binary Packs
+        Updating SAVScan on-demand scanner
+        Updating Virus Engine and Data
+        Updating Talpa Kernel Support
+        Updating Manifest
+        Selecting appropriate kernel support...
+        Update completed.
+        Updated to versions - SAV: 9.14.2, Engine: 3.70.2, Data: 5.48
+        Successfully updated Sophos Anti-Virus from sdds:SOPHOS
+
+ 7. Restart the service after the update
+    unix> systemctl restart sav-protect.service
+
+ 8. Verify that the services are enabled
+    unix> /opt/sophos-av/bin/savdstatus
+    Sophos Anti-Virus is active and on-access scanning is running
+
+    unix> /opt/sophos-av/bin/savconfig query EnableOnStart
+    true
+
+    unix> /opt/sophos-av/bin/savconfig query LiveProtection
+    enabled
+
+ 9. There are 2 services that are disabled (not sure why)
+    unix> systemctl list-unit-files| grep sav
+    sav-protect.service                           enabled
+    sav-rms.service                               disabled
+    sav-update.service                            disabled
+
+10. Examine basic settings
+    a. Examine basic settings
+       unix> /opt/sophos-av/bin/savconfig query
+
+       You should see this:
+            Email: root@localhost
+            EmailDemandSummaryIfThreat: true
+            EmailLanguage: English
+            EmailNotifier: true
+            EmailServer: localhost:25
+            EnableOnStart: true
+            ExclusionEncodings: UTF-8
+                                EUC-JP
+                                ISO-8859-1
+            LogMaxSizeMB: 100
+            NotifyOnUpdate: false
+            PrimaryUpdateSourcePath: sophos:
+            PrimaryUpdateUsername: FAVLmLKSCLNLD
+            PrimaryUpdatePassword: ********
+            UploadSamples: false
+            SendErrorEmail: true
+            SendThreatEmail: true
+
+    b. Examine all settings
+       unix> /opt/sophos-av/bin/savconfig --advanced query
+
+
+11. Enable the option to be notified on an update:
+
+    a. Examine the setting before the change
+       unix> /opt/sophos-av/bin/savconfig --advanced query | grep -i notifyonupdate
+       NotifyOnUpdate: false
+       NotifyOnUpdateCheck: false
+
+    b. Change notify on update to true
+       unix> /opt/sophos-av/bin/savconfig set NotifyOnUpdate true
+
+    c. Examine the setting after the change
+       unix> /opt/sophos-av/bin/savconfig --advanced query | grep -i notifyonupdate
+       NotifyOnUpdate: true
+       NotifyOnUpdateCheck: false
+
+
+12. By default, the update period is 60 minutes.  Change this to once every 4 hours
+    a. Examine the setting before the change
+       unix> /opt/sophos-av/bin/savconfig --advanced query | grep -i updateperiodminutes
+       UpdatePeriodMinutes: 60
+
+    b. Change to 240 minutes (4 hours)
+       /opt/sophos-av/bin/savconfig set UpdatePeriodMinutes 240
+
+    c. Examine the setting after the change
+       unix> /opt/sophos-av/bin/savconfig --advanced query | grep -i updateperiodminutes
+       UpdatePeriodMinutes: 240
+
+13. Run a quick scan manually
+    unix> /opt/sophos-av/bin/savscan /
+
+14. Setup a schedule to scan weekly
+
+
+    opt/sophos-av/bin/savconfig set UpdatePeriodMinutes 1440
+
+
+
+
+
+
+ How to Uninstall Sophos
+ -----------------------
+ unix> sudo /opt/sophos-av/uninstall.sh
