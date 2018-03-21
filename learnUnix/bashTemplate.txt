@@ -1,0 +1,132 @@
+This is my standard Bash script template
+----------------------------------------
+
+#!/bin/bash
+#######################################################
+# Filename:  something.sh
+#######################################################
+# Purpose:
+#   Provide a way to do something
+#
+# Design:
+#   1) Verify command-line arguments
+#   2) Run some operations
+#
+# Usage:
+#   1) unix> chomd ugo+x ./backupDatabase.sh
+#   1) unix> ./something.sh --days-to-keep=14     # Run and keep backups younger than 14 days
+#   1) unix> ./something.sh                       # Run and do not delete any backups
+#
+# Assumptions:
+#   1) Assume this
+#   2) Assume that
+#
+# 
+# History:
+#   Create Date:  03/21/2018
+#######################################################
+DAYS_TO_KEEP=0                                        # Command-line-arg --days-to-keep       sets this value
+
+readonly SCRIPT_ARGS="$@"                            # Holds the command line arguments
+readonly SCRIPT_NAME=`basename $0`                   # Holds the name of this bash script
+readonly TMP_FILE_PATH=/tmp/${SCRIPT_NAME}.$$.tmp    # Holds the path of temporary files
+readonly DATABASE_PREFIX"database_"
+readonly DATABASE_SUFFIX=".bak"
+
+
+#######################################################
+# main()
+#
+#######################################################
+function main()
+{
+  # S C R I P T        S T A R T S       H E R E
+  echo "${SCRIPT_NAME} started as of `date`"
+
+  # Part 1:  Parse Command Line Arguments
+  parseCommandLineArguments
+
+
+  # S C R I P T         E N D S        H E R E
+  echo -e "\n${SCRIPT_NAME} finished successfully as of `date`"
+  exit 0
+}
+
+
+#######################################################
+# cleanup()
+#
+# This method is always called before the script ends
+#######################################################
+function cleanup() 
+{
+  # Clean-up the tmp file
+  rm -f $TMP_FILE_PATH
+}
+
+# Tell bash to call cleanup() when the program ends
+# NOTE:  Whether the program crashes or succeeds, this method is the last method called
+trap cleanup EXIT
+
+
+#######################################################
+# displayUsage()
+# -- Display the usage statement
+#######################################################
+function displayUsage()
+{
+  # Display a multi-line-string with the usage statement
+  cat << EOF
+
+   ${SCRIPT_NAME} --days-to-keep=<number of days to keep as an integer>
+
+   Assumptions:
+     1) The database server is on the same hostname as this script
+
+EOF
+}
+
+
+#######################################################
+# parseCommandLineArguments()
+#
+# Examine the command line arguments
+# Verify that the command line arguments are valid
+# If valid, set the global vars
+#######################################################
+function parseCommandLineArguments()
+{
+
+  # Parse Command Line Arguments
+  for arg in ${SCRIPT_ARGS[*]}; do
+    case $arg in
+        --days-to-keep=*)       DAYS_TO_KEEP="${arg#*=}"; shift 1;;
+    esac
+  done
+
+ 
+  if [[ -z "$DAYS_TO_KEEP" ]]; then
+     # The user passed-in an empty string for --days-to-keep
+     displayUsage
+     echo "The --days-to-keep value must be greater than zero.  Please specify --days-to-keep=<positive number>"
+     exit 1
+  elif ! [[ $DAYS_TO_KEEP =~ ^[\-0-9]+$ ]]; then
+     # The user passed-in a value that is not a number
+     displayUsage
+     echo "The --days-to-keep value must be greater than zero.  Please specify --days-to-keep=<positive number>"
+     exit 1
+  elif (( $DAYS_TO_KEEP < 0 )); then
+     # The user passed-in a value that is negative
+     displayUsage
+     echo "The --days-to-keep value must be greater than zero.  Please specify --days-to-keep=<positive number>"
+     exit 1
+  fi  
+
+  echo -e "Command line arguments were successfully parsed:"
+  echo -e "\tDAYS_TO_KEEP = ${DAYS_TO_KEEP}"
+}
+
+
+
+# Run the main() function
+main
