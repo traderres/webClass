@@ -1,25 +1,25 @@
 This is my standard Bash script template
 ----------------------------------------
 
-#!/bin/bash
 #######################################################
-# Filename:  something.sh
+# Filename:  backupDatabase.sh
 #######################################################
 # Purpose:
-#   Provide a way to do something
+#   Provide a way to backup the production Postgres database
+#   and to age-off older versions of the backups
 #
 # Design:
 #   1) Verify command-line arguments
-#   2) Run some operations
+#   2) Backup the current production database (get all schemas inside of it)
+#   3) Delete old backups (based on command-line arguments)
 #
 # Usage:
 #   1) unix> chomd ugo+x ./backupDatabase.sh
-#   1) unix> ./something.sh --days-to-keep=14     # Run and keep backups younger than 14 days
-#   1) unix> ./something.sh                       # Run and do not delete any backups
+#   1) unix> ./backupDatabase.sh --days-to-keep=14     # Backup and keep backups younger than 14 days
+#   1) unix> ./backupDatabase.sh                       # Backup and do not delete any backups
 #
 # Assumptions:
-#   1) Assume this
-#   2) Assume that
+#   1) This script assumes that database files have this name:  database_YYYYMMDD.bak
 #
 # 
 # History:
@@ -30,7 +30,7 @@ DAYS_TO_KEEP=0                                        # Command-line-arg --days-
 readonly SCRIPT_ARGS="$@"                            # Holds the command line arguments
 readonly SCRIPT_NAME=`basename $0`                   # Holds the name of this bash script
 readonly TMP_FILE_PATH=/tmp/${SCRIPT_NAME}.$$.tmp    # Holds the path of temporary files
-readonly DATABASE_PREFIX="database_"
+readonly DATABASE_PREFIX="prod_"
 readonly DATABASE_SUFFIX=".bak"
 
 
@@ -46,6 +46,11 @@ function main()
   # Part 1:  Parse Command Line Arguments
   parseCommandLineArguments
 
+  # Part 2:  Backup current production database
+  backupDatabase "$DATABASE_PREFIX" "$DATABASE_SUFFIX"
+
+  # Part 3:  Delete older backups
+  ageoffBackups "$DATABASE_PREFIX" "$DATABASE_SUFFIX" $DAYS_TO_KEEP
 
   # S C R I P T         E N D S        H E R E
   echo -e "\n${SCRIPT_NAME} finished successfully as of `date`"
@@ -126,6 +131,40 @@ function parseCommandLineArguments()
   echo -e "\tDAYS_TO_KEEP = ${DAYS_TO_KEEP}"
 }
 
+
+#######################################################
+# backupDatabase()
+#
+#######################################################
+function backupDatabase()
+{
+   local aDatabasePrefix=$1
+   local aDatabaseSuffix=$2
+
+   echo -e "backupDatabase()   prefix=$aDatabasePrefix   suffix=$aDatabaseSuffix"
+}
+
+
+#######################################################
+# ageoffBackups()
+#
+#######################################################
+function ageoffBackups()
+{
+   local aDatabasePrefix=$1
+   local aDatabaseSuffix=$2
+   local aDaysToKeep=$3
+
+   echo -e "ageoffBackups()   prefix=$aDatabasePrefix   suffix=$aDatabaseSuffix  daysToKeep=$aDaysToKeep"
+
+   if [ "$aDaysToKeep" -eq "0" ]; then
+      # The days to keep is zero.  So, exit this function here
+      echo -e "\tDays to keep is zero:  Not going to age off any old backups."
+      return 0
+   fi
+
+   echo "Aging off stuf."
+}
 
 
 # Run the main() function
