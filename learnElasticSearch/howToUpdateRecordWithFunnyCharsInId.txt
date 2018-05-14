@@ -1,0 +1,34 @@
+How to update an ES record with these strange _ID values
+--------------------------------------------------------
+Problem:  You want to update a record but your ID has some strange characters in it -- e.g., \u0000
+
+The trick:  You need to urlencode *AND*
+            handle the \u0000
+            
+            
+Procedure
+---------
+1. Create your update.json
+   unix> vi /tmp/update.json
+   {
+     "doc": { "result": "negative" } 
+   }
+
+ 
+2. Get your _ID
+   for example:  eems\u0000zeus.ingest.root:36:4:ArMxfsTKNC/NSu0y6nLBWjv8pLrg2qYPJLA05u4fmtQ=
+
+3. Urlencode it
+   NOTE:  the \u0000 will be converted to %5Cu0000
+   a. Go to https://www.url-encode-decode.com/
+   b. Paste-in the ID
+   c. Pull the right side:   eems%5Cu0000zeus.ingest.root%3A36%3A4%3AArMxfsTKNC%2FNSu0y6nLBWjv8pLrg2qYPJLA05u4fmtQ%3D
+
+4. Replace %5Cu0000 with %00
+      _ID becomes this:      eems%00zeus.ingest.root%3A36%3A4%3AArMxfsTKNC%2FNSu0y6nLBWjv8pLrg2qYPJLA05u4fmtQ%3D
+
+5. Run your update
+   unix> export RECORDID='eems%00zeus.ingest.root%3A36%3A4%3AArMxfsTKNC%2FNSu0y6nLBWjv8pLrg2qYPJLA05u4fmtQ%3D'
+   unix> curl  -k --cert "/etc/pki/private/`hostname`.pem" -XPOST "https://`hostname`:9200/eems/record/${RECORDID}/_update?pretty" --data-binary @/tmp/update.json 
+
+
