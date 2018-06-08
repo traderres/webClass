@@ -1,0 +1,370 @@
+Sample Bash Script to convert files in HDFS from UTF-16 to UTF-8
+----------------------------------------------------------------
+
+#!/bin/bash
+#######################################################
+# Filename:  convertFilesToUtf8.sh
+#######################################################
+# Purpose:
+#   Convert UTF-16 files to UTF-8
+#
+# Design:
+#   1) Parse command-line arguments
+#   2) Copy HDFS to local filesystem:  Copy the entire HDFS /source_hdfs_dir to the /srv/source_hdfs_dir
+#   3) Backup HDFS:  Copy the entire hdfs://source_hdfs_dir to hdfs://source_hdfs_dir.orig
+#   4) Loop through all files in local fileystem that are .txt files
+#      if file is UTF-16, 
+#         attempt to convert the original file to UTF-8
+#         If conversion failed
+#             Log that this file was not converted
+#         Else
+#             Log that this file was converted
+#
+#   5) Copy the local filesystem (/srv/source_hdfs_dir) to hdfs://source_hdfs_dir
+#   6) Setup permissions on /srv/source_hdfs_dir so that they are owned by cde:cde
+#
+# Usage:
+#   1) Create a local directory that the yarn user can read/write to
+#      unix> sudo -s
+#      unix> mkdir -p /srv/convert
+#      unix> chown yarn:yarn -R /srv/convert
+#
+#   2) Put the convertFileToUtf8.sh script in the /srv directory
+#      unix> mv /tmp/convertFilesToUtf8.sh /srv
+#      unix> chown yarn:yarn -R /srv/convertFilesToUtf8.sh
+#      unix> chmod u+rwx /srv/convertFilesToUtf8.sh
+#
+#   3) Run the script
+#      unix> su - yarn
+#      unix> cd /srv
+#      unix> ./convertFilesToUtf8.sh | tee /tmp/convertFilesToUtf8.log
+#
+# Assumptions:
+#   1) This script is run on a hadoop data node (so the hadoop command runs)
+#
+# 
+# History:
+#   Create Date:  06/07/2018
+#######################################################
+SOURCE_HDFS_DIR="/source_hdfs_dir"                               # By default, assume source hdfs dir is hdfs://source_hdfs_dir
+SOURCE_HDFS_DIR_PERMISSIONS="someone:someone"
+TEMP_DIR="/srv/convert"                              # By default, assume temp directory is /srv
+TOTAL_FILES_CONVERTED=0
+
+readonly SCRIPT_ARGS="$@"                            # Holds the command line arguments
+readonly SCRIPT_NAME=`basename $0`                   # Holds the name of this bash script
+readonly TMP_FILE_PATH=/tmp/${SCRIPT_NAME}.$$.tmp    # Holds the path of temporary files
+
+
+#######################################################
+# main()
+#
+#######################################################
+function main()
+{
+  # S C R I P T        S T A R T S       H E R E
+  echo "${SCRIPT_NAME} started as of `date`"
+
+  # Part 1:  Parse Command Line Arguments
+  parseCommandLineArguments
+
+  local localWorkingDir="${TEMP_DIR}/source_hdfs_dir.tmp"
+  local currentDateTime=`date +"%Y%m%d%H%M%S"`
+  local hdfsBackupDir="${SOURCE_HDFS_DIR}.backup.${currentDateTime}"
+  local totalFilesConverted=0
+
+  # Part 2:  Copy Hadoop Files to local file system
+  copyHadoopFilesToLocalFilesystem "${SOURCE_HDFS_DIR}" "${localWorkingDir}"
+
+  # Part 3:  Backup HDFS:  Copy local file system to a Backup HDFS Dir
+  copyLocalFilesToHadoopDir "${localWorkingDir}"  "${hdfsBackupDir}"
+
+  # Part 4:  Convert all UTF-16 txt files to UTF-8 in the local file system
+  convertLocalFilesToUtf8 "$localWorkingDir"
+
+  if (( $TOTAL_FILES_CONVERTED > 0 )); then
+     # Part 5:  Copy files from local working dir to hdfs
+     echo -e "Some files were successfully converted.  So, copying local file system to hadoop DIR"
+     copyLocalFilesToHadoopDir "${localWorkingDir}"  "${SOURCE_HDFS_DIR}"
+
+     setPermissionsOnHadoopDir "${SOURCE_HDFS_DIR}"
+  else
+      echo -e "No files were converted to UTF-8.  There is no need to copy the local files to Hadoop Dir"
+  fi
+
+
+  # Part 6:  Destroy local working directory
+  deleteLocalDir "$localWorkingDir"
+
+  # S C R I P T         E N D S        H E R E
+  echo -e "\n${SCRIPT_NAME} finished successfully as of `date`"
+  exit 0
+}
+
+
+#######################################################
+# cleanup()
+#
+# This method is always called before the script ends
+#######################################################
+function cleanup() 
+{
+  # Clean-up the tmp file
+  rm -f "$TMP_FILE_PATH"
+}
+
+# Tell bash to call cleanup() when the program ends
+# NOTE:  Whether the program crashes or succeeds, this method is the last method called
+trap cleanup EXIT
+
+
+#######################################################
+# displayUsage()
+# -- Display the usage statement
+#######################################################
+function displayUsage()
+{
+  # Display a multi-line-string with the usage statement
+  cat << EOF
+
+   ${SCRIPT_NAME}
+         --temp-dir=<tmp directory to do conversion of files>.  By default, use /srv/convert
+         --source-hdfs-dir=<hdfs source directory.              By default, use hdfs://source_hdfs_dir
+
+   Assumptions:
+     1) This script is run on a hadoop data node so that the hadoop commands work
+
+EOF
+}
+
+
+#######################################################
+# parseCommandLineArguments()
+#
+# Examine the command line arguments
+# Verify that the command line arguments are valid
+# If valid, set the global vars
+#######################################################
+function parseCommandLineArguments()
+{
+
+  # Parse Command Line Arguments
+  for arg in ${SCRIPT_ARGS[*]}; do
+    case $arg in
+        --temp-dir=*)         TEMP_DIR="${arg#*=}"; shift 1;;
+        --source-hdfs-dir=*)  SOURCE_HDFS_DIR="${arg#*=}"; shift 1;;
+    esac
+  done
+
+  # Verify that the temp directory exists
+  if [ !  -d "$TEMP_DIR" ]; then
+     displayUsage
+     echo "Critical Error:  The --temp-dir directory does not exist: ${TEMP_DIR}"
+     exit 1
+  fi
+
+  # Verify that the hadoop source directory exists
+  hadoop fs -ls "$SOURCE_HDFS_DIR" > /dev/null 2>&1
+  if [ $? -ne 0 ]; then
+     displayUsage
+     echo "Critical Error:  The --source-hdfs-dir directory does not exist in HDFS:  ${SOURCE_HDFS_DIR}"
+     exit 1
+  fi
+
+  echo -e "Command line arguments were successfully parsed:"
+  echo -e "\tTEMP_DIR = ${TEMP_DIR}"
+  echo -e "\tSOURCE_HDFS_DIR = ${SOURCE_HDFS_DIR}"
+}
+
+
+
+#######################################################
+# copyHadoopFilesToLocalFilesystem
+#  1) Delete local dir (if it exists)
+#  2) Copy hadoop dir to local dir
+#######################################################
+function copyHadoopFilesToLocalFilesystem()
+{ 
+   local aHdfsDir=$1
+   local aLocalDir=$2
+
+   echo -e "\ncopyHadoopFilesToLocalFilesystem()  aLocalDir=${aLocalDir}  aHdfsDir=${aHdfsDir}"
+  
+   # Delete the local directory
+   echo -e "\tDeleting local dir:  ${aLocalDir}"
+   rm -rf ${aLocalDir}
+
+   echo -e "\thadoop fs -copyToLocal ${aHdfsDir} ${aLocalDir}"
+   hadoop fs -copyToLocal ${aHdfsDir} ${aLocalDir}
+
+   if [ $? -ne 0 ]; then
+     echo "Critical Error:  Error occurred copying files from hdfs:/${aHdfsDir} to local filesystem ${aLocalDir}"
+     exit 1
+   fi
+
+   echo -e "\tCopy Finished Successfully."
+}
+
+
+#######################################################
+# copyLocalFilesToHadoopDir 
+#  1) Delete HDFS dir (if it exists)
+#  2) Copy local dir to HDFS dir
+#######################################################
+function copyLocalFilesToHadoopDir()
+{
+   local aLocalDir=$1
+   local aHdfsDir=$2
+
+   echo -e "\ncopyLocalFilesToHadoopDir()  aLocalDir=${aLocalDir}  aHdfsDir=${aHdfsDir}"
+
+   echo -e "\tChecking if this backup dir exists in hadoop:  ${aHdfsDir}"
+   hadoop fs -ls ${aHdfsDir} > /dev/null 2>&1
+
+   if [ $? -eq 0 ]; then
+     # The hdfs dir exists -- so delete it
+     echo -e "\tThe HDFS directory exists.  So, deleting it"
+
+     hadoop fs -rm -r -skipTrash ${aHdfsDir}
+     if [ $? -ne 0 ]; then
+       echo "Critical Error:  Failed to delete the hdfs backup dir:  ${aHdfsDir}"
+       exit 1
+     fi
+
+     echo -e "\tHDFS directory successfully deleted: ${aHdfsDir}"
+   fi
+ 
+   echo -e "\thadoop fs -copyFromLocal ${aLocalDir} ${aHdfsDir}"
+   hadoop fs -copyFromLocal ${aLocalDir}  ${aHdfsDir}
+  
+   if [ $? -ne 0 ]; then
+     echo "Critical Error:  Error occurred copying files from ${aLocalDir} to hdfs:/${aHdfsDir}"
+     exit 1
+   fi
+
+   # Verify that the HDFS dir exists
+   hadoop fs -ls "${aHdfsDir}" > /dev/null 2>&1
+
+   if [ $? -ne 0 ]; then
+     echo "Critical Error:  Attempt to copy ${aLocalDir} to HDFS://${aHdfsDir} failed.  The HDFS directory does not exist after copying."
+     exit 1
+   fi
+
+   echo -e "\tThe ${aHdfsDir} looks like this:"
+   hadoop fs -ls "${aHdfsDir}"
+
+   echo -e "\tCopy Finished Successfully."
+}
+
+
+#######################################################
+# setPermissionsOnHadoopDir
+#######################################################
+function setPermissionsOnHadoopDir()
+{
+  local aHdfsDir=$1
+
+   echo -e "\nsetPermissionsOnHadoopDir()  aHdfsDir=${aHdfsDir}"
+
+   # Set permisisons on this directory
+   echo -e "\thadoop fs -chown -R ${SOURCE_HDFS_DIR_PERMISSIONS} \"$aHdfsDir\" "
+   hadoop fs -chown -R ${SOURCE_HDFS_DIR_PERMISSIONS} "$aHdfsDir"
+
+   if [ $? -ne 0 ]; then
+     echo "Critical Error:  I was unable to set the permissions on this hdfs directory:  ${aHdfsDir}"
+     exit 1
+   fi
+   echo -e "\tPermissions were successfully set."
+
+   echo -e "\tThe ${aHdfsDir} looks like this:"
+   hadoop fs -ls "${aHdfsDir}"
+}
+
+
+#######################################################
+# deleteLocalDir
+#######################################################
+function deleteLocalDir()
+{
+    local aLocalDir=$1
+
+    echo -e "\ndeleteLocalDir()  aLocalDir=${aLocalDir}"
+
+    if [ ! -d "$aLocalDir" ]; then
+      echo -e "\tDirectory does not exist.  Nothing to do."
+      return
+    fi
+
+    # The directory exists so attempt to delete it
+    echo -e "\tDirectory exists.  Attempting to delete $aLocalDir"
+    rm -rf "$aLocalDir"
+
+    if [ $? -ne 0 ]; then
+      # Failed to delete the directory
+      echo -e "\tWARNING:  I failed to delete this directory:  $aLocalDir"
+    else
+      echo -e "\tDelete operation succeeded."
+    fi
+}
+
+#######################################################
+# convertLocalFilesToUtf8
+# 1) Examine all files found in the passed-in dir
+# 2) If the file command returns that this is a UTF-16 file
+#     a) Convert files to UTF-8 and save to a tmp file
+#     b) Move the tmp file over the original file
+#
+# Returns total number of files that were converted
+#######################################################
+function convertLocalFilesToUtf8()
+{
+  local localDir=$1
+
+  echo -e "\nconvertLocalFilesToUtf8()   $localDir=${localDir}"
+
+
+  # Read the list of file paths (that have **spaces** in them) into a bash array
+  local allLocalFilePaths=()
+  while IFS=  read -r -d $'\0'; do
+    allLocalFilePaths+=("$REPLY")
+  done < <( find ${localDir}  -type f -print0)
+
+  # Loop through the list of file paths
+  for filePath in "${allLocalFilePaths[@]}"
+  do
+     echo -e "\tExamining ${filePath}"
+     file "$filePath" | grep -i UTF-16 > /dev/null 2>&1
+
+     if [ $? -eq 0 ]; then
+        # Found a file that is UTF-16
+        echo -e "\t\tFound a file that is UTF-16."
+
+        # Generate a new utf8 version of the file
+        echo -e "\t\tConverting file from UTF-16 to UTF-8:  source file=$filePath output=$TMP_FILE_PATH"
+        iconv --from-code=UTF-16 --to-code=UTF-8 --output="$TMP_FILE_PATH" "$filePath"
+
+        if [ $? -eq 0 ]; then
+           echo -e "\t\tConversion successful."
+ 
+           echo -e "\t\tMoving $TMP_FILE_PATH to $filePath"
+           mv -f "$TMP_FILE_PATH" "$filePath"
+
+           if [ $? -eq 0 ]; then
+             echo -e "\t\tConversion and replace succeeded for ${filePath}"
+             TOTAL_FILES_CONVERTED=$((TOTAL_FILES_CONVERTED + 1))
+           else
+             echo -e "\t\tERROR:  Conversion succeeded but replacement of original file failed for ${filePath}"
+           fi
+        else
+           echo -e "\t\tError:  Conversion Failed on file:  ${filePath}"
+        fi
+     fi
+
+  done
+ 
+  echo -e "\tFinished converting files.  Total files converted successfully=${TOTAL_FILES_CONVERTED}"
+}
+
+
+# Run the main() function
+main
