@@ -1,0 +1,80 @@
+Lesson:  How to Transfer a File to Multiple Servers (without entering the password)
+-----------------------------------------------------------------------------------
+
+Assumptions:
+ A) You have Expect installed
+ B) You know the scp password
+ 
+
+
+#!/bin/bash
+#####################################################################################
+# Filename:  copyToMultipleServers.sh
+#
+# Purpose:   Transfer a file to multiple servers
+#
+# Usage:     
+#  1) Set the parameters on the top
+#  2) Give the script execute privileges
+#     unix> chmod u+x copyToMultipleServers.sh  # give execute privileges to this user
+#  3) Run the pgoram
+#      unix> ./copyToMultipleServers.sh 
+#####################################################################################
+readonly USERNAME=admin
+readonly HOSTS="192.168.50.12 192.168.50.18"
+readonly SOURCE_FILE1=/tmp/rss.client.p12
+readonly SOURCE_FILE2=/tmp/rss.trust.jks    # Optional
+readonly DESTINATION_PATH=/tmp
+
+echo "`basename $0` started as of `date`"
+
+# Verify that the source file #1 exists
+if [[ ! -f "$SOURCE_FILE1" ]]; then
+    echo "Error:  I did not find SOURCE_FILE1 here:  ${SOURCE_FILE1}"
+    exit 1;
+fi
+
+# Verify that the source file #2 exists
+if [[ ! -z "$SOURCE_FILE2" ]]; then
+   if [[ ! -f "$SOURCE_FILE2" ]]; then
+      echo "Error:  I did not find SOURCE_FILE2 here:  ${SOURCE_FILE2}"
+      exit 1;
+   fi
+fi
+
+
+# Prompt the user for the admin password (without showing the password as it is typed)
+echo -n "Enter the admin password:  "
+read -s PASSWORD
+echo
+
+
+# Loop through each HOST -- transferring the source file to each HOST
+for HOST in $HOSTS
+do
+    # Transfer SOURCE_FILE1
+    expect -c "
+    spawn /usr/bin/scp $SOURCE_FILE1 ${USERNAME}@$HOST:${DESTINATION_PATH}
+
+    expect {
+    "*password:*" { send $PASSWORD\r;interact }
+    }
+    exit
+    "
+  
+    if [[ ! -z "$SOURCE_FILE2" ]]; then
+        # There is something inside SOURCE_FILE2.  So, transfer it, too...
+
+        # Transfer SOURCE_FILE2
+        expect -c "
+        spawn /usr/bin/scp $SOURCE_FILE2 ${USERNAME}@$HOST:${DESTINATION_PATH}
+    
+        expect {
+        "*password:*" { send $PASSWORD\r;interact }
+        }
+        exit
+        "
+    fi
+done
+
+echo "`basename $0` finished as of `date`"
