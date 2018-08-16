@@ -15,84 +15,159 @@ Assumptions:
 #####################################################################################
 # Filename:  copyToMultipleServers.sh
 #
-# Purpose:   Transfer a file to multiple servers w/o entering the password many times
+# Purpose:   Transfer files to remote servers and move them into the correct directories
 #
-# Usage:     
+# Usage:
 #  1) Set the parameters on the top
-#  2) Give the script execute privileges
+#  2) Make sure your SOURCE_FILES exist on this computer
+#  2) Give the script execute privileges and run it
 #     unix> chmod u+x copyToMultipleServers.sh
-#  3) Run the pgoram
-#      unix> ./copyToMultipleServers.sh 
+#     unix> ./copyToMultipleServers.sh
 #
 # Notes:
-#   The -o "StrictHostKeyChecking no" option is engaged 
-#   So, the secure copy will work eeven if the HOST is not found in ~/.ssh/known_hosts
+#   The -o "StrictHostKeyChecking no" option is engaged
+#   So, the secure copy will work even if the HOST is not found in ~/.ssh/known_hosts
 ####################################################################################
 readonly USERNAME=admin
-readonly SOURCE_FILE1=/tmp/rss.client.p12
-readonly SOURCE_FILE2=/tmp/rss.trust.jks     # Optional
-readonly DESTINATION_PATH=/tmp
+readonly SOURCE_FILES=(/tmp/rss.client.p12 /tmp/rss.trust.jks /tmp/fbi.properties)
+readonly DESTINATION_PATH=/opt/storm/topologies/fbi-extraction/conf
+readonly SCRIPT_NAME=`basename $0`
+readonly LOCAL_EXPECT_SCRIPT=/srv/expect.txt
+readonly LOCAL_CMD_FILE=/srv/commandfile.txt
 
 # Set your list of destination HOSTS
 read -r -d '' HOSTS << END_OF_HOSTS
 - 192.168.50.12
-- 192.168.50.13
-- 192.168.50.14
+- 192.168.50.18
 END_OF_HOSTS
 
-echo "`basename $0` started as of `date`"
+
+#######################################################
+# main()
+#######################################################
+function main()
+{
+echo "${SCRIPT_NAME} started as of `date`"
 
 
-# Verify that the source file #1 exists
-if [[ ! -f "$SOURCE_FILE1" ]]; then
-    echo "Error:  I did not find SOURCE_FILE1 here:  ${SOURCE_FILE1}"
-    exit 1;
-fi
+# Verify that the source files exist and are readable
+verifySourceFiles
 
-# Verify that the source file #2 exists
-if [[ ! -z "$SOURCE_FILE2" ]]; then
-   if [[ ! -f "$SOURCE_FILE2" ]]; then
-      echo "Error:  I did not find SOURCE_FILE2 here:  ${SOURCE_FILE2}"
-      exit 1;
-   fi
-fi
+## Prompt the user for the admin password (without showing the password as it is typed)
+#echo -n "Enter the admin password:  "
+#read -s PASSWORD
+#echo
+PASSWORD='1qaz2wsx!QAZ@WSX'
 
-# Prompt the user for the admin password (without showing the password as it is typed)
-echo -n "Enter the admin password:  "
-read -s PASSWORD
-echo
+
+# Create a string that has a bunch of unix move commands
+all_move_commands=""
+for source_file in ${SOURCE_FILES[*]}
+do
+  all_move_commands+="/bin/mv -f ${source_file} ${DESTINATION_PATH}; " 
+done
+
+# Create a file for expect to run to set perimssions
+cat >$LOCAL_CMD_FILE <<EOL
+sudo -s
+/bin/mkdir -p ${DESTINATION_PATH}; ${all_move_commands} chmod ugo+r ${DESTINATION_PATH}/* ; chown storm:storm ${DESTINATION_PATH}/* ; exit;
+
+EOL
+
+
 
 # Loop through each HOST -- transferring the source file to each HOST
 for HOST in $HOSTS
 do
-    if [[ ${#HOST} -lt 2 ]]; then
-       # This host has fewer than 2 characters, so skip it
-       continue
-    fi
+  if [[ ${#HOST} -lt 2 ]]; then
+     # This host has fewer than 2 characters, so skip it
+     continue
+  fi
 
-    # Transfer SOURCE_FILE1 to the Destination Host
+
+  # Transfer all of the SOURCE_FILES to the /tmp on all of the destination hosts
+  for source_filepath in ${SOURCE_FILES[*]}
+  do
+    # Use expect to transfer this one file  to the Destination Host
     expect -c "
-    spawn /usr/bin/scp -o \"StrictHostKeyChecking no\" $SOURCE_FILE1 ${USERNAME}@$HOST:${DESTINATION_PATH}
-
+    spawn /usr/bin/scp -o \"StrictHostKeyChecking no\" ${source_filepath} ${USERNAME}@$HOST:/tmp
+  
     expect {
     "*password:*" { send $PASSWORD\r;interact }
     }
     exit
     "
-  
-    if [[ ! -z "$SOURCE_FILE2" ]]; then
-        # There is something inside SOURCE_FILE2.  So, transfer it, too...
+  done
 
-        # Transfer SOURCE_FILE2 to the Destination Host
-        expect -c "
-        spawn /usr/bin/scp -o \"StrictHostKeyChecking no\" $SOURCE_FILE2 ${USERNAME}@$HOST:${DESTINATION_PATH}
-    
-        expect {
-        "*password:*" { send $PASSWORD\r;interact }
-        }
-        exit
-        "
-    fi
+  
+  # Create an expect script that will run unix commands on each remote server
+  cat >$LOCAL_EXPECT_SCRIPT <<EOL2
+  #!/usr/bin/expect
+
+      spawn ssh -o "StrictHostKeyChecking no" -l admin ${HOST}
+      expect "*password:*"
+      send "${PASSWORD}\r"
+      set handle [ open ${LOCAL_CMD_FILE} r ]
+      while { ! [eof \$handle] } {
+          gets \$handle buf
+          expect "\\\\\$"
+          send "\$buf\r"
+     }
+
+EOL2
+
+  # Run the expect script to run the commands in LOCAL_CMD_FILE (which will move files and set permissoins)
+  echo -e "\tRunning expect script: ${LOCAL_EXPECT_SCRIPT} on ${HOST}"
+  expect ${LOCAL_EXPECT_SCRIPT}
+
 done
 
-echo "`basename $0` finished as of `date`"
+echo "${SCRIPT_NAME} finished as of `date`"
+}
+
+#######################################################
+# verifySourceFiles()
+#
+# Stop the program if any of the SOURCE_FILES are not readable
+#######################################################
+function verifySourceFiles()
+{
+  local source_filepath=""
+
+  for source_filepath in ${SOURCE_FILES[*]}
+  do
+    # Verify that the source file exists
+    if [[ ! -f "$source_filepath" ]]; then
+      echo "Error:  I did not find source file here:  ${source_filepath}"
+      exit 1;
+    fi
+    
+    # Verify that the source file #2 exists
+    if [[ ! -z "$source_filepath" ]]; then
+     if [[ ! -f "$source_filepath" ]]; then
+        echo "Error:  I did not find source file here:  ${source_filepath}"
+        exit 1;
+     fi
+    fi
+  
+  done
+}
+
+
+#######################################################
+# cleanup()
+#
+# This method is always called before the script ends
+#######################################################
+function cleanup()
+{
+# Clean-up the tmp file
+rm -f $LOCAL_EXPECT_SCRIPT $LOCAL_CMD_FILE
+}
+
+# Tell bash to call cleanup() when the program ends
+# NOTE:  Whether the program crashes or succeeds, this method is the last method called
+trap cleanup EXIT
+
+
+main
