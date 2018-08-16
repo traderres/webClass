@@ -1,0 +1,131 @@
+How to Compile and Install Apache 2.4 on Centos 7
+-------------------------------------------------
+
+Assumptions: 
+  A) You want to compile and install Apache 2.4 from scratch
+  B) You have root access on the Centos 7 server
+
+
+References
+----------
+https://blacksaildivision.com/how-to-install-apache-httpd-on-centos
+
+
+Procedure
+---------
+ 1. Install EPEL repository info
+    unix> sudo yum install epel-release -y
+
+ 2. Install  required tools for compilation
+    unix>  sudo yum install autoconf expat-devel libtool libnghttp2-devel pcre-devel -y
+
+ 3. Download and unpack source code   
+    unix> curl -O -L https://github.com/apache/httpd/archive/2.4.33.tar.gz
+	unix> curl -O -L https://github.com/apache/apr/archive/1.6.3.tar.gz
+	unix> curl -O -L https://github.com/apache/apr-util/archive/1.6.1.tar.gz 
+
+ 4. Install openssl-development
+    unix> sudo yum install openssl-devel
+
+ 5. Unpack source code
+    unix> tar -zxvf 2.4.33.tar.gz
+    unix> tar zxvf httpd-2.4.33.tar.gz 
+    unix> tar zxvf apr-1.6.3.tar.gz 
+
+    unix> cp -r apr-1.6.3 httpd-2.4.33/srclib/apr 
+    unix> cp -r apr-util-1.6.1 httpd-2.4.33/srclib/apr-util
+ 
+ 6. Compile httpd  (not as root)
+    unix> cd httpd-2.4.33
+    unix> ./buildconf
+    unix> ./configure --enable-ssl --enable-so --enable-http2 --with-mpm=event --with-included-apr --with-ssl=/usr/local/openssl --prefix=/usr/local/apache2
+    unix> make
+
+ 7. Install it
+    unix> sudo make install
+    -- Which will install apache to the /usr/local/apache2/
+
+
+ 8. Clean up
+    unix> cd ..
+    unix> rm -rf 1.6.3.tar.gz 1.6.1.tar.gz 2.4.33.tar.gz apr-1.6.3 apr-util-1.6.1 httpd-2.4.33
+
+
+ 9. Add Apache executables to PATH
+    unix> sudo vi /etc/profile.d/httpd.sh
+       pathmunge /usr/local/apache2/bin
+
+    Verify httpd is in your path
+    unix> which httpd
+    /usr/local/apache2/bin/httpd
+
+
+
+10. Add systemd entry
+    unix> sudo vi /etc/systemd/system/httpd.service
+
+		[Unit]
+		Description=The Apache HTTP Server
+		After=network.target
+
+		[Service]
+		Type=forking
+		ExecStart=/usr/local/apache2/bin/apachectl -k start
+		ExecReload=/usr/local/apache2/bin/apachectl -k graceful
+		ExecStop=/usr/local/apache2/bin/apachectl -k graceful-stop
+		PIDFile=/usr/local/apache2/logs/httpd.pid
+		PrivateTmp=true
+
+		[Install]
+		WantedBy=multi-user.target
+
+11. Save the file and reload systemctl daemon
+    unix> sudo systemctl daemon-reload
+
+12. Startup the httpd.service manually
+    unix> cd /usr/local/apache2/bin
+    unix> sudo ./apachectl start
+ 
+13. Connect to your site on port 80
+    -- You should see "It works"
+
+14. Enable SSL
+    a. Tell apache where your certs are
+       unix> sudo vi /usr/local/apache2/conf/extra/httpd-ssl.conf
+         SSLCACertificateFile=/path/to/ca.pem
+         SSLCertificateKeyFile=/path/to/server.key
+         SSLCertificateFile=/path/to/server.crt
+
+
+    b. Set the server name and logging level
+       unix> sudo vi /usr/local/apache2/conf/extra/httpd-ssl.conf
+          ServerName my-hostname:443
+          LogLevel trace8
+
+    c. Tell apache to turn on the mod_ssl library
+       unix> vi /usr/local/apach2/conf/httpd.conf
+          LoadModule ssl_module modules/mod_ssl.so
+
+          Include conf/extra/httpd-ssl.conf
+
+    d. Comment-out Inter-Process Session Cache
+       unix> sudo vi /usr/local/apache2/conf/extra/httpd-ssl.conf
+         #SSLSessionCache         "dbm:/usr/local/apache2/logs/ssl_scache"
+         #SSLSessionCache        "shmcb:/usr/local/apache2/logs/ssl_scache(512000)"
+
+
+15. Restart apache
+    unix> cd /usr/local/apache2/bin
+    unix> sudo ./apachectl restart
+    -- You should be able to connect to the site using https
+
+
+16. Run apache as a service
+    a. Stop the manual httpd process
+       unix> cd /usr/local/apache2/bin
+       unix> sudo ./apachectl stop
+
+    b. Start apache as a service
+       unix> sudo systemctl start httpd
+       
+       
