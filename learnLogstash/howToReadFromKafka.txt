@@ -1,0 +1,234 @@
+How to have logstash read from a kafka topic
+--------------------------------------------
+
+Assumptions:
+ A) You want logstash to read from a topic called "updates"
+ B) You want logstash to write the info to ElasticSearch index called "stuff"
+ C) Your Elasticsearch is up and listening on localhost:9200
+ D) Your kafka service is up and listening
+
+Procedure
+---------
+ 1. Install Logstash
+
+ 2. Create your ES mapping json file
+    unix> sudo mkdir -p /etc/logstash/conf.d/templates
+    unix> sudo chmod ugo+rw /etc/logstash/conf.d/templates
+    unix> vi /etc/logstash/conf.d/templates/stuff.json
+      {
+        "settings": {
+          "analysis": {
+            "normalizer": {
+              "case_insensitive_normalizer": {
+                "type": "custom",
+                "char_filter": [],
+                "filter": [
+                  "lowercase",
+                  "asciifolding"
+                ]
+              }
+            }
+          },
+          "refresh_interval": "5s"
+        },
+        "mappings": {
+          "record": {
+            "dynamic": "strict",
+            "properties": {
+              "id": {
+                "type": "integer",
+                "include_in_all": true
+              },
+              "description": {
+                "type": "keyword",
+                "normalizer": "case_insensitive_normalizer",
+                "include_in_all": true,
+                "fields": {
+                  "raw": {
+                    "type": "keyword"
+                  }
+                }
+              },
+              "ip_value": {
+                "type": "ip",
+                "ignore_malformed": true,
+                "store": true,
+                "include_in_all": true
+              },
+              "is_whitelisted": {
+                "type": "boolean",
+                "include_in_all": false
+              },
+              "create_user": {
+                "type": "keyword",
+                "normalizer": "case_insensitive_normalizer",
+                "include_in_all": true,
+                "fields": {
+                  "raw": {
+                    "type": "keyword"
+                  }
+                }
+              },
+              "create_date": {
+                "type": "date",
+                "ignore_malformed": true,
+                "format": "epoch_millis||epoch_second||yyyy/MM/dd HH:mm:ss.SSS||yyyy-MM-dd HH:mm:ss.SSS||yyyy/MM/dd HH:mm:ss||yyyy-MM-dd HH:mm:ss.SSSZ||yyyy-MM-dd'T'HH:mm:ss||yyyy-MM-dd'T'HH:mm:ssZ||yyyy-MM-dd HH:mm:ss||yyyy-MM-dd HH:mm:ssZ||yyyy/MM/dd||S",
+                "include_in_all": true
+              },
+              "last_update_user": {
+                "type": "keyword",
+                "normalizer": "case_insensitive_normalizer",
+                "include_in_all": true,
+                "fields": {
+                  "raw": {
+                    "type": "keyword"
+                  }
+                }
+              },
+              "last_update_date": {
+                "type": "date",
+                "ignore_malformed": true,
+                "format": "epoch_millis||epoch_second||yyyy/MM/dd HH:mm:ss.SSS||yyyy-MM-dd HH:mm:ss.SSS||yyyy/MM/dd HH:mm:ss||yyyy-MM-dd HH:mm:ss.SSSZ||yyyy-MM-dd'T'HH:mm:ss||yyyy-MM-dd'T'HH:mm:ssZ||yyyy-MM-dd HH:mm:ss||yyyy-MM-dd HH:mm:ssZ||yyyy/MM/dd||S",
+                "include_in_all": true
+              },
+              "threat_review_recommendation": {
+                "type": "keyword",
+                "normalizer": "case_insensitive_normalizer",
+                "include_in_all": true,
+                "fields": {
+                  "raw": {
+                    "type": "keyword"
+                  }
+                }
+              },
+              "status": {
+                "type": "keyword",
+                "normalizer": "case_insensitive_normalizer",
+                "include_in_all": true,
+                "fields": {
+                  "raw": {
+                    "type": "keyword"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+ 3. Create your stuff ES mapping
+    unix> curl -XPUT "http://localhost:9200/stuff_try1?pretty" -d @/etc/logstash/conf.d/templates/stuff.json
+
+ 4. Create a logstash conf file (in /etc/logstash/conf.d so that the logstash service will find it)
+    unix> sudo chmod ugo+rw /etc/logstash/conf.d
+    unix> vi /etc/logstash/conf.d/read_from_kafka.conf
+
+        input {
+          kafka {
+            bootstrap_servers => "localhost:9092"
+            topics => ["updates"]
+          }
+        }
+
+        filter {
+
+           json {
+              source => "message"
+           }
+
+           mutate {
+             remove_field => [ "@timestamp", "@version", "message"]
+           }
+        }
+
+
+        output {
+          stdout { codec => rubydebug }
+
+          elasticsearch {
+              hosts => ["localhost:9200"]
+              ssl => false
+              index => "stuff"
+              template => "/etc/logstash/conf.d/templates/stuff.json"
+              template_name => "stuff"
+              document_type => "record"
+          }
+        }
+
+
+
+ 5. Startup Kafka locally
+    a. Start the a quick-and-dirty single-node Zookeeper instance
+       unix> cd $KAFKA_HOME
+       unix> bin/zookeeper-server-start.sh config/zookeeper.properties
+
+    b. Start the Kafka Server
+       unix> cd $KAFKA_HOME
+       unix> bin/kafka-server-start.sh config/server.properties
+
+    c. Create a topic called "updates" that has more than 1 partition
+       unix> cd $KAFKA_HOME
+       unix> bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 3 --topic updates
+
+    d. List the topics
+       unix> cd $KAFKA_HOME
+       unix> bin/kafka-topics.sh --list --zookeeper localhost:2181
+
+
+ 6. Startup Logstash from the command-line
+    unix> cd /usr/share
+    unix> chmod ugo+rw -R logstash
+    unix> cd /usr/share/logstash
+    unix> bin/logstash -f /etc/logstash/conf.d/read_from_kafka.conf  --debug --verbose
+
+
+
+ 7. Query the number of records in your "stuff" ElasticSearch index  [it should be zero]
+    unix> curl -XPOST "http://localhost:9200/stuff/_count?pretty" 2>/dev/null | grep -i count
+
+
+ 8. Start a producer and send some messages to the "updates" topic
+    unix> cd $KAFKA_HOME
+    unix> bin/kafka-console-producer.sh --broker-list localhost:9092 --topic updates
+
+    -- Type-in some messages in this terminal
+    -- When you press <Enter> the message will be pushed to the kafka topic
+    {"description": "hi8"}
+
+    NOTE:  If you get errors about LEADER_NOT_AVAILABLE
+           Then, check your /etc/hosts to make sure that your hostname is found there with something like 127.0.0.1
+
+
+
+10. Check the count of records in the "stuff" ElasticSearch index  [it should be more]
+
+
+    unix> curl -XPOST "http://localhost:9200/stuff/_count?pretty" 2>/dev/null | grep -i count
+    -- The count should be one higher
+
+    unix> curl -XPOST "http://localhost:9200/stuff/_search?pretty" 2>/dev/null
+          {
+            "took" : 17,
+            "timed_out" : false,
+            "_shards" : {
+              "total" : 5,
+              "successful" : 5,
+              "failed" : 0
+            },
+            "hits" : {
+              "total" : 1,
+              "max_score" : 1.0,
+              "hits" : [
+                {
+                  "_index" : "stuff",
+                  "_type" : "record",
+                  "_id" : "AWWrJlUKtaf5kSE63m3a",
+                  "_score" : 1.0,
+                  "_source" : {
+                    "description" : "hi8"
+                  }
+                }
+              ]
+            }
+          }
+
