@@ -1,0 +1,77 @@
+Logstash Config file that will Read from Kafka and Write to ElasticSearch
+-------------------------------------------------------------------------
+
+
+Test Cases
+----------
+1. Create a new report record in ES
+   Push this string into the kafka topic
+    { "_action": "create", "_type": "report", "_id": 1, "display_name": "test2.txt"}
+
+    In ElasticSearch, the record is created 
+    
+ 
+2. Update the record in ES
+   Push this string into the kafka topic
+    { "_action": "update", "_type": "report", "_id": 1, "display_name": "test2.txt.UPDATE" }
+
+    In ElasticSearch, the record is updated
+    
+
+3. Delete the record from ES
+   Push this string into the kafka topic
+    { "_action": "delete", "_type": "report", "_id": 1}
+
+   In ElasticSearch, the record is deleted 
+
+
+
+Logstash config file
+--------------------
+input {
+  kafka {
+    bootstrap_servers => "localhost:9092"
+    topics => ["updates"]
+  }
+}
+
+filter {
+
+   json {
+      source => "message"
+   }
+
+
+   mutate {
+       add_field => { "[@metadata][type]" => "%{_type}"  }
+       add_field => { "[@metadata][action]" => "%{_action}"  }
+       add_field => { "[@metadata][_id]" => "%{_id}"  }
+    }
+
+   mutate {
+     remove_field => [ "@timestamp", "@version", "message", "_type", "_action", "_id" ]
+   }
+}
+
+
+output {
+  stdout {
+     codec => rubydebug{metadata => true}
+  }
+
+  elasticsearch {
+      hosts => ["localhost:9200"]
+      ssl => false
+      index => "stuff"
+      template => "/etc/logstash/conf.d/templates/stuff.json"
+      template_name => "stuff"
+      action => "%{[@metadata][action]}"
+      document_type => "%{[@metadata][type]}"
+      document_id => "%{[@metadata][_id]}"
+      doc_as_upsert => true
+  }
+}
+
+
+
+
