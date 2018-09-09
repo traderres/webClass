@@ -1,0 +1,99 @@
+How to Split a Wide Monitor into virtual screens with fakexrandr
+----------------------------------------------------------------
+
+References
+----------
+https://superuser.com/questions/115076/how-to-vertically-split-widescreen-into-two-virtual-workspaces-on-ubuntu-gnome
+https://github.com/phillipberndt/fakexrandr
+
+
+Procedure
+---------
+ 1. Clone the fakexranddr software
+    unix> cd /tmp
+    unix> git clone https://github.com/phillipberndt/fakexrandr.git
+    unix> cd fakexrandr
+
+
+ 2. Add this directory to your ldconfig:  /usr/local/fakexranddr
+    a. Before you add the directory, examine your lddconfig paths
+       unix> ldconfig -v 2>/dev/null | grep -oE '^/[^:]+' | sort
+
+    b. Add /usr/local/fakexranddr to the ldconfig path:
+       unix> sudo -s
+       unix> export NEW_DIRECTORY=/usr/local/lib64/fakexranddr
+       unix> mkdir -p $NEW_DIRECTORY
+       unix> chmod ugo+x -R $NEW_DIRECTORY
+       unix> chmod ugo+x -R $NEW_DIRECTORY/..
+       unix> echo "$NEW_DIRECTORY" > /etc/ld.so.conf.d/fakexranddr.conf
+       unix> ldconfig
+       unix> exit
+
+   c. Verify that the directory /usr/local/lib64/fakexranddr is in the ldd path
+      unix> ldconfig -v 2>/dev/null | grep -oE '^/[^:]+' | sort
+
+
+ 3. Run the configure script
+    unix> ./configure     # creates a config.h file
+
+    You should see this:
+      XRandR version is 1.5.1
+      The path to the real XRandR library is /lib64/libXrandr.so.2
+      The fake library will be installed to /usr/local/lib64/fakexranddr
+
+
+
+ 4. Compile and install
+    unix> ./make
+    unix> sudo make install
+
+
+ 5. Approach #1:  Configure your virtual monitors using the GUI tool
+    Split your monitor into multiple zones using the GUI tool
+    a. Startup the GUI
+       unix> fakexrandr-manage
+
+    b. Inside the GUI, press the "Create" button
+
+    c. Inside the box, make a vertical line to split the monitor into left/right
+       Drag & Drop the vertical line left and right until you get 50/50
+
+    d. View your new settings
+       unix> xrandr
+
+       You should se eyour left/right settings
+        VGA-0 disconnected (normal left inverted right x axis y axis)
+        DVI-D-0~1 connected 640x1024+0+0 (normal left inverted right x axis y axis) 188mm x 301mm
+           640x1024      60.02*
+           1280x1024     60.02    75.02
+           1152x864      75.00
+           1024x768      75.03    60.00
+           800x600       75.00    60.32
+           640x480       75.00    59.94
+        DVI-D-0~2 connected 640x1024+640+0 (normal left inverted right x axis y axis) 188mm x 301mm
+           640x1024      60.02*
+           1280x1024     60.02    75.02
+           1152x864      75.00
+           1024x768      75.03    60.00
+           800x600       75.00    60.32
+           640x480       75.00    59.94
+        HDMI-0 disconnected (normal left inverted right x axis y axis)
+
+    e. Reboot your computer
+       unix> sudo reboot
+
+
+ 6. Approach #2:  Use the xrandr command line tool to
+    a. Add 2 virtual monitors using xrandr --setmonitor
+       unix> xrandr --setmonitor "monitor_name" "width_px"/"width_mm"x"height_px"/"height_mm"+"x_offset_px"+"y_offset_px" "output_name"
+
+       For example
+       unix> xrandr --setmonitor HDMI2~1 960/254x1080/286+0+0 HDMI2
+       unix> xrandr --setmonitor HDMI2~2 960/255x1080/286+960+0 none
+
+    b. Apply the changes
+       unix> xrandr --fb 1921x1080
+       unix> xrandr --fb 1920x1080
+
+    c. To persist on reboot, add the xrandr commands (in the previous step) to your ~/.profile
+
