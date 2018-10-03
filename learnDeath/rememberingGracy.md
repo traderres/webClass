@@ -17,10 +17,15 @@ Sometime in 2017, Tricia noticed that Gracy was going deaf.  As someone who lost
 Over the last few months, we noticed that Gracy has become a "lap kitty" -- i.e., a cat that would climb-up on the couch and sit on your lap.  This was out of character for her.  She never did that.  Tricia's theory is that she knew the end was near and wanted to be closer to us.  I agree completely.
 
 On Thursday 3/1/2018, we noticed that Gracy was having problems moving.  She could barely walk.  She wasn't eating.  I feared the worst but never told Tricia.  On Friday morning 3/2/2018, my fears came true.  Tricia & I took Gracy to the local vet office.  And,
-  they made it clear that she was dying.  The surgeon said that she could do lots of tests, but that the humane thing to do was to put her asleep.  I drove back to the house to get the boys.  And, I had
-  to tell the boys that they were going to say goodbye to Gracy. The boys & I returned.  When we returned,
-  the doctor asked if we wanted to be around when they put her to sleep.  No one wanted to.
-  We drove home to an empty house.  There are memories all over the house; they're everwhere.
+  they made it clear that she was dying.  Gracy has dufferent multiple strokes.  This probably explains
+   why she could not walk on one leg the night before.  And, why she was hiding under the dining room
+   table on Friday morning 3/2/2018.  She probably could not move.
+
+The surgeon said that she could do all kinds of tests, but that the humane thing to do was to put her asleep.
+  I drove back to the house to get the boys.  And, I had to tell the boys that they were going to say goodbye
+  to Gracy. The boys & I were returned.  When we returned, we met-up with Tricia and Gracy.
+  The doctor asked if we wanted to be around when they put her to sleep.  No one agreed to this.
+  We drove home in a silent van to a silent house.  There are memories all over the house; they're everwhere.
 
 But, on this incredilby sad day, I'm grateful for a few things:  (1) We all got a chance to say good bye, (2) we ended the suffering, and (3) how lucky we were to have 18 wonderful years with her.  
 
