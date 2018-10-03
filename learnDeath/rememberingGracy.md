@@ -12,11 +12,15 @@ In 2005 (when Will was just a baby), I remember having Will on my lap on the wee
 
 Over the years, the boys would learn to crawl (Gracy could stroll away), and then speed crawl (Gracy would run away).  But, I remember vividly one memory.  The boys had cornered Gracy and she could not get away.  The boys were trying to pet her but they were being too rough about it.  Gracy would not scratch back or hiss at them.  I rescued Gracy from that situation and got her away from the young boys.  But, the message was clear:  She would not scratch them.  And, she never did.
 
-Sometime in 2017, Tricia noticed that Gracy was going deaf.  As someone who lost his hearing in the spring of 2003, I can definitely relate.  But, even though she was deaf, she would still pur and climb onto the kitchen chairs and "join" us for dinner.
+Sometime in 2017, Tricia noticed that Gracy was going deaf.  As someone who lost his hearing in the spring of 2013, I can definitely relate.  But, even though she was deaf, she would still pur and climb onto the kitchen chairs and "join" us for dinner.
 
 Over the last few months, we noticed that Gracy has become a "lap kitty" -- i.e., a cat that would climb-up on the couch and sit on your lap.  This was out of character for her.  She never did that.  Tricia's theory is that she knew the end was near and wanted to be closer to us.  I agree completely.
 
-On Thursday 3/1/2018, we noticed that Gracy was having problems moving.  She could barely walk.  She wasn't eating.  I feared the worst but never told Tricia.  On Friday morning 3/2/2018, my fears came true.  The doctor asked if we wanted to be around when they put her to sleep.  No one wanted to.  We drove home to an empty house.  Memories are everwhere.  
+On Thursday 3/1/2018, we noticed that Gracy was having problems moving.  She could barely walk.  She wasn't eating.  I feared the worst but never told Tricia.  On Friday morning 3/2/2018, my fears came true.  Tricia & I took Gracy to the local vet office.  And,
+  they made it clear that she was dying.  The surgeon said that she could do lots of tests, but that the humane thing to do was to put her asleep.  I drove back to the house to get the boys.  And, I had
+  to tell the boys that they were going to say goodbye to Gracy. The boys & I returned.  When we returned,
+  the doctor asked if we wanted to be around when they put her to sleep.  No one wanted to.
+  We drove home to an empty house.  There are memories all over the house; they're everwhere.
 
 But, on this incredilby sad day, I'm grateful for a few things:  (1) We all got a chance to say good bye, (2) we ended the suffering, and (3) how lucky we were to have 18 wonderful years with her.  
 
