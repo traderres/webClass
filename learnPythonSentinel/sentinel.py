@@ -631,7 +631,7 @@ if __name__ == '__main__':
 
     # additional options
     opts = AttributeDict(vars(opts))  # converting opts to an AttributeDict so we can add extra options
-    opts.haar_file = '/home/adam/PycharmProjects/lessons/haarcascade_frontalface_default.xml'
+    opts.haar_file = '/home/adam/intellijProjects/webClass/learnPythonSentinel/haarcascade_frontalface_default.xml'
     opts.processed_img_file = 'capture_faces.jpg'
 
     turret = Turret(opts)
