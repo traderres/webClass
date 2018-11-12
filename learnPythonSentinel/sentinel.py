@@ -1,5 +1,4 @@
 #!/opt/anaconda2/bin/python
-
 # SENTINEL
 # A USB rocket launcher face-tracking solution
 # For Linux and Windows
@@ -62,10 +61,11 @@ class Launcher1130():
     # this code mostly taken from https://github.com/nmilford/stormLauncher
     # with bits from https://github.com/codedance/Retaliation
     def __init__(self):
+        # HID detach for Linux systems...not tested with 0x1130 product
         self.dev = usb.core.find(idVendor=0x1130, idProduct=0x0202)
         if self.dev is None:
             raise ValueError('Missile launcher not found.')
-        if sys.platform == "linux2":
+        if sys.platform == "linux":
             try:
                 if self.dev.is_kernel_driver_active(1) is True:
                     self.dev.detach_kernel_driver(1)
@@ -448,7 +448,7 @@ class Turret():
                 fired = True
 
                 if camera:
-                    self.killcam(camera)  # save a picture of the target
+                    self.killcam(camera)  #a save a picture of the target
 
                 print('Missile fired! Estimated ' + str(self.missiles_remaining) + ' missiles remaining.')
 
@@ -489,7 +489,7 @@ class Camera():
     # grabs several images from buffer to attempt to clear out old images
     def clear_buffer(self):
         for _ in range(self.opts.buffer_size):
-            if not self.webcam.retrieve(channel=0):
+            if not self.webcam.retrieve():
                 raise ValueError('no more images in buffer, mate')
 
     # captures a single frame
@@ -498,7 +498,7 @@ class Camera():
             raise ValueError('frame grab failed')
         self.clear_buffer()
 
-        retval, most_recent_frame = self.webcam.retrieve(channel=0)
+        retval, most_recent_frame = self.webcam.retrieve()
         if not retval:
             raise ValueError('frame capture failed')
         self.current_frame = most_recent_frame
@@ -507,7 +507,7 @@ class Camera():
 
 
     ######################################################################
-    # face_detct()
+    # face_detect()
     #
     # runs facial recognition on our previously captured image and returns
     # (x,y)-distance between target and center (as a fraction of image dimensions)
@@ -601,6 +601,7 @@ class Camera():
             self.current_image_viewer = subprocess.Popen('%s %s\%s' % (viewer, os.getcwd(),
                                                                        self.opts.processed_img_file))
 
+
 if __name__ == '__main__':
     if (sys.platform == 'linux2' or sys.platform == 'darwin') and not os.geteuid() == 0:
         sys.exit("Script must be run as root.")
@@ -630,11 +631,11 @@ if __name__ == '__main__':
 
     # additional options
     opts = AttributeDict(vars(opts))  # converting opts to an AttributeDict so we can add extra options
-    opts.haar_file = 'haarcascade_frontalface_default.xml'
+    opts.haar_file = '/home/adam/PycharmProjects/lessons/haarcascade_frontalface_default.xml'
     opts.processed_img_file = 'capture_faces.jpg'
 
-    camera = Camera(opts)
     turret = Turret(opts)
+    camera = Camera(opts)
 
 
     if not opts.reset_only:
