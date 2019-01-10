@@ -1,0 +1,52 @@
+How to do High-Speed Auditing in Postgres
+-----------------------------------------
+Problem:  You want to delete 10,000 records and insert 10,000 audit records at the same time
+Solution: Use the WITH....INSERT INTO....trick
+
+Assumptions:
+ A) You need to audit insert/update/delete records using a snapshots
+ B) You have a separate audit table for your main table
+ C) You want to quickly delete
+
+
+First Approach:  Use the DELETE.... RETURNING *
+-----------------------------------------------
+ // Use the delete from and RETURNING * trick to delete records and get the results
+ String sql = "delete from main_table....RETURNING *";
+ JdbcTemplate jt = new JdbcTemplate(myDataSource);
+ List<Map<>> listOfMaps = jt.update(sql);
+
+ Loop through the list of maps, inserting audit records
+
+
+
+Second Approach:  Use the WITH....INSERT INTO....
+-------------------------------------------------
+Why is it better?
+ + No need to serialize, de-serialize, and transmit the info over the network
+ + It's faster:  Use one query (instead of 2 queries)
+
+ WITH rows AS (delete from main-table RETURNING *)
+ INSERT INTO main-table_aud(...)
+ select *
+
+
+
+Even Better:  Create an Audit Service that does the call for you
+----------------------------------------------------------------
+ 1) Setup a Constructor that passes-in the audit-username, and audit-datetime
+ 2) Make a public method that runs bulkAudit(pass-in create/update/delete sql, tablename to audit)
+    a) The method queries the information-schema for all of the column names
+    b) The method converts the passed-in SQL into a WITH...
+
+ For example, you woudl call
+       auditService.bulkAudit("delete from main_table where id=25 RETURNING *", "main_table")
+
+ Executed SQL would
+       WITh subquery AS (
+          delete from main_table where id=25 RETURNING *
+       )
+       INSERT INTO main_table_aud(rev, revisiontype, username, timestamp, field1, field2, field3)
+       VALUES....
+       FROM subquery
+
