@@ -1,0 +1,138 @@
+How to build a Good ES Mapping with ES5
+---------------------------------------
+
+Thoughts:
+ 1) You cannot do aggs or sorting on text fields
+    So, for every text field you have, add a "sort" subfield that can be used
+    
+ 2) If you want users to have the raw field (that can be searched case-sensitive) then add the raw field
+ 
+ 
+Text field should look like this:
+NOTE:  The raw field is for case-sensitive searches
+       Search on actors
+       Sort on actors.sort
+       Agg on actors.sort
+       Case-sensitive search on actors.raw
+
+           "actors": {
+                 "type": "text",
+                 "include_in_all": true,
+                 "fields": {
+                   "raw": {
+                     "type": "keyword"
+                   },
+                   "sort": {
+                     "type": "keyword",
+                     "normalizer": "case_insensitive_normalizer"
+                   }
+                 }
+               }
+               
+Keyword fields should look like this:
+NOTE:  The raw field is there for case-sensitive searches
+       Keyword fields are sortable and aggragable
+       Search on priority
+       Sort on priority
+       Agg on priority
+       Case-sensitive search on priority.raw
+       
+             "priority": {
+                 "type": "keyword",
+                 "normalizer": "case_insensitive_normalizer",
+                 "include_in_all": true,
+                 "fields": {
+                   "raw": {
+                     "type": "keyword"
+                  }
+                 }
+             }
+
+
+
+Example Index Mapping to Demonstrate Case Insensitive Sorting
+--------------------------------------------------------------
+DELETE /bogus
+PUT /bogus
+{
+  "settings": {
+    "analysis": {
+      "normalizer": {
+        "case_insensitive_normalizer": {
+          "type": "custom",
+          "char_filter": [],
+          "filter": [ "lowercase", "asciifolding" ]
+        }
+      }
+    },
+    "refresh_interval": "1s"
+  },
+  "mappings": {
+    "security": {
+      "_meta": {
+        "acl": {
+          "data_read": "role:cde_es_writer",
+          "data_write": "role:cde_es_writer",
+          "metadata_read": "role:cde_es_writer",
+          "metadata_write": "role:cde_es_writer"
+        }
+      }
+    },
+    "record": {
+        "dynamic": "strict",
+            "properties": {
+               "actors": {
+                 "type": "text",
+                 "include_in_all": true,
+                 "fields": {
+                   "raw": {
+                     "type": "keyword"
+                   },
+                   "sort": {
+                     "type": "keyword",
+                     "normalizer": "case_insensitive_normalizer"
+                   }
+                 }
+               },
+             "priority": {
+                 "type": "keyword",
+                 "normalizer": "case_insensitive_normalizer",
+                 "include_in_all": true,
+                 "fields": {
+                   "raw": {
+                     "type": "keyword"
+                  }
+                 }
+             }
+    }
+  }
+}
+}
+
+DELETE /bogus
+POST _bulk
+{ "index": { "_index": "bogus", "_type": "record", "_id": 1 }}
+{ "priority": "low", "actors": "John Smith"}
+{ "index": { "_index": "bogus", "_type": "record", "_id": 2 }}
+{ "priority": "LOW", "actors": "George Smith"}
+{ "index": { "_index": "bogus", "_type": "record", "_id": 3 }}
+{ "priority": "high", "actors": "adam Smith"}
+{ "index": { "_index": "bogus", "_type": "record", "_id": 4 }}
+{ "priority": "HIGH", "actors": "Adam Smith 2"}
+
+
+POST /bogus/_search
+{
+      "query": {
+          "match_all": {}
+      },
+      "sort": [
+            { 
+                "actors.sort": 
+                {
+                 "order": "asc",
+                "missing": "asc"
+                }
+            }
+        ]
+}
