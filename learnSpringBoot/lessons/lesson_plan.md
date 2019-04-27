@@ -7,7 +7,8 @@ Lesson Plan
 -----------
  1. Java fundamentals
     Exercise: Create a simple command-line Java program in Intellij
-
+    [Exercise](../learnJava/../howToCreateJavaCommandLineProgramUsingIntellijMaven.txt)
+    
  2. Maven fundamentals
     Exercise: Add logback to thee command-line Java program
 
@@ -24,6 +25,7 @@ Lesson Plan
 
  4. Build SpringBoot webapp w/simple REST call
     a. Setup project structure
+       
     b. Create webapp as runnable JAR
 
 
