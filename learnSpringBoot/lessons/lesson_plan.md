@@ -2,7 +2,7 @@
 
 
 ### Assumptions
-* You have installed Java JDK
+* You have installed Java JDK 1.8
 * You have installed Maven 3.3.9
 * You have installed IntelliJ<br/>
   [Setup Development Env for Unix](/learnSpringBoot/lessons/lesson01a_setupDevelopmentEnvForUnix.txt )<br>
