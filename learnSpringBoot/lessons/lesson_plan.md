@@ -18,10 +18,7 @@
     Exercise: Add logback to thee command-line Java program
 
 1. Spring fundamentals
-   1. Lifecycle 
-      1. Constructor
-      1. Spring injects dependencies
-      1. Post-Construct
+   1. Lifecycle:  Constructor, Injection, Post-Construct
    1. Application Context / Spring beans (how does Spring manage them)
    1. Exercise: Adjust existing CDE webapp and inject code
 
