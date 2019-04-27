@@ -7,7 +7,7 @@ Lesson Plan
 -----------
  1. Java fundamentals
     Exercise: Create a simple command-line Java program in Intellij
-    [Exercise](../learnJava/../howToCreateJavaCommandLineProgramUsingIntellijMaven.txt)
+    [Exercise: Build command-line Java program](/../learnJava/../howToCreateJavaCommandLineProgramUsingIntellijMaven.txt)
     
  2. Maven fundamentals
     Exercise: Add logback to thee command-line Java program
