@@ -1,6 +1,13 @@
 ## Spring Boot / Maven / Java Lesson Plan
 
 
+### Assumptions
+* You have installed Java JDK
+* You have installed Maven 3.3.9
+* You have installed IntelliJ<br/>
+  [Setup Development Env for Unix](/learnSpringBoot/lessons/lesson01a_setupDevelopmentEnvForUnix.txt )<br>
+  [Setup Development Env for Windows](/learnSpringBoot/lessons/lesson01b_setupDevelopmentEnvForWindows.txt)<br>  <br> 
+  
 
 ### Lesson Plan
 1. Java fundamentals
@@ -20,7 +27,8 @@
 
 1. Build SpringBoot webapp w/simple REST call
    1. Setup project structure
-   1. Create webapp as runnable JAR
+   1. Create webapp as runnable JAR<br/>
+      [Exercise: Build Spring Boot Structure](/learnSpringBoot/lessons/lesson02_createProjectStructure.txt)
 
 1. Add JDBC connection pool
 
