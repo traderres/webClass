@@ -23,16 +23,20 @@
    1. Exercise: Adjust existing CDE webapp and inject code
 
 1. Build SpringBoot webapp w/simple REST call
-   1. Setup project structure
+   1. Setup project structure<br/>
       [Exercise: Build Spring Boot Structure](/learnSpringBoot/lessons/lesson02_createProjectStructure.txt)
 
    1. Create webapp as runnable JAR<br/>
       [Exercise: Setup Springboot as Runnable JAR](/learnSpringBoot/lessons/lesson03_setupRunnableJar.txt)
 
-1. Add a REST endpoint (controller)
-
-1. Add JDBC connection pool (data source object)
-
+1. Add a REST endpoint (controller)<br/>
+   [Exercise: Setup NPM](/learnSpringBoot/lessons/lesson04_addAngularUsingNpm.txt)<br/>
+   [Exercise: Add Angular Page](/learnSpringBoot/lessons/lesson05_addSimpleAngularPage.txt)<br/>
+   [Exercise: Setup Front End Structure](/learnSpringBoot/lessons/lesson06_addAngularFrontEndStructure.txt)<br/>
+   
+1. Add JDBC connection pool (data source object)<br/>
+   [Exercise: Setup Postgres DataSource](/learnSpringBoot/lessons/lesson07_setupPostgresDatabase.txt)<br/>
+   
 1. Add service layer that uses the data source
 
 1. Add Flyway
