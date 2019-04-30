@@ -35,8 +35,8 @@
    [Exercise: Setup Front End Structure](/learnSpringBoot/lessons/lesson06_addAngularFrontEndStructure.txt)<br/>
    
 1. Add JDBC connection pool (data source object)<br/>
-   [Exercise: Setup Postgres DataSource](/learnSpringBoot/lessons/lesson07_setupPostgresDatabase.txt)<br/>
-   
+   [Exercise: Setup Postgres Database](/learnSpringBoot/lessons/lesson07_setupPostgresDatabase.txt)<br/>
+   [Exercise: Add JDBC Connection Pool](/learnSpringBoot/lessons/lesson09_addJdbcConnectionPool.txt)<br/>
 1. Add service layer that uses the data source
 
 1. Add Flyway
