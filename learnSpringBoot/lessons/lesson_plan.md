@@ -40,7 +40,6 @@
 1. Add service layer that uses the data source
 
 1. Add Flyway
-
-1. Add Angular front end structure
+   [Exercise: Setup Flyway](/learnSpringBoot/lessons/lesson08_addFlyway.txt)<br/>
 
 
