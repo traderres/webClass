@@ -53,4 +53,4 @@
 1. Working w/Git
 
 1. Add Flyway as separate module<br/>
-   [Exercise: Setup Flyway](/learnSpringBoot/lessons/lesson08_addFlyway.txt){:target="_blank"}<br/>
+   [Exercise: Setup Flyway](/learnSpringBoot/lessons/lesson08_addFlyway.txt{:target="_blank"})<br/>
