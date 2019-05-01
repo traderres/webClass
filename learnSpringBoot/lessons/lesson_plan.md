@@ -50,7 +50,13 @@
    
 1. Creating unit tests w/JUnit
 
-1. Working w/Git
-
+1. Add SSL and PKI Client Certificate Authentication
+   1. [Setup your own Certificate Authority](/learnSSL/howToUseYourCertAuthority_InitialSetup.txt)
+   1. [Create your own server certificate](/learnSSL/howToUseYourCertAuthority_MakeServerCert.txt)
+   1. [Create your own PKI client certificate](/learnSSL/howToUseYourCertAuthority_MakeServerCert.txt)
+   1. Configure SpringBoot to use your server cert
+   1. Configure SpringBoot to require PKI client certificate
+   1. Configure Security to protect your REST endpoints
+   
 1. Add Flyway as separate module<br/>
    [Exercise: Setup Flyway](/learnSpringBoot/lessons/lesson08_addFlyway.txt)<br/>
