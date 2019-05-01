@@ -10,11 +10,10 @@
   
 
 ### Lesson Plan
-1. Java fundamentals
-    Exercise: Create a simple command-line Java program in Intellij<br/>
-    [Exercise: Build command-line Java program](/learnJava/howToCreateJavaCommandLineProgramUsingIntellijMaven.txt)
+1. Java fundamentals<br/>
+    [Exercise: Create a simple command-line Java program in Intellij](/learnJava/howToCreateJavaCommandLineProgramUsingIntellijMaven.txt)
     
-1. Maven fundamentals
+1. Maven fundamentals<br/>
     Exercise: Add logback to thee command-line Java program
 
 1. Spring fundamentals
@@ -23,11 +22,8 @@
    1. Exercise: Adjust existing CDE webapp and inject code
 
 1. Build SpringBoot webapp w/simple REST call
-   1. Setup project structure<br/>
-      [Exercise: Build Spring Boot Structure](/learnSpringBoot/lessons/lesson02_createProjectStructure.txt)
-
-   1. Create webapp as runnable JAR<br/>
-      [Exercise: Setup Springboot as Runnable JAR](/learnSpringBoot/lessons/lesson03_setupRunnableJar.txt)
+   1. [Exercise: Build Spring Boot Structure](/learnSpringBoot/lessons/lesson02_createProjectStructure.txt)<br/>
+   1. [Exercise: Setup Springboot as Runnable JAR](/learnSpringBoot/lessons/lesson03_setupRunnableJar.txt)<br/>
 
 1. Add a REST endpoint (controller)<br/>
    [Exercise: Setup NPM](/learnSpringBoot/lessons/lesson04_addAngularUsingNpm.txt)<br/>
