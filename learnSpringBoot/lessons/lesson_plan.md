@@ -37,8 +37,10 @@
 1. Add JDBC connection pool (data source object)<br/>
    [Exercise: Setup Postgres Database](/learnSpringBoot/lessons/lesson07_setupPostgresDatabase.txt)<br/>
    [Exercise: Add JDBC Connection Pool](/learnSpringBoot/lessons/lesson09_addJdbcConnectionPool.txt)<br/>
-1. Add service layer that uses the data source
-
+   
+1. Add REST endpoint w/service layer<br/>
+   [Exercise: Add Service Layer](/learnSpringBoot/lessons/lesson10_AddRestEndPoint.txt)<br/>
+   
 1. Add Flyway
    [Exercise: Setup Flyway](/learnSpringBoot/lessons/lesson08_addFlyway.txt)<br/>
 
