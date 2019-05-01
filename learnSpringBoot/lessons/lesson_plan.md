@@ -28,14 +28,26 @@
 1. Add a REST endpoint (controller)<br/>
    [Exercise: Setup NPM](/learnSpringBoot/lessons/lesson04_addAngularUsingNpm.txt)<br/>
    [Exercise: Add Angular Page](/learnSpringBoot/lessons/lesson05_addSimpleAngularPage.txt)<br/>
-   [Exercise: Setup Front End Structure](/learnSpringBoot/lessons/lesson06_addAngularFrontEndStructure.txt)<br/>
+   [Exercise: Setup Front End Structure](/learnSpringBoot/lessons/lesson06_addAngularFrontEndStructure.txt)<br/>   
    
-1. Add JDBC connection pool (data source object)<br/>
+1. Add a REST endpoint that queries the database<br/>
    [Exercise: Setup Postgres Database](/learnSpringBoot/lessons/lesson07_setupPostgresDatabase.txt)<br/>
    [Exercise: Add JDBC Connection Pool](/learnSpringBoot/lessons/lesson09_addJdbcConnectionPool.txt)<br/>
-   
-1. Add REST endpoint w/service layer<br/>
-   [Exercise: Add Service Layer](/learnSpringBoot/lessons/lesson10_AddRestEndPoint.txt)<br/>
+   [Exercise: Add REST controller, service layer, SQL call](/learnSpringBoot/lessons/lesson10_AddRestEndPoint.txt)<br/>
+
+1. How to Create About Page that reads manifest
+   1. Adjust Maven to create manifest.txt
+   1. Add REST call to read manifest.txt
+   1. Add page call to forward to manifest.htm
+   1. Create manifest.htm page
+
+1. Working with REST endpoint parameters
+   1. How to handle optional parameters
+   1. How to handle date fields
+
+1. Working with REST contracts
+
+1. Working with File Uploads
 
 1. Using Spring Profiles
    1. Setup multiple profiles in application.yaml
