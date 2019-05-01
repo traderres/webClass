@@ -56,3 +56,9 @@
    
 1. Add Flyway as separate module<br/>
    [Exercise: Setup Flyway](/learnSpringBoot/lessons/lesson08_addFlyway.txt)<br/>
+   
+1. Building & Deployment
+   1. Create Jenkins Job to build the uber JAR
+   1. Add a MANIFEST.MF to your uber JAR
+   1. Read the contents of the MANIFEST.MF from command-line
+   1. Create a web page that displays the contents of MANIFEST.MF
