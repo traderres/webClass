@@ -41,7 +41,15 @@
 1. Add REST endpoint w/service layer<br/>
    [Exercise: Add Service Layer](/learnSpringBoot/lessons/lesson10_AddRestEndPoint.txt)<br/>
    
-1. Add Flyway
+1. Add Flyway as separate module<br/>
    [Exercise: Setup Flyway](/learnSpringBoot/lessons/lesson08_addFlyway.txt)<br/>
 
+1. Using Spring Profiles
+   1. Setup multiple profiles in application.yaml
+   1. Switch profiles<br/>
+   
+1. Encoding Passwords w/Jasypt<br/>
+   [Excercise: Encode database password](/learnSpringBoot/howToUseJasyptToEncode.txt)
+   
+1. Creating unit tests w/JUnit
 
