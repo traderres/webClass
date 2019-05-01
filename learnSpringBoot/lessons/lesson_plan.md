@@ -35,29 +35,66 @@
    [Exercise: Add JDBC Connection Pool](/learnSpringBoot/lessons/lesson09_addJdbcConnectionPool.txt)<br/>
    [Exercise: Add REST controller, service layer, SQL call](/learnSpringBoot/lessons/lesson10_AddRestEndPoint.txt)<br/>
 
-1. How to Create About Page that reads manifest
-   1. Adjust Maven to create manifest.txt
-   1. Add REST call to read manifest.txt
-   1. Add page call to forward to manifest.htm
-   1. Create manifest.htm page
+1. Using Spring JDBC to run SQL
+   1. Run SQL to insert database records
+   1. Run SQL to delete database records
+   1. Run SQL to update database records
+   1. Run SQL to select database records -- get single value, list of values, single object, list of Objects
+   1. Run SQL to get the next sequence value
+   
+1. Using Spring JDBC to run SQL transactions
+   1. Run a transaction that returns an object
+   1. Run a transaction w/o returning an object
+   
+1. Add a REST endpoint that returns a file
+
+1. Add a REST endpoint that returns CSV values
+
+1. Java Fundamentals:  Working with Java collections
+   1. Working with lists
+   1. Working with maps
+   
+1. Java Fundamentals:  Thread safety
+   1. What is Thread safety?
+   1. [Are my controllers and service classes thread safe?](/learnSpringBoot/lessons/lesson_threadSafety.txt)
+   
+1. Creating model objects in Java
 
 1. Working with REST endpoint parameters
    1. How to handle optional parameters
    1. How to handle date fields
 
-1. Working with REST contracts
-
-1. Working with File Uploads
-
 1. Using Spring Profiles
-   1. Setup multiple profiles in application.yaml
-   1. Switch profiles<br/>
+   1. How to setup multiple profiles in application.yaml -- e.g., "dev", "prod"
+   1. How to switch profiles
+
+1. More Maven Tricks
+   1. Setup a maven profile that will replace logback.xml and application.yaml with different files (for production)
+   1. Tell maven to run "npm install" when running npm clean install
+   1. Tell maven to include the build-user, build-time, jenkins build name into the manifest uber jar
+   
+1. Handling Java Exceptions
+   1. What happens when controller method throws an exception?
+   1. How to gracefully handle exceptions in a controller   
+   1. Setup a generic Exception handler to log all errors 
+   1. Create your own "404 not found" page template -- e.g., 404.html file
+   
+1. Handling File Uploads
+
+1. How to Create an "About" Page that displays the MANIFEST.MF
+   1. Adjust Maven to create a manifest.txt
+   1. Add REST call that returns the contents of manifest.txt
+   1. Add page call to forward to manifest.htm
+   1. Create manifest.htm page that invokes the REST call
    
 1. Encoding Passwords w/Jasypt<br/>
    [Excercise: Encode database password](/learnSpringBoot/howToUseJasyptToEncode.txt)
    
 1. Creating unit tests w/JUnit
 
+1. Run Java code after your web app has started
+   1. Used to run health checks
+   
 1. Add SSL and PKI Client Certificate Authentication
    1. [Setup your own Certificate Authority](/learnSSL/howToUseYourCertAuthority_InitialSetup.txt)
    1. [Create your own server certificate](/learnSSL/howToUseYourCertAuthority_MakeServerCert.txt)
