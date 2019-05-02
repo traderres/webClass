@@ -29,6 +29,8 @@
    [Exercise: Setup NPM](/learnSpringBoot/lessons/lesson04_addAngularUsingNpm.txt)<br/>
    [Exercise: Add Angular Page](/learnSpringBoot/lessons/lesson05_addSimpleAngularPage.txt)<br/>
    [Exercise: Setup Front End Structure](/learnSpringBoot/lessons/lesson06_addAngularFrontEndStructure.txt)<br/>   
+
+1. [Setup Local Git Repo](/learnGit/howToAddProjectToLocalRepo.txt)
    
 1. Add a REST endpoint that queries the database<br/>
    [Exercise: Setup Postgres Database](/learnSpringBoot/lessons/lesson07_setupPostgresDatabase.txt)<br/>
