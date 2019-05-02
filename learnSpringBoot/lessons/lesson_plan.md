@@ -40,6 +40,7 @@
 1. Use Flyway to setup a database table and sequence<br/>
    1. [Exercise: Setup Flyway](/learnSpringBoot/lessons/lesson08a_addFlyway.txt)<br/>
    1. [Exercise: Use Flyway to add database tables](/learnSpringBoot/lessons/lesson08c_useFlywayToAddTables.txt)<br/>
+   1. [Use Intellij Database Plugin to run SQL](/learnIntellij/howToRunSqlInIntellij.txt)<br/>
    
 1. Using Spring JDBC to run SQL
    1. Run SQL to select database records -- get single value, list of values, single object, list of Objects
