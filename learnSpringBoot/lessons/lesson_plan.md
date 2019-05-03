@@ -42,17 +42,18 @@
    1. [Use Flyway to add database tables](/learnSpringBoot/lessons/lesson08c_useFlywayToAddTables.txt)<br/>
    1. [Use Intellij Database Plugin to run SQL](/learnIntellij/howToRunSqlInIntellij.txt)<br/>
    
-1. Using Spring JDBC to run SQL
-   1. [Run SQL to insert database records](/learnSpringBoot/lessons/lesson12_runSqlToInsertRecords.txt)
-   1. Run SQL to delete database records
+1. Learning SQL
+   1. [Run SQL to select, insert, and delete records](/learnSpringBoot/lessons/lesson12_runSqlToInsertRecords.txt)
+   1. Run Java code to select records
+   1. Run Java code to delete records
    1. Run SQL to update database records
-   1. Run SQL to get the next sequence value
-   1. Run SQL to select database records -- get single value, list of values, single object, list of Objects
+   1. Run SQL to join database tables 
 
    
-1. Using Spring JDBC to run SQL transactions
-   1. Run a transaction that returns an object
-   1. Run a transaction w/o returning an object
+1. Learning SQL Transactions
+   1. Run SQL transaction manually (inside & outside perspectives)
+   1. Run Java code to execute a transaction that returns an object
+   1. Run Java code to execute a transaction w/o returning an object
    
 1. Add a REST endpoint that returns a file
 
