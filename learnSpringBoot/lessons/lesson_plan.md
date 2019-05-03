@@ -22,32 +22,33 @@
    1. Exercise: Adjust existing CDE webapp and inject code
 
 1. Build SpringBoot webapp w/simple REST call
-   1. [Exercise: Build Spring Boot Structure](/learnSpringBoot/lessons/lesson02_createProjectStructure.txt)<br/>
-   1. [Exercise: Setup Springboot as Runnable JAR](/learnSpringBoot/lessons/lesson03_setupRunnableJar.txt)<br/>
+   1. [Build Spring Boot Structure](/learnSpringBoot/lessons/lesson02_createProjectStructure.txt)<br/>
+   1. [Setup Springboot as Runnable JAR](/learnSpringBoot/lessons/lesson03_setupRunnableJar.txt)<br/>
 
 1. Add a REST endpoint (controller)<br/>
-   [Exercise: Setup NPM](/learnSpringBoot/lessons/lesson04_addAngularUsingNpm.txt)<br/>
-   [Exercise: Add Angular Page](/learnSpringBoot/lessons/lesson05_addSimpleAngularPage.txt)<br/>
-   [Exercise: Setup Front End Structure](/learnSpringBoot/lessons/lesson06_addAngularFrontEndStructure.txt)<br/>   
+   1. [Setup NPM](/learnSpringBoot/lessons/lesson04_addAngularUsingNpm.txt)<br/>
+   1. [Add Angular Page](/learnSpringBoot/lessons/lesson05_addSimpleAngularPage.txt)<br/>
+   1. [Setup Front End Structure](/learnSpringBoot/lessons/lesson06_addAngularFrontEndStructure.txt)<br/>   
 
 1. [Setup Local Git Repo](/learnGit/howToAddProjectToLocalRepo.txt)
    
 1. Add a REST endpoint that queries the database<br/>
-   [Exercise: Setup Postgres Database](/learnSpringBoot/lessons/lesson07_setupPostgresDatabase.txt)<br/>
-   [Exercise: Add JDBC Connection Pool](/learnSpringBoot/lessons/lesson09_addJdbcConnectionPool.txt)<br/>
-   [Exercise: Add REST controller, service layer, SQL call](/learnSpringBoot/lessons/lesson10_AddRestEndPoint.txt)<br/>
+   1. [Setup Postgres Database](/learnSpringBoot/lessons/lesson07_setupPostgresDatabase.txt)<br/>
+   1. [Add JDBC Connection Pool](/learnSpringBoot/lessons/lesson09_addJdbcConnectionPool.txt)<br/>
+   1. [Add REST controller, service layer, SQL call](/learnSpringBoot/lessons/lesson10_AddRestEndPoint.txt)<br/>
 
 1. Use Flyway to setup a database table and sequence<br/>
-   1. [Exercise: Setup Flyway](/learnSpringBoot/lessons/lesson08a_addFlyway.txt)<br/>
-   1. [Exercise: Use Flyway to add database tables](/learnSpringBoot/lessons/lesson08c_useFlywayToAddTables.txt)<br/>
+   1. [Setup Flyway](/learnSpringBoot/lessons/lesson08a_addFlyway.txt)<br/>
+   1. [Use Flyway to add database tables](/learnSpringBoot/lessons/lesson08c_useFlywayToAddTables.txt)<br/>
    1. [Use Intellij Database Plugin to run SQL](/learnIntellij/howToRunSqlInIntellij.txt)<br/>
    
 1. Using Spring JDBC to run SQL
-   1. Run SQL to select database records -- get single value, list of values, single object, list of Objects
-   1. Run SQL to insert database records
+   1. [Run SQL to insert database records](/learnSpringBoot/lessons/lesson12_runSqlToInsertRecords.txt)
    1. Run SQL to delete database records
    1. Run SQL to update database records
    1. Run SQL to get the next sequence value
+   1. Run SQL to select database records -- get single value, list of values, single object, list of Objects
+
    
 1. Using Spring JDBC to run SQL transactions
    1. Run a transaction that returns an object
