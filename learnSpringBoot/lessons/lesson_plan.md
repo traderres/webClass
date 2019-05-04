@@ -42,36 +42,55 @@
    1. [Use Flyway to add database tables](/learnSpringBoot/lessons/lesson08c_useFlywayToAddTables.txt)<br/>
    1. [Use Intellij Database Plugin to run SQL](/learnIntellij/howToRunSqlInIntellij.txt)<br/>
    
-1. Learning SQL
+1. Learn SQL
    1. [Run SQL to select, insert, and delete records](/learnSpringBoot/lessons/lesson12_runSqlToInsertRecords.txt)
-   1. Run Java code to select records
-   1. Run Java code to delete records
-   1. Run SQL to update database records
-   1. Run SQL to join database tables 
-
+   1. Run SQL to join tables
+   1. Run SQL to aggregate values (group by SQL)
+   1. Working with database views
+   1. Working with database materialized views
    
-1. Learning SQL Transactions
-   1. Run SQL transaction manually (inside & outside perspectives)
-   1. Run Java code to execute a transaction that returns an object
-   1. Run Java code to execute a transaction w/o returning an object
-   
-1. Add a REST endpoint that returns a file
-
-1. Add a REST endpoint that returns CSV values
-
-1. Java Fundamentals:  Working with Java collections
+1. Working with Java collections
    1. Working with lists
    1. Working with maps
    
-1. Java Fundamentals:  Thread safety
-   1. What is Thread safety?
-   1. [Are my controllers and service classes thread safe?](/learnSpringBoot/lessons/lesson_threadSafety.txt)
+1. Run SQL code in Java w/Spring-JDBC
+   1. Run Java code to run SQL select calls
+   1. Run Java code to run SQL update and delet calls
+   1. Run Java code to run SQL insert and return newly-created id
+
+1. Run SQL transactions in Java w/Spring-JDBC
+   1. Run SQL transaction manually (inside & outside perspectives)
+   1. Run Java code to execute a transaction 
+   1. Run Java code to execute a transaction that returns an object
    
-1. Creating model objects in Java
+1. Create a REST endpoint that returns a list of data
+   1. Construct SQL join that retrieves the data
+   1. Create Java model object
+   1. Create Service class to run SQL call, return list of objects
+   1. Create Controller class with REST endpoint
+   1. Add Angular front-end call
+   
+1. Creating unit tests w/JUnit
+   1. Create a test case for the service class
+   1. Create a test case for the controller class
+   
+1. Create a REST endpoint that returns a file
+
+1. Create a REST endpoint that returns CSV values
 
 1. Working with REST endpoint parameters
    1. How to handle optional parameters
    1. How to handle date fields
+
+1. Handling Java Exceptions
+   1. What happens when controller method throws an exception?
+   1. How to gracefully handle exceptions in a controller   
+   1. Setup a generic Exception handler to log all errors 
+   1. Create your own "404 not found" page template -- e.g., 404.html file
+   
+1. Learn Java thread safety
+   1. What is Thread safety?
+   1. [Are my controllers and service classes thread safe?](/learnSpringBoot/lessons/lesson_threadSafety.txt)
 
 1. Using Spring Profiles
    1. How to setup multiple profiles in application.yaml -- e.g., "dev", "prod"
@@ -81,14 +100,6 @@
    1. Setup a maven profile that will replace logback.xml and application.yaml with different files (for production)
    1. Tell maven to run "npm install" when running npm clean install
    1. Tell maven to include the build-user, build-time, jenkins build name into the manifest uber jar
-   
-1. Handling Java Exceptions
-   1. What happens when controller method throws an exception?
-   1. How to gracefully handle exceptions in a controller   
-   1. Setup a generic Exception handler to log all errors 
-   1. Create your own "404 not found" page template -- e.g., 404.html file
-   
-1. Handling File Uploads
 
 1. How to Create an "About" Page that displays the MANIFEST.MF
    1. Adjust Maven to create a manifest.txt
@@ -98,8 +109,6 @@
    
 1. Encoding Passwords w/Jasypt<br/>
    [Excercise: Encode database password](/learnSpringBoot/howToUseJasyptToEncode.txt)
-   
-1. Creating unit tests w/JUnit
 
 1. Run Java code after your web app has started
    1. Used to run health checks
