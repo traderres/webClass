@@ -188,8 +188,13 @@ Procedures
 
          import org.slf4j.Logger;
          import org.slf4j.LoggerFactory;
+         import org.springframework.jdbc.core.BeanPropertyRowMapper;
          import org.springframework.jdbc.core.JdbcTemplate;
          import org.springframework.jdbc.datasource.SingleConnectionDataSource;
+         import org.springframework.jdbc.support.rowset.SqlRowSet;
+         import java.sql.Timestamp;
+         import java.util.List;
+         import java.util.Map;
 
          public class App
          {
@@ -215,17 +220,14 @@ Procedures
                      dataSource.setPassword("secret");
 
 
-                     // Run query #1 -- get database time in default format
+                     // Setup the JdbcTemplate object (once set, we can reuse it)
                      JdbcTemplate jt = new JdbcTemplate(dataSource);
-                     String sSql1 = "Select now()";
-                     String sDatabaseTime = jt.queryForObject(sSql1, String.class);
+
+
+                     // Run query #1 -- get database time in default format
+                     String sql1 = "Select now()";
+                     String sDatabaseTime = jt.queryForObject(sql1, String.class);
                      logger.debug("Database Time is {}", sDatabaseTime);
-
-
-                     // Run query #2 -- get database time with some formatting
-                     String sSql2 = "Select date_format( now(), '%d/%m/%Y %H:%i:%s')  ";
-                     String sDatabaseTime2 = jt.queryForObject(sSql2, String.class);
-                     logger.debug("Database Time is {}", sDatabaseTime2);
 
                  }
                  catch (Exception e)
@@ -236,67 +238,145 @@ Procedures
                  finally
                  {
                      if (dataSource != null) {
-                         // Close the data source
+                         // Manually close the data source
                          dataSource.destroy();
                      }
                  }
 
+                 // End of the program
                  logger.debug("main() finished");
              }
 
          }
 
-        
-        
-      
+
+
  8. Setup your debugger
     a. Set a breakpoint or or near line 18 in your main by clicking in the margin
- 
     b. Browse to src/main/java -> com.lessons -> App -> Right-Click -> Debug 'App.main()'
-     
-    c. Press F9 to continue the program and you should see this in your Console:
-        05/04/2019 21:48:54 DEBUG com.lessons.App main() started
-        05/04/2019 21:48:58 INFO  org.springframework.jdbc.datasource.SingleConnectionDataSource Loaded JDBC driver: org.postgresql.Driver
-        05/04/2019 21:48:58 INFO  org.springframework.jdbc.datasource.SingleConnectionDataSource Established shared JDBC Connection: org.postgresql.jdbc.PgConnection@223d2c72
-        05/04/2019 21:48:58 DEBUG com.lessons.App Database Time is 2019-05-04 21:48:58.371137-04
-        05/04/2019 21:48:58 INFO  org.springframework.beans.factory.xml.XmlBeanDefinitionReader Loading XML bean definitions from class path resource [org/springframework/jdbc/support/sql-error-codes.xml]
-        05/04/2019 21:48:58 INFO  org.springframework.jdbc.support.SQLErrorCodesFactory SQLErrorCodes loaded: [DB2, Derby, H2, HSQL, Informix, MS-SQL, MySQL, Oracle, PostgreSQL, Sybase, Hana]
-        05/04/2019 21:48:59 ERROR com.lessons.App Something bad happened
-        org.springframework.jdbc.BadSqlGrammarException: StatementCallback; bad SQL grammar [Select date_format( now(), '%d/%m/%Y %H:%i:%s')  ]; nested exception is org.postgresql.util.PSQLException: ERROR: function date_format(timestamp with time zone, unknown) does not exist
-          Hint: No function matches the given name and argument types. You might need to add explicit type casts.
-          Position: 8
-            at org.springframework.jdbc.support.SQLStateSQLExceptionTranslator.doTranslate(SQLStateSQLExceptionTranslator.java:101)
-            at org.springframework.jdbc.support.AbstractFallbackSQLExceptionTranslator.translate(AbstractFallbackSQLExceptionTranslator.java:72)
-            at org.springframework.jdbc.support.AbstractFallbackSQLExceptionTranslator.translate(AbstractFallbackSQLExceptionTranslator.java:81)
-            at org.springframework.jdbc.support.AbstractFallbackSQLExceptionTranslator.translate(AbstractFallbackSQLExceptionTranslator.java:81)
-            at org.springframework.jdbc.core.JdbcTemplate.translateException(JdbcTemplate.java:1402)
-            at org.springframework.jdbc.core.JdbcTemplate.execute(JdbcTemplate.java:388)
-            at org.springframework.jdbc.core.JdbcTemplate.query(JdbcTemplate.java:446)
-            at org.springframework.jdbc.core.JdbcTemplate.query(JdbcTemplate.java:456)
-            at org.springframework.jdbc.core.JdbcTemplate.queryForObject(JdbcTemplate.java:467)
-            at org.springframework.jdbc.core.JdbcTemplate.queryForObject(JdbcTemplate.java:474)
-            at com.lessons.App.main(App.java:41)
-        Caused by: org.postgresql.util.PSQLException: ERROR: function date_format(timestamp with time zone, unknown) does not exist
-          Hint: No function matches the given name and argument types. You might need to add explicit type casts.
-          Position: 8
-            at org.postgresql.core.v3.QueryExecutorImpl.receiveErrorResponse(QueryExecutorImpl.java:2477)
-            at org.postgresql.core.v3.QueryExecutorImpl.processResults(QueryExecutorImpl.java:2190)
-            at org.postgresql.core.v3.QueryExecutorImpl.execute(QueryExecutorImpl.java:300)
-            at org.postgresql.jdbc.PgStatement.executeInternal(PgStatement.java:428)
-            at org.postgresql.jdbc.PgStatement.execute(PgStatement.java:354)
-            at org.postgresql.jdbc.PgStatement.executeWithFlags(PgStatement.java:301)
-            at org.postgresql.jdbc.PgStatement.executeCachedSql(PgStatement.java:287)
-            at org.postgresql.jdbc.PgStatement.executeWithFlags(PgStatement.java:264)
-            at org.postgresql.jdbc.PgStatement.executeQuery(PgStatement.java:231)
-            at org.springframework.jdbc.core.JdbcTemplate$1QueryStatementCallback.doInStatement(JdbcTemplate.java:433)
-            at org.springframework.jdbc.core.JdbcTemplate.execute(JdbcTemplate.java:376)
-            ... 5 common frames omitted
-        05/04/2019 21:49:01 DEBUG com.lessons.App main() finished
-        Disconnected from the target VM, address: '127.0.0.1:32910', transport: 'socket'
+    c. Activate the debugger and step through the code
 
-        Process finished with exit code 0
+
+ 9. Add query #2 to the code:
+    a. Add this code block to your main()
+         // Run query #2 -- to query the reports table and manually loop through a SqlRowSet
+         String sqlGetReportInfo = "select id, display_name, reviewed, created_date " +
+                                   "from reports " +
+                                   "order by id ";
+
+         // Execute the query and return a read-only recordset
+         SqlRowSet rs = jt.queryForRowSet(sqlGetReportInfo);
+
+         // Loop through the recordset
+         while (rs.next() ) {
+             Integer id = rs.getInt("id");
+             String displayName = rs.getString("display_name");
+             String reviewed = rs.getString("reviewed");
+             Timestamp createdDate = rs.getTimestamp("created_date");
+
+             logger.debug("id={}  displayName={}  reviewed={}  createdDate={}", id, displayName, reviewed, createdDate );
+         }
+
+    b. Set a breakpoint on the line where the reviewed variable is set
+    c. Run the debugger
+       -- Is the reviewed value come back as false or null?
+
+    d. Change thie line:
+          String reviewed = rs.getString("reviewed");
+       To this line:
+          Boolean reviewed = rs.getBoolean("reviewed");
+
+       And, step through it with th debugger?
+       -- Is the reviewed field a null field?  False?  True?
 
 
 
+10. Add query #3 to the code:
+    a. Add this code block to your main()
+         // Run query #3 -- to query the reports table and return a list of map objects
+         List<Map<String, Object>> listOfMaps = jt.queryForList(sqlGetReportInfo);
 
-    
+         // Loop through the list of maps
+         for (Map map: listOfMaps) {
+            logger.debug("id={}  displayName={}  reviewed={}  createdDate={}", map.get("id"), map.get("display_name"), map.get("reviewed"), map.get("created_date") );
+         }
+
+    b. Step through the code with the debugger
+       -- Is the reviewed field a null field?  False?  True?
+
+
+
+11. Add query #4 to the code
+    a. Add this code block to your main()
+         // Run query #4 -- to query the reports table and return a list of model objects
+         BeanPropertyRowMapper rowMapper = new BeanPropertyRowMapper(Report.class);
+         List<Report> listOfReports = jt.query(sqlGetReportInfo, rowMapper);
+
+         // Loop through the list
+         for (Report r: listOfReports) {
+              logger.debug("id={}  displayName={}  reviewed={}  createdDate={}", r.getId(), r.getDisplayName(), r.getReviewed(), r.getCreatedDate() );
+         }
+
+    b. Add a new java class called Report to your com.lessons package with this code:
+         package com.lessons;
+
+         import java.sql.Timestamp;
+
+         public class Report {
+                private Integer id;
+                private String displayName;
+                private Boolean reviewed;
+                private Timestamp createdDate;
+
+                public Integer getId() {
+                    return id;
+                }
+
+                public void setId(Integer id) {
+                    this.id = id;
+                }
+
+                public String getDisplayName() {
+                    return displayName;
+                }
+
+                public void setDisplayName(String displayName) {
+                    this.displayName = displayName;
+                }
+
+                public Boolean getReviewed() {
+                    return reviewed;
+                }
+
+                public void setReviewed(Boolean reviewed) {
+                    this.reviewed = reviewed;
+                }
+
+                public Timestamp getCreatedDate() {
+                    return createdDate;
+                }
+
+                public void setCreatedDate(Timestamp createdDate) {
+                    this.createdDate = createdDate;
+                }
+
+          }
+
+    c. Step through the code with the debugger
+       -- Is the reviewed field a null field?  False?  True?
+
+
+
+12. Add query #5 to the code (that will throw an exception)
+
+    a. Add this code block to your main()
+
+            // Run query #4 -- to throw an error
+            String sql4 = "select count(*) from users25";
+            Integer count = jt.queryForObject(sql4, Integer.class);
+            logger.debug("Count of records in users={}", count);
+
+    b. Step through the code with the debugger
+        -- What happens
+
+
