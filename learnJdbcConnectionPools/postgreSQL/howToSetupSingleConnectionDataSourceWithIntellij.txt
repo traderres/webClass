@@ -1,0 +1,317 @@
+How to setup a Connection Pool that Reuses a Single Connection 
+--------------------------------------------------------------
+
+Assumptions
+ A) You want to use Intellij to run/debug your Java JAR
+ B) You want your java app to talk with a Postgres database
+ C) You want to use a Java datasource but re-use a single connection
+    -- You want to create a connection pool of one connection
+
+    
+    
+Procedures
+----------
+ 1. Create your "simpleDbApp" command-line project in Intellij
+    a. Startup Intellij
+       NOTE:  IF an existing Intellij project appear, then pull File / Close Project
+       
+    b. Press "Create New Project"
+       1) In the "New Project" window, 
+            a) Select Maven [on the left]
+            b) Next to Project SDK:  Select your Java JDK
+               NOTE:  If you do not see your java JDK, then
+                      Press New
+                      -- Browse to your Java JDK:  C:\Program Files\Java\jdk1.7.0_60
+                      -- Press OK
+               
+            c) Check "Create from archetype"
+            
+            d) Select maven-archetype-quickstart
+               Press Next
+               
+       2) In the next screen
+          GroupId:     com.lessons
+          ArtifactId:  simpleDbApp      
+          Version:     1.0-SNAPSHOT
+          Press Next
+          
+          
+       3) In the next screen,
+          Maven home directory:  C:/tools/apache-maven-3.2.3
+          User settings file:    Check the checkbox to "Override"
+                                 C:\tools\apache-maven-3.2.3\conf\settings.xml
+          Press Next                       
+                                 
+       
+       4) Project Name:      simpleDbApp
+          Project Location:  C:\tools\intellij\workspace\simpleDbApp
+          Press Finish
+          
+       5) If you get prompted that "C:\tools\intellij\workspace\simpleDbApp" does not exist
+          It will be created by Intellij
+          Press OK 
+     
+       6) If you get prompted 
+          "New projects can either be opened in a new window or replace the project"
+          Press "This Window"
+          
+       7) If you are prompted 
+          Maven projects need to be imported
+          Press "Enable Auto-Import"
+          
+          Now, maven has created a simple Java JAR project
+       
+       
+       
+ 3. Configure Intellij preferences for this project
+    a. Turn off spell-checking
+       1) Pull File / Settings
+       2) Search for spelling
+          a) Single-click on Inspections
+          b) next to Typo -- Uncheck the checkbox
+          c) Press Apply
+          
+          
+
+ 4. Setup the Maven test directories for your Intellij project
+
+    Add these directories
+       src/test/resources/             # Holds the logback.xml used by unit test code
+       src/main/resources/             # Holds the logback.xml used by main program
+
+
+    a. Right-click on src/test   -> New -> Directory:    resources
+    b. Right-click on src/main   -> New -> Directory:    resources
+
+
+    Now, you should have this directory structure
+      src/main/java/ 
+      src/main/resources/               # Holds logback.xml used by java main program     
+      src/test/java
+      src/test/resources/               # Holds logback.xml used by unit test code
+   
+
+
+           
+ 5. Add dependencies for your project
+    Your pom.xml should already have one dependency:
+      <dependencies>
+      
+        <dependency>
+          <groupId>junit</groupId>
+          <artifactId>junit</artifactId>
+          <version>4.12</version>
+          <scope>test</scope>
+        </dependency>
+        
+      </dependencies>
+    
+        
+        
+    Copy and paste these dependencies into your pom.xml
+    NOTE:  Add all of these dependencies should be between these tags:
+       <dependencies>
+       . . .
+       </dependencies>
+       
+       
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jdbc</artifactId>
+            <version>4.1.1.RELEASE</version>
+        </dependency>
+    
+
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jdbc</artifactId>
+            <version>4.1.1.RELEASE</version>
+        </dependency>
+
+         <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-core</artifactId>
+            <version>4.1.1.RELEASE</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+                
+               
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.0.13</version>
+        </dependency>
+           
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jcl-over-slf4j</artifactId>
+            <version>1.7.5</version>
+        </dependency>
+            
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>5.1.6</version>
+        </dependency>
+                  
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.11</version>
+            <scope>test</scope>
+        </dependency>      
+
+
+
+
+ 6. Create this file:  logback.xml
+    a. Browse to src/main/resources
+    b. Right-click on classes -> New -> File
+       filename:  logback.xml
+    c. Copy this contents to your logback.xml file
+       WARNING:  You *CANNOT* have leading spaces before <?xml version="1.0"... ?>
+    
+        <?xml version="1.0" encoding="windows-1252" ?>
+        <!DOCTYPE project>
+        
+        <configuration debug="false">
+            <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+                <encoder>
+                    <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+                </encoder>
+            </appender>
+            
+            
+            <logger name="stuff" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>   
+            
+            <root level="INFO">
+                <appender-ref ref="CONSOLE"/>
+            </root>
+            
+        </configuration>
+        
+
+
+ 7. Create your class:  UseMysql.java
+    a. Right-click on src/main/java -> New Package 
+       Name:  stuff      
+       Press Finish
+       
+    b. Right-click on stuff -> New Class
+       Name:  UseMysql.java
+       Check the checkbox that says "public static void main(String[] args)
+       Press Finish
+       
+       You should see something like this:
+       
+        package stuff;
+
+        public class UseMysql {
+        
+            public static void main(String[] args) {
+                // TODO Auto-generated method stub
+        
+            }
+        
+        }
+    
+     
+     
+    c. Change your class to this:
+
+        package stuff;
+        
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.jdbc.core.JdbcTemplate;
+        import org.springframework.jdbc.datasource.simpleDbAppDataSource;
+        
+        public class UseMysql
+        {
+        
+            private static final Logger logger = LoggerFactory.getLogger(UseMysql.class);
+        
+        
+            public static void main(String[] args)
+            {
+                logger.debug("main() started");
+        
+                try
+                {
+                    // Create the data source object
+                    simpleDbAppDataSource sds = (simpleDbAppDataSource) new simpleDbAppDataSource();
+        
+                    // Initialize the data source by setting its properties
+                    sds.setDriverClassName("com.mysql.jdbc.Driver");
+                    sds.setUrl("jdbc:mysql://localhost:3306/world?autoReconnect=true");
+                    sds.setUsername("root");
+                    sds.setPassword("secret");
+        
+        
+        
+                    // Run query #1 -- get database time in default format
+                    JdbcTemplate jt = new JdbcTemplate(sds);
+                    String sSql1 = "Select now()";
+                    String sDatabaseTime = jt.queryForObject(sSql1, String.class);
+                    logger.debug("Database Time is {}", sDatabaseTime);
+        
+        
+                    // Have the program wait for 2 seconds
+                    logger.debug("Sleeping for 2 seconds\n\n");
+                    Thread.sleep(2000);
+        
+        
+                    // Run query #2 -- get database time with some formatting
+                    String sSql2 = "Select date_format( now(), '%d/%m/%Y %H:%i:%s')  ";
+                    String sDatabaseTime2 = jt.queryForObject(sSql2, String.class);
+                    logger.debug("Database Time is {}", sDatabaseTime2);
+        
+        
+        
+                    // Close the datasource
+                    sds.destroy();
+        
+                }
+                catch (Exception e)
+                {
+                    logger.error("Something bad happened attempting to connect to the database", e);
+                }
+        
+        
+                logger.debug("main() finished");
+            }
+        
+        }
+        
+        
+      
+ 8. Setup your debugger
+    a. Set a breakpoint or or near line 18 in your main by clicking in the margin
+ 
+    b. Browse to src/main/java -> stuff -> UseMysql -> Right-Click -> Debug 'AddStuff.main()'
+     
+    c. Press F9 to continue the program and you should see this in your Console:
+        Connected to the target VM, address: '127.0.0.1:58181', transport: 'socket'    
+        10/18/2015 17:01:42 stuff.UseMysql main() started
+        10/18/2015 17:01:45 org.springframework.jdbc.datasource.simpleDbAppDataSource Loaded JDBC driver: com.mysql.jdbc.Driver
+        10/18/2015 17:01:48 org.springframework.jdbc.datasource.simpleDbAppDataSource Established shared JDBC Connection: com.mysql.jdbc.JDBC4Connection@181d4997
+        10/18/2015 17:01:48 stuff.UseMysql Database Time is 2015-10-18 17:01:48.0
+        10/18/2015 17:01:49 stuff.UseMysql Sleeping for 2 seconds
+        10/18/2015 17:01:52 stuff.UseMysql Database Time is 18/10/2015 17:01:52
+        10/18/2015 17:01:52 stuff.UseMysql main() finished
+        Disconnected from the target VM, address: '127.0.0.1:58181', transport: 'socket'
+
+
+
+
+
+
+
+    
