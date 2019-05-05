@@ -42,8 +42,13 @@
    1. [Use Flyway to add database tables](/learnSpringBoot/lessons/lesson08c_useFlywayToAddTables.txt)<br/>
    1. [Use Intellij Database Plugin to run SQL](/learnIntellij/howToRunSqlInIntellij.txt)<br/>
    
-1. Learn SQL
+1. Quick Start: Run SQL call call in Java w/Spring-JDBC
    1. [Run SQL to select, insert, and delete records](/learnSpringBoot/lessons/lesson12_runSqlToInsertRecords.txt)
+   1. [Create a command-line java program to run SQL call w/Spring-JDBC](/learnJdbcConnectionPools/postgreSQL/howToSetupSingleConnectionDataSourceWithIntellij.txt)
+   1. [Add a Java service class to app1 to run SQL call w/Spring-JDBC](/learnSpringBoot/lessons/lesson13_addServiceLayerThatRunsSql.txt)
+   1. Add bind parameters to java SQL call
+  
+1. Learn Advanced SQL
    1. Run SQL to join tables
    1. Run SQL to aggregate values (group by SQL)
    1. Working with database views
@@ -54,10 +59,10 @@
    1. Working with maps
    
 1. Run SQL code in Java w/Spring-JDBC
-   1. Run Java code to run SQL select calls
-   1. Run Java code to run SQL update and delet calls
+   1. Run Java code to get next value from a sequence
+   1. Run Java code to run SQL update and delete calls
    1. Run Java code to run SQL insert and return newly-created id
-
+  
 1. Run SQL transactions in Java w/Spring-JDBC
    1. Run SQL transaction manually (inside & outside perspectives)
    1. Run Java code to execute a transaction 
