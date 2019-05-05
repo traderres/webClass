@@ -160,87 +160,92 @@ Procedures
        WARNING:  You *CANNOT* have leading spaces before <?xml version="1.0"... ?>
     
         <?xml version="1.0" encoding="windows-1252" ?>
-        <!DOCTYPE project>
-        
         <configuration debug="false">
             <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
                 <encoder>
                     <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
                 </encoder>
             </appender>
-            
-            
-            <logger name="stuff" level="DEBUG" additivity="false">
+
+            <logger name="org.springframework" level="INFO" additivity="false">
                 <appender-ref ref="CONSOLE"/>
-            </logger>   
-            
+            </logger>
+
+            <logger name="com.lessons" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+
             <root level="INFO">
                 <appender-ref ref="CONSOLE"/>
             </root>
-            
         </configuration>
         
 
 
  7. Edit the App class to look like this
 
-        package com.lessons;
-        
-        import org.slf4j.Logger;
-        import org.slf4j.LoggerFactory;
-        import org.springframework.jdbc.core.JdbcTemplate;
-        import org.springframework.jdbc.datasource.SingleConnectionDataSource;
-        
-        public class App
-        {
-        
-            private static final Logger logger = LoggerFactory.getLogger(App.class);
-        
-        
-            public static void main(String[] args)
-            {
-                logger.debug("main() started");
-        
-                try
-                {
-                    // Create the data source object
-                    SingleConnectionDataSource dataSource = (SingleConnectionDataSource) new simpleDbAppDataSource();
-        
-                    // Initialize the data source by setting its properties
-                    dataSource.setDriverClassName("com.mysql.jdbc.Driver");
-                    dataSource.setUrl("jdbc:mysql://localhost:3306/world?autoReconnect=true");
-                    dataSource.setUsername("root");
-                    dataSource.setPassword("secret");
-        
+         package com.lessons;
 
-                    // Run query #1 -- get database time in default format
-                    JdbcTemplate jt = new JdbcTemplate(dataSource);
-                    String sSql1 = "Select now()";
-                    String sDatabaseTime = jt.queryForObject(sSql1, String.class);
-                    logger.debug("Database Time is {}", sDatabaseTime);
-        
-        
-                    // Run query #2 -- get database time with some formatting
-                    String sSql2 = "Select date_format( now(), '%d/%m/%Y %H:%i:%s')  ";
-                    String sDatabaseTime2 = jt.queryForObject(sSql2, String.class);
-                    logger.debug("Database Time is {}", sDatabaseTime2);
-        
-                }
-                catch (Exception e)
-                {
-                    // Log the error *and* include a stack trace
-                    logger.error("Something bad happened", e);
-                }
-                finally
-                {
-                    // Close the data source
-                    dataSource.destroy();
-                }
-        
-                logger.debug("main() finished");
-            }
-        
-        }
+         import org.slf4j.Logger;
+         import org.slf4j.LoggerFactory;
+         import org.springframework.jdbc.core.JdbcTemplate;
+         import org.springframework.jdbc.datasource.SingleConnectionDataSource;
+
+         public class App
+         {
+
+             private static final Logger logger = LoggerFactory.getLogger(App.class);
+
+
+             public static void main(String[] args)
+             {
+                 logger.debug("main() started");
+
+                 SingleConnectionDataSource dataSource = null;
+
+                 try
+                 {
+                     // Create the data source object (that re-uses one connection)
+                     dataSource = new SingleConnectionDataSource();
+
+                     // Initialize the data source by setting its properties
+                     dataSource.setDriverClassName("org.postgresql.Driver");
+                     dataSource.setUrl("jdbc:postgresql://localhost:5432/app1_db");
+                     dataSource.setUsername("app1_user");
+                     dataSource.setPassword("secret");
+
+
+                     // Run query #1 -- get database time in default format
+                     JdbcTemplate jt = new JdbcTemplate(dataSource);
+                     String sSql1 = "Select now()";
+                     String sDatabaseTime = jt.queryForObject(sSql1, String.class);
+                     logger.debug("Database Time is {}", sDatabaseTime);
+
+
+                     // Run query #2 -- get database time with some formatting
+                     String sSql2 = "Select date_format( now(), '%d/%m/%Y %H:%i:%s')  ";
+                     String sDatabaseTime2 = jt.queryForObject(sSql2, String.class);
+                     logger.debug("Database Time is {}", sDatabaseTime2);
+
+                 }
+                 catch (Exception e)
+                 {
+                     // Log the error *and* include a stack trace
+                     logger.error("Something bad happened", e);
+                 }
+                 finally
+                 {
+                     if (dataSource != null) {
+                         // Close the data source
+                         dataSource.destroy();
+                     }
+                 }
+
+                 logger.debug("main() finished");
+             }
+
+         }
+
         
         
       
@@ -250,18 +255,46 @@ Procedures
     b. Browse to src/main/java -> com.lessons -> App -> Right-Click -> Debug 'App.main()'
      
     c. Press F9 to continue the program and you should see this in your Console:
-        Connected to the target VM, address: '127.0.0.1:58181', transport: 'socket'    
-        10/18/2015 17:01:42 stuff.UseMysql main() started
-        10/18/2015 17:01:45 org.springframework.jdbc.datasource.simpleDbAppDataSource Loaded JDBC driver: com.mysql.jdbc.Driver
-        10/18/2015 17:01:48 org.springframework.jdbc.datasource.simpleDbAppDataSource Established shared JDBC Connection: com.mysql.jdbc.JDBC4Connection@181d4997
-        10/18/2015 17:01:48 stuff.UseMysql Database Time is 2015-10-18 17:01:48.0
-        10/18/2015 17:01:49 stuff.UseMysql Sleeping for 2 seconds
-        10/18/2015 17:01:52 stuff.UseMysql Database Time is 18/10/2015 17:01:52
-        10/18/2015 17:01:52 stuff.UseMysql main() finished
-        Disconnected from the target VM, address: '127.0.0.1:58181', transport: 'socket'
+        05/04/2019 21:48:54 DEBUG com.lessons.App main() started
+        05/04/2019 21:48:58 INFO  org.springframework.jdbc.datasource.SingleConnectionDataSource Loaded JDBC driver: org.postgresql.Driver
+        05/04/2019 21:48:58 INFO  org.springframework.jdbc.datasource.SingleConnectionDataSource Established shared JDBC Connection: org.postgresql.jdbc.PgConnection@223d2c72
+        05/04/2019 21:48:58 DEBUG com.lessons.App Database Time is 2019-05-04 21:48:58.371137-04
+        05/04/2019 21:48:58 INFO  org.springframework.beans.factory.xml.XmlBeanDefinitionReader Loading XML bean definitions from class path resource [org/springframework/jdbc/support/sql-error-codes.xml]
+        05/04/2019 21:48:58 INFO  org.springframework.jdbc.support.SQLErrorCodesFactory SQLErrorCodes loaded: [DB2, Derby, H2, HSQL, Informix, MS-SQL, MySQL, Oracle, PostgreSQL, Sybase, Hana]
+        05/04/2019 21:48:59 ERROR com.lessons.App Something bad happened
+        org.springframework.jdbc.BadSqlGrammarException: StatementCallback; bad SQL grammar [Select date_format( now(), '%d/%m/%Y %H:%i:%s')  ]; nested exception is org.postgresql.util.PSQLException: ERROR: function date_format(timestamp with time zone, unknown) does not exist
+          Hint: No function matches the given name and argument types. You might need to add explicit type casts.
+          Position: 8
+            at org.springframework.jdbc.support.SQLStateSQLExceptionTranslator.doTranslate(SQLStateSQLExceptionTranslator.java:101)
+            at org.springframework.jdbc.support.AbstractFallbackSQLExceptionTranslator.translate(AbstractFallbackSQLExceptionTranslator.java:72)
+            at org.springframework.jdbc.support.AbstractFallbackSQLExceptionTranslator.translate(AbstractFallbackSQLExceptionTranslator.java:81)
+            at org.springframework.jdbc.support.AbstractFallbackSQLExceptionTranslator.translate(AbstractFallbackSQLExceptionTranslator.java:81)
+            at org.springframework.jdbc.core.JdbcTemplate.translateException(JdbcTemplate.java:1402)
+            at org.springframework.jdbc.core.JdbcTemplate.execute(JdbcTemplate.java:388)
+            at org.springframework.jdbc.core.JdbcTemplate.query(JdbcTemplate.java:446)
+            at org.springframework.jdbc.core.JdbcTemplate.query(JdbcTemplate.java:456)
+            at org.springframework.jdbc.core.JdbcTemplate.queryForObject(JdbcTemplate.java:467)
+            at org.springframework.jdbc.core.JdbcTemplate.queryForObject(JdbcTemplate.java:474)
+            at com.lessons.App.main(App.java:41)
+        Caused by: org.postgresql.util.PSQLException: ERROR: function date_format(timestamp with time zone, unknown) does not exist
+          Hint: No function matches the given name and argument types. You might need to add explicit type casts.
+          Position: 8
+            at org.postgresql.core.v3.QueryExecutorImpl.receiveErrorResponse(QueryExecutorImpl.java:2477)
+            at org.postgresql.core.v3.QueryExecutorImpl.processResults(QueryExecutorImpl.java:2190)
+            at org.postgresql.core.v3.QueryExecutorImpl.execute(QueryExecutorImpl.java:300)
+            at org.postgresql.jdbc.PgStatement.executeInternal(PgStatement.java:428)
+            at org.postgresql.jdbc.PgStatement.execute(PgStatement.java:354)
+            at org.postgresql.jdbc.PgStatement.executeWithFlags(PgStatement.java:301)
+            at org.postgresql.jdbc.PgStatement.executeCachedSql(PgStatement.java:287)
+            at org.postgresql.jdbc.PgStatement.executeWithFlags(PgStatement.java:264)
+            at org.postgresql.jdbc.PgStatement.executeQuery(PgStatement.java:231)
+            at org.springframework.jdbc.core.JdbcTemplate$1QueryStatementCallback.doInStatement(JdbcTemplate.java:433)
+            at org.springframework.jdbc.core.JdbcTemplate.execute(JdbcTemplate.java:376)
+            ... 5 common frames omitted
+        05/04/2019 21:49:01 DEBUG com.lessons.App main() finished
+        Disconnected from the target VM, address: '127.0.0.1:32910', transport: 'socket'
 
-
-
+        Process finished with exit code 0
 
 
 
