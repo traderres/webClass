@@ -46,7 +46,7 @@
    1. [Run SQL to select, insert, and delete records](/learnSpringBoot/lessons/lesson12_runSqlToInsertRecords.txt)
    1. [Create a command-line java program to run SQL call w/Spring-JDBC](/learnJdbcConnectionPools/postgreSQL/howToSetupSingleConnectionDataSourceWithIntellij.txt)
    1. [Add a Java service class to run SQL call w/Spring-JDBC](/learnSpringBoot/lessons/lesson13_addServiceLayerThatRunsSql.txt)
-   1. Add bind parameters to java SQL call
+   1. [Add bind parameters with question marks](/learnSpringJdbc/howToAddBindParameters.txt)
   
 1. Learn Advanced SQL
    1. Run SQL to join tables
