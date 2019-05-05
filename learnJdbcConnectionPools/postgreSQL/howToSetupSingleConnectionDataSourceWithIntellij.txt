@@ -1,33 +1,24 @@
-How to setup a Connection Pool that Reuses a Single Connection 
---------------------------------------------------------------
+How to Create a Simple Java App to Query Database w/Single Connection Data Source
+---------------------------------------------------------------------------------
 
 Assumptions
  A) You want to use Intellij to run/debug your Java JAR
  B) You want your java app to talk with a Postgres database
- C) You want to use a Java datasource but re-use a single connection
-    -- You want to create a connection pool of one connection
+ C) You want to use a Java datasource that reuses single connection
 
 
-INCOMPLETE
 
-    
 Procedures
 ----------
  1. Create your "simpleDbApp" command-line project in Intellij
     a. Startup Intellij
-       NOTE:  IF an existing Intellij project appear, then pull File / Close Project
+       NOTE:  If an existing Intellij project appear, then pull File / Close Project
        
     b. Press "Create New Project"
        1) In the "New Project" window, 
             a) Select Maven [on the left]
             b) Next to Project SDK:  Select your Java JDK
-               NOTE:  If you do not see your java JDK, then
-                      Press New
-                      -- Browse to your Java JDK:  C:\Program Files\Java\jdk1.7.0_60
-                      -- Press OK
-               
             c) Check "Create from archetype"
-            
             d) Select maven-archetype-quickstart
                Press Next
                
@@ -39,25 +30,16 @@ Procedures
           
           
        3) In the next screen,
-          Maven home directory:  C:/tools/apache-maven-3.2.3
-          User settings file:    Check the checkbox to "Override"
-                                 C:\tools\apache-maven-3.2.3\conf\settings.xml
+          Maven home directory:  /opt/apache-maven-3.3.9
+          User settings file:    Use the default value
           Press Next                       
                                  
        
        4) Project Name:      simpleDbApp
-          Project Location:  C:\tools\intellij\workspace\simpleDbApp
+          Project Location:  ~/intellijProjects/simpleDbApp
           Press Finish
           
-       5) If you get prompted that "C:\tools\intellij\workspace\simpleDbApp" does not exist
-          It will be created by Intellij
-          Press OK 
-     
-       6) If you get prompted 
-          "New projects can either be opened in a new window or replace the project"
-          Press "This Window"
-          
-       7) If you are prompted 
+       5) If you are prompted
           Maven projects need to be imported
           Press "Enable Auto-Import"
           
@@ -125,17 +107,21 @@ Procedures
     
 
         <dependency>
+            <!-- Spring JDBC -->
             <groupId>org.springframework</groupId>
             <artifactId>spring-jdbc</artifactId>
-            <version>4.1.1.RELEASE</version>
+            <version>5.0.3.RELEASE</version>
         </dependency>
 
-         <dependency>
+        <dependency>
+            <!-- Spring Core -->
             <groupId>org.springframework</groupId>
             <artifactId>spring-core</artifactId>
-            <version>4.1.1.RELEASE</version>
+            <version>5.0.3.RELEASE</version>
+
             <exclusions>
                 <exclusion>
+                    <!-- Remove commons logging from spring as we will use logback -->
                     <groupId>commons-logging</groupId>
                     <artifactId>commons-logging</artifactId>
                 </exclusion>
@@ -146,7 +132,7 @@ Procedures
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.0.13</version>
+            <version>1.2.3</version>
         </dependency>
            
         <dependency>
@@ -154,13 +140,14 @@ Procedures
             <artifactId>jcl-over-slf4j</artifactId>
             <version>1.7.5</version>
         </dependency>
-            
+
         <dependency>
-            <groupId>mysql</groupId>
-            <artifactId>mysql-connector-java</artifactId>
-            <version>5.1.6</version>
+            <!-- Postgres Database Driver -->
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.1.4</version>
         </dependency>
-                  
+
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
@@ -201,44 +188,19 @@ Procedures
         
 
 
- 7. Create your class:  UseMysql.java
-    a. Right-click on src/main/java -> New Package 
-       Name:  stuff      
-       Press Finish
-       
-    b. Right-click on stuff -> New Class
-       Name:  UseMysql.java
-       Check the checkbox that says "public static void main(String[] args)
-       Press Finish
-       
-       You should see something like this:
-       
-        package stuff;
+ 7. Edit the App class to look like this
 
-        public class UseMysql {
-        
-            public static void main(String[] args) {
-                // TODO Auto-generated method stub
-        
-            }
-        
-        }
-    
-     
-     
-    c. Change your class to this:
-
-        package stuff;
+        package com.lessons;
         
         import org.slf4j.Logger;
         import org.slf4j.LoggerFactory;
         import org.springframework.jdbc.core.JdbcTemplate;
-        import org.springframework.jdbc.datasource.simpleDbAppDataSource;
+        import org.springframework.jdbc.datasource.SingleConnectionDataSource;
         
-        public class UseMysql
+        public class App
         {
         
-            private static final Logger logger = LoggerFactory.getLogger(UseMysql.class);
+            private static final Logger logger = LoggerFactory.getLogger(App.class);
         
         
             public static void main(String[] args)
@@ -248,26 +210,20 @@ Procedures
                 try
                 {
                     // Create the data source object
-                    simpleDbAppDataSource sds = (simpleDbAppDataSource) new simpleDbAppDataSource();
+                    SingleConnectionDataSource dataSource = (SingleConnectionDataSource) new simpleDbAppDataSource();
         
                     // Initialize the data source by setting its properties
-                    sds.setDriverClassName("com.mysql.jdbc.Driver");
-                    sds.setUrl("jdbc:mysql://localhost:3306/world?autoReconnect=true");
-                    sds.setUsername("root");
-                    sds.setPassword("secret");
+                    dataSource.setDriverClassName("com.mysql.jdbc.Driver");
+                    dataSource.setUrl("jdbc:mysql://localhost:3306/world?autoReconnect=true");
+                    dataSource.setUsername("root");
+                    dataSource.setPassword("secret");
         
-        
-        
+
                     // Run query #1 -- get database time in default format
-                    JdbcTemplate jt = new JdbcTemplate(sds);
+                    JdbcTemplate jt = new JdbcTemplate(dataSource);
                     String sSql1 = "Select now()";
                     String sDatabaseTime = jt.queryForObject(sSql1, String.class);
                     logger.debug("Database Time is {}", sDatabaseTime);
-        
-        
-                    // Have the program wait for 2 seconds
-                    logger.debug("Sleeping for 2 seconds\n\n");
-                    Thread.sleep(2000);
         
         
                     // Run query #2 -- get database time with some formatting
@@ -275,17 +231,17 @@ Procedures
                     String sDatabaseTime2 = jt.queryForObject(sSql2, String.class);
                     logger.debug("Database Time is {}", sDatabaseTime2);
         
-        
-        
-                    // Close the datasource
-                    sds.destroy();
-        
                 }
                 catch (Exception e)
                 {
-                    logger.error("Something bad happened attempting to connect to the database", e);
+                    // Log the error *and* include a stack trace
+                    logger.error("Something bad happened", e);
                 }
-        
+                finally
+                {
+                    // Close the data source
+                    dataSource.destroy();
+                }
         
                 logger.debug("main() finished");
             }
@@ -297,7 +253,7 @@ Procedures
  8. Setup your debugger
     a. Set a breakpoint or or near line 18 in your main by clicking in the margin
  
-    b. Browse to src/main/java -> stuff -> UseMysql -> Right-Click -> Debug 'AddStuff.main()'
+    b. Browse to src/main/java -> com.lessons -> App -> Right-Click -> Debug 'App.main()'
      
     c. Press F9 to continue the program and you should see this in your Console:
         Connected to the target VM, address: '127.0.0.1:58181', transport: 'socket'    
