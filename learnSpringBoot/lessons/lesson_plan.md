@@ -95,7 +95,7 @@
    
 1. Learn Java thread safety
    1. What is Thread safety?
-   1. [Are my controllers and service classes thread safe?](/learnSpringBoot/lessons/lesson_threadSafety.txt)
+   1. [Are my controllers and service classes thread safe?](/learnSpringBoot/lessons/lesson21_threadSafety.txt)
 
 1. Using Spring Profiles
    1. How to setup multiple profiles in application.yaml -- e.g., "dev", "prod"
