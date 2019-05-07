@@ -50,7 +50,7 @@
 
 1. Using REST endpoint parameters
    1. [Basic REST endpoint parameters](/learnSpringBoot/lessons/lesson14_restParams.txt)
-   1. Advanced REST endpoint parameters(/learnSpringBoot/lessons/lesson14_restParams_advanced.txt)
+   1. [Advanced REST endpoint parameters](/learnSpringBoot/lessons/lesson14_restParams_advanced.txt)
    
 1. Working with Java collections
    1. Working with lists
