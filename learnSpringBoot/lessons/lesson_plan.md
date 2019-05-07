@@ -47,16 +47,19 @@
    1. [Create a command-line java program to run SQL call w/Spring-JDBC](/learnJdbcConnectionPools/postgreSQL/howToSetupSingleConnectionDataSourceWithIntellij.txt)
    1. [Add a Java service class to run SQL call w/Spring-JDBC](/learnSpringBoot/lessons/lesson13_addServiceLayerThatRunsSql.txt)
    1. [Add bind parameters with question marks](/learnSpringJdbc/howToAddBindParameters.txt)
-  
+
+1. [Working with REST endpoint parameters](/learnSpringBoot/lessons/lesson14_restParams.txt)
+
+1. Working with Java collections
+   1. Working with lists
+   1. Working with maps
+   1. Passing lists into functions
+   
 1. Learn Advanced SQL
    1. Run SQL to join tables
    1. Run SQL to aggregate values (group by SQL)
    1. Working with database views
-   1. Working with database materialized views
-   
-1. Working with Java collections
-   1. Working with lists
-   1. Working with maps
+   1. Working with database materialized views   
    
 1. Run SQL code in Java w/Spring-JDBC
    1. Run Java code to get next value from a sequence
@@ -82,10 +85,6 @@
 1. Create a REST endpoint that returns a file
 
 1. Create a REST endpoint that returns CSV values
-
-1. Working with REST endpoint parameters
-   1. How to handle optional parameters
-   1. How to handle date fields
 
 1. Handling Java Exceptions
    1. What happens when controller method throws an exception?
