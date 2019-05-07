@@ -48,8 +48,10 @@
    1. [Add a Java service class to run SQL call w/Spring-JDBC](/learnSpringBoot/lessons/lesson13_addServiceLayerThatRunsSql.txt)
    1. [Add bind parameters with question marks](/learnSpringJdbc/howToAddBindParameters.txt)
 
-1. [Working with REST endpoint parameters](/learnSpringBoot/lessons/lesson14_restParams.txt)
-
+1. Using REST endpoint parameters
+   1. [Basic REST endpoint parameters](/learnSpringBoot/lessons/lesson14_restParams.txt)
+   1. Advanced REST endpoint parameters(/learnSpringBoot/lessons/lesson14_restParams_advanced.txt)
+   
 1. Working with Java collections
    1. Working with lists
    1. Working with maps
