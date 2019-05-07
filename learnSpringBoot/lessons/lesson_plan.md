@@ -57,6 +57,10 @@
    1. Working with maps
    1. Passing lists into functions
    
+1. Creating unit tests w/JUnit
+   1. Create a test case for the service class
+   1. Create a test case for the controller class
+   
 1. Learn Advanced SQL
    1. Run SQL to join tables
    1. Run SQL to aggregate values (group by SQL)
@@ -79,11 +83,7 @@
    1. Create Service class to run SQL call, return list of objects
    1. Create Controller class with REST endpoint
    1. Add Angular front-end call
-   
-1. Creating unit tests w/JUnit
-   1. Create a test case for the service class
-   1. Create a test case for the controller class
-   
+
 1. Create a REST endpoint that returns a file
 
 1. Create a REST endpoint that returns CSV values
