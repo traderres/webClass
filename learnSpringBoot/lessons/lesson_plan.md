@@ -46,16 +46,19 @@
    1. [Run SQL to select, insert, and delete records](/learnSpringBoot/lessons/lesson12_runSqlToInsertRecords.txt)
    1. [Create a command-line java program to run SQL call w/Spring-JDBC](/learnJdbcConnectionPools/postgreSQL/howToSetupSingleConnectionDataSourceWithIntellij.txt)
    1. [Add a Java service class to run SQL call w/Spring-JDBC](/learnSpringBoot/lessons/lesson13_addServiceLayerThatRunsSql.txt)
-   1. [Add bind parameters with question marks](/learnSpringJdbc/howToAddBindParameters.txt)
-
+   1. [Add bind parameters with question marks](/learnSpringJdbc/howToAddBindParameters.txt)<br/>
+   1. [Add bind parameters with maps](/learnSpringJdbc/howToUseNamedParamsForInsert.txt) 
+   
 1. Using REST endpoint parameters
    1. [Basic REST endpoint parameters](/learnSpringBoot/lessons/lesson14_restParams.txt)
    1. [Advanced REST endpoint parameters](/learnSpringBoot/lessons/lesson14_restParams_advanced.txt)
    
-1. Working with Java collections
-   1. Working with lists
+1. More Java fundamentals
+   1. Java variables 
+   1. Java classes
+   1. Working with strings -- comparing strings, creating long strings
+   1. Working with lists   -- looping, passing lists into methods, finding element in a list
    1. Working with maps
-   1. Passing lists into functions
    
 1. Creating unit tests w/JUnit
    1. Create a test case for the service class
