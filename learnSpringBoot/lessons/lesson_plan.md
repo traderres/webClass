@@ -57,6 +57,13 @@
    1. ["Instance World" vs "Static World"](/learnJava/learnJavaFundamentals.txt)
    1. Working with lists -- looping, passing lists into methods, finding element in a list
    1. Working with maps
+   1. How to return multiple items from a method
+
+1. Even More Java:  Handling Java Exceptions
+   1. What happens when controller method throws an exception?
+   1. How to gracefully handle exceptions in a controller   
+   1. Setup a generic Exception handler to log all errors 
+   1. Create your own "404 not found" page template -- e.g., 404.html file
    
 1. Creating unit tests w/JUnit
    1. Create a test case for the service class
@@ -89,12 +96,6 @@
 
 1. Create a REST endpoint that returns CSV values
 
-1. Handling Java Exceptions
-   1. What happens when controller method throws an exception?
-   1. How to gracefully handle exceptions in a controller   
-   1. Setup a generic Exception handler to log all errors 
-   1. Create your own "404 not found" page template -- e.g., 404.html file
-   
 1. Learn Java thread safety
    1. What is Thread safety?
    1. [Are my controllers and service classes thread safe?](/learnSpringBoot/lessons/lesson21_threadSafety.txt)
