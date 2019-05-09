@@ -54,10 +54,8 @@
    1. [Advanced REST endpoint parameters](/learnSpringBoot/lessons/lesson14_restParams_advanced.txt)
    
 1. More Java fundamentals
-   1. Java variables 
-   1. Java classes
-   1. Working with strings -- comparing strings, creating long strings
-   1. Working with lists   -- looping, passing lists into methods, finding element in a list
+   1. ["Instance World" vs "Static World"](/learnJava/learnJavaFundamentals.txt)
+   1. Working with lists -- looping, passing lists into methods, finding element in a list
    1. Working with maps
    
 1. Creating unit tests w/JUnit
