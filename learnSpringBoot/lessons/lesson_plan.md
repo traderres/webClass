@@ -62,7 +62,7 @@
 1. Even More Java:  Handling Java Exceptions
    1. What happens when controller method throws an exception?
    1. How to gracefully handle exceptions in a controller   
-   1. Setup a generic Exception handler to log all errors 
+   1. Setup a generic Exception handler to log errors in Spring Beans
    1. Create your own "404 not found" page template -- e.g., 404.html file
    
 1. Creating unit tests w/JUnit
