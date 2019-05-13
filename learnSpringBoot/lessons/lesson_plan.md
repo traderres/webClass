@@ -56,7 +56,8 @@
 1. More Java fundamentals
    1. ["Instance World" vs "Static World"](/learnJava/learnJavaFundamentals.txt)
    1. How to return multiple items from a method
-   1. Working with lists -- looping, passing lists into methods, finding element in a list
+   1. Working with ArrayLists -- looping, passing lists into methods, finding element in a list
+   1. Working with Arrays -- e.g., String[]
    1. Working with maps
 
 1. Create a FilterService to convert list of strings into a SQL where clause
