@@ -60,9 +60,9 @@
    1. Working with maps
 
 1. Create a FilterService to convert list of strings into a SQL where clause
-     1. ["FilterService"](/learnSpringBoot/lesson_filterService.txt")<br/>
-     1. ["FilterParams"](/learnSpringBoot/lesson_filterParams.txt")<br/>
-     1. Start working on it (to get more practice with lists and maps)
+     1. [FilterService Class](/learnSpringBoot/lessons/lesson_filterService.txt)<br/>
+     1. [FilterParams Class](/learnSpringBoot/lessons/lesson_filterParams.txt)<br/>
+     1. Implement the methods in the FilterService class (to get more practice with lists and maps)
      
 1. Even More Java:  Handling Java Exceptions
    1. What happens when controller method throws an exception?
