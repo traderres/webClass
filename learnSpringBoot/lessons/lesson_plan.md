@@ -51,14 +51,19 @@
    
 1. Using REST endpoint parameters
    1. [Basic REST endpoint parameters](/learnSpringBoot/lessons/lesson14_restParams.txt)
-   1. [Advanced REST endpoint parameters](/learnSpringBoot/lessons/lesson14_restParams_advanced.txt)
+   1. [Advanced REST endpoint parameters](/learnSpringBoot/lessons/lesson14_restParams_advanced.txt)   
    
 1. More Java fundamentals
    1. ["Instance World" vs "Static World"](/learnJava/learnJavaFundamentals.txt)
+   1. How to return multiple items from a method
    1. Working with lists -- looping, passing lists into methods, finding element in a list
    1. Working with maps
-   1. How to return multiple items from a method
 
+1. Create a FilterService to convert list of strings into a SQL where clause
+     1. ["FilterService"](/learnSpringBoot/lesson_filterService.txt")<br/>
+     1. ["FilterParams"](/learnSpringBoot/lesson_filterParams.txt")<br/>
+     1. Start working on it (to get more practice with lists and maps)
+     
 1. Even More Java:  Handling Java Exceptions
    1. What happens when controller method throws an exception?
    1. How to gracefully handle exceptions in a controller   
