@@ -55,7 +55,7 @@
    
 1. More Java fundamentals
    1. ["Instance World" vs "Static World"](/learnJava/learnJavaFundamentals.txt)
-   1. How to return multiple items from a method
+   1. [How to return multiple items from a method](/learnJava/howToReturnMultipleItemsFromMethod.txt)
    1. Working with ArrayLists -- looping, passing lists into methods, finding element in a list
    1. Working with Arrays -- e.g., String[]
    1. Working with maps
