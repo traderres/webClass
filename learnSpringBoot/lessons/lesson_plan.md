@@ -60,7 +60,7 @@
    1. Working with Arrays -- e.g., String[]
    1. Working with maps
 
-1. Create a FilterService to convert list of strings into a SQL where clause
+1. Create a FilterService to convert list of filter strings into a SQL where clause
      1. [FilterService Class](/learnSpringBoot/lessons/lesson_filterService.txt)<br/>
      1. Exercise: Create a FilterParams class
      1. Exercise: Implement the methods in the FilterService class (to get more practice with lists and maps)
