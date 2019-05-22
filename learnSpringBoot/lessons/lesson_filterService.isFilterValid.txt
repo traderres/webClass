@@ -228,56 +228,205 @@ In this approach, the code is simplified
 
 
 
-Implementation #4
------------------
-Create a map that holds key=operation name   and value=ConditionLogic
-Then, use that map to check if the operation name exists and if the number of tokens is valid
+Implementation #4:  Use a map of objects to hold business rules
+---------------------------------------------------------------
+ 1. Create a class called ComparisonOperation
 
-    private HashMap<String, Integer> mapOperationComparisonOperation = new HashMap<>();
+         package com.lessons.filter;
 
-    @PostConstruct
-    public void init() {
-        mapOperationComparisonOperation.add("EQUALS",        new ComparisonOperation("==", 3));
-        mapOperationComparisonOperation.add("GREATER",       new ComparisonOperation("==", 3));
-        mapOperationComparisonOperation.add("GREATER_EQUAL", new ComparisonOperation("==", 3));
-        mapOperationComparisonOperation.add("LESS",          new ComparisonOperation("==", 3));
-        mapOperationComparisonOperation.add("LESS_EQUAL",    new ComparisonOperation("==", 3));
-        mapOperationComparisonOperation.add("BETWEEN",       new ComparisonOperation("==", 4));
-        mapOperationComparisonOperation.add("CONTAINS",      new ComparisonOperation("==", 3));
-        mapOperationComparisonOperation.add("IN",            new ComparisonOperation(">=", 3));
-        mapOperationComparisonOperation.add("NOTIN",         new ComparisonOperation(">=", 3));
-        mapOperationComparisonOperation.add("ISNULL",        new ComparisonOperation("==", 2));
-        mapOperationComparisonOperation.add("ISNOTNULL",     new ComparisonOperation("==", 2));
-    }
+         public class ComparisonOperation {
+             private String operation;
+             private int totalTokens;
 
-    private boolean isFilterFormatValid(String aFilter) {
-        String[] filterTokens = StringUtils.split(aFilter, "~");
+             public ComparisonOperation(String aOperation, int aTotalTokens) {
+                 this.operation = aOperation;
+                 this.totalTokens = aTotalTokens;
+             }
 
-        String operationName = filterTokens[1];
 
-        ComparisonOperation co = mapOperationComparisonOperation.get(operationName);
-        if (co == null) {
-            throw new RuntimeException("I did not find the operation name.");
+             public String getOperation() {
+                 return operation;
+             }
+
+             public void setOperation(String operation) {
+                 this.operation = operation;
+             }
+
+             public int getTotalTokens() {
+                 return totalTokens;
+             }
+
+             public void setTotalTokens(int totalTokens) {
+                 this.totalTokens = totalTokens;
+             }
+
+         }
+
+ 2. Adjust the filterService so that it has a map
+
+    Create a map that holds key=operation name   and value=ConditionLogic
+    Then, use that map to check if the operation name exists and if the number of tokens is valid
+
+           private HashMap<String, ComparisonOperation> mapOperationComparisonOperation = new HashMap<>();
+
+           @PostConstruct
+           public void init() {
+               mapOperationComparisonOperation.put("EQUALS",        new ComparisonOperation("==", 3));
+               mapOperationComparisonOperation.put("GREATER",       new ComparisonOperation("==", 3));
+               mapOperationComparisonOperation.put("GREATER_EQUAL", new ComparisonOperation("==", 3));
+               mapOperationComparisonOperation.put("LESS",          new ComparisonOperation("==", 3));
+               mapOperationComparisonOperation.put("LESS_EQUAL",    new ComparisonOperation("==", 3));
+               mapOperationComparisonOperation.put("BETWEEN",       new ComparisonOperation("==", 4));
+               mapOperationComparisonOperation.put("CONTAINS",      new ComparisonOperation("==", 3));
+               mapOperationComparisonOperation.put("IN",            new ComparisonOperation(">=", 3));
+               mapOperationComparisonOperation.put("NOTIN",         new ComparisonOperation(">=", 3));
+               mapOperationComparisonOperation.put("ISNULL",        new ComparisonOperation("==", 2));
+               mapOperationComparisonOperation.put("ISNOTNULL",     new ComparisonOperation("==", 2));
+           }
+
+
+ 3. Change the isFilterFormatValid method to use that map to determine if the format is valid
+
+       private boolean isFilterFormatValid(String aFilter) {
+            String[] filterTokens = StringUtils.split(aFilter, "~");
+
+            String operationName = filterTokens[1];
+
+            // Get the ComparisonOperation that corresponds to this operation
+            ComparisonOperation co = mapOperationComparisonOperation.get(operationName);
+            if (co == null) {
+                throw new RuntimeException("I did not find the operation name.");
+            }
+
+            // Get the expected number of tokens from the ComparisonOperation object
+            int expectedTotalTokens = co.getTotalTokens();
+
+            // Compare the expected number of tokens against the actual number of tokens
+            if (co.getOperation().equalsIgnoreCase("==")) {
+                return filterTokens.length == expectedTotalTokens;
+            }
+            else if (co.getOperation().equalsIgnoreCase(">=")) {
+                return filterTokens.length >= expectedTotalTokens;
+            }
+            else if (co.getOperation().equalsIgnoreCase("<=")) {
+                return filterTokens.length <= expectedTotalTokens;
+            }
+            else {
+                throw new RuntimeException("Unknown ComparisonOperation found:  comparison operation is " + co.getOperation());
+            }
         }
 
-        int expectedFilterTokensLength = co.getFilterTokensLength();
-        if (co.getComparisonOperator.equalsIgnoreCase("==")) {
-            return filterTokens.length == expectedFilterTokensLength;
+
+        /**
+         * Returns false if the passed-in list of filters is invalid in anyway
+         */
+        public boolean areFiltersValid(String aTableName, List<String> aFilters) {
+            logger.debug("areFiltersValid() started.");
+            if ((aFilters == null) || (aFilters.size() == 0)) {
+                // Passed-in filters is empty -- return true as this is valid
+                return true;
+            }
+
+            // Loop through all of the filters checking if they are valid
+            for (String filter: aFilters) {
+                if (! isFilterFormatValid(filter)) {
+                    return false;
+                }
+            }
+
+            return true;
         }
-        else if (co.getComparisonOperator.equalsIgnoreCase(">=")) {
-            return filterTokens.length >= expectedFilterTokensLength;
-        }
-        else if (co.getComparisonOperator.equalsIgnoreCase("<=")) {
-            return filterTokens.length <= expectedFilterTokensLength;
-        }
-    }
 
 
 
-Implementation #5
------------------
+
+Implementation #5:  Use an enumerated type to hold business rules
+-----------------------------------------------------------------
 Create an enumerated type that holds the operations
 
-    EQUALS("EQUALS", 3),
-    GREATER("GREATER", 3),
-    ...
+ 1. Create the enumerated class
+
+         package com.lessons.filter;
+
+         import org.springframework.util.StringUtils;
+
+         public enum FilterOperation {
+             EQUALS         ( "EQUALS",        "==", 3),
+             GREATER        ( "GREATER",       "==", 3),
+             GREATER_EQUAL  ( "GREATER_EQUAL", "==", 3),
+             LESS           ( "LESS",          "==", 3),
+             LESS_EQUAL     ( "LESS_EQUAL",    "==", 3),
+             BETWEEN        ( "BETWEEN",       "==", 4),
+             CONTAINS       ( "CONTAINS",      "==", 3),
+             IN             ( "IN",            ">=", 3),
+             NOTIN          ( "NOTIN",         ">=", 3),
+             ISNULL         ( "ISNULL",        "==", 2),
+             ISNOTNULL      ( "ISNOTNULL",     "==", 2);
+
+             private String filterOperation;
+             private String compareOperation;
+             private int totalTokens;
+
+             public String getFilterOperation() {
+                 return filterOperation;
+             }
+
+             public String getCompareOperation() {
+                 return compareOperation;
+             }
+
+             public int getTotalTokens() {
+                 return totalTokens;
+             }
+
+
+             public static FilterOperation getFilterOperationWithName( String aFilterOperationName ) {
+                 if (StringUtils.isEmpty(aFilterOperationName)) {
+                     throw new RuntimeException("The passed-in filter operation name is null or empty.");
+                 }
+
+                 // Loop through all of the enumerated values above to find the one that matches the filter operation name -- e.g., EQUALS, IN, ...
+                 for ( FilterOperation filterOperation: FilterOperation.values() ) {
+                     if (aFilterOperationName.equalsIgnoreCase( filterOperation.getFilterOperation())) {
+                         return filterOperation;
+                     }
+                 }
+
+                 // I did not find the filterOperation
+                 throw new RuntimeException("The filter operation name was not found in the list of enumerated types.");
+             }
+
+             FilterOperation(String aFilterOperation, String aCompareOperation, int aTotalTokens) {
+                 this.filterOperation = aFilterOperation;
+                 this.compareOperation = aCompareOperation;
+                 this.totalTokens = aTotalTokens;
+             }
+         }
+
+
+  2. Change the FilterService.isFilterFormatValid() to use that enumerated object
+
+        private boolean isFilterFormatValid(String aFilter) {
+            String[] filterTokens = StringUtils.split(aFilter, "~");
+
+            String operationName = filterTokens[1];
+
+            // Get the filterOperation object that corresponds to the operation name (so we have all of the business rules)
+            FilterOperation filterOperation = FilterOperation.getFilterOperationWithName(operationName);
+
+            // Use that filterOperation to apply the business rules
+            int expectedTotalTokens = filterOperation.getTotalTokens();
+            if (filterOperation.getCompareOperation().equalsIgnoreCase("==")) {
+                return filterTokens.length == expectedTotalTokens;
+            }
+            else if (filterOperation.getCompareOperation().equalsIgnoreCase(">=")) {
+                return filterTokens.length >= expectedTotalTokens;
+            }
+            else if (filterOperation.getCompareOperation().equalsIgnoreCase("<=")) {
+                return filterTokens.length <= expectedTotalTokens;
+            }
+            else {
+                throw new RuntimeException("Unknown Compare Operation found:  comparison operation is " + filterOperation.getCompareOperation());
+            }
+        }
+
