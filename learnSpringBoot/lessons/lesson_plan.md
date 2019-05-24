@@ -101,10 +101,6 @@
 
 1. Create a REST endpoint that returns CSV values
 
-1. Learn Java thread safety
-   1. What is Thread safety?
-   1. [Are my controllers and service classes thread safe?](/learnSpringBoot/lessons/lesson21_threadSafety.txt)
-
 1. Using Spring Profiles
    1. How to setup multiple profiles in application.yaml -- e.g., "dev", "prod"
    1. How to switch profiles
@@ -139,3 +135,7 @@
    1. Add a MANIFEST.MF to your uber JAR
    1. Read the contents of the MANIFEST.MF from command-line
    1. Create a web page that displays the contents of MANIFEST.MF
+
+1. Learn Java thread safety
+   1. What is Thread safety?
+   1. [Are my controllers and service classes thread safe?](/learnSpringBoot/lessons/lesson21_threadSafety.txt)
