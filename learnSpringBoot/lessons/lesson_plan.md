@@ -65,8 +65,9 @@
      1. Exercise: Implement the methods in the FilterService class (to get more practice with lists and maps)
 
 1. Creating unit tests w/JUnit
-   1. Create a test case for the service class
-   1. Create a test case for the controller class
+   1. [Fundamentals of Unit Tests](/learnSpringBoot/lessons/lesson17_unitTestsFundamentals.txt)<br/>
+   1. Create a test case for the service class<br/>
+   1. Create a test case for the controller class<br/>
    
 1. Even More Java:  Handling Java Exceptions
    1. What happens when controller method throws an exception?

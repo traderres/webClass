@@ -1,0 +1,157 @@
+Fundamentals of Unit Tests w/JUnit and Spring
+---------------------------------------------
+
+
+Lessons
+-------
+ 1. Unit tests java code is found in /src/test/java
+ 2. Production java code is found in /src/main/java
+ 3. Unit test code can access everything in /src/main/java
+ 4. The
+
+Good Practices
+--------------
+ 1. Writing unit tests is expensive
+    -- If you're going to spend the time on a unit test, make it a good one
+
+ 2. Create a separate log file for unit tests
+    NOTE:  Logback looks for logback-test.xml
+           So, I would create one in /src/test/resources/logback-test.xml
+
+
+
+
+Create a FilterTestClass that tests your FilterService
+------------------------------------------------------
+ 1. Add the spring-boot-starter-test dependency
+         <dependency>
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-starter-test</artifactId>
+              <version>2.0.0.RELEASE</version>
+              <scope>test</scope>
+          </dependency>
+
+    NOTES:
+       a. The <scope> tag holds test because we do not want to include this with production code
+       b. The spring-boot-starter-test contains Junit 4, Spring Test, AssertJ, Hamcredt, Mockito, JSONassert, and JsonPath
+       b. The spring-boot-starter-test version should match your spring-boot version
+
+        So, your spring boot version should look like this:
+
+                <!-- https://mvnrepository.com/artifact/org.springframework.boot/spring-boot -->
+                <dependency>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot</artifactId>
+                    <version>2.0.0.RELEASE</version>
+                </dependency>
+
+
+ 2. Create a class that ends with "Test" in the /src/test/java
+    a. Right-click on /src/test/java/com/lessons-> New Java Class
+    b. ClassName:  FilterServiceTest
+    c. Replace your class with this:
+
+
+          package com.lessons;
+
+          import com.lessons.filter.FilterService;
+          import org.junit.Test;
+          import org.junit.runner.RunWith;
+          import org.slf4j.Logger;
+          import org.slf4j.LoggerFactory;
+          import org.springframework.boot.test.context.SpringBootTest;
+          import org.springframework.test.context.junit4.SpringRunner;
+
+          import javax.annotation.Resource;
+          import java.util.Arrays;
+          import java.util.List;
+
+          import static org.hamcrest.Matchers.is;
+          import static org.junit.Assert.assertThat;
+          import static org.junit.Assert.assertTrue;
+
+          @RunWith(SpringRunner.class)    // Required to work with JUnit 4
+          @SpringBootTest                 // Start up a Spring Application Context
+          public class FilterServiceTest {
+
+              private static final Logger logger = LoggerFactory.getLogger(FilterServiceTest.class);
+
+              @Resource
+              private FilterService filterService;
+
+              @Test
+              public void testValidFormat1() {
+                  logger.debug("testValidFormat1() started.");
+
+                  // Create an array of filters
+                  List<String> filters = Arrays.asList("ID~EQUALS~5");
+
+                  // Run the test
+                  boolean bFiltersAreValid = filterService.areFiltersValid(filters);
+
+                  // Old way of verifying result
+                  assertTrue("Filter did not have the expected match", bFiltersAreValid==Boolean.TRUE);
+
+                  // Newer way of verifying result
+                  assertThat("Filter did not have the expected match", bFiltersAreValid, is(Boolean.TRUE));
+
+                  logger.debug("testValidFormat1() finished.");
+              }
+
+          }
+
+
+
+ 3. Run this single test case with the Intellij debugger
+    a. Set a breakpoint on this line:
+            boolean bFiltersAreValid = filterService.areFiltersValid(filters);
+    b. Right-click on testValidFormat1 -> Debug
+
+
+ 4. Run this single test case from command-line
+    a. Open a unix terminal
+       unix> cd ~/intellijProjects/app1/webapp
+       unix> mvn clean test -Dtest=FilterServiceTest
+
+    b. You should see this:
+
+        [INFO]
+        [INFO] -------------------------------------------------------
+        [INFO]  T E S T S
+        [INFO] -------------------------------------------------------
+        [INFO] Running com.lessons.FilterServiceTest
+
+          .   ____          _            __ _ _
+         /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+        ( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+         \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+          '  |____| .__|_| |_|_| |_\__, | / / / /
+         =========|_|==============|___/=/_/_/_/
+         :: Spring Boot ::            (v2.0.0.RC1)
+
+        06/02/2019 21:25:10 INFO  com.lessons.FilterServiceTest Starting FilterServiceTest on myCentos7 with PID 28699 (started by adam in /home/adam/intellijProjects/app1/webapp)
+        06/02/2019 21:25:10 DEBUG com.lessons.FilterServiceTest Running with Spring Boot v2.0.0.RC1, Spring v5.0.3.RELEASE
+        06/02/2019 21:25:10 INFO  com.lessons.FilterServiceTest No active profile set, falling back to default profiles: default
+        06/02/2019 21:25:10 DEBUG com.lessons.services.DashboardDao DashboardDao() Constructor called
+        06/02/2019 21:25:11 DEBUG com.lessons.services.DashboardDao stuff=null
+        06/02/2019 21:25:11 DEBUG com.lessons.filter.FilterService init() started.
+        06/02/2019 21:25:11 DEBUG com.lessons.filter.FilterService b=true
+        06/02/2019 21:25:11 DEBUG com.lessons.services.FilterSortService init() started.
+        06/02/2019 21:25:12 INFO  com.lessons.FilterServiceTest Started FilterServiceTest in 2.316 seconds (JVM running for 2.878)
+        06/02/2019 21:25:12 DEBUG com.lessons.FilterServiceTest testValidFormat1() started.
+        06/02/2019 21:25:12 DEBUG com.lessons.filter.FilterService areFiltersValid() started.
+        06/02/2019 21:25:12 DEBUG com.lessons.FilterServiceTest testValidFormat1() finished.
+        [INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.855 s - in com.lessons.FilterServiceTest
+        [INFO]
+        [INFO] Results:
+        [INFO]
+        [INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0
+        [INFO]
+        [INFO] ------------------------------------------------------------------------
+        [INFO] BUILD SUCCESS
+        [INFO] ------------------------------------------------------------------------
+        [INFO] Total time: 9.163 s
+        [INFO] Finished at: 2019-06-02T21:25:12-04:00
+        [INFO] Final Memory: 26M/400M
+        [INFO] ------------------------------------------------------------------------
+
