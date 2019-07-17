@@ -1,0 +1,657 @@
+How to create a Java Command-line Program using Eclipse and Maven
+-----------------------------------------------------------------
+
+
+Assumptions:  
+ A) You have Intellij Community Edition installed
+ B) You have Maven installed
+ C) Your Maven configuration can download files from a maven repository
+ 
+ 
+ 
+Procedures
+----------
+ 1. Create your "springJdbcApp1" Maven command-line project in Intellij
+    a. Startup Intellij
+       NOTE:  IF an existing Intellij project appear, then pull File / Close Project
+
+    b. Press "Create New Project"
+       1) In the "New Project" window,
+            a) Select Maven [on the left]
+            b) Next to Project SDK:  Select your Java JDK
+               NOTE:  If you do not see your java JDK, then
+                      Press New
+                      -- Browse to your Java JDK:  /etc/alternatives/java_sdk_1.8.0_openjdk
+                      -- Press OK
+
+            c) Check "Create from archetype"
+            d) Select maven-archetype-quickstart
+               Press Next
+
+       2) In the next screen
+          GroupId:     com.lessons
+          ArtifactId:  springJdbcApp1
+          Version:     1.0-SNAPSHOT
+          Press Next
+
+
+       3) In the next screen, make sure you're using your Maven (not the bundled one)
+          Maven home directory:  /opt/apache-maven-3.3.9
+          User settings file:    /home/adam/.m2/settings.xml
+                                 /home/adam/.m2/repository
+          Press Next
+
+
+       4) Project Name:      springJdbcApp1
+          Project Location:  C:\tools\intellij\workspace\springJdbcApp1
+          Press Finish
+
+
+       5) If you are prompted
+          Maven projects need to be imported
+          Press "Enable Auto-Import"
+
+          Now, maven has created a simple Java JAR project
+
+       
+ 2. Configure Intellij preferences for this project
+    a. Turn off spell-checking
+       1) Pull File / Settings
+       2) Search for spelling
+          a) Single-click on Inspections
+          b) next to Typo -- Uncheck the checkbox
+          c) Press Apply
+          
+          
+
+ 3. Setup the Maven test directories for your Intellij project
+
+    Add these directories
+       src/test/resources/             # Holds the logback.xml used by unit test code
+       src/main/resources/             # Holds the logback.xml used by main program
+
+
+    a. Right-click on src/test   -> New -> Directory:    resources
+    b. Right-click on src/main   -> New -> Directory:    resources
+
+
+    Now, you should have this directory structure
+      src/main/java/ 
+      src/main/resources/               # Holds logback.xml used by java main program     
+      src/test/java
+      src/test/resources/               # Holds logback.xml used by unit test code
+   
+
+
+           
+ 4. Add dependencies for your project
+    Your pom.xml should already have one dependency:
+      <dependencies>
+      
+        <dependency>
+          <groupId>junit</groupId>
+          <artifactId>junit</artifactId>
+          <version>4.12</version>
+          <scope>test</scope>
+        </dependency>
+        
+      </dependencies>
+    
+        
+        
+    Copy and paste these dependencies into your pom.xml
+    NOTE:  Add all of these dependencies should be between these tags:
+       <dependencies>
+       . . .
+       </dependencies>
+       
+       
+        <dependency>
+          <!-- Logback Classic -->
+          <groupId>ch.qos.logback</groupId>
+          <artifactId>logback-classic</artifactId>
+          <version>1.2.3</version>
+        </dependency>
+
+        <dependency>
+          <!-- Spring-JDBC -->
+          <groupId>org.springframework</groupId>
+          <artifactId>spring-jdbc</artifactId>
+          <version>5.0.3.RELEASE</version>
+        </dependency>
+
+        <dependency>
+          <!-- Postgres Database Driver -->
+          <groupId>org.postgresql</groupId>
+          <artifactId>postgresql</artifactId>
+          <version>42.2.6</version>
+        </dependency>
+
+
+
+
+
+
+ 5. Create this file:  logback.xml
+    a. Browse to src/main/resources
+    b. Right-click on classes -> New -> File
+       filename:  logback.xml
+    c. Copy this contents to your logback.xml file
+       WARNING:  You *CANNOT* have leading spaces before <?xml version="1.0"... ?>
+    
+        <?xml version="1.0" encoding="windows-1252" ?>
+
+        <configuration debug="false">
+            <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+                <encoder>
+                    <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+                </encoder>
+            </appender>
+
+
+            <logger name="com.lessons" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+
+            <root level="DEBUG">
+                <appender-ref ref="CONSOLE"/>
+            </root>
+
+        </configuration>
+
+
+        
+
+
+ 6. Create a class:  Queries
+    a. Right-click on /src/main/java/com/lessons -> New Class
+       Name:  Queries
+
+       You should see something like this:
+       
+           package com.lessons;
+
+           public class Queries {
+
+           }
+    
+     
+    b. Change your class to this:
+
+            package com.lessons;
+
+            import org.slf4j.Logger;
+            import org.slf4j.LoggerFactory;
+            import org.springframework.jdbc.core.JdbcTemplate;
+            import org.springframework.jdbc.datasource.SingleConnectionDataSource;
+
+            public class Queries
+            {
+                private static final Logger logger = LoggerFactory.getLogger(Queries.class);
+
+
+
+                public String getDatabaseTime() {
+                    logger.debug("getDatabaseTime() started.");
+
+                    // Create a data source object
+                    SingleConnectionDataSource dataSource = new SingleConnectionDataSource();
+                    dataSource.setUsername("test");
+                    dataSource.setPassword("test");
+                    dataSource.setUrl("jdbc:postgresql://localhost:5432/test");
+
+
+                    // Create a new JdbcTemplate object   [needs the data source]
+                    JdbcTemplate jt = new JdbcTemplate(dataSource);
+                    String sql = "Select now()";
+
+                    // Use the JdbcTemplate object to run a query and get a result
+                    String databaseTime = jt.queryForObject(sql, String.class);
+
+                    // Return the string
+                    logger.debug("getDatabaseTime() returns {}", databaseTime);
+                    return databaseTime;
+                }
+            }
+
+ 
+ 7. Edit the App class
+    a. Double-click on /src/main/java/com/lessons/App.java
+
+       You should see something like this:
+
+          package com.lessons;
+
+          public class Queries {
+
+          }
+
+
+    b. Change your class to this:
+
+         package com.lessons;
+
+         import org.slf4j.Logger;
+         import org.slf4j.LoggerFactory;
+
+         public class App {
+
+             private static final Logger logger = LoggerFactory.getLogger(App.class);
+
+
+             /**********************************************************
+              * main()
+              *
+              * Main program to access this class from the command-line
+              ********************************************************** */
+             public static void main(String[] args)
+             {
+                 // Program starts here
+                 logger.debug("main() started");
+
+                 // Instantiate a new Queries object
+                 Queries q = new Queries();
+
+                 // Use the Queries object to get the current database time as a string
+                 String currentTime = q.getDatabaseTime();
+
+                 // Print out the current database time
+                 System.out.println("Current Database Time is " + currentTime);
+
+                 // Program ends Here
+                 logger.debug("main() finished.");
+             }
+
+
+         }
+
+
+
+ 7. Setup your debugger
+    a. Set a breakpoint or or near line 19 in your App.main() by clicking in the margin
+    b. Browse to src/main/java/com/lessons/App -> Right-Click -> Debug 'App.main()'
+     
+    c. Press F9 to continue the program and you should see this in your console:
+
+         /etc/alternatives/java_sdk_1.8.0_openjdk/bin/java -agentlib:jdwp=transport=dt_socket,address=127.0.0.1:38930,suspend=y,server=n -javaagent:/opt/idea-IU-191.6707.61/lib/rt/debugger-agent.jar -Dfile.encoding=UTF-8 -classpath /etc/alternatives/java_sdk_1.8.0_openjdk/jre/lib/charsets.jar:/etc/alternatives/java_sdk_1.8.0_openjdk/jre/lib/ext/cldrdata.jar:/etc/alternatives/java_sdk_1.8.0_openjdk/jre/lib/ext/dnsns.jar:/etc/alternatives/java_sdk_1.8.0_openjdk/jre/lib/ext/jaccess.jar:/etc/alternatives/java_sdk_1.8.0_openjdk/jre/lib/ext/localedata.jar:/etc/alternatives/java_sdk_1.8.0_openjdk/jre/lib/ext/nashorn.jar:/etc/alternatives/java_sdk_1.8.0_openjdk/jre/lib/ext/sunec.jar:/etc/alternatives/java_sdk_1.8.0_openjdk/jre/lib/ext/sunjce_provider.jar:/etc/alternatives/java_sdk_1.8.0_openjdk/jre/lib/ext/sunpkcs11.jar:/etc/alternatives/java_sdk_1.8.0_openjdk/jre/lib/ext/zipfs.jar:/etc/alternatives/java_sdk_1.8.0_openjdk/jre/lib/jce.jar:/etc/alternatives/java_sdk_1.8.0_openjdk/jre/lib/jsse.jar:/etc/alternatives/java_sdk_1.8.0_openjdk/jre/lib/management-agent.jar:/etc/alternatives/java_sdk_1.8.0_openjdk/jre/lib/resources.jar:/etc/alternatives/java_sdk_1.8.0_openjdk/jre/lib/rt.jar:/home/adam/intellijProjects/springJdbcApp1/target/classes:/home/adam/.m2/repository/ch/qos/logback/logback-classic/1.2.3/logback-classic-1.2.3.jar:/home/adam/.m2/repository/ch/qos/logback/logback-core/1.2.3/logback-core-1.2.3.jar:/home/adam/.m2/repository/org/slf4j/slf4j-api/1.7.25/slf4j-api-1.7.25.jar:/home/adam/.m2/repository/org/springframework/spring-jdbc/5.0.3.RELEASE/spring-jdbc-5.0.3.RELEASE.jar:/home/adam/.m2/repository/org/springframework/spring-beans/5.0.3.RELEASE/spring-beans-5.0.3.RELEASE.jar:/home/adam/.m2/repository/org/springframework/spring-core/5.0.3.RELEASE/spring-core-5.0.3.RELEASE.jar:/home/adam/.m2/repository/org/springframework/spring-jcl/5.0.3.RELEASE/spring-jcl-5.0.3.RELEASE.jar:/home/adam/.m2/repository/org/springframework/spring-tx/5.0.3.RELEASE/spring-tx-5.0.3.RELEASE.jar:/home/adam/.m2/repository/org/postgresql/postgresql/42.2.6/postgresql-42.2.6.jar:/opt/idea-IU-191.6707.61/lib/idea_rt.jar com.lessons.App
+         Connected to the target VM, address: '127.0.0.1:38930', transport: 'socket'
+         07/16/2019 19:42:57 DEBUG com.lessons.App main() started
+         07/16/2019 19:42:59 DEBUG com.lessons.Queries getDatabaseTime() started.
+         07/16/2019 19:42:59 DEBUG org.springframework.jdbc.core.JdbcTemplate Executing SQL query [Select now()]
+         07/16/2019 19:42:59 DEBUG org.springframework.jdbc.datasource.DataSourceUtils Fetching JDBC Connection from DataSource
+         07/16/2019 19:42:59 DEBUG org.springframework.jdbc.datasource.SingleConnectionDataSource Creating new JDBC DriverManager Connection to [jdbc:postgresql://localhost:5432/test]
+         07/16/2019 19:42:59 INFO  org.springframework.jdbc.datasource.SingleConnectionDataSource Established shared JDBC Connection: org.postgresql.jdbc.PgConnection@55183b20
+         07/16/2019 19:42:59 DEBUG org.springframework.jdbc.datasource.DataSourceUtils Returning JDBC Connection to DataSource
+         07/16/2019 19:42:59 DEBUG com.lessons.Queries getDatabaseTime() returns 2019-07-16 19:42:59.896767-04
+         07/16/2019 19:42:59 DEBUG com.lessons.App currentTime=2019-07-16 19:42:59.896767-04
+         07/16/2019 19:42:59 DEBUG com.lessons.App main() finished.
+         Disconnected from the target VM, address: '127.0.0.1:38930', transport: 'socket'
+
+         Process finished with exit code 0
+
+               
+ 8. Create a Java JAR
+
+    a. Update your pom.xml to tell Maven to rename your java JAR that has *all* of the dependencies
+       Edit your pom.xml
+        
+       Add the following text so that appears after the <pluginManagement>...</pluginManagement> section
+
+            <plugins>
+                <plugin>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.1</version>
+                    <configuration>
+                        <source>1.8</source>
+                        <target>1.8</target>
+                    </configuration>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <version>2.3.2</version>
+                    <configuration>
+                        <!-- Set the name of the generated Java JAR filename *without* dependencies -->
+                        <finalName>UberQueries</finalName>
+                    </configuration>
+                </plugin>
+
+                <plugin>
+                    <artifactId>maven-assembly-plugin</artifactId>
+
+                    <configuration>
+                        <descriptorRefs>
+                            <descriptorRef>jar-with-dependencies</descriptorRef>
+                        </descriptorRefs>
+
+                        <archive>
+                            <manifest>
+                                <addClasspath>true</addClasspath>
+                            </manifest>
+                        </archive>
+                    </configuration>
+
+                    <executions>
+                        <execution>
+                            <id>make-assembly</id>
+                            <phase>package</phase>
+                            <goals>
+                                <goal>single</goal>
+                            </goals>
+                            <configuration>
+                                <!-- Set the name of the generated Java JAR filename *with* dependencies -->
+                                <appendAssemblyId>false</appendAssemblyId>
+                                <finalName>UberQueries</finalName>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+
+            </plugins>
+
+    
+    b. Now, your pom.xml should look like this:
+          <?xml version="1.0" encoding="UTF-8"?>
+
+          <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+            <modelVersion>4.0.0</modelVersion>
+
+            <groupId>com.lessons</groupId>
+            <artifactId>springJdbcApp1</artifactId>
+            <version>1.0-SNAPSHOT</version>
+
+            <name>springJdbcApp1</name>
+            <!-- FIXME change it to the project's website -->
+            <url>http://www.example.com</url>
+
+            <properties>
+              <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+              <maven.compiler.source>1.7</maven.compiler.source>
+              <maven.compiler.target>1.7</maven.compiler.target>
+            </properties>
+
+            <dependencies>
+
+              <dependency>
+                <!-- Logback Classic -->
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-classic</artifactId>
+                <version>1.2.3</version>
+              </dependency>
+
+              <dependency>
+                <!-- Spring-JDBC -->
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-jdbc</artifactId>
+                <version>5.0.3.RELEASE</version>
+              </dependency>
+
+              <dependency>
+                <!-- Postgres Database Driver -->
+                <groupId>org.postgresql</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>42.2.6</version>
+              </dependency>
+
+              <dependency>
+                <groupId>junit</groupId>
+                <artifactId>junit</artifactId>
+                <version>4.11</version>
+                <scope>test</scope>
+              </dependency>
+            </dependencies>
+
+            <build>
+              <pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
+                <plugins>
+                  <!-- clean lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#clean_Lifecycle -->
+                  <plugin>
+                    <artifactId>maven-clean-plugin</artifactId>
+                    <version>3.1.0</version>
+                  </plugin>
+                  <!-- default lifecycle, jar packaging: see https://maven.apache.org/ref/current/maven-core/default-bindings.html#Plugin_bindings_for_jar_packaging -->
+                  <plugin>
+                    <artifactId>maven-resources-plugin</artifactId>
+                    <version>3.0.2</version>
+                  </plugin>
+                  <plugin>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.8.0</version>
+                  </plugin>
+                  <plugin>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>2.22.1</version>
+                  </plugin>
+                  <plugin>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <version>3.0.2</version>
+                  </plugin>
+                  <plugin>
+                    <artifactId>maven-install-plugin</artifactId>
+                    <version>2.5.2</version>
+                  </plugin>
+                  <plugin>
+                    <artifactId>maven-deploy-plugin</artifactId>
+                    <version>2.8.2</version>
+                  </plugin>
+                  <!-- site lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#site_Lifecycle -->
+                  <plugin>
+                    <artifactId>maven-site-plugin</artifactId>
+                    <version>3.7.1</version>
+                  </plugin>
+                  <plugin>
+                    <artifactId>maven-project-info-reports-plugin</artifactId>
+                    <version>3.0.0</version>
+                  </plugin>
+                </plugins>
+              </pluginManagement>
+
+              <plugins>
+                <plugin>
+                  <artifactId>maven-compiler-plugin</artifactId>
+                  <version>3.1</version>
+                  <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                  </configuration>
+                </plugin>
+
+                <plugin>
+                  <groupId>org.apache.maven.plugins</groupId>
+                  <artifactId>maven-jar-plugin</artifactId>
+                  <version>2.3.2</version>
+                  <configuration>
+                    <!-- Set the name of the generated Java JAR filename *without* dependencies -->
+                    <finalName>Queries</finalName>
+                  </configuration>
+                </plugin>
+
+                <plugin>
+                  <artifactId>maven-assembly-plugin</artifactId>
+
+                  <configuration>
+                    <descriptorRefs>
+                      <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+
+                    <archive>
+                      <manifest>
+                        <addClasspath>true</addClasspath>
+                      </manifest>
+                    </archive>
+                  </configuration>
+
+                  <executions>
+                    <execution>
+                      <id>make-assembly</id>
+                      <phase>package</phase>
+                      <goals>
+                        <goal>single</goal>
+                      </goals>
+                      <configuration>
+                        <!-- Set the name of the generated Java JAR filename *with* dependencies -->
+                        <appendAssemblyId>false</appendAssemblyId>
+                        <finalName>UberQueries</finalName>
+                      </configuration>
+                    </execution>
+                  </executions>
+                </plugin>
+
+              </plugins>
+            </build>
+          </project>
+
+
+
+     
+    c. Build your Java JAR by running mvn package
+       1) Open a Terminal
+       2) In the termianl, type-in this:
+          unix> cd ~/intellijProjects/springJdbcApp1
+          unix> mvn clean package
+
+       3) Verify that you can see the Java JARs
+          unix> ls -l ./target
+
+            drwxrwxr-x. 2 adam adam       6 Jul 16 19:49 archive-tmp/
+            drwxrwxr-x. 3 adam adam      36 Jul 16 19:49 classes/
+            drwxrwxr-x. 3 adam adam      25 Jul 16 19:49 generated-sources/
+            drwxrwxr-x. 3 adam adam      30 Jul 16 19:49 generated-test-sources/
+            drwxrwxr-x. 2 adam adam      28 Jul 16 19:49 maven-archiver/
+            drwxrwxr-x. 3 adam adam      35 Jul 16 19:49 maven-status/
+            -rw-rw-r--. 1 adam adam    4560 Jul 16 19:49 Queries.jar            <--- Smaller JAR
+            drwxrwxr-x. 2 adam adam      73 Jul 16 19:49 surefire-reports/
+            drwxrwxr-x. 3 adam adam      17 Jul 16 19:49 test-classes/
+            -rw-rw-r--. 1 adam adam 4148318 Jul 16 19:49 UberQueries.jar        <--- Larger JAR
+
+       
+          NOTE:  The UberQueries.jar has its dependencies so we can run it
+           
+              
+               
+               
+ 9. Run your Java JAR from the command-line
+    a. Open a DOS window by pressing <Start><Run>CMD
+    b. In the DOS window, type-in this:
+       DOS> cd ~/intellijProjects/springJdbcApp1
+       DOS> java -cp ./target/UberQueries.jar com.lessons.App
+
+        
+       You should see this:
+        07/16/2019 19:50:42 DEBUG com.lessons.App main() started
+        07/16/2019 19:50:42 DEBUG com.lessons.Queries getDatabaseTime() started.
+        07/16/2019 19:50:42 DEBUG org.springframework.jdbc.core.JdbcTemplate Executing SQL query [Select now()]
+        07/16/2019 19:50:42 DEBUG org.springframework.jdbc.datasource.DataSourceUtils Fetching JDBC Connection from DataSource
+        07/16/2019 19:50:42 DEBUG org.springframework.jdbc.datasource.SingleConnectionDataSource Creating new JDBC DriverManager Connection to [jdbc:postgresql://localhost:5432/test]
+        07/16/2019 19:50:42 INFO  org.springframework.jdbc.datasource.SingleConnectionDataSource Established shared JDBC Connection: org.postgresql.jdbc.PgConnection@6093dd95
+        07/16/2019 19:50:42 DEBUG org.springframework.jdbc.datasource.DataSourceUtils Returning JDBC Connection to DataSource
+        07/16/2019 19:50:42 DEBUG com.lessons.Queries getDatabaseTime() returns 2019-07-16 19:50:42.71246-04
+        07/16/2019 19:50:42 DEBUG com.lessons.App currentTime=2019-07-16 19:50:42.71246-04
+        07/16/2019 19:50:42 DEBUG com.lessons.App main() finished.
+
+
+ 
+ 
+ 
+10. Reduce the logging and re-run
+    a. Browse your src/main/resources/logback.xml
+
+       You should see this:
+            <logger name="com.lessons" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+
+            <root level="DEBUG">
+                <appender-ref ref="CONSOLE"/>
+            </root>
+            
+    b. Change it to this
+            <logger name="com.lessons" level="INFO" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+
+            <root level="WARN">
+                <appender-ref ref="CONSOLE"/>
+            </root>
+     
+    d. Rebuild your java JAR
+       unix> cd ~/intellijProjects/springJdbcApp1
+       unix> mvn clean package
+           
+    e. Run your java JAR
+       unix> java -cp ./target/UberQueries.jar com.lessons.App
+        
+       You should see this:
+       Current Database Time is 2019-07-16 19:54:55.24319-04
+        
+
+ 11. Change your Java JAR so that it is "executable" JAR
+     a. Edit the maven-assembly-plugin so that it adds a main-class to the MANIFEST
+
+        Add this to the maven-assembly-plugin <configuration> section
+
+            <archive>
+              <!-- Set the main class in the manifest -->
+              <manifest>
+                <addClasspath>true</addClasspath>
+                <mainClass>com.lessons.App</mainClass>
+              </manifest>
+            </archive>
+
+
+
+    b. Now, your maven-assembly-plugin looks like this:
+
+         <plugin>
+           <artifactId>maven-assembly-plugin</artifactId>
+
+           <configuration>
+             <descriptorRefs>
+               <descriptorRef>jar-with-dependencies</descriptorRef>
+             </descriptorRefs>
+
+             <archive>
+               <manifest>
+                 <addClasspath>true</addClasspath>
+               </manifest>
+             </archive>
+           </configuration>
+
+           <executions>
+             <execution>
+               <id>make-assembly</id>
+               <phase>package</phase>
+               <goals>
+                 <goal>single</goal>
+               </goals>
+               <configuration>
+                 <!-- Set the name of the generated Java JAR filename *with* dependencies -->
+                 <appendAssemblyId>false</appendAssemblyId>
+                 <finalName>UberQueries</finalName>
+
+                 <archive>
+                   <!-- Set the main class in the manifest -->
+                   <manifest>
+                     <addClasspath>true</addClasspath>
+                     <mainClass>com.lessons.App</mainClass>
+                   </manifest>
+                 </archive>
+
+               </configuration>
+             </execution>
+           </executions>
+         </plugin>
+
+
+
+    c. Rebuild your java JAR
+       unix> cd ~/intellijProjects/springJdbcApp1
+       unix> mvn clean package
+
+    d. Run your executable java JAR
+       unix> java -jar ./target/UberQueries.jar
+
+       You should see this:
+       Current Database Time is 2019-07-16 19:54:55.24319-04
