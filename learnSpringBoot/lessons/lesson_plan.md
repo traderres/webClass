@@ -12,6 +12,7 @@
 ### Lesson Plan
 1. Java fundamentals<br/>
     [Exercise: Create a simple command-line Java program in Intellij](/learnJava/howToCreateJavaCommandLineProgramUsingIntellijMaven.txt)
+    [Exercise: Create a spring-jdbc command-line Java program in Intellij](/learnJava/howToCreateJavaCommandLineProgram_springJdbc.txt)
     
 1. Maven fundamentals<br/>
     Exercise: Add logback to thee command-line Java program
