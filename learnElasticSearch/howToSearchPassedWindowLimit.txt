@@ -1,0 +1,91 @@
+How to search passed the 10,000 window limit in ES
+--------------------------------------------------
+
+Approaches:
+ 1) Use the search_after trick
+ 2) Use the scrolling API
+
+
+How to Use "search_after" trick
+-------------------------------
+In this approach we run a search and sort by one field
+    + It's stateless
+    + Less expensive than using the scroll API
+    - Results may change 
+    - Requires a field or combo of fields that must be unique
+ 
+    a. Example Query #1 (to get everything but in batches of 10 records)
+		POST /csaac_indicators/_search
+		{
+		  "query": {
+			"match_all": {}
+		  },
+		  "size": 10,
+		  "_source": ["id", "record_type", "created_by"],
+		  "sort": [
+			{
+			  "id": { "order": "asc" }
+			}
+		  ]
+		}
+
+
+    b. Example Query #2 to N (to get the rest)
+       ASSUMPTION: the last record has the ID of 5574 from the previous result set
+		POST /csaac_indicators/_search
+		{
+		  "query": {
+			"match_all": {}
+		  },
+		  "size": 10,
+		  "_source": ["id", "record_type", "created_by"],
+		  "search_after": [5574],
+		  "sort": [
+			{
+			  "id": { "order": "asc" }
+			}
+		  ]
+		}
+
+
+How to Use "scroll API"
+-----------------------
+This approach does not require sorting but can be expensive if the results are large
+
+ a. Run the first search with "scroll=1m" added to it
+		POST /csaac_indicators/_search?scroll=1m
+		{
+		  "query": {
+			"match_all": {}
+		  },
+		  "size": 10,
+		  "_source": ["id", "record_type", "created_by"]
+		}
+
+
+  b. Get the _scroll_id from the previous results
+ 
+
+  c. Use that _scroll_id to run another search
+		POST /_search/scroll 
+		{
+			"scroll" : "1m", 
+			"scroll_id" : "DnF1ZXJ5VGhlbkZldGNoBQAAAAAAAACTFlF0MXh4emxqUmNhTXlWTFQ4NWhnOFEAAAAAAAAAkhZRdDF4eHpsalJjYU15VkxUODVoZzhRAAAAAAAAAJQWUXQxeHh6bGpSY2FNeVZMVDg1aGc4UQAAAAAAAACVFlF0MXh4emxqUmNhTXlWTFQ4NWhnOFEAAAAAAAAAlhZRdDF4eHpsalJjYU15VkxUODVoZzhR" 
+		}
+ 
+
+  d. Delete the scroll_ids when done with them
+
+		DELETE /_search/scroll
+		{
+			"scroll_id" : [
+			  "DXF1ZXJ5QW5kRmV0Y2gBAAAAAAAAAD4WYm9laVYtZndUQlNsdDcwakFMNjU1QQ==",
+			  "DnF1ZXJ5VGhlbkZldGNoBQAAAAAAAAABFmtSWWRRWUJrU2o2ZExpSGJCVmQxYUEAAAAAAAAAAxZrUllkUVlCa1NqNmRMaUhiQlZkMWFBAAAAAAAAAAIWa1JZZFFZQmtTajZkTGlIYkJWZDFhQQAAAAAAAAAFFmtSWWRRWUJrU2o2ZExpSGJCVmQxYUEAAAAAAAAABBZrUllkUVlCa1NqNmRMaUhiQlZkMWFB"
+			]
+		}
+
+
+
+
+ 
+    
