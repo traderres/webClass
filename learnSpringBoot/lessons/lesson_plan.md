@@ -14,11 +14,19 @@
     [Exercise: Create a basic command-line Java program in Intellij](/learnJava/howToCreateJavaCommandLineProgramUsingIntellijMaven.txt)<br/>
     [Exercise: Create a spring-jdbc command-line Java program in Intellij](/learnJava/howToCreateJavaCommandLineProgram_springJdbc.txt)<br/>
     Variables:  Local, Instance, and Class (Static) <br/>
-    Data Types: Primitives vs Objects
-    
-1. Maven fundamentals<br/>
-    Exercise: Add logback to thee command-line Java program
+    Data Types: Primitives vs Objects<br/>
 
+1. More Java fundamentals<br/>
+    Java Constructors Explained<br/>
+    Exercise: Change the Queries class so that there is a no-arg constructor<br/>
+    Exercise: Queries 1.0: What are the strengths/weaknesses now?<br/>
+    Exercise: Queries 2.0: Add an instance variable called DataSource and give it a getter and setter<br/>
+    Exercise: Queries 2.0: What are the strengths/weaknesses now?
+    Exercise: Queries 3.0: Update constructor<br/>
+    Exercise: Queries 3.0: What are the strengths/weaknesses now?<br/>
+    Exercise: Change the Data source to a C3P0 Connection Pool<br/>
+    Exercise: Change the Data source to a Hikari Connection Pool<br/>
+    
 1. Spring fundamentals
    1. Lifecycle:  Constructor, Injection, Post-Construct
    1. Application Context / Spring beans (how does Spring manage them)

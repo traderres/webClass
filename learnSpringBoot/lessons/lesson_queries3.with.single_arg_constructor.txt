@@ -1,0 +1,112 @@
+Queries class w/one-arg constructor for data source
+---------------------------------------------------
+Strengths:
+ + You can pass-in the data source into the class  [highly flexible]
+   (so you can switch-out data source with another)
+
+ + You *must* pass-in the data source to instantiate an object
+   If you do not, you will get a compile-time error
+
+ + Once passed-in, you cannot change the data source [could practice]
+
+
+
+
+
+
+
+
+App Class
+---------
+package com.lessons;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.datasource.SingleConnectionDataSource;
+
+public class App {
+
+    private static final Logger logger = LoggerFactory.getLogger(App.class);
+
+
+    /**********************************************************
+     * main()
+     *
+     * Main program to access this class from the command-line
+     ********************************************************** */
+    public static void main(String[] args)
+    {
+        // Create data source on app startup
+        SingleConnectionDataSource dataSource = new SingleConnectionDataSource();
+        dataSource.setUsername("test");
+        dataSource.setPassword("test");
+        dataSource.setUrl("jdbc:postgresql://localhost:5432/test");
+
+        // Program starts here
+        logger.debug("main() started");
+
+        // Instantiate a new Queries object
+        // NOTE:  Queries *must* have a data source so it's required in the constructor
+        Queries q = new Queries(dataSource);
+
+        // Use the Queries object to get the current database time as a string
+        String currentTime = q.getDatabaseTime();
+
+        // Print out the current database time
+        System.out.println("Current Database Time is " + currentTime);
+
+        // Program ends Here
+        logger.debug("main() finished.");
+    }
+
+
+}
+
+
+
+
+
+Queries Class
+-------------
+package com.lessons;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import javax.sql.DataSource;
+
+public class Queries
+{
+    private static final Logger logger = LoggerFactory.getLogger(Queries.class);
+
+    private DataSource dataSource;
+
+
+    /**
+     * Queries Constructor
+     *
+     * @param aDataSource holds the DataSource used by this class
+     */
+    public Queries(DataSource aDataSource) {
+        logger.debug("Queries() constructor called.");
+        this.dataSource = aDataSource;
+    }
+
+
+
+    public String getDatabaseTime() {
+        logger.debug("getDatabaseTime() started.");
+
+        // Create a new JdbcTemplate object   [needs the data source]
+        JdbcTemplate jt = new JdbcTemplate(this.dataSource);
+        String sql = "Select now()";
+
+        // Use the JdbcTemplate object to run a query and get a result
+        String databaseTime = jt.queryForObject(sql, String.class);
+
+        // Return the string
+        logger.debug("getDatabaseTime() returns {}", databaseTime);
+        return databaseTime;
+    }
+}
