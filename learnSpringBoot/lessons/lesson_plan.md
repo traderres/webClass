@@ -25,8 +25,9 @@
     Exercise: Queries 3.0: What are the strengths/weaknesses now?<br/>
     Exercise: Change the Data source to a C3P0 Connection Pool<br/>
     Exercise: Change the Data source to a Hikari Connection Pool<br/>
-
-1. Java
+    Exercise: Create maps, loop through keys, loop through entry sets<br/>
+    Exercise: Use StringUtils to create a fixed array<br/>
+    Exercise: Create a method that converts string into a list of words<br/>
     
 1. Spring fundamentals
    1. Lifecycle:  Constructor, Injection, Post-Construct
