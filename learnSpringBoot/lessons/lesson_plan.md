@@ -1,13 +1,12 @@
 ## Spring Boot / Maven / Java Lesson Plan
-
+* [Best Practices](/learnSpringBoot/lessons/best_practices.txt)
+<br/>
 
 ### Assumptions
-* You have installed Java JDK 1.8
-* You have installed Maven 3.3.9
-* You have installed IntelliJ<br/>
-  [Setup Development Env for Unix](/learnSpringBoot/lessons/lesson01a_setupDevelopmentEnvForUnix.txt )<br>
-  [Setup Development Env for Windows](/learnSpringBoot/lessons/lesson01b_setupDevelopmentEnvForWindows.txt)<br>  <br> 
-  
+* You have setup a development environment w/Java JDK, Postgres, IntelliJ, Maven<br/>
+  [Setup development env for Unix](/learnSpringBoot/lessons/lesson01a_setupDevelopmentEnvForUnix.txt )<br>
+  [Setup Development Env for Windows](/learnSpringBoot/lessons/lesson01b_setupDevelopmentEnvForWindows.txt)<br> 
+<br/>
 
 ### Lesson Plan
 1. Java fundamentals<br/>
