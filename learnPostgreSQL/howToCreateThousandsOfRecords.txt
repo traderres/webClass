@@ -19,3 +19,84 @@ insert into reports(id, created_date, display_name)
         SELECT g.id, current_timestamp, 'report'||g.id||'.txt'
         FROM generate_series(1, 10000) AS g (id)
     );
+
+
+SQL Usage 2
+-----------
+drop table if exists reports;
+create table reports
+(
+    id             integer not null,
+    created_date   timestamp default CURRENT_TIMESTAMP,
+    display_name   varchar(256) null
+);
+
+drop table if exists indicators;
+create table indicators
+(
+    id             integer not null,
+    created_date   timestamp default CURRENT_TIMESTAMP,
+    value   varchar(256) null
+);
+
+drop table if exists link_reports_indicators
+create table link_reports_indicators
+(
+    reports  integer not null,
+    indicators integer not null
+);
+
+-- Create 10,000 report records
+delete from reports;
+insert into reports(id, created_date, display_name)
+    (
+        SELECT g.id, current_timestamp, 'report'||g.id||'.txt'
+        FROM generate_series(1, 10000) AS g (id)
+    );
+
+
+-- Create 300,000 indicator records
+delete from indicators;
+insert into indicators(id, created_date, value)
+    (
+        SELECT g.id, current_timestamp, 'domain'||g.id||'.com'
+        FROM generate_series(1, 300000) AS g (id)
+    );
+
+-- Create  300,000 link_reports_indicators records
+--   for reportId=1,  indicators 11,12,13,14,15,16,17,18,19,20
+--   for reportId=2,  indicators 21,22,23,24,25,26,27,28,29,30
+delete from link_reports_indicators;
+
+
+with indicatorNumbers(id) AS (
+    -- Each report contains 300 indicators
+    SELECT g.id
+    FROM generate_series(1, 300, 1) AS g(id)
+),
+ reportNumbers(id) AS (
+    -- There will be 10,000 report records
+    SELECT g.id
+    FROM generate_series(1, 1000, 1) AS g(id)
+)
+select r.id as reports ,i.id as indicators
+from indicatorNumbers i,reportNumbers r;
+
+
+with indicatorNumbers(id) AS (
+    -- Each report contains 300 indicators
+    SELECT g.id
+    FROM generate_series(1, 300, 1) AS g(id)
+),
+reportNumbers(id) AS (
+         -- There will be 10,000 report records
+         SELECT g.id
+         FROM generate_series(1, 10000, 1) AS g(id)
+     )
+insert into link_reports_indicators(reports, indicators)
+(
+    SELECT r.id, i.id
+    FROM reportNumbers r, indicatorNumbers i
+);
+
+
