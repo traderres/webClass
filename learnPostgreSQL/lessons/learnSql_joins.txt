@@ -1,0 +1,128 @@
+Learn SQL:  Different types of joins
+------------------------------------
+
+Describe join types:
+ 1) Inner join holds the cross section between A and B
+ 2) Left  join holds all of A and cross-section
+ 3) Right join holds all of B and cross-section
+ 4) Full  join holds all of A, all of B, and cross section
+
+
+
+
+
+Lesson
+------
+ 1. Create and populate this table:  users
+
+        DROP table if exists users;
+        CREATE TABLE users
+        (
+            id                INTEGER        PRIMARY KEY NOT NULL,
+            user_id           VARCHAR (256)  NOT NULL,
+            full_name         VARCHAR(150)       NULL,
+            email_address     VARCHAR(256)       NULL,
+            phone_number      VARCHAR(30)        NULL,
+            created_date      TIMESTAMP      NOT NULL default NOW(),
+            last_login_date   TIMESTAMP      NULL
+        );
+
+        insert into users(id, user_id, full_name) values(1, 'jsmith', 'John L Smith');
+        insert into users(id, user_id, full_name) values(2, 'indyjones', 'Indina Jones');
+        insert into users(id, user_id, full_name) values(3, 'hsolo', 'Han Solo');
+
+
+ 2. Create and populate this table:  sales
+
+        DROP table if exists sales;
+        CREATE TABLE sales
+        (
+            id                INTEGER       PRIMARY KEY NOT NULL,
+            salesperson_id    INTEGER       NOT NULL,
+            value             NUMERIC(12,2) NOT NULL,
+            sell_date         TIMESTAMP     NOT NULL
+        );
+
+        insert into sales(id, salesperson_id, value, sell_date) values(100, 1, 5000, '2019-03-01');
+        insert into sales(id, salesperson_id, value, sell_date) values(102, 1, 30000, '2019-03-02');
+        insert into sales(id, salesperson_id, value, sell_date) values(104, 1, 10000, '2019-03-03');
+        insert into sales(id, salesperson_id, value, sell_date) values(106, 2, 500, '2019-04-15');
+        insert into sales(id, salesperson_id, value, sell_date) values(108, 2, 300, '2019-05-01');
+        insert into sales(id, salesperson_id, value, sell_date) values(110, 56, 1000, '2019-06-01');
+
+
+
+Exercises
+----------
+ 1. Generate SQL to get all sales
+    -- Show full name, sale date, and sale value
+
+    Answer:  Use regular inner join
+        select u.full_name, s.sell_date, s.value
+        from users u
+        JOIN sales s on (u.id=s.salesperson_id);
+
+
+ 2. We missed the sales date on 06/01/2019 because our database has bad data
+    How do we get all sales?
+
+    Answer:  Use right/left join
+        select u.full_name, s.sell_date, s.value
+        from users u
+        RIGHT JOIN sales s on (u.id=s.salesperson_id);
+
+
+ 3. Now, we have a new problem:  A null name
+    How do we convert the null name to 'Unknown'
+
+    Answer:  Use case statement
+        select u.full_name, s.sell_date, s.value,
+                case
+                        WHEN u.full_name IS NULL then 'Unknown'
+                        else u.full_name
+                END as new_user
+        from users u
+        RIGHT JOIN sales s on (u.id=s.salesperson_id);
+
+
+ 4. Generate a query to list all users *AND* all sales
+    (even if some of the users have no sales)
+
+    Answer:  Use *FULL JOIN* to get all users and all sales
+        select s.sell_date,
+               case
+                   WHEN u.full_name IS NULL then 'unknown'
+                   else u.full_name
+               END as new_user,
+
+               case
+                   WHEN s.value is null THEN 0
+                   ELSE s.value
+               END as new_value
+        from users u
+        FULL JOIN sales s on (u.id=s.salesperson_id);
+
+
+ 5. Get the total number of sales each month
+    -- Break this down into 2 parts
+    a. Get a query of all dates in the format of YYYY-mm
+        select to_char(sell_date, 'YYYY-mm')
+
+    b. Then use the group by on this query
+        select to_char(sell_date, 'YYYY-mm'), count(to_char(sell_date, 'YYYY-mm'))
+        from sales
+        group by to_char(sell_date, 'YYYY-mm');
+
+
+ 6. Get the sum of sales for each month
+    -- Break this down into 2 parts
+    a. Get the query of all dates and values
+        select to_char(sell_date, 'YYYY-mm'), value
+        from sales;
+
+    b. Do a group on the date and sum the values
+        select to_char(sell_date, 'YYYY-mm'), sum(value)
+        from sales
+        group by to_char(sell_date, 'YYYY-mm');
+
+
