@@ -1,0 +1,618 @@
+How to Compile and Install a Native Hadoop 2.9.2 on Windows 10
+--------------------------------------------------------------
+
+  DOES NOT WORK YET
+
+
+Assumptions:
+ A) You are running Windows 10
+ B) You have installed 7zip
+    If not, go to http://www.7-zip.org/ and download the 64-bit msi installer
+
+
+
+
+Apache Hadoop 2.2.0 and later support  running Hadoop on Microsoft Windows.
+But, the "bin" distribution of Apache Hadoop 2.2.0 release does *NOT* contain some windows native components (like winutils.exe, hadoop.dll etc). As a result, if we try to run Hadoop in windows, we'll encounter ERROR util.Shell: Failed to locate the winutils binary in the hadoop binary path.
+
+This articles desribes how to build the binary native distribution of hadoop from source, install it, configure it and run it on a Windows platform.
+
+
+
+
+Procedures
+----------
+ 1. Create a directory called "C:\tools"
+
+ 2. Download and install Microsoft Windows SDK v7.1
+    NOTE:  This has the older Visual Studio 2010 compiler (that is needed to compile the Hadoop-Common libraries)
+       1) Go to http://www.microsoft.com/en-in/download/details.aspx?id=8279
+       2) Click the "Download" button
+          -- You will be prompted to save winsdk_web.exe
+          -- Save it to your "Downloads" directory
+       3) Go to your "Downloads" directory and run winsdk_web.exe
+          a) In the "Windows SDK Setup Wizard" screen, press Next
+          b) In the "End user license agreement" screen, Click "I agree" and press Next
+          c) In the "Uninstall Options" screen, press Next
+          d) In the "Install Locations" screen, go with the defaults and press Next
+          e) In the "Installation Options" screen, go with the defaults and press Next
+          f) In the "Begin Installation" screen, press Next
+
+             NOTE:  This may take up to 15 minutes
+
+          g) In the "Installation Complete" screen,
+             Uncheck "view the Windows SDK Release Notes"
+             Press "Finish"
+
+
+ 3. Download and install the Visual C++ 2010 SP1 Compiler Update for Windows SDK v7.1
+       1) Go to http://go.microsoft.com/fwlink/?LinkID=212355
+          or
+          Go to http://www.microsoft.com/en-us/download/details.aspx?id=4422
+          NOTE:  This link provides more details:  http://blogs.msdn.com/b/vcblog/archive/2011/03/31/10148110.aspx
+
+       2) Click "Download"
+       3) In the screen titled, "Choose the download you want"
+          select VC-Compiler-KB2519277.exe
+          Press Next
+       4) Save VC-Compiler-KB2519277.exe to your c:\vault
+       5) Run c:\vault\VC-Compiler-KB2519277.exe
+          a) In the "Software Update Visual C++ 2010 Compiler Update for Windows SDK"
+             Press Next
+          b) In the license agreement page, click "I have read and accept the license terms"
+             Press Next
+
+             The program will start downloading and intalling componenets
+
+          c) In the final screen, it should display
+             "The software update has been installed successfully"
+             Press Finish
+
+
+
+
+ 3. Download and install Microsoft Visual Studio 2017
+    a. Go to https://aka.ms/vs/15/release/vs_community.exe
+    b. Run vs_community.exe
+       1) Press Continue
+       2)
+
+
+
+
+
+
+
+ 5. Add an environment variable called "Platform"
+    NOTE:  The Microsoft SDK uses this to determine whether to compile 32-bit or 64-bit
+           We are setting it to use the flag for 64-bit
+
+    a) Open the Environment Variables in Windows by pressing <Start><Run>environment
+    b) Under "User variables for..." [on the top of this popup],
+       click "New..."
+             Variable name:  Platform
+             Variable value: x64
+
+       NOTES:
+           Variable name "Platform" is case sensitive.
+           The Platform environment value must be either x64 or Win32
+
+
+  6. Download Protocol Buffers 2.5.0  (Windows binaries)
+     NOTE:  The Hadoop code looks for version 2.5.0 so do *NOT* download a different version
+     a. Go to https://repo1.maven.org/maven2/com/google/protobuf/protoc/2.5.0/protoc-2.5.0-windows-86_64.exe
+     b. Rename protoc-2.5.0-windows-86_64.exe to be protoc.exe
+     c. Save protoc.exe to c:\tools\protobuf\bin\protoc.exe
+
+     d. Add c:\tools\protobuf\bin to your PATH
+        1) Open the Environment Variables in Windows by pressing <Start><Run>environment
+        2) Under "User variables for..." [on the top of this popup],
+           Click "New..."  [if PATH already exists, then double-click on PATH and add a semicolon and append this to the end of the PATH]
+                Variable name:  PATH
+                Variable value: c:\tools\protobuf\bin
+
+     e. Verify protoc is in your path
+        1) Open a DOS window and verify protoc is found in the path
+        2) Enter this in the DOS window:
+           CMD> protoc --version
+           libprotoc 2.5.0
+
+
+
+ 7. Download and install OpenJDK 1.8
+    a. Go to https://developers.redhat.com/products/openjdk/download
+    b. Select to download the OpenJDK 8 Windows x64 MSI installer
+    c. You will be prompted to login with your RedHat account
+       1) Click "Create one now"
+       2) Fill-in the form to create an account
+       3) Go to your email account
+          Click on the email no-reply@redhat.com
+          Click on the link to verify your email
+       4) Next, you should see a link to download
+       5) Save the MSI file to your Downloads directory
+       6) Go to your Downloads directory and double-click on the installer
+          1) In the Welcome screen, press Next
+          2) In the End-User License Agreement screen, click "I accept" and press Next
+          3) In the Custom Setup screen, use the defaults and press Next
+          4) In the Ready to install screen, press Install
+
+    d. Add JAVA_HOME as an environment variable
+       1) Open the Environment Variables in Windows by pressing <Start><Run>environment
+       2) Under "User variables for..." [on the top of this popup],
+          Click "New..."
+                 Variable name:  JAVA_HOME
+                 Variable value: C:\progra~1\Redhat\java-1.8.0-openjdk-1.8.0.222-4
+
+       For example:
+           This is good:   C:\progra~1\Redhat\java-1.8.0-openjdk-1.8.0.222-4
+           This is bad:    C:\Program Files\Redhat\java-1.8.0-openjdk-1.8.0.222-4
+
+
+
+ 8. Download and install Maven 3.3.1
+    a. Download Maven apache-maven-3.3.1-bin.zip
+       1) Go to https://maven.apache.org/download.cgi
+       2) Look for apache-maven-3.3.1-bin.zip and click on it
+          *OR*
+          Go to http://archive.apache.org/dist/maven/maven-3/3.3.1/binaries/apache-maven-3.3.1-bin.zip
+
+       3) Save apache-maven-3.3.1-bin.zip to your Downloads
+       4) Unzip apache-maven-3.3.1-bin.zip to your c:\tools
+          a) Go to your Downloads directory
+          b) Right-click on apache-maven-3.3.1-bin.zip -> Extract All...
+             In the Extract All
+               C:\tools
+               Press "Extract"
+               -- Now, you should have the directory c:\tools\apache-maven-3.3.1
+
+    b. Create an environment variable called M2_HOME=c:\tools\apache-maven-3.3.1
+       1) Open the Environment Variables in Windows by pressing <Start><Run>environment
+       2) Under "User variables for..." [on the top of this popup],
+          Click "New..."
+                  Variable name:  M2_HOME
+                  Variable value: c:\tools\apache-maven-3.3.1
+
+    c. Add the c:\tools\apache-maven-3.3.1 to your PATH
+       1) Open the Environment Variables in Windows by pressing <Start><Run>environment
+       2) Under "User variables for..." [on the top of this popup],
+          Click "New..."  [if PATH already exists, then double-click on PATH and add a semicolon and append this to the end of the PATH]
+                Variable name:  PATH
+                Variable value: c:\tools\apache-maven-3.3.1\bin
+
+
+ 9. Download & Install Cygwin to get the openssh server
+    a. Go to https://cygwin.com/setup-x86_64.exe
+    b. Save "setup-x86_64.exe" to your Downloads directory
+    c. Go to your Downloads directory and double-click on "setup-x86_64.exe"
+       1) In the first popup, press Next
+       2) In the "Choose a Download Source", select Install from Internet and press Next
+       3) In the "Select Root Install Directory,
+             Root Directory:  c:\cygwin
+             Install for:     All Users
+             Press Next
+       4) In the Setup Local Package Directory, go with defaults and press Next
+       5) In the "Select your Internet Connection", use System Proxy Settings and press Next
+       6) In the "Choose a Download Site", choose anyone and press Next
+       7) In the "Select Packages"
+             In the searchbox, type-in openssh
+             Go to Net -> openssh
+             -- Change "Skip" to 8.0p1-2
+             -- Press Next
+       8) In the "Review and confirm changes", press "Next"
+             -- Wait about 10 minutes
+       9) In the "Create Icons", press "Finish"
+
+
+    d. Make sure the c:\cygwin\bin directory is in your PATH
+       1) Open the Environment Variables in Windows by pressing <Start><Run>environment
+       2) Under "User variables for..." [on the top of this popup],
+          -- Single Click on "Path" and press "Edit
+          -- Press "New"
+                  Variable name:  PATH
+                  Variable value: c:\cygwin\bin
+
+
+10. Download and install CMake 3.15.2
+    a. Go to http://www.cmake.org/download/
+    b. Under latest release, get the Windows Binary
+       1) Click on cmake-3.15.2-win64-x64.msi
+       2) Save cmake-3.15.2-win64-x64.msi to your "Downloads" directory
+       3) Go to your "Downloads" directory and double-click on "cmake-3.15.2-win64-x64.msi"
+          a) On the Welcome screen, press Next
+          b) On the License agreement screen, click "I accept" and press Next
+          c) On the Install options, click "Add CMake to the system path for current user"
+             press Next
+          d) On the "Choose Install Location",
+             Set the destination folder to be c:\tools\cmake
+             press Next
+          e) On the "Ready to install cmake" screen, press Install
+          f) On the "Completed Setup" screen, Press Finish
+
+
+11. Download and install the zlib compiled DLL and include files
+    a. Go to http://www.zlib.net/
+       Scroll down to  zlib compiled DLL, version....
+       *OR*
+       Go to http://zlib.net/zlib128-dll.zip
+
+    b. Save zlib128-dll.zip to your "Downloads" directory
+    c. Go to your "Downloads" Directory
+       1) Right-click zlib128-dll.zip -> Extract All...
+       2) Extract To:  c:\tools\zlib-1.2.8\
+          Press Extract
+
+    d. Add C:\tools\zlib-1.2.8 to your PATH
+       1) Open the Environment Variables in Windows by pressing <Start><Run>environment
+       2) Under "User variables for..." [on the top of this popup],
+          -- Single Click on "Path" and press "Edit
+          -- Press "New"
+                 Variable name:  PATH
+                 Variable value: C:\tools\zlib-1.2.8
+
+    e. Create an environment variable called ZLIB_HOME=C:\tools\zlib-1.2.8\include
+       1) Open the Environment Variables in Windows by pressing <Start><Run>environment
+       2) Under "User variables for..." [on the top of this popup],
+          Click "New..."
+                 Variable name:  ZLIB_HOME
+                 Variable value: C:\tools\zlib-1.2.8\include
+
+
+12. Download and install OpenSSL 1.0.1p with development files
+    a. Go to https://wiki.openssl.org/index.php/Binaries (to find the openssl Windows binaries)
+    b. Go to https://slproweb.com/products/Win32OpenSSL.html
+    c. Select "Win64 OpenSSL v1.1.1c" EXE  (not the version that says Light)
+       *OR*
+       Go to https://slproweb.com/download/Win64OpenSSL-1_1_1c.exe
+
+    d. Save Win64OpenSSL-1_1_1c.exe to your Downloads
+    e. Go to your Downloads and double-click on Win64OpenSSL-1_1_1c.exe
+       1) In the License Agreement screen, select "I accept" and press "Next"
+       2) In the "Select destination location" screen
+             Set the destination to c:\tools\openssl-1.1.1c
+             Press Next
+       3) In the "Select Start Menu Folder" screen, use the defaults and press Next
+       4) In the "Select Additional Tasks", choose "The Openssl binaries /bin directory" and press Next
+       5) In the "Ready to Install" screen, press Install
+       6) In the last popup, uncheck the options and press Finish
+
+
+13. Add the msbuild from your Visual Studio 2019 to your path (so that maven can find msbuild)
+    a. Open the Environment Variables in Windows by pressing <Start><Run>environment
+    b. Under "User variables for..." [on the top of this popup],
+           -- Single Click on "Path" and press "Edit
+           -- Press "New"
+                  Variable name:  PATH
+                  Variable value: C:\Windows\Microsoft.NET\Framework64\v4.0.30319
+
+    c. Under "User variables for..." [on the top of this popup],
+          -- Single Click on "Path" and press "Edit
+          -- Press "New"
+                  Variable name:  PATH
+                  Variable value: C:\Program Files\Microsoft SDKs\Windows\v7.1\bin\x64 to the path   (so it can find midl.exe)
+
+
+
+
+14. Download hadoop 2.9.2 source to your c:\tools
+    a. Open a browser and go to https://hadoop.apache.org/releases.html
+    b. Click on the "source download" link next to a version 2.9.2
+       *OR*
+       Go to http://www.apache.org/dyn/closer.cgi/hadoop/common/hadoop-2.9.2/hadoop-2.9.2-src.tar.gz
+
+    c. Click on one of the mirrors
+    d. Save hadoop-2.9.2-src.tar.gz to your "Downloads" directory
+    e. Extract to your c:\tools\hadoop-2.9.2-src\ directory
+       -- Go to your Downloads directory
+       -- Right-click on hadoop-2.9.2-src.tar.gz  -> 7zip -> Extract Here....
+       -- Right-click on hadoop-2.9.2-src.tar     -> 7zip -> Extract files....
+          Extract To:  c:\tools
+          Press OK
+          -- Now, you should have hadoop source located here:
+              c:\tools\hadoop-2.9.2-src\hadoop-assemblies
+              c:\tools\hadoop-2.9.2-src\hadoop-build-tools
+              c:\tools\hadoop-2.9.2-src\hadoop-client
+              c:\tools\hadoop-2.9.2-src\hadoop-cloud-storage-project
+              ...
+
+15. Compile Hadoop binaries for Windows 10
+    a. Open the Windows Command Prompt *AS AN ADMINISTRATOR*
+       Type-in CMD
+       Right-click on Command Prompt -> Run as Administrator
+
+    b. In the Administrator console, compile hadoop
+       DOS> cd /d c:\tools\hadoop-2.9.2-src
+
+       DOS> mvn clean package -Pdist,native-win -DskipTests -Dtar
+
+       -- Wait up to 25 minutes for it to finish compiling
+       -- If this fails, make sure your PATH was setup correclty in the previous steps
+       -- If everything goes well, hadoop binaries should be installed here:
+           C:\tools\hadoop-2.9.2-src\hadoop-dist\target\hadoop-2.9.2.tar.gz
+
+
+
+
+
+
+16. Install the hadoop binaries to c:\tools\hadoop-2.9.2
+    a. Browse to C:\tools\hadoop-2.9.2-src\hadoop-dist\target
+    b. Right-click on hadoop-2.9.2.tar.gz -> 7-zip -> Extract Here
+    c. Right-click on hadoop-2.9.2.tar    -> 7-zip -> Extract files...
+          In the Extract to:  c:\tools
+          Press OK
+
+          Now, you should have hadoop files installed to here:
+             C:\tools\hadoop-2.9.2
+
+    b. Set environment  HADOOP_HOME = c:\tools\hadoop-2.9.2
+       1) Open the Environment Variables in Windows by pressing <Start><Run>environment
+       2) Under "User variables for..." [on the top of this popup],
+          Click "New..."
+                 Variable name:  HADOOP_HOME
+                 Variable value: c:\tools\hadoop-2.9.2
+
+    c. Add c:\tools\hadoop-2.9.2\bin to your PATH
+       1) Open the Environment Variables in Windows by pressing <Start><Run>environment
+       2) Under "User variables for..." [on the top of this popup],
+          -- Single Click on "Path" and press "Edit
+          -- Press "New"
+                 Variable name:  PATH
+                 Variable value: c:\tools\hadoop-2.9.2\bin
+          -- Press OK a few times to close it up
+
+    d. Verify that hadoop is found
+       1) Open a DOS window by pressing <Start><Run>CMD
+       2) In the DOS window, type-in this:
+          DOS> hadoop version
+
+          You should see the following:
+          Hadoop 2.9.2
+          Subversion Unknown -r Unknown
+          Compiled by Adam on 2015-07-26T03:20Z
+          Compiled with protoc 2.5.0
+          From source with checksum fc0a1a23fc1868e4d5ee7fa2b28a58a
+          This command was run using /C:/tools/hadoop-2.9.2/share/hadoop/common/hadoop-common-2.9.2.jar
+
+
+
+17. Configure Hadoop to run in pseudo-distributed mode
+    a. Edit the C:\tools\hadoop-2.7.1\etc\hadoop\core-site.xml
+        <?xml version="1.0" encoding="UTF-8"?>
+        <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+
+            <configuration>
+                <property>
+                    <name>fs.defaultFS</name>
+                    <value>hdfs://localhost:9000</value>
+                </property>
+            </configuration>
+
+
+    b. Edit the C:\tools\hadoop-2.7.1\etc\hadoop\hdfs-site.xml
+       Note:  Create namenode and datanode directory under c:/hadoop/data/dfs/.
+       Note:  Set the datanode to listen on port 50001
+
+        <?xml version="1.0" encoding="UTF-8"?>
+        <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+
+            <configuration>
+                <property>
+                    <name>dfs.replication</name>
+                    <value>1</value>
+                </property>
+                <property>
+                    <name>dfs.namenode.name.dir</name>
+                    <value>file:/hadoop/data/dfs/namenode</value>
+                </property>
+                <property>
+                    <name>dfs.datanode.data.dir</name>
+                    <value>file:/hadoop/data/dfs/datanode</value>
+                </property>
+
+                <property>
+                    <name>dfs.datanode.address</name>
+                    <value>localhost:50001</value>
+                </property>
+            </configuration>
+
+
+    c. Edit the C:\tools\hadoop-2.7.1\etc\hadoop\yarn-site.xml
+
+        <?xml version="1.0"?>
+
+         <configuration>
+            <property>
+               <name>yarn.nodemanager.aux-services</name>
+               <value>mapreduce_shuffle</value>
+            </property>
+            <property>
+               <name>yarn.nodemanager.aux-services.mapreduce.shuffle.class</name>
+               <value>org.apache.hadoop.mapred.ShuffleHandler</value>
+            </property>
+            <property>
+               <name>yarn.application.classpath</name>
+               <value>
+                    %HADOOP_HOME%\etc\hadoop,
+                    %HADOOP_HOME%\share\hadoop\common\*,
+                    %HADOOP_HOME%\share\hadoop\common\lib\*,
+                    %HADOOP_HOME%\share\hadoop\mapreduce\*,
+                    %HADOOP_HOME%\share\hadoop\mapreduce\lib\*,
+                    %HADOOP_HOME%\share\hadoop\hdfs\*,
+                    %HADOOP_HOME%\share\hadoop\hdfs\lib\*,
+                    %HADOOP_HOME%\share\hadoop\yarn\*,
+                    %HADOOP_HOME%\share\hadoop\yarn\lib\*
+               </value>
+            </property>
+        </configuration>
+
+
+    d. Edit the C:\tools\hadoop-2.7.1\etc\hadoop\mapred-site.xml
+         1) Copy mapred-sit.xml.template to mapred-site.xml
+
+         2) Copy this to the mapred-site.xml file
+
+             <?xml version="1.0"?>
+             <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+
+             <configuration>
+                <property>
+                   <name>mapreduce.framework.name</name>
+                   <value>yarn</value>
+                </property>
+             </configuration>
+
+
+18. Format the Name Node
+    Open a DOS window in Administrator Mode
+    DOS> cd %HADOOP_HOME%\bin
+    DOS> hdfs namenode -format
+
+        You should see this:
+
+        STARTUP_MSG:   build = Unknown -r Unknown; compiled by 'adam' on 2015-07-26T16:37Z
+        STARTUP_MSG:   java = 1.7.0_60
+        ************************************************************/
+        15/07/26 12:55:47 INFO namenode.NameNode: createNameNode [-format]
+        Formatting using clusterid: CID-e29bd4ce-2e2e-415e-90a6-b2f627f61b0d
+        15/07/26 12:55:48 INFO namenode.FSNamesystem: No KeyProvider found.
+        15/07/26 12:55:48 INFO namenode.FSNamesystem: fsLock is fair:true
+        15/07/26 12:55:48 INFO blockmanagement.DatanodeManager: dfs.block.invalidate.limit=1000
+        15/07/26 12:55:48 INFO blockmanagement.DatanodeManager: dfs.namenode.datanode.registration.ip-hostname-check=true
+        15/07/26 12:55:48 INFO blockmanagement.BlockManager: dfs.namenode.startup.delay.block.deletion.sec is set to 000:00:00:0.000
+        15/07/26 12:55:48 INFO blockmanagement.BlockManager: The block deletion will start around 2015 Jul 26 12:55:48
+        15/07/26 12:55:48 INFO util.GSet: Computing capacity for map BlocksMap
+        15/07/26 12:55:48 INFO util.GSet: VM type       = 64-bit
+        15/07/26 12:55:48 INFO util.GSet: 2.0% max memory 889 MB = 17.8 MB
+        15/07/26 12:55:48 INFO util.GSet: capacity      = 2^21 = 2097152 entries
+        15/07/26 12:55:48 INFO blockmanagement.BlockManager: dfs.block.access.token.enable=false
+        15/07/26 12:55:48 INFO blockmanagement.BlockManager: defaultReplication         = 1
+        15/07/26 12:55:48 INFO blockmanagement.BlockManager: maxReplication             = 512
+        15/07/26 12:55:48 INFO blockmanagement.BlockManager: minReplication             = 1
+        15/07/26 12:55:48 INFO blockmanagement.BlockManager: maxReplicationStreams      = 2
+        15/07/26 12:55:48 INFO blockmanagement.BlockManager: shouldCheckForEnoughRacks  = false
+        15/07/26 12:55:48 INFO blockmanagement.BlockManager: replicationRecheckInterval = 3000
+        15/07/26 12:55:48 INFO blockmanagement.BlockManager: encryptDataTransfer        = false
+        15/07/26 12:55:48 INFO blockmanagement.BlockManager: maxNumBlocksToLog          = 1000
+        15/07/26 12:55:48 INFO namenode.FSNamesystem: fsOwner             = adam (auth:SIMPLE)
+        15/07/26 12:55:48 INFO namenode.FSNamesystem: supergroup          = supergroup
+        15/07/26 12:55:48 INFO namenode.FSNamesystem: isPermissionEnabled = true
+        15/07/26 12:55:48 INFO namenode.FSNamesystem: HA Enabled: false
+        15/07/26 12:55:48 INFO namenode.FSNamesystem: Append Enabled: true
+        15/07/26 12:55:48 INFO util.GSet: Computing capacity for map INodeMap
+        15/07/26 12:55:48 INFO util.GSet: VM type       = 64-bit
+        15/07/26 12:55:48 INFO util.GSet: 1.0% max memory 889 MB = 8.9 MB
+        15/07/26 12:55:48 INFO util.GSet: capacity      = 2^20 = 1048576 entries
+        15/07/26 12:55:48 INFO namenode.FSDirectory: ACLs enabled? false
+        15/07/26 12:55:48 INFO namenode.FSDirectory: XAttrs enabled? true
+        15/07/26 12:55:48 INFO namenode.FSDirectory: Maximum size of an xattr: 16384
+        15/07/26 12:55:48 INFO namenode.NameNode: Caching file names occuring more than 10 times
+        15/07/26 12:55:48 INFO util.GSet: Computing capacity for map cachedBlocks
+        15/07/26 12:55:48 INFO util.GSet: VM type       = 64-bit
+        15/07/26 12:55:48 INFO util.GSet: 0.25% max memory 889 MB = 2.2 MB
+        15/07/26 12:55:48 INFO util.GSet: capacity      = 2^18 = 262144 entries
+        15/07/26 12:55:48 INFO namenode.FSNamesystem: dfs.namenode.safemode.threshold-pct = 0.9990000128746033
+        15/07/26 12:55:48 INFO namenode.FSNamesystem: dfs.namenode.safemode.min.datanodes = 0
+        15/07/26 12:55:48 INFO namenode.FSNamesystem: dfs.namenode.safemode.extension     = 30000
+        15/07/26 12:55:48 INFO metrics.TopMetrics: NNTop conf: dfs.namenode.top.window.num.buckets = 10
+        15/07/26 12:55:48 INFO metrics.TopMetrics: NNTop conf: dfs.namenode.top.num.users = 10
+        15/07/26 12:55:48 INFO metrics.TopMetrics: NNTop conf: dfs.namenode.top.windows.minutes = 1,5,25
+        15/07/26 12:55:48 INFO namenode.FSNamesystem: Retry cache on namenode is enabled
+        15/07/26 12:55:48 INFO namenode.FSNamesystem: Retry cache will use 0.03 of total heap and retry cache entry expiry time is 600000 millis
+        15/07/26 12:55:48 INFO util.GSet: Computing capacity for map NameNodeRetryCache
+        15/07/26 12:55:48 INFO util.GSet: VM type       = 64-bit
+        15/07/26 12:55:48 INFO util.GSet: 0.029999999329447746% max memory 889 MB = 273.1 KB
+        15/07/26 12:55:48 INFO util.GSet: capacity      = 2^15 = 32768 entries
+        15/07/26 12:55:48 INFO namenode.FSImage: Allocated new BlockPoolId: BP-1500842503-192.168.1.2-1437929748421
+        15/07/26 12:55:48 INFO common.Storage: Storage directory \hadoop\data\dfs\namenode has been successfully formatted.
+        15/07/26 12:55:48 INFO namenode.NNStorageRetentionManager: Going to retain 1 images with txid >= 0
+        15/07/26 12:55:48 INFO util.ExitUtil: Exiting with status 0
+        15/07/26 12:55:48 INFO namenode.NameNode: SHUTDOWN_MSG:
+        /************************************************************
+        SHUTDOWN_MSG: Shutting down NameNode at anonymous-PC/192.168.1.2
+        ************************************************************/
+
+    A few notes about the output shown above:
+      A) "HA Enabled: false"
+          means that high availablity is not enabled
+      B) "Storage directory \hadoop\data\dfs\namenode has been successfully formatted."
+          means that A local directory is being formatted for the name node:
+
+
+
+19. Start HDFS (Start the Name Node and Data Node)
+    DOS> cd %HADOOP_HOME%\sbin
+    DOS> start-dfs
+
+         You should see 2 DOS windows open up
+         1) Apache Hadoop Distribution - hadoop namenode
+         2) Apache Hadoop Distribution - hadoop datanode
+
+
+
+20. Start MapReduce aka YARN (Resource Manager and Node Manager)
+    DOS> cd %HADOOP_HOME%\sbin
+    DOS> start-yarn
+
+         You should see 2 DOS windows open up
+         1) Apache Hadoop Distribution - yarn nodemanager
+         2) Apache Hadoop Distribution - yarn resourcemanager
+
+
+
+21. Verify it is running
+    a. Go to the NodeManager's url:
+       http://localhost:8042/
+
+    b. Go to the Namenode's website
+       http://localhost:50070
+
+
+
+22. Create a directory with your Hadoop File System
+    a. List what is in your HDFS top directory
+       DOS> hadoop fs -ls /    # List what is in the root directory
+            NOTE:  It should display nothing
+
+    b. Create a directory called /tmp in HDFS
+       DOS> hadoop fs -mkdir /tmp
+       DOS> hadoop fs -chmod 1777 /tmp
+       DOS> hadoop fs -ls /
+            Found 1 items
+            drwxrwxrwt   - adam supergroup          0 2015-07-26 18:52 /tmp
+
+
+    c. Insert c:\temp\stuff.txt into your HDFS /tmp/stuff.txt
+       1) Create a file called c:\temp\stuff.txt
+
+       2) Use the hadoop command-line to insert it into your HDFS
+          DOS> hadoop fs -put c:\temp\stuff.txt /tmp/stuff.txt
+
+          DOS> hadoop fs -ls /tmp
+               Found 1 items
+               -rw-r--r--   1 adam supergroup          6 2015-07-26 18:56 /tmp/stuff.txt
+
+       3) Use the hadoop command-line to get an HDFS file and copy it to your local file system
+          DOS> hadoop fs -get /tmp/stuff.txt c:\temp\stuff2.txt
+
+
+       4) Display the content's of a file located in HDFS
+          DOS> hadoop fs -cat /tmp/stuff.txt
+
+
+23. Stop everything
+    DOS> cd %HADOOP_HOME%\sbin
+    DOS> stop-all
+
+
+
+Setup Standalone Mode for debugging
+-----------------------------------
+In core-site.xml
+    fs.default.name is file:///   (defailt)
+
+In hdfs-site.xml
+    dfs.replication is not set
+
+In mapreduce-site.xml
+    mapred.job.tracker is local   (default)
+
