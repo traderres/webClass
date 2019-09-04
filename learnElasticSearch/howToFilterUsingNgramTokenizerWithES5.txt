@@ -1,0 +1,255 @@
+How to Filter using an N-gram Tokenizer With ElasticSearch 5
+------------------------------------------------------------
+Problem:  You want to filter the results based on a single-character match
+          *OR*
+          Your front-end needs to filter the grids so that users can type-in a single character and filter the results
+          So, if the user enters a filter of "stu" then match "STU", "STUFF", "STUFFING", "stuffing", ....
+
+
+Solution: Create an n-gram analyzer that uses a ngram tokenizer
+          The ngram tokenizer will split-up words of 1 to 25 characters
+          NOTE:  The ngram tokenizer will have this:
+                   "token_chars": [ ]
+                  which tells the tokenizer to keep all characters -- e.g., letters, punctuaction characters, special chars, everything
+
+          to look for ngrams of size=1 to size=25 chars
+
+
+Design
+ 1) Create a tokenizer called "my_ngram_tokenizer"
+ 2) Create an analyzer called my_ngram_analyzer which will convert to lowercase and grab the tokens
+ 3) Create a field called "report_name"
+
+
+
+Procedure
+---------
+ 1. Delete the existing index
+    DELETE /test4
+
+ 2. Create the index with 3 versions of report_name
+      report_name.raw       will be used for case-sensitive searching
+      report_name.sort      will be used for case-insensitive sorting -- e.g., all of the A a are together, all of the B b are together
+      report_name.filtered  will be used for filtering by single-char
+
+
+
+    PUT /test4
+    {
+      "settings": {
+        "analysis": {
+          "analyzer" : {
+            "my_ngram_analyzer" : {
+              "tokenizer" : "my_ngram_tokenizer",
+              "filter": ["lowercase"]
+            }
+          },
+          "tokenizer" : {
+            "my_ngram_tokenizer" : {
+              "type" : "ngram",
+              "min_gram" : "1",
+              "max_gram" : "25",
+              "token_chars": [ ]
+            }
+          },
+          "normalizer": {
+            "case_insensitive_normalizer": {
+              "type": "custom",
+              "char_filter": [],
+              "filter": [ "lowercase", "asciifolding" ]
+            }
+          }
+        },
+        "refresh_interval": "1s"
+      },
+
+      "mappings":
+           {
+              "record": {
+                 "properties": {
+
+                        "report_name": {
+                          "type": "text",
+                          "include_in_all": true,
+                          "fields": {
+                            "raw": {
+                              "type": "keyword"
+                            },
+                            "sort": {
+                              "type": "keyword",
+                              "normalizer": "case_insensitive_normalizer"
+                            },
+                            "filtered" : {
+                              "type":     "text",
+                              "analyzer": "my_ngram_analyzer"
+                            }
+                          }
+                        },
+
+                       "value": {
+                          "type": "text",
+                          "include_in_all": true,
+                          "fields": {
+                            "raw": {
+                              "type": "keyword"
+                            },
+                            "sort": {
+                              "type": "keyword",
+                              "normalizer": "case_insensitive_normalizer"
+                            },
+                            "ip": {
+                              "type": "ip",
+                              "ignore_malformed": true,
+                              "store": true
+                            },
+                            "filtered" : {
+                              "type": "text",
+                              "analyzer": "my_ngram_analyzer"
+                            }
+                          }
+                        },
+
+                        "type": {
+                          "type": "keyword",
+                          "normalizer": "case_insensitive_normalizer",
+                          "include_in_all": true,
+                          "fields": {
+                            "raw": {
+                              "type": "keyword"
+                            }
+                          }
+                        },
+
+                        "recommended_by": {
+                          "type": "text",
+                          "include_in_all": true,
+                          "fields": {
+                            "raw": {
+                              "type": "keyword"
+                            },
+                            "sort": {
+                              "type": "keyword",
+                              "normalizer": "case_insensitive_normalizer"
+                            }
+                          }
+                        },
+                        "recommended_date": {
+                          "type": "date",
+                          "ignore_malformed": true,
+                          "format": "epoch_millis||epoch_second||yyyy/MM/dd HH:mm:ss.SSS||yyyy-MM-dd HH:mm:ss.SSS||yyyy/MM/dd HH:mm:ss||yyyy-MM-dd HH:mm:ss.SSSZ||yyyy-MM-dd'T'HH:mm:ss||yyyy-MM-dd'T'HH:mm:ssZ||yyyy-MM-dd HH:mm:ss||yyyy-MM-dd HH:mm:ssZ||yyyy/MM/dd||yyyy-MM-dd||S",
+                          "include_in_all": true
+                        }
+
+
+                }
+              }
+           }
+    }
+
+
+ 3. Add some data
+    POST _bulk
+    { "index": { "_index": "test4", "_type": "record", "_id": 1 }}
+    { "report_name": "Email One.pdf"}
+    { "index": { "_index": "test4", "_type": "record", "_id": 2 }}
+    { "report_name": "Email TWO.txt"}
+    { "index": { "_index": "test4", "_type": "record", "_id": 3 }}
+    { "report_name": "Email Three.pdf"}
+    { "index": { "_index": "test4", "_type": "record", "_id": 4 }}
+
+
+ 4. Search everything
+    POST /test4/_search
+
+
+ 5. View the term vectors for the 1st document
+    GET /test4/record/2/_termvector?fields=report_name
+
+
+ 6. Simulate doing a filter on the report_name like '%email t%'
+    NOTES
+     1) Enter the search criteria in lowercase (as the my_ngram_analyzer uses lowercase)
+        WARNING:  If you put in uppercase search criteria -- e.g., EMAIL -- then you will get zero results
+     2) Should return 2 results
+
+    POST /test4/_search
+    {
+        "query": {
+            "term": {
+               "report_name.filtered": "email t"
+            }
+        }
+    }
+
+
+  7. Simulate doing a filter on the report_name like '%p%'
+    NOTES
+     1) We use the "term" query so you have put the search text in lower case
+     2) Should return 1 result
+
+    POST /test4/_search
+    {
+        "query": {
+            "term": {
+               "report_name.filtered": "email one"
+            }
+        }
+    }
+
+
+
+ 8. Run a filtered query
+    -- Query for "email" and then filter to show only those report_names that contain "pdf"
+
+    POST /test4/_search
+    {
+      "query": {
+        "bool": {
+            "must": [
+                       {
+                           "query_string": {
+                              "query": "report_name.filtered:email"
+                           }
+                       }
+                   ],
+             "filter" : [
+                      {
+                          "term": {
+                              "report_name.filtered": "pdf"
+                          }
+                      }
+                   ]
+        }
+      }
+    }
+
+
+
+ 9. Run a multiple-filter query
+
+     POST /test4/_search
+     {
+       "query": {
+         "bool": {
+             "must": [
+                        {
+                            "query_string": {
+                               "query": "report_name.filtered:email"
+                            }
+                        }
+                    ],
+              "filter" : [
+                       {
+                           "term": {
+                               "report_name.filtered": "pdf"
+                           }
+                       },
+                       {
+                          "term": {
+                              "_id": "3"
+                          }
+                      }
+                    ]
+         }
+       }
+     }
