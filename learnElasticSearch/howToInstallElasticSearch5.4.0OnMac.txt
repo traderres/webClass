@@ -10,8 +10,8 @@ Procedure
 ---------
  1. Make sure your JAVA_HOME variable is set to a Java JDK 1.8 or later
 
- 2. Download and install ElasticSearch
-    unix> cd
+ 2. Download and install ElasticSearch to your ~/tools/elasticsearch/
+    unix> cd ~/tools
     unix> curl -L -O https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.4.0.tar.gz
     unix> tar -xvf elasticsearch-5.4.0.tar.gz
 
@@ -19,3 +19,90 @@ Procedure
     unix> cd elasticsearch-5.4.0/bin
     unix> ./elasticsearch
     -- Your ElasticSearch should be listening on port 9200
+
+
+
+Set up ElasticSearch as a service that startsup automatically
+-------------------------------------------------------------
+1. Create the plist file (with the line to run ElasticSearch
+
+   unix> sudo vim /Library/LaunchAgents/com.edb.launchd.elasticsearch-5.4.0.plist
+
+       <?xml version="1.0" encoding="UTF-8"?>
+       <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN"
+               "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+       <plist version="1.0">
+       <dict>
+           <key>Disabled</key>
+           <false/>
+               <key>Label</key>
+               <string>com.edb.launchd.elasticsearch-5.4.0</string>
+               <key>ProgramArguments</key>
+               <array>
+                       <string>/Users/MY_USERNAME/tools/elasticsearch-5.4.0/bin/elasticsearch</string>
+               </array>
+               <key>RunAtLoad</key>
+               <true/>
+           <key>KeepAlive</key>
+           <dict>
+                <key>SuccessfulExit</key>
+                <false/>
+           </dict>
+       </dict>
+       </plist>
+
+   NOTES:
+    A) ElasticSearch will run as the root user
+    B) Do not add leading spaces before the first line
+    C) The filename must match the string in the plist file
+             com.edb.launchd.elasticsearch-5.4.0.plist
+
+
+ 2. Disable System Integrity Protection
+    a. Shut down the box
+    b. Press and hold Command and R
+    c. Press Power button once -- keep holding until you see macOS Utilities -- about 90 seconds)
+    d. Pull Utilities -> Terminal
+
+    e. Disable System Integrity Protection
+       1. Get the current status
+          unix> csrutil status
+          -- It will show that it currently enabled
+
+       2. Disable System Integrity Protection
+          unix> crutil disable
+          Successfully disabled System Integrity Protection.  Please restart the machine for the changes to take effect.
+
+       3. Restart mac
+          Pull Apple icon -> Restart
+
+
+ 4. Register the newly-created plist file into the LaunchAgents (because SIP is disabled)
+    a. Get the current status
+       unix> csrutil status
+       -- It will show that it currently disabled
+
+    b. Register the new plist item
+       unix> sudo launchctl load  -w /Library/LaunchAgents/com.edb.launchd.elasticsearch-5.4.0.plist
+       unix> sudo launchctl start -w /Library/LaunchAgents/com.edb.launchd.elasticsearch-5.4.0.plist
+
+    c. Look at your elasticsearch/logs/elasticsearch.log file to verify it is running
+
+
+ 5. Enable System Integrity Protection
+    a. Shut down the box
+    b. Press and hold Command and R
+    c. Press Power button once -- keep holding until you see macOS Utilities -- about 90 seconds)
+    d. Pull Utilities -> Terminal
+
+    e. Disable System Integrity Protection
+       1. Get the current status
+          unix> csrutil status
+          -- It will show that it currently disabled
+
+       2. Disable System Integrity Protection
+          unix> crutil enabled
+          Successfully enabled System Integrity Protection.  Please restart the machine for the changes to take effect.
+
+       3. Restart mac
+          Pull Apple icon -> Restart
