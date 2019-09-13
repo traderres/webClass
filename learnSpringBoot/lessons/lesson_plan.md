@@ -122,7 +122,7 @@
 1. More Maven Tricks
    1. Setup a maven profile that will replace logback.xml and application.yaml with different files (for production)
    1. [Tell maven to run "npm install" when running npm clean install](/learnMaven/howToTellMavenToRunNpmInstall.txt)
-   1. Tell maven to include the build-user, build-time, jenkins build name into the manifest uber jar
+   1. [Tell maven to include the build-user, build-time, jenkins build name](/learnMaven/howToAddToManifestInfoToJar.txt) into the manifest uber jar
 
 1. How to Create an "About" Page that displays the MANIFEST.MF
    1. Adjust Maven to create a manifest.txt
