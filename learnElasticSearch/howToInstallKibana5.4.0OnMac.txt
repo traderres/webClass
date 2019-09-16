@@ -1,0 +1,134 @@
+How to Install Kabana on Mac
+----------------------------
+
+Assumptions:
+ A) You installed ElasticSearch 5.4.0 on your mac
+ B) Your ElasticSearch 5.4.0 is listening on localhost:9201
+
+Procedure
+---------
+1. Download the Kibana 5.4.0 tar.gz to your tools directory
+	unix> cd ~/tools
+	unix> curl -o kibana-5.4.0-darwin-x86_64.tar.gz https://artifacts.elastic.co/downloads/kibana/kibana-5.4.0-darwin-x86_64.tar.gz
+	unix> tar zxvf kibana-5.4.0-darwin-x86_64.tar.gz
+	unix> rm kibana-5.4.0-darwin-x86_64.tar.gz
+	unix> cd kibana-5.4.0-darwin-x86_64
+
+2. (Optional) Set the listening port for ElasticSearch
+	unix> cd config
+	unix> nano kibana.yml
+	a) Uncomment the line and set the port:
+		#elasticsearch.url: "http://localhost:9200" 
+		to
+		elasticsearch.url: "http://localhost:9201"
+	b) Save & quit
+
+3. Make sure Kibana can start
+	unix> cd .. 
+		(now in the main kibana directory)
+	unix> cd bin
+	unix> ./kibana
+	Open a browser and navigate to:
+		http://localhost:5601/status
+	You should see Status: Green
+
+4. Add your default index. Depends on project... ask a friend
+	Management -> Index Patterns
+
+5. Stop the Kibana instance by pressing Ctrl-C in the terminal window
+
+6. (Optional) add an alias to start Kibana
+	unix> nano ~/.bash_profile
+	a) Add the following line:
+		alias kibana='cd ~/tools/kibana-5.4.0-darwin-x86_64/bin && ./kibana'
+	b) Save & exit
+
+
+
+Set up Kibana so it starts on bootup
+-------------------------------------
+1. Create the plist file (with the line to run Kibana)
+	unix> sudo nano /Library/LaunchAgents/com.edb.launchd.kibana-5.4.0.plist
+
+	Paste the following:
+
+		<?xml version="1.0" encoding="UTF-8"?>
+		<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN"
+		       "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+		<plist version="1.0">
+		<dict>
+		   <key>Disabled</key>
+		   <false/>
+		       <key>Label</key>
+		       <string>com.edb.launchd.kibana-5.4.0/string>
+		       <key>ProgramArguments</key>
+		       <array>
+		               <string>/Users/YOUR_USERNAME/tools/kibana-5.4.0-darwin-x86_64/bin/kibana</string>
+		       </array>
+		       <key>RunAtLoad</key>
+		       <true/>
+		   <key>KeepAlive</key>
+		   <dict>
+		        <key>SuccessfulExit</key>
+		        <false/>
+		   </dict>
+		</dict>
+		</plist>
+
+   NOTES:
+    A) Kibana cannot run as the root user -- so use LaunchAgents to run as a non-root user
+    B) Do not add leading spaces before the first line
+    C) The filename must match the string in the plist file
+             com.edb.launchd.kibana-5.4.0.plist
+
+
+ 2. Disable System Integrity Protection
+    a. Shut down the box
+    b. Press and hold Command and R
+    c. Press Power button once -- keep holding until you see macOS Utilities -- about 90 seconds)
+    d. Pull Utilities -> Terminal
+
+    e. Disable System Integrity Protection
+       1. Get the current status
+          unix> csrutil status
+          -- It will show that it currently enabled
+
+       2. Disable System Integrity Protection
+          unix> csrutil disable
+          Successfully disabled System Integrity Protection.  Please restart the machine for the changes to take effect.
+
+       3. Restart mac
+          Pull Apple icon -> Restart
+
+
+ 4. Register the newly-created plist file into the LaunchAgents (because SIP is disabled)
+    a. Get the current status
+       unix> csrutil status
+       -- It will show that it currently disabled
+
+    b. Register the new plist item
+       unix> sudo launchctl load  -w /Library/LaunchAgents/com.edb.launchd.kibana-5.4.0.plist
+
+
+ 5. Enable System Integrity Protection
+    a. Shut down the box
+    b. Press and hold Command and R
+    c. Press Power button once -- keep holding until you see macOS Utilities -- about 90 seconds)
+    d. Pull Utilities -> Terminal
+
+    e. Disable System Integrity Protection
+       1. Get the current status
+          unix> csrutil status
+          -- It will show that it currently disabled
+
+       2. Disable System Integrity Protection
+          unix> csrutil enable
+          Successfully enabled System Integrity Protection.  Please restart the machine for the changes to take effect.
+
+       3. Restart mac
+          Pull Apple icon -> Restart
+
+
+ 6. Verify that Kibana started automatically after reboot
+    a. Open a browser
+    b. Connect to http://localhost:5601/status
