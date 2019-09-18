@@ -280,3 +280,50 @@ Procedure
                  return randomNum;
              }
          }
+
+
+ 5. Try some large SQL calls to get a comparison of times
+    create index on indicators_aud(id);
+
+    Approach #1
+        select i.id, i.value, min(ia.timestamp) as created_date,  max(ia.timestamp) as last_updated_date
+        from indicators i
+        join indicators_aud ia on (i.id=ia.id)
+        group by i.id, i.value;
+
+
+    Approach #2  (using CTE)
+        with
+             oldest as (
+                 select distinct on (id) id, timestamp
+                 from indicators_aud
+                 order by id, timestamp desc
+             ),
+             newest as (
+                 select distinct on (id) id, timestamp
+                 from indicators_aud
+                 order by id, timestamp asc
+             )
+        select i.id, i.value, oldest.timestamp as created_date, newest.timestamp as last_update_date
+        from indicators i
+        join oldest on (i.id=oldest.id)
+        join newest on (i.id=newest.id)
+        order by i.id;
+
+
+    Approach #3:  (conventional)
+        select i.id, i.value, oldest.timestamp as created_date, newest.timestamp as last_update_date
+        from indicators i
+        join (
+                select distinct on (id) id, timestamp
+                from indicators_aud
+                order by id, timestamp desc
+            ) oldest on (i.id=oldest.id)
+
+        join (
+            select distinct on (id) id, timestamp
+            from indicators_aud
+            order by id, timestamp asc
+            ) newest on (i.id=newest.id)
+        order by i.id;
+
