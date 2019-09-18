@@ -1,0 +1,282 @@
+How to Create Test Records in Postgres Using a Test Class
+---------------------------------------------------------
+
+
+
+Procedure
+---------
+ 1. Make sure you have these tables defined in your flyway scripts
+
+        -- Create a sequence called "seq_table_ids"
+        Create sequence seq_table_ids increment by 1 START WITH 1000;
+
+        -- Create the reports table
+        CREATE TABLE reports
+        (
+          id                  INTEGER PRIMARY KEY NOT NULL,
+          version             INTEGER,
+          description         TEXT,
+          display_name        VARCHAR(255),
+          reviewed            BOOLEAN,
+          reference_source    INTEGER,
+          priority            INTEGER,
+          created_date        TIMESTAMP,
+          last_modified_date  TIMESTAMP,
+          is_custom_report    BOOLEAN DEFAULT FALSE,
+          reserved            BOOLEAN,
+          reserved_by         VARCHAR(255)
+        );
+
+
+        CREATE TABLE indicators
+        (
+          id                  INTEGER PRIMARY KEY NOT NULL,
+          value               VARCHAR(100) NOT NULL,
+          indicator_type      INTEGER
+        );
+
+        CREATE TABLE indicators_aud
+        (
+          id                INTEGER,
+          rev               INTEGER,
+          revtype           INTEGER,
+          timestamp         TIMESTAMP,
+          username          VARCHAR(100),
+          value             VARCHAR(100),
+          indicator_type    INTEGER
+        );
+
+
+
+        CREATE TABLE link_reports_indicators
+        (
+          reports             INTEGER,
+          indicators          INTEGER
+        );
+
+
+        CREATE TABLE link_reports_indicators_aud
+        (
+          id                INTEGER,
+          rev               INTEGER,
+          revtype           INTEGER,
+          timestamp         TIMESTAMP,
+          username          VARCHAR(100),
+          reports             INTEGER,
+          indicators          INTEGER
+        );
+
+        alter table reports drop column created_date;
+        alter table reports drop column last_modified_date;
+
+
+
+ 2. Make sure your have these dependencies in your pom.xml
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jdbc</artifactId>
+            <version>5.0.3.RELEASE</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <version>2.0.0.RELEASE</version>
+            <scope>test</scope>
+        </dependency>
+
+
+ 3. Add a logback-test.xml file
+    a. Right-click on /src/test/resources -> New File
+       Filename:  logback-test.xml
+
+    b. Copy this to your newly-created file
+          <?xml version="1.0" encoding="windows-1252" ?>
+          <configuration debug="false">
+              <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+                  <encoder>
+                      <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+                  </encoder>
+              </appender>
+
+              <logger name="org.springframework" level="WARN" additivity="false">
+                  <appender-ref ref="CONSOLE"/>
+              </logger>
+
+              <logger name="com.lessons" level="DEBUG" additivity="false">
+                  <appender-ref ref="CONSOLE"/>
+              </logger>
+
+              <logger name="com.zaxxer" level="INFO" additivity="false">
+                  <appender-ref ref="CONSOLE"/>
+              </logger>
+
+              <root level="DEBUG">
+                  <appender-ref ref="CONSOLE"/>
+              </root>
+          </configuration>
+
+
+
+ 4. Add your test class:  SetupTestClasses.java
+    a. Right-click on /src/test/java/com/lessons -> New -> Java class
+       Class name:  SetupTestClasses
+
+    b. Copy this to your newly-created file
+
+         package com.lessons;
+
+
+         import org.apache.commons.lang3.StringUtils;
+         import org.junit.Test;
+         import org.junit.runner.RunWith;
+         import org.slf4j.Logger;
+         import org.slf4j.LoggerFactory;
+         import org.springframework.boot.test.context.SpringBootTest;
+         import org.springframework.jdbc.core.JdbcTemplate;
+         import org.springframework.test.context.junit4.SpringRunner;
+
+         import javax.annotation.Resource;
+         import javax.sql.DataSource;
+         import java.util.Arrays;
+         import java.util.List;
+         import java.util.concurrent.ThreadLocalRandom;
+
+         import static junit.framework.TestCase.assertTrue;
+
+         /**
+          * Unit test for simple App.
+          */
+         @RunWith(SpringRunner.class)    // Required to work with JUnit 4
+         @SpringBootTest                 // Start up a Spring Application Context
+         public class SetupTestRecords
+         {
+             private static final Logger logger = LoggerFactory.getLogger(SetupTestRecords.class);
+
+             @Resource
+             private DataSource dataSource;
+
+             private List<String> domains = Arrays.asList("bogus.com", "badguy.com", "xxx.com", "yyy.com", "zzz.com");
+
+             @Test
+             public void setupTestRecords()
+             {
+                 logger.debug("setupTestRecords() started.");
+
+                 final int TOTAL_REPORT_RECORDS = 50000;
+
+                 for (int reportId=1; reportId<=TOTAL_REPORT_RECORDS; reportId++) {
+
+                     // Create the report record (using the passed-in reportId)
+                     createReportRecord(reportId);
+
+                     // Create 1 to 100 indicator records for this reportId
+                     int totalIndicatorsForThisReport = getRandomIntBetween(1, 100);
+                     createIndicatorRecords(reportId, totalIndicatorsForThisReport);
+
+                     if ((reportId%100) == 0) {
+                         logger.debug("Created record {} of {}", reportId, TOTAL_REPORT_RECORDS);
+                     }
+                 }
+
+
+                 logger.debug("setupTestRecords() finished.");
+
+             }
+
+
+             private void createIndicatorRecords(int reportId, int totalIndicatorsForThisReport) {
+                 JdbcTemplate jt = new JdbcTemplate(this.dataSource);
+                 StringBuilder sqlToInsertIndicators    = new StringBuilder("insert into indicators(id, indicator_type, value) values ");
+                 StringBuilder sqlToInsertIndicatorsAud = new StringBuilder("insert into indicators_aud(id, indicator_type, value, rev, revtype, timestamp, username) values ");
+                 StringBuilder sqlToInsertLRIs          = new StringBuilder("insert into link_reports_indicators(reports, indicators) values ");
+
+                 int startingIndicatorId = reportId * 1000;
+                 int indicatorId = startingIndicatorId;
+                 String formattedInsert;
+
+                 for (int i=1; i <= totalIndicatorsForThisReport; i++, indicatorId++) {
+                     int indicatorType = getRandomIntBetween(1, 2);
+
+                     String indicatorValue;
+                     if (indicatorType == 1) {
+                         indicatorValue = getRandomIp();
+                     } else {
+                         indicatorValue = getRandomDomain();
+                     }
+
+                     formattedInsert = String.format("(%d,%d,'%s'),", indicatorId, indicatorType, indicatorValue);
+                     sqlToInsertIndicators.append(formattedInsert);
+
+                     formattedInsert = String.format("(%d,%d),", reportId, indicatorId);
+                     sqlToInsertLRIs.append(formattedInsert);
+
+                     int rev = getRandomIntBetween(1, 10000);
+                     int revtype = 0;
+                     String username = "bogus_user";
+                     String timestamp = "now()";
+                     formattedInsert = String.format("(%d,%d,'%s', %d, %d, %s, '%s'),", indicatorId, indicatorType, indicatorValue, rev, 0, timestamp, username);
+                     sqlToInsertIndicatorsAud.append(formattedInsert);
+                 }
+
+                 // Remove the last comma
+                 sqlToInsertIndicators.deleteCharAt(sqlToInsertIndicators.length() - 1);
+                 sqlToInsertLRIs.deleteCharAt(sqlToInsertLRIs.length() - 1);
+                 sqlToInsertIndicatorsAud.deleteCharAt(sqlToInsertIndicatorsAud.length() - 1);
+
+                 // Insert the indicator records
+                 jt.update(sqlToInsertIndicators.toString());
+                 jt.update(sqlToInsertIndicatorsAud.toString());
+                 jt.update(sqlToInsertLRIs.toString());
+             }
+
+
+             private int getNextSequenceValue() {
+                 JdbcTemplate jt = new JdbcTemplate(this.dataSource);
+                 String sql = "select nextval('seq_table_ids')";
+                 Integer nextValue = jt.queryForObject(sql, Integer.class);
+                 return nextValue;
+             }
+
+             private String getRandomIp() {
+                 int part1 = getRandomIntBetween(1, 255);
+                 int part2 = getRandomIntBetween(1, 255);
+                 int part3 = getRandomIntBetween(1, 255);
+                 int part4 = getRandomIntBetween(1, 255);
+                 String ip = String.format("%d.%d.%d.%d", part1, part2, part3, part4);
+                 return ip;
+             }
+
+             private String getRandomDomain() {
+                 int randomDomainIndex = getRandomIntBetween(0, this.domains.size() - 1);
+                 String randomDomain = this.domains.get(randomDomainIndex);
+                 return "a" + getNextSequenceValue() + "." + randomDomain;
+             }
+
+             private void createReportRecord(int reportId) {
+                 JdbcTemplate jt = new JdbcTemplate(this.dataSource);
+                 String sql = "insert into reports(id, display_name, reviewed, priority, is_custom_report) values(?, ?, ?, ?, ?)";
+                 String displayName = "report" + reportId + ".txt";
+                 int priority = getRandomIntBetween(1, 5);
+                 boolean isCustomReport = getRandomBoolean();
+                 boolean isReviewed = getRandomBoolean();
+
+                 jt.update(sql, reportId,  displayName, isReviewed, priority, isCustomReport);
+             }
+
+             private boolean getRandomBoolean() {
+                 int randomNum = getRandomIntBetween(1,2);
+                 if (randomNum == 1) {
+                     return true;
+                 }
+                 else {
+                     return false;
+                 }
+             }
+
+
+             private int getRandomIntBetween(int minInt, int maxInt) {
+                 int randomNum = ThreadLocalRandom.current().nextInt(minInt, maxInt + 1);
+                 return randomNum;
+             }
+         }
