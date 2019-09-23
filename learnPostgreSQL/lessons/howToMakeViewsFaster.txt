@@ -1,0 +1,62 @@
+How to Make Your Views Execute Faster
+-------------------------------------
+You have a crazy-complicated view
+You have a front-end grid that queries it but getting the data is slow
+
+
+Approaches
+----------
+ Option #1:  Use Materialized Views
+             This is a read-only table
+             -- You can add indexes to it
+             -- Ideal if the updates are infrequent or you can update the view once-per-hour
+             -- I do not recommend using this approach if you have to wait for the view to be updated as part of a SQL transaction
+
+
+ Option #2:  Use a cache table
+             This is a regular read-write table
+             -- The idea is that your front-end queries this regular tables (so GETS are fast)
+             -- At the end of your update SQL transaction, you need to update the few records in this table
+                 1) Identify the changed records  [not a problem as you are probably passing-in a recordId]
+                 2) Run a query against your original slow query to get the updated info
+                    NOTE:  Add the where id=5 into all of the left joins in your query to make this query faster
+                 3) Write the updated row to your cache table
+
+
+             Components to Implement:
+                 (a) Syncing this cache table with the slow view
+                 (b) Changing all of your insert/update/delete REST calls to update the cache table
+                 (c) Adding indexes to your cache table
+
+              + You get fast reads on your grid
+              + You get fast filtering
+              + Your updates should be reasonably quick
+              - extra complexity of using a cache table
+
+
+ Option #3:  Use ElasticSearch as cache
+             -- The idea is that your front-end queries an ElasticSearch index (so GETS are ultra-fast)
+             -- At the end of your update SQL transaction, you need update the records in ElasticSearch
+                 1) Identify the changed records  [not a problem as you are probably passing-in a recordId]
+                 2) Run a query against your original slow query to get the updated info
+                    NOTE:  Add the where id=5 into all of the left joins in your query to make this query faster
+                 3) Send the updated data to your ElasticSearch index
+
+              Components to Implement:
+                  (a) Syncing this ElasticSearch index table with the slow view
+                  (b) Changing all of your insert/update/delete REST calls to update the cache table
+                  (c) Adding indexes to your cache table
+
+              + You get fast reads on your grid
+              + You get fast filtering
+              + Your updates should be reasonably quick
+              + You can use ElasticSearch to add a search box to your page
+              - extra complexity of designing an ElasticSearch index
+              - extra complexity of writing to ElasticSearch index
+              - most complex approach (but has most advantages)
+
+
+ Optoin #4:  Remove fields from your front-end grid (so that the original view does not have to be so complex)
+             -- Do you really need to have last_updated_date?
+             -- Do you really need to have last_updated_user?
+
