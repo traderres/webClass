@@ -6,8 +6,10 @@ We want to populate it with some sample data
 
 ES Fields Explained
 -------------------
- Keyword
- Text
+ Keyword     For searching whole words
+ Text:       For searching individual tokens (full-text search)
+             + case insensitive searches
+             + wildcard searches
 
 
 
@@ -16,69 +18,306 @@ Procedure
  1. Delete the existing reports index (if it exists)
     DELETE /reports
 
+    NOTE:  You will get an "index_not_found_exception" if the index did not exist first
+
 
  2. Create a new reports index
     PUT /reports
     {
-      "settings": {
+     "settings": {
         "refresh_interval": "1s"
       },
-      "mappings": {
-        "record": {
+
+     "mappings": {
+         "record": {
             "dynamic": "strict",
                 "properties": {
-                   "actors": {
-                     "type": "text",
-                     "include_in_all": true,
-                   },
-                 "priority": {
-                     "type": "keyword",
-                     "normalizer": "case_insensitive_normalizer",
-                     "include_in_all": true,
+                    "actors": {
+                         "type": "text",
+                         "include_in_all": true
+                        },
+                    "description": {
+                             "type": "text",
+                             "include_in_all": true
+                            },
+                    "priority": {
+                         "type": "keyword",
+                         "include_in_all": true
                      }
-                 }
-            }
-          }
+                    }
+           }
         }
-    }
+     }
+
 
 
  3. Populate the reports index with some data
     POST _bulk
     { "index": { "_index": "reports", "_type": "record", "_id": 1 }}
-    { "priority": "low", "actors": "John Smith"}
+    { "priority": "low", "actors": "John Smith", "description": "he really likes o'reilly"}
     { "index": { "_index": "reports", "_type": "record", "_id": 2 }}
-    { "priority": "LOW", "actors": "George Smith"}
+    { "priority": "LOW", "actors": "george washington", "description": "depending on the kind query, you might want to go different ways with it"}
     { "index": { "_index": "reports", "_type": "record", "_id": 3 }}
     { "priority": "high", "actors": "adam Smith"}
     { "index": { "_index": "reports", "_type": "record", "_id": 4 }}
-    { "priority": "HIGH", "actors": "Adam Smith 2"}
+    { "priority": "HIGH", "actors": "Adam Smith 2", "description": "This description is for record four"}
+    { "index": { "_index": "reports", "_type": "record", "_id": 5 }}
+    { "priority": "HIGH", "actors": ["Pat Benetar", "Michael Jackson", "George Michael"], "description": "There are too many singers from the 1980s listed here.  Get a life!!"}
+
+    NOTE:  If there are no errors, then you should see
+        {
+           "took": 69,
+           "errors": false,
+           "items": [
+              {
+                ...lots of stuff....
+              }
+           ]
+        }
 
 
  4. Search the reports index for everything
 
     POST /reports/_search
+
+    *OR*
+
+    POST /reports/_search
     {
        "query": {
            "match_all": {}
-       }
+       },
+       "size": 25
     }
 
 
- 5. Search the reports index and sort by actor
+
+
+ 5. Search the reports that have "GEORGE" in it
+
     POST /reports/_search
     {
-      "query": {
-          "match_all": {}
-      },
-      "sort": [
-            {
-                "actors.sort":
-                {
-                 "order": "asc",
-                "missing": "asc"
-                }
-            }
-        ]
+       "query": {
+           "query_string": {
+              "query": "GEORGE"
+           }
+       },
+       "size": 25
     }
 
+
+    Examine the output
+     {
+        "took": 1,                        <-- ES took 1 msec to respond
+        "timed_out": false,
+        "_shards": {
+           "total": 5,
+           "successful": 5,
+           "failed": 0
+        },
+        "hits": {
+           "total": 2,                   <-- ES found a total of 2 matches
+           "max_score": 0.5662132,
+           "hits": [                     <-- This is the page of matching hits (up to 25 records per page)
+              {
+                 "_index": "reports",
+                 "_type": "record",
+                 "_id": "2",
+                 "_score": 0.5662132,
+                 "_source": {
+                    "priority": "LOW",
+                    "actors": "george washington",
+                    "description": "depending on the kind query, you might want to go different ways with it"
+                 }
+              },
+              {
+                 "_index": "reports",
+                 "_type": "record",
+                 "_id": "5",
+                 "_score": 0.2824934,
+                 "_source": {
+                    "priority": "HIGH",
+                    "actors": [
+                       "Pat Benetar",
+                       "Michael Jackson",
+                       "George Michael"
+                    ],
+                    "description": "There are too many singers from the 1980s listed here.  Get a life!!"
+                 }
+              }
+           ]
+        }
+     }
+
+
+ 6. Search multiple words
+
+    POST /reports/_search
+     {
+        "query": {
+            "query_string": {
+               "query": "george washington"
+            }
+        },
+        "size": 25
+     }
+
+    -- What results do you get?
+
+
+ 7. Search multiple words with quotes
+
+     POST /reports/_search
+      {
+         "query": {
+             "query_string": {
+                "query": "\"george washington\""
+             }
+         },
+         "size": 25
+      }
+
+
+
+ 8. Search multiple words with default operator of OR
+
+    POST /reports/_search
+    {
+       "query": {
+           "query_string": {
+              "default_operator": "OR",
+              "query": "george washington"
+           }
+       },
+       "size": 25
+    }
+
+
+ 9. Search multiple words with default operator of AND
+
+     POST /reports/_search
+     {
+        "query": {
+            "query_string": {
+               "default_operator": "AND",
+               "query": "george washington"
+            }
+        },
+        "size": 25
+     }
+
+
+10. Search with wildcards
+     POST /reports/_search
+     {
+        "query": {
+            "query_string": {
+               "query": "*life*"
+            }
+        },
+        "size": 25
+     }
+
+
+11. Search the priority field
+    POST /reports/_search
+       {
+          "query": {
+              "query_string": {
+                 "query": "priority:hiGH"
+              }
+          },
+          "size": 25
+       }
+
+
+ 12. Change your mapping so that priority is indexed as text
+     -- Can you search by priority case-insensitive
+
+
+ 13. Add case-sensitive searching to priority
+     a. Add a field called "faw"
+
+        PUT /reports
+        {
+           "settings": {
+             "refresh_interval": "1s"
+          },
+
+          "mappings": {
+                 "record": {
+                    "dynamic": "strict",
+                        "properties": {
+                            "actors": {
+                                 "type": "text",
+                                 "include_in_all": true
+                                },
+                            "description": {
+                                     "type": "text",
+                                     "include_in_all": true
+                                    },
+                            "priority": {
+                                 "type": "text",
+                                 "include_in_all": true,
+                                 "fields": {
+                                    "raw": {
+                                       "type": "keyword"
+                                   }
+                                 }
+                            }
+                        }
+                   }
+                }
+             }
+
+     b. Search the priority.raw field for "high"
+        -- You should only get matches
+
+
+
+14. Query for non-null description
+    POST /reports/_search
+    {
+           "query": {
+               "query_string": {
+                  "query": "description:*"
+               }
+           },
+           "size": 25
+    }
+
+
+15. Query for null description
+    POST /reports/_search
+    {
+         "query": {
+             "query_string": {
+                "query": "NOT description:*"
+             }
+         },
+         "size": 25
+    }
+
+    *OR*
+
+    POST /reports/_search
+    {
+         "query": {
+             "query_string": {
+                "query": "!description:*"
+             }
+         },
+         "size": 25
+    }
+
+    *OR*
+
+    POST /reports/_search
+    {
+         "query": {
+             "query_string": {
+                "query": "-description:*"
+             }
+         },
+         "size": 25
+    }
