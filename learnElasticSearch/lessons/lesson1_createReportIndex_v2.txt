@@ -1,0 +1,128 @@
+Lesson 1:  Create a Report Index V2
+-----------------------------------
+Problem:  The priority field is keyword so it's case sensitive
+          How do we let users search priority field case-insensitive
+
+Solution: Make the priority field a "text" field by default and add sub-field called "raw"
+
+
+
+
+Procedure
+---------
+ 1. Delete the existing reports index (if it exists)
+    DELETE /reports
+
+    NOTE:  You will get an "index_not_found_exception" if the index did not exist first
+
+
+ 2. Create a new reports index w/case-sensitive priority and case-insensitive priority
+    Fixes problem with searching priority mixed case
+
+    PUT /reports
+    {
+       "settings": {
+         "refresh_interval": "1s"
+      },
+
+      "mappings": {
+             "record": {
+                "dynamic": "strict",
+                    "properties": {
+                        "actors": {
+                             "type": "text",
+                             "include_in_all": true
+                            },
+                        "description": {
+                            "type": "text",
+                            "include_in_all": true
+                        },
+                        "priority": {
+                             "type": "text",
+                             "include_in_all": true,
+                             "fields": {
+                                "raw": {
+                                   "type": "keyword"
+                               }
+                             }
+                        }
+                    }
+               }
+            }
+         }
+
+
+
+ 3. Populate the reports index with some data
+    POST _bulk
+    { "index": { "_index": "reports", "_type": "record", "_id": 1 }}
+    { "priority": "low", "actors": "John Smith", "description": "he really likes o'reilly"}
+    { "index": { "_index": "reports", "_type": "record", "_id": 2 }}
+    { "priority": "LOW", "actors": "george washington", "description": "depending on the kind query, you might want to go different ways with it"}
+    { "index": { "_index": "reports", "_type": "record", "_id": 3 }}
+    { "priority": "high", "actors": "adam Smith"}
+    { "index": { "_index": "reports", "_type": "record", "_id": 4 }}
+    { "priority": "HIGH", "actors": "Adam Smith 2", "description": "This description is for record four"}
+    { "index": { "_index": "reports", "_type": "record", "_id": 5 }}
+    { "priority": "HIGH", "actors": ["Pat Benetar", "Michael Jackson", "George Michael"], "description": "There are too many singers from the 1980s listed here.  Get a life!!"}
+
+    NOTE:  If there are no errors, then you should see
+        {
+           "took": 69,
+           "errors": false,
+           "items": [
+              {
+                ...lots of stuff....
+              }
+           ]
+        }
+
+4. Search the priority field
+    POST /reports/_search
+       {
+          "query": {
+              "query_string": {
+                 "query": "priority:hiGH"
+              }
+          },
+          "size": 25
+       }
+
+ 5. Run a search and *SORT* by priority field
+    POST /reports/_search
+        {
+          "query": {
+              "match_all": {}
+          },
+           "size": 25,
+           "sort": [
+                 {
+                     "priority": {
+                       "order": "asc",
+                       "missing" : "_first"
+                     }
+                   }
+                 ]
+        }
+    PROBLEM:  You cannot sort on a text field
+
+
+
+ 5. Run a search and *SORT* by priority.raw field
+    POST /reports/_search
+        {
+          "query": {
+              "match_all": {}
+          },
+           "size": 25,
+           "sort": [
+                 {
+                     "priority.raw": {
+                       "order": "asc",
+                       "missing" : "_first"
+                     }
+                   }
+                 ]
+        }
+
+       PROBLEM:  The sort is A B C a b c
