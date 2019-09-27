@@ -1,0 +1,154 @@
+Lesson:  Create a Simple Java Program to Search an ES Index
+-----------------------------------------------------------
+
+
+
+Procedure
+---------
+ 1. Create a new project called appES
+    -- Use the quickstart
+    -- Project group is com.lessons.es
+
+ 2. Add the /src/main/resources directory
+
+ 3. Add dependencies for logback, StringUtils, and com.ning
+         <dependency>
+           <groupId>org.apache.commons</groupId>
+           <artifactId>commons-lang3</artifactId>
+           <version>3.3.2</version>
+         </dependency>
+
+         <dependency>
+           <groupId>ch.qos.logback</groupId>
+           <artifactId>logback-classic</artifactId>
+           <version>1.0.13</version>
+         </dependency>
+
+         <dependency>
+           <!-- Used for my httpClient implementation (to make web service calls out to ES) -->
+           <groupId>com.ning</groupId>
+           <artifactId>async-http-client</artifactId>
+           <version>1.9.31</version>
+         </dependency>
+
+
+ 4. Add a logback.xml
+         <?xml version="1.0" encoding="windows-1252" ?>
+
+         <configuration debug="false">
+             <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+                 <encoder>
+                     <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+                 </encoder>
+             </appender>
+
+
+             <logger name="com.lessons.es" level="DEBUG" additivity="false">
+                 <appender-ref ref="CONSOLE"/>
+             </logger>
+
+             <root level="INFO">
+                 <appender-ref ref="CONSOLE"/>
+             </root>
+
+         </configuration>
+
+
+ 5. Create an ElasticSearchService class with a one-arg constructor (to hold ES url -- e.g., "localhost:9201"
+
+         package com.lessons.es;
+
+         import com.ning.http.client.AsyncHttpClient;
+         import com.ning.http.client.Response;
+         import org.slf4j.Logger;
+         import org.slf4j.LoggerFactory;
+
+         public class ElasticSearchService {
+
+             private static final Logger logger = LoggerFactory.getLogger(ElasticSearchService.class);
+
+             private String elasticSearchUrl;
+             private AsyncHttpClient asyncHttpClient;
+
+             /**
+              * Constructor that passes-in the elasticsearch url
+              * @param aElasticSearchUrl
+              */
+             public ElasticSearchService(String aElasticSearchUrl) {
+                 // Set the elasticsearch URL (as every REST call in this class will use it)
+                 this.elasticSearchUrl = aElasticSearchUrl;
+
+                 // Initialize the http client (that is used to make outgoing REST calls to ElasticSearch)
+                 this.asyncHttpClient = new AsyncHttpClient();
+             }
+
+
+             /**
+              * Run an elasticSearch query and return JSON
+              *
+              * @param aRawQuery
+              * @return JSON with response
+              */
+             public String runSearch(String aRawQuery) throws Exception {
+                 logger.debug("runSearch() started.  aRawQuery={}", aRawQuery);
+
+                 String jsonRequest =
+                         "{\n" +
+                         "    \"query\": {\n" +
+                         "        \"query_string\": {\n" +
+                         "           \"query\": \"" + aRawQuery + "\"\n" +
+                         "        }\n" +
+                         "    }\n" +
+                         "}";
+
+                 // Make a synchronous call to ElasticSearch
+                 Response response = this.asyncHttpClient.preparePost(this.elasticSearchUrl + "/csaac_reports/_search?pretty=true")
+                         .setHeader("Accept", "application/json")
+                         .setHeader("Content-Type", "application/json")
+                         .setBody(jsonRequest)
+                         .execute()
+                         .get();
+
+                 String jsonResponse = response.getResponseBody();
+
+                 logger.debug("runSearch() finished.  jsonResponse={}", jsonResponse);
+                 return jsonResponse;
+             }
+
+         }
+
+ 6. Modify the App.main to
+    (1) Instantiate the ElasticSearchService
+    (2) Call the runSearch method
+
+
+    package com.lessons.es;
+
+    import org.slf4j.Logger;
+    import org.slf4j.LoggerFactory;
+
+    /**
+     * Sample App to talk to ElasticSearch
+     */
+    public class App
+    {
+        private static final Logger logger = LoggerFactory.getLogger(App.class);
+
+        public static void main( String[] args ) throws Exception {
+            logger.debug("main() started.");
+
+            // Instantiate the ElasticSearchService
+            // NOTE:  This service needs to know where ElasticSearch is located
+            ElasticSearchService elasticSearchService = new ElasticSearchService("http://localhost:9201");
+
+            // Make a search
+            String json = elasticSearchService.runSearch("report");
+
+            // Display the JSON
+            logger.debug("returned json={}", json);
+
+
+            logger.debug("main() finished.");
+        }
+    }
+
