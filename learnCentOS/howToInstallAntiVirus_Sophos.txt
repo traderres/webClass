@@ -109,6 +109,41 @@ Procedure
         talpa_syscallhook      20315  1 talpa_vfshook
 
 
+    If you do *NOT* see any modules, then your linux kernel is probably preventing you from loading unsigned modules.
+    Here is the workaround:
+
+        a. Tell sophos to use Fanotify can be set as the default kernel interface for on-access scanning
+           unix> /opt/sophos-av/bin/savconfig set PreferFanotify true
+
+        b. Restart the sophos service
+           unix> systemctl restart sav-protect.service
+
+        c. Examine the status
+           unix> systemctl status -l sav-protect
+
+           You should see something like this:
+               sav-protect.service - "Sophos Anti-Virus daemon"
+                  Loaded: loaded (/usr/lib/systemd/system/sav-protect.service; enabled; vendor preset: disabled)
+                  Active: active (running) since Fri 2019-09-27 14:22:28 EDT; 10min ago
+                    Docs: man:sav-protect
+                 Process: 8090 ExecStop=/opt/sophos-av/engine/.sav-protect.systemd.stop.sh (code=exited, status=0/SUCCESS)
+                 Process: 8231 ExecStartPost=/opt/sophos-av/engine/.sav-protect.systemd.poststart.sh (code=exited, status=0/SUCCESS)
+                 Process: 8208 ExecStartPre=/opt/sophos-av/engine/.sav-protect.systemd.prestart.sh (code=exited, status=0/SUCCESS)
+                Main PID: 8230 (savd)
+                   Tasks: 34
+                  CGroup: /system.slice/sav-protect.service
+                          ├─8230 savd etc/savd.cfg
+                          └─8362 savscand --incident=unix://tmp/incident --namedscan=unix://root@tmp/namedscansprocessor.0 --ondemandcontrol=socketpair://53/54 socketpair://51/52 --threads=5
+
+               Sep 27 14:22:21 erincentos systemd[1]: Starting "Sophos Anti-Virus daemon"...
+               Sep 27 14:22:22 erincentos savd[8230]: savd.daemon: Sophos Anti-Virus daemon started.
+               Sep 27 14:22:26 erincentos savd[8230]: savd.daemon: On-access scanning enabled using fanotify.
+               Sep 27 14:22:28 erincentos systemd[1]: Started "Sophos Anti-Virus daemon".
+               Sep 27 14:31:11 erincentos savd[8230]: update.check: Successfully updated Sophos Anti-Virus from sdds:SOPHOS
+
+
+
+
  6. Manually update Sophos
     Sophos is configured to run every 1 hour, but we can run it manually
     unix> /opt/sophos-av/bin/savupdate
