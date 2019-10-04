@@ -1,0 +1,174 @@
+Lesson:  How to Aggregate Strings
+---------------------------------
+Problem:  I have a field that has a country name and want to get the count of each country
+Solution: Use Aggregates
+
+
+Procedure
+---------
+ 1. Setup a mapping with a country field
+
+    PUT /reports
+     {
+        "settings": {
+            "analysis": {
+              "analyzer" : {
+                "my_ngram_analyzer" : {
+                  "tokenizer" : "my_ngram_tokenizer",
+                  "filter": ["lowercase"]
+                }
+              },
+              "tokenizer" : {
+                "my_ngram_tokenizer" : {
+                  "type" : "ngram",
+                  "min_gram" : "1",
+                  "max_gram" : "75",
+                  "token_chars": [ ]
+                }
+              },
+              "normalizer": {
+                "case_insensitive_normalizer": {
+                  "type": "custom",
+                  "char_filter": [],
+                  "filter": [ "lowercase", "asciifolding" ]
+                }
+              }
+            },
+            "max_result_window": 500000,
+            "refresh_interval": "1s"
+          },
+
+        "mappings": {
+              "record": {
+                 "dynamic": "strict",
+                     "properties": {
+                         "actors": {
+                               "type": "text",
+                               "include_in_all": true
+                           },
+                          "description": {
+                              "type": "text",
+                              "include_in_all": true
+                           },
+                          "priority": {
+                              "type": "text",
+                              "include_in_all": true,
+                              "fields": {
+                                "raw": {
+                                  "type": "keyword"
+                                },
+                                "sort": {
+                                  "type": "keyword",
+                                  "normalizer": "case_insensitive_normalizer"
+                                },
+                                "filtered": {
+                                   "type": "text",
+                                   "analyzer": "my_ngram_analyzer"
+                                }
+                              }
+                         },
+                        "country": {
+                           "type": "text",
+                           "include_in_all": true,
+                           "fields": {
+                             "raw": {
+                               "type": "keyword"
+                             },
+                             "sort": {
+                               "type": "keyword",
+                               "normalizer": "case_insensitive_normalizer"
+                             },F
+                             "filtered": {
+                                "type": "text",
+                                "analyzer": "my_ngram_analyzer"
+                             }
+                           }
+                      }
+                     }
+                }
+             }
+          }
+
+
+
+  3. Populate the reports index with some data
+     POST _bulk
+     { "index": { "_index": "reports", "_type": "record", "_id": 1 }}
+     { "priority": "low", "actors": "John Smith", "description": "he really likes o'reilly", "country": "israel"}
+     { "index": { "_index": "reports", "_type": "record", "_id": 2 }}
+     { "priority": "LOW", "actors": "george washington", "description": "depending on the kind query, you might want to go different ways with it",  "country": "ISRael"}
+     { "index": { "_index": "reports", "_type": "record", "_id": 3 }}
+     { "priority": "high", "actors": "adam Smith", "country": "United States"}
+     { "index": { "_index": "reports", "_type": "record", "_id": 4 }}
+     { "priority": "HIGH", "actors": "Adam Smith 2", "description": "This description is for record four", "country": "united states"}
+     { "index": { "_index": "reports", "_type": "record", "_id": 5 }}
+     { "priority": "HIGH", "actors": ["Pat Benetar", "Michael Jackson", "George Michael"], "description": "There are too many singers from the 1980s listed here.  Get a life!!", "country": "united kingdom"}
+
+
+  4. Run an aggregate query against a *text* field
+     POST /reports/_search
+     {
+          "query": {
+              "match_all": {}
+          },
+          "size": 0,
+          "aggs": {
+            "group_by_country": {
+              "terms": {
+                "field": "country"
+              }
+            }
+          }
+    }
+
+    BAD:  You will get a search_pohase_execution_exception
+          You cannot do aggreagates on text field
+
+
+
+  5. Run an aggregate query against a *keyword* field
+     POST /reports/_search
+     {
+          "query": {
+              "match_all": {}
+          },
+          "size": 0,
+          "aggs": {
+            "group_by_country": {
+              "terms": {
+                "field": "country.raw"
+              }
+            }
+          }
+    }
+
+    BETTER:
+      -- You get counts
+      -- Problem:  "ISRael" and "israel" are counted as separate buckets
+
+
+
+  6. Run an aggregate query against a *case insensitive keyword* field
+     POST /reports/_search
+     {
+          "query": {
+              "match_all": {}
+          },
+          "size": 0,
+          "aggs": {
+            "group_by_country": {
+              "terms": {
+                "field": "country.sort"
+              }
+            }
+          }
+    }
+
+    BEST:
+    -- You get counts
+    -- The counts are good
+            israel          2
+            united states   2
+            united kingdom  2
+
+
