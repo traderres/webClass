@@ -1,0 +1,219 @@
+Lesson:  How to Aggregate Dates
+-------------------------------
+Problem:  I have a date field and want to get a breakdown of dates by month
+Solution: Use Aggregates
+
+
+Procedure
+---------
+ 1. Setup a mapping with a created date field
+
+    PUT /reports
+     {
+        "settings": {
+            "analysis": {
+              "analyzer" : {
+                "my_ngram_analyzer" : {
+                  "tokenizer" : "my_ngram_tokenizer",
+                  "filter": ["lowercase"]
+                }
+              },
+              "tokenizer" : {
+                "my_ngram_tokenizer" : {
+                  "type" : "ngram",
+                  "min_gram" : "1",
+                  "max_gram" : "75",
+                  "token_chars": [ ]
+                }
+              },
+              "normalizer": {
+                "case_insensitive_normalizer": {
+                  "type": "custom",
+                  "char_filter": [],
+                  "filter": [ "lowercase", "asciifolding" ]
+                }
+              }
+            },
+            "max_result_window": 500000,
+            "refresh_interval": "1s"
+          },
+
+        "mappings": {
+              "record": {
+                 "dynamic": "strict",
+                     "properties": {
+                         "actors": {
+                               "type": "text",
+                               "include_in_all": true
+                           },
+                          "description": {
+                              "type": "text",
+                              "include_in_all": true
+                           },
+                          "priority": {
+                              "type": "text",
+                              "include_in_all": true,
+                              "fields": {
+                                "raw": {
+                                  "type": "keyword"
+                                },
+                                "sort": {
+                                  "type": "keyword",
+                                  "normalizer": "case_insensitive_normalizer"
+                                },
+                                "filtered": {
+                                   "type": "text",
+                                   "analyzer": "my_ngram_analyzer"
+                                }
+                              }
+                         },
+                        "country": {
+                           "type": "text",
+                           "include_in_all": true,
+                           "fields": {
+                             "raw": {
+                               "type": "keyword"
+                             },
+                             "sort": {
+                               "type": "keyword",
+                               "normalizer": "case_insensitive_normalizer"
+                             },
+                             "filtered": {
+                                "type": "text",
+                                "analyzer": "my_ngram_analyzer"
+                             }
+                           }
+                        },
+
+                        "created_date": {
+                           "type": "date",
+                           "format": "yyyyMMdd || yyyy-MM-dd"
+                        }
+                     }
+                }
+             }
+          }
+
+
+
+ 2. Populate the reports index with some data
+    POST _bulk
+    { "index": { "_index": "reports", "_type": "record", "_id": 1 }}
+    { "priority": "low", "actors": "John Smith", "description": "he really likes o'reilly", "country": "israel", "created_date": "2018-01-02"}
+    { "index": { "_index": "reports", "_type": "record", "_id": 2 }}
+    { "priority": "LOW", "actors": "george washington", "description": "depending on the kind query, you might want to go different ways with it",  "country": "ISRael",  "created_date": "2018-01-05"}
+    { "index": { "_index": "reports", "_type": "record", "_id": 3 }}
+    { "priority": "high", "actors": "adam Smith", "country": "United States",  "created_date": "2018-01-07"}
+    { "index": { "_index": "reports", "_type": "record", "_id": 4 }}
+    { "priority": "HIGH", "actors": "Adam Smith 2", "description": "This description is for record four", "country": "united states", "created_date": "2018-04-01"}
+    { "index": { "_index": "reports", "_type": "record", "_id": 5 }}
+    { "priority": "HIGH", "actors": ["Pat Benetar", "Michael Jackson", "George Michael"], "description": "There are too many singers from the 1980s listed here.  Get a life!!", "country": "united kingdom",  "created_date": "2018-12-01"}
+
+
+ 3. Run an aggregate query against a *date* field by month
+    NOTE:  Set min_doc_count=1 so that only those months with values show stuff
+
+    POST /reports/_search
+    {
+         "query": {
+             "match_all": {}
+         },
+         "size": 0,
+         "aggs": {
+           "created_date": {
+             "date_histogram": {
+               "field": "created_date",
+               "interval": "month",
+               "format": "yyyy-MM",
+               "min_doc_count": 1
+             }
+           }
+         }
+    }
+
+
+  4. Run an aggregate query against a *date* field by month
+     NOTE:  Set min_doc_count=0 so that months between the dates show up as zero
+
+     POST /reports/_search
+     {
+          "query": {
+              "match_all": {}
+          },
+          "size": 0,
+          "aggs": {
+            "created_date": {
+              "date_histogram": {
+                "field": "created_date",
+                "interval": "month",
+                "format": "yyyy-MM",
+                "min_doc_count": 1
+              }
+            }
+          }
+     }
+
+
+ 5. Run an aggregate query against a *date* field by month
+    NOTE:  Set min_doc_count=0 so that months between the dates show up as zero
+           Use extended_bounds to widen the range
+
+    POST /reports/_search
+    {
+          "query": {
+              "match_all": {}
+          },
+          "size": 0,
+          "aggs": {
+                "created_date": {
+                  "date_histogram": {
+                    "field": "created_date",
+                    "interval": "month",
+                    "format": "yyyy-MM",
+                    "min_doc_count": 0,
+                    "extended_bounds": {
+                       "min": "2017-01",
+                       "max": "2019-04"
+                    }
+                  }
+                }
+          }
+    }
+
+
+ 6. Run a *multiple* aggregate with the count of records by year *and* month
+
+    POST /reports/_search
+    {
+          "query": {
+              "match_all": {}
+          },
+          "size": 0,
+          "aggs": {
+                "created_date": {
+                  "date_histogram": {
+                    "field": "created_date",
+                    "interval": "month",
+                    "format": "yyyy-MM",
+                    "min_doc_count": 0,
+                    "extended_bounds": {
+                       "min": "2017-01",
+                       "max": "2019-04"
+                    }
+                  }
+                },
+
+               "created_year": {
+                  "date_histogram": {
+                    "field": "created_date",
+                    "interval": "year",
+                    "format": "yyyy",
+                    "min_doc_count": 0,
+                    "extended_bounds": {
+                       "min": "2017",
+                       "max": "2019"
+                    }
+                  }
+                }
+          }
+    }
