@@ -1,0 +1,63 @@
+Other Object Mapper Tricks
+--------------------------
+
+ 1. Problem:  ObjectMapper works with Java objects but not Scala objects
+    Solution: Register the scala module with your objectMapper
+
+        // Register the scala module so that the objectMapper successfully converts arrays and maps within in the object
+        // Used if working with Scala maps
+        objectMapper.registerModule(DefaultScalaModule$.MODULE$);
+
+
+ 2. Problem:  ObjectMapper does not escape non-ascii fields
+    Solution: Tell objectMapper to escape non-ascii fields
+
+        // Tell the ObjectMappers to Escape Non-ASCII fields
+        objectMapper.getFactory().configure(JsonGenerator.Feature.ESCAPE_NON_ASCII, true);
+
+
+
+ 3. Problem:  ObjectMapper returns JSON in camel case but I need it as snake case
+    Solution: Tell ObjectMapper to convert Objects to JSON in snake case
+
+        // Tell the object mapper to convert Objects to snake case
+        // For example:  report.getDisplayName --> "display_name" in the JSON
+        objectMapper.setPropertyNamingStrategy(PropertyNamingStrategy.SNAKE_CASE);
+
+
+ 4. Problem:  I want the ObjectMapper to ignore null fields when converting Java to JSON
+    Solution: Tell ObjectMapper to ignore null fields
+
+        // Tell the ObjectMapper to exclude null values;
+        objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+
+
+
+ 5. Problem:  I want the ObjectMapper to ignore *certain* fields when converting Java to JSON
+    Solution: Create a filter so that the ObjectMapper ignores certain fields
+
+        // Tell the object mapper to convert Objects to snake case
+        // For example:  report.getDisplayName --> "display_name" in the JSON
+        objectMapper.setPropertyNamingStrategy(PropertyNamingStrategy.SNAKE_CASE);
+
+        // Create a sample Record Object
+        RecordDto recordDto = new RecordDto();
+        recordDto.setId(5);
+        recordDto.setDisplayName("report 1");
+        recordDto.setCreatedDate(getCurrentTimestamp());
+
+        // Create a filter to exclude these fields
+        String[] ignoredFieldNames = { "display_name", "created_date" };
+        FilterProvider filter = new SimpleFilterProvider()
+                .addFilter("filter properties by name", SimpleBeanPropertyFilter.serializeAllExcept(ignoredFieldNames));
+
+        // Tell the ObjectMapper to use the filter (so that the java-to-json ignores these fields)
+        objectMapper.addMixIn(Object.class, PropertyFilterMixIn.class);
+        objectMapper.setFilterProvider(filter);
+
+
+        // Convert the Java object into a JSON string (but exclude display_name and created_date)
+        String jsonForObject = objectMapper.writeValueAsString(recordDto);
+        logger.debug("sJsonBulkRequest={}", jsonForObject);
+
+
