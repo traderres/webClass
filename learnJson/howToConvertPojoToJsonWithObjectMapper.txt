@@ -1,0 +1,269 @@
+How to use Convert Plain Old Java Object (POJO) to JSON using ObjectMapper
+--------------------------------------------------------------------------
+Problem:  I want to do a bulk ElasticSearch index
+          The 2nd line of each bulk ES index has the JSON object
+          I have the Java object and need to convert it to JSON
+
+Solution: Use ObjectMapper and convert getters and setters to Snake Case
+
+
+
+Example Code
+------------
+ 1. Add the Jackson data-bind dependency to your project
+
+        <dependency>
+          <!-- Implementation for converting POJO to JSON -->
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-databind</artifactId>
+          <version>2.9.3</version>
+        </dependency>
+
+        <dependency>
+            <!-- Logback implementation -->
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.2.3</version>
+        </dependency>
+
+
+ 2. Add this logback.xml file to your /src/test/resources/logback.xml
+
+     <?xml version="1.0" encoding="windows-1252" ?>
+     <configuration debug="false">
+         <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+             <encoder>
+                 <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+             </encoder>
+         </appender>
+
+         <logger name="org.springframework" level="DEBUG" additivity="false">
+             <appender-ref ref="CONSOLE"/>
+         </logger>
+
+         <logger name="com.lessons" level="DEBUG" additivity="false">
+             <appender-ref ref="CONSOLE"/>
+         </logger>
+
+         <root level="DEBUG">
+             <appender-ref ref="CONSOLE"/>
+         </root>
+     </configuration>
+
+
+ 3. **OPTIONAL** Create an ElasticSearch mapping
+
+    Connect to your local ElasticSearch
+
+    PUT /records
+    {
+       "settings": {
+        "analysis": {
+          "normalizer": {
+            "case_insensitive_normalizer": {
+              "type": "custom",
+              "char_filter": [],
+              "filter": [ "lowercase", "asciifolding" ]
+            }
+          }
+        },
+        "refresh_interval": "1s"
+      },
+
+       "mappings": {
+             "record": {
+                "dynamic": "strict",
+                    "properties": {
+                        "id": {
+                             "type": "integer",
+                             "include_in_all": true
+                         },
+                        "display_name": {
+                            "type": "text",
+                            "include_in_all": true
+                         },
+                        "is_complete": {
+                          "type": "boolean",
+                          "include_in_all": false
+                        },
+                        "created_date": {
+                          "type": "date",
+                          "ignore_malformed": true,
+                          "format": "epoch_millis||epoch_second||yyyy/MM/dd HH:mm:ss.SSS||yyyy-MM-dd HH:mm:ss.SSS||yyyy/MM/dd HH:mm:ss||yyyy-MM-dd HH:mm:ss.SSSZ||yyyy-MM-dd'T'HH:mm:ss||yyyy-MM-dd'T'HH:mm:ssZ||yyyy-MM-dd HH:mm:ss||yyyy-MM-dd HH:mm:ssZ||yyyy/MM/dd||S",
+                          "include_in_all": true
+                        },
+                        "priority": {
+                             "type": "text",
+                             "include_in_all": true,
+                             "fields": {
+                               "raw": {
+                                 "type": "keyword"
+                               },
+                               "sort": {
+                                 "type": "keyword",
+                                 "normalizer": "case_insensitive_normalizer"
+                               }
+                             }
+                        }
+                    }
+               }
+        }
+    }
+
+
+
+ 4. Setup a Record class (that has information that will be sent to ElasticSearch
+    NOTE:  The getters and setters should correspond to the ElasticSearch fields
+
+    a. Create this java class:  /src/test/java/com/lessons/RecordDto
+
+    b. Copy this to your newly-created class
+
+        package com.lessons;
+
+        import java.sql.Timestamp;
+
+        public class RecordDto {
+
+            private Integer   id;
+            private String    displayName;
+            private Timestamp createdDate;
+            private Boolean   isComplete;
+
+
+            public Integer getId() {
+                return id;
+            }
+
+            public void setId(Integer id) {
+                this.id = id;
+            }
+
+            public String getDisplayName() {
+                return displayName;
+            }
+
+            public void setDisplayName(String displayName) {
+                this.displayName = displayName;
+            }
+
+            public Timestamp getCreatedDate() {
+                return createdDate;
+            }
+
+            public void setCreatedDate(Timestamp createdDate) {
+                this.createdDate = createdDate;
+            }
+
+
+            public Boolean getComplete() {
+                return isComplete;
+            }
+
+            public void setComplete(Boolean complete) {
+                isComplete = complete;
+            }
+        }
+
+
+ 5. Create the test java class to try it out
+
+     a. Create this test class:  /src/test/java/com/lessons/PlayWithObjectMapper
+
+     b. Copy this to your newly-created class
+
+            package com.lessons;
+
+
+            import com.fasterxml.jackson.core.JsonGenerator;
+            import com.fasterxml.jackson.databind.ObjectMapper;
+            import com.fasterxml.jackson.databind.PropertyNamingStrategy;
+            import org.junit.Test;
+            import org.junit.runner.RunWith;
+            import org.slf4j.Logger;
+            import org.slf4j.LoggerFactory;
+            import org.springframework.boot.test.context.SpringBootTest;
+            import org.springframework.test.context.junit4.SpringRunner;
+
+            import java.sql.Timestamp;
+            import java.util.Date;
+
+            @RunWith(SpringRunner.class)    // Required to work with JUnit 4
+            @SpringBootTest                 // Start up a Spring Application Context
+            public class PlayWithObjectMapper {
+
+                private static final Logger logger = LoggerFactory.getLogger(PlayWithObjectMapper.class);
+
+
+                private Timestamp getCurrentTimestamp() {
+                    Date date = new Date();
+                    long time = date.getTime();
+                    Timestamp ts = new Timestamp(time);
+                    return ts;
+                }
+
+
+                @Test
+                public void convertPojoToJson() throws Exception {
+                    logger.debug("convertPojoToJson() started.");
+
+                    ObjectMapper objectMapper = new ObjectMapper();
+
+                    // Tell the object mapper to convert Objects to snake case
+                    // For example:  report.getDisplayName --> "display_name" in the JSON
+                    objectMapper.setPropertyNamingStrategy(PropertyNamingStrategy.SNAKE_CASE);
+
+                    // Tell the ObjectMappers to Escape Non-ASCII fields
+                    objectMapper.getFactory().configure(JsonGenerator.Feature.ESCAPE_NON_ASCII, true);
+
+                    // Create a sample Record Object
+                    RecordDto recordDto = new RecordDto();
+                    recordDto.setId(5);
+                    recordDto.setComplete(true);
+                    recordDto.setDisplayName("report 1");
+                    recordDto.setCreatedDate(getCurrentTimestamp());
+
+                    // Convert the POJO object to a JSON string
+                    String jsonForObject = objectMapper.writeValueAsString(recordDto);
+                    logger.debug("sJsonBulkRequest={}", jsonForObject);
+
+                    String esIndexName = "reports";
+
+                    // Create a JSON ES bulk request
+                    // -- The 1st line holds the ES bulk operation type
+                    // -- The 2nd line holds the object (in json format).  Each line must end with \n
+                    String sJsonBulkRequest = "\n" +
+                            "{ \"index\": { \"_index\": \"" + esIndexName + "\", \"_type\": \"record\", \"_id\":" + recordDto.getId() + "}}\n" +
+                            jsonForObject + "\n";
+
+               //     submitBulkJsonRequestAndRetry(individual);
+
+                    logger.debug("sJsonBulkRequest={}", sJsonBulkRequest);
+
+                    logger.debug("convertPojoToJson() finished.");
+                }
+
+            }
+
+
+
+ 6. Run the test class
+    You should see this output:
+
+    10/12/2019 17:43:35 DEBUG com.lessons.PlayWithObjectMapper convertPojoToJson() started.
+    10/12/2019 17:43:35 DEBUG com.lessons.PlayWithObjectMapper sJsonBulkRequest={"id":5,"display_name":"report 1","created_date":1570916615925,"complete":true}
+    10/12/2019 17:43:35 DEBUG com.lessons.PlayWithObjectMapper sJsonBulkRequest=
+    { "index": { "_index": "reports", "_type": "record", "_id":5}}
+    {"id":5,"display_name":"report 1","created_date":1570916615925,"complete":true}
+
+    10/12/2019 17:43:35 DEBUG com.lessons.PlayWithObjectMapper convertPojoToJson() finished.
+
+    NOTE:
+      1) The JSON uses snake case
+         So, the getter is getDisplayName() but the JSON is display_name
+
+      2) The ElasticSearch mapping should have a field called "display_name"
+
+
+
+

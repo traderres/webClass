@@ -1,0 +1,427 @@
+How to use Convert Json to Plain Old Java Object (POJO) using ObjectMapper
+--------------------------------------------------------------------------
+Problem:  I just sent a bulk-index JSON request to ElasticSearch and I received a JSON response
+          I need to examine the JSON to determine if there were any errors
+          (So, I must convert the JSON to a POJO and examine the POJO errors field)
+
+
+Approach 1: Use ObjectMapper.readValue() method to convert JSON to a Java Map and examine the map "error" field to see if there were errors
+Approach 2: Use ObjectMapper.readValue() method to convert JSON to POJO and *ignore* the unneeded fields.
+
+
+
+Approach 1: Convert JSON to a Java Map
+--------------------------------------
+ 1. Add the Jackson data-bind dependency to your project
+
+        <dependency>
+          <!-- Implementation for converting POJO to JSON -->
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-databind</artifactId>
+          <version>2.9.3</version>
+        </dependency>
+
+        <dependency>
+            <!-- Logback implementation -->
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.2.3</version>
+        </dependency>
+
+
+ 2. Add this logback.xml file to your /src/test/resources/logback.xml
+
+     <?xml version="1.0" encoding="windows-1252" ?>
+     <configuration debug="false">
+         <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+             <encoder>
+                 <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+             </encoder>
+         </appender>
+
+         <logger name="org.springframework" level="DEBUG" additivity="false">
+             <appender-ref ref="CONSOLE"/>
+         </logger>
+
+         <logger name="com.lessons" level="DEBUG" additivity="false">
+             <appender-ref ref="CONSOLE"/>
+         </logger>
+
+         <root level="DEBUG">
+             <appender-ref ref="CONSOLE"/>
+         </root>
+     </configuration>
+
+
+ 3. Create an ElasticSearch mapping
+
+    Connect to your local ElasticSearch
+
+    PUT /records
+    {
+       "settings": {
+        "analysis": {
+          "normalizer": {
+            "case_insensitive_normalizer": {
+              "type": "custom",
+              "char_filter": [],
+              "filter": [ "lowercase", "asciifolding" ]
+            }
+          }
+        },
+        "refresh_interval": "1s"
+      },
+
+       "mappings": {
+             "record": {
+                "dynamic": "strict",
+                    "properties": {
+                        "id": {
+                             "type": "integer",
+                             "include_in_all": true
+                         },
+                        "display_name": {
+                            "type": "text",
+                            "include_in_all": true
+                         },
+                        "is_complete": {
+                          "type": "boolean",
+                          "include_in_all": false
+                        },
+                        "created_date": {
+                          "type": "date",
+                          "ignore_malformed": true,
+                          "format": "epoch_millis||epoch_second||yyyy/MM/dd HH:mm:ss.SSS||yyyy-MM-dd HH:mm:ss.SSS||yyyy/MM/dd HH:mm:ss||yyyy-MM-dd HH:mm:ss.SSSZ||yyyy-MM-dd'T'HH:mm:ss||yyyy-MM-dd'T'HH:mm:ssZ||yyyy-MM-dd HH:mm:ss||yyyy-MM-dd HH:mm:ssZ||yyyy/MM/dd||S",
+                          "include_in_all": true
+                        },
+                        "priority": {
+                             "type": "text",
+                             "include_in_all": true,
+                             "fields": {
+                               "raw": {
+                                 "type": "keyword"
+                               },
+                               "sort": {
+                                 "type": "keyword",
+                                 "normalizer": "case_insensitive_normalizer"
+                               }
+                             }
+                        }
+                    }
+               }
+        }
+    }
+
+
+ 4. Make a bulk insert request and collection the JSON
+
+    POST _bulk
+     { "index": { "_index": "records", "_type": "record", "_id": 1 }}
+     { "id": 1, "display_name": "report #1", "priority": "low", "is_complete": false,  "created_date": "2018-01-07"}
+     { "index": { "_index": "records", "_type": "record", "_id": 2 }}
+     { "id": 2, "display_name": "report #2", "priority": "medium", "is_complete": true,  "created_date": "2018-02-08"}
+     { "index": { "_index": "records", "_type": "record", "_id": 3 }}
+     { "id": 3, "display_name": "report #3", "priority": "High", "is_complete": true,  "created_date": "2018-02-15"}
+
+
+    You should get this JSON response:
+    {
+       "took": 61,
+       "errors": false,
+       "items": [
+          {
+             "index": {
+                "_index": "records",
+                "_type": "record",
+                "_id": "1",
+                "_version": 1,
+                "result": "created",
+                "_shards": {
+                   "total": 2,
+                   "successful": 1,
+                   "failed": 0
+                },
+                "created": true,
+                "status": 201
+             }
+          },
+          {
+             "index": {
+                "_index": "records",
+                "_type": "record",
+                "_id": "2",
+                "_version": 1,
+                "result": "created",
+                "_shards": {
+                   "total": 2,
+                   "successful": 1,
+                   "failed": 0
+                },
+                "created": true,
+                "status": 201
+             }
+          },
+          {
+             "index": {
+                "_index": "records",
+                "_type": "record",
+                "_id": "3",
+                "_version": 1,
+                "result": "created",
+                "_shards": {
+                   "total": 2,
+                   "successful": 1,
+                   "failed": 0
+                },
+                "created": true,
+                "status": 201
+             }
+          }
+       ]
+    }
+
+
+
+ 5. Create the test java class to try it out
+
+     a. Create this test class:  /src/test/java/com/lessons/PlayWithObjectMapper2
+
+     b. Copy this to your newly-created class
+            package com.lessons;
+
+            import com.fasterxml.jackson.core.type.TypeReference;
+            import com.fasterxml.jackson.databind.ObjectMapper;
+            import org.junit.Test;
+            import org.junit.runner.RunWith;
+            import org.slf4j.Logger;
+            import org.slf4j.LoggerFactory;
+            import org.springframework.boot.test.context.SpringBootTest;
+            import org.springframework.test.context.junit4.SpringRunner;
+
+            import java.util.Map;
+
+            @RunWith(SpringRunner.class)    // Required to work with JUnit 4
+            @SpringBootTest                 // Start up a Spring Application Context
+            public class PlayWithObjectMapper2 {
+
+                private static final Logger logger = LoggerFactory.getLogger(PlayWithObjectMapper2.class);
+
+                @Test
+                public void convertJsonToPojo() throws Exception {
+                    logger.debug("convertJsonToPojo() started.");
+
+                    String json = "{\n" +
+                            "       \"took\": 61,\n" +
+                            "       \"errors\": true,\n" +
+                            "       \"items\": [\n" +
+                            "          {\n" +
+                            "             \"index\": {\n" +
+                            "                \"_index\": \"records\",\n" +
+                            "                \"_type\": \"record\",\n" +
+                            "                \"_id\": \"1\",\n" +
+                            "                \"_version\": 1,\n" +
+                            "                \"result\": \"created\",\n" +
+                            "                \"_shards\": {\n" +
+                            "                   \"total\": 2,\n" +
+                            "                   \"successful\": 1,\n" +
+                            "                   \"failed\": 0\n" +
+                            "                },\n" +
+                            "                \"created\": true,\n" +
+                            "                \"status\": 201\n" +
+                            "             }\n" +
+                            "          },\n" +
+                            "          {\n" +
+                            "             \"index\": {\n" +
+                            "                \"_index\": \"records\",\n" +
+                            "                \"_type\": \"record\",\n" +
+                            "                \"_id\": \"2\",\n" +
+                            "                \"_version\": 1,\n" +
+                            "                \"result\": \"created\",\n" +
+                            "                \"_shards\": {\n" +
+                            "                   \"total\": 2,\n" +
+                            "                   \"successful\": 1,\n" +
+                            "                   \"failed\": 0\n" +
+                            "                },\n" +
+                            "                \"created\": true,\n" +
+                            "                \"status\": 201\n" +
+                            "             }\n" +
+                            "          },\n" +
+                            "          {\n" +
+                            "             \"index\": {\n" +
+                            "                \"_index\": \"records\",\n" +
+                            "                \"_type\": \"record\",\n" +
+                            "                \"_id\": \"3\",\n" +
+                            "                \"_version\": 1,\n" +
+                            "                \"result\": \"created\",\n" +
+                            "                \"_shards\": {\n" +
+                            "                   \"total\": 2,\n" +
+                            "                   \"successful\": 1,\n" +
+                            "                   \"failed\": 0\n" +
+                            "                },\n" +
+                            "                \"created\": true,\n" +
+                            "                \"status\": 201\n" +
+                            "             }\n" +
+                            "          }\n" +
+                            "       ]\n" +
+                            "    }\n" +
+                            "\n";
+
+                    ObjectMapper objectMapper = new ObjectMapper();
+
+                    // Convert the response JSON string into a map and examine it to see if the request really worked
+                    Map<String, Object> mapResponse = objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
+
+
+                    Boolean errorsWereFound = false;
+
+                    // Examine the map to see if there were errors
+                    if ((mapResponse != null) && (mapResponse.get("errors") != null)) {
+                        // The errors flag was found in the returned JSON
+                        if (mapResponse.get("errors").toString().equalsIgnoreCase("true")) {
+                            // The "errors" flag came back as true
+                            logger.debug("The JSON string contained errors.");
+
+                            // Do something about the errors
+                            errorsWereFound = true;
+                        }
+                    }
+
+
+                    logger.debug("errorsWereFound={}", errorsWereFound);
+
+                    logger.debug("convertJsonToPojo() finished.");
+                }
+            }
+
+
+ 6. Run the test class
+    You should see this output:
+
+    10/12/2019 18:38:24 DEBUG com.lessons.PlayWithObjectMapper2 convertJsonToPojo() started.
+    10/12/2019 18:38:27 DEBUG com.lessons.PlayWithObjectMapper2 The JSON string contained errors.
+    10/12/2019 18:38:28 DEBUG com.lessons.PlayWithObjectMapper2 errorsWereFound=true
+    10/12/2019 18:38:30 DEBUG com.lessons.PlayWithObjectMapper2 convertJsonToPojo() finished.
+
+
+ 7. Optimization:  Tell Jackson to only pull out the errors field (and to ignore the other fields)
+
+
+Approach 2: Convert JSON to Java (but ignore the other fields)
+--------------------------------------------------------------
+ 1. Create this class:  /src/test/java/ErrorsDto
+
+        package com.lessons;
+
+        import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+        @JsonIgnoreProperties(value = { "took", "items" })   // Tell Jackson to ignore the "took" and "items" fields
+        public class ErrorsDto {
+            private boolean errors;
+
+
+            public boolean isErrors() {
+                return errors;
+            }
+
+            public void setErrors(boolean errors) {
+                this.errors = errors;
+            }
+        }
+
+
+ 2. Update the test class to look like this:
+
+         package com.lessons;
+
+         import com.fasterxml.jackson.databind.ObjectMapper;
+         import org.junit.Test;
+         import org.junit.runner.RunWith;
+         import org.slf4j.Logger;
+         import org.slf4j.LoggerFactory;
+         import org.springframework.boot.test.context.SpringBootTest;
+         import org.springframework.test.context.junit4.SpringRunner;
+
+
+         @RunWith(SpringRunner.class)    // Required to work with JUnit 4
+         @SpringBootTest                 // Start up a Spring Application Context
+         public class PlayWithObjectMapper2 {
+
+             private static final Logger logger = LoggerFactory.getLogger(PlayWithObjectMapper2.class);
+
+             @Test
+             public void convertJsonToPojo() throws Exception {
+                 logger.debug("convertJsonToPojo() started.");
+
+                 String json = "{\n" +
+                         "       \"took\": 61,\n" +
+                         "       \"errors\": true,\n" +
+                         "       \"items\": [\n" +
+                         "          {\n" +
+                         "             \"index\": {\n" +
+                         "                \"_index\": \"records\",\n" +
+                         "                \"_type\": \"record\",\n" +
+                         "                \"_id\": \"1\",\n" +
+                         "                \"_version\": 1,\n" +
+                         "                \"result\": \"created\",\n" +
+                         "                \"_shards\": {\n" +
+                         "                   \"total\": 2,\n" +
+                         "                   \"successful\": 1,\n" +
+                         "                   \"failed\": 0\n" +
+                         "                },\n" +
+                         "                \"created\": true,\n" +
+                         "                \"status\": 201\n" +
+                         "             }\n" +
+                         "          },\n" +
+                         "          {\n" +
+                         "             \"index\": {\n" +
+                         "                \"_index\": \"records\",\n" +
+                         "                \"_type\": \"record\",\n" +
+                         "                \"_id\": \"2\",\n" +
+                         "                \"_version\": 1,\n" +
+                         "                \"result\": \"created\",\n" +
+                         "                \"_shards\": {\n" +
+                         "                   \"total\": 2,\n" +
+                         "                   \"successful\": 1,\n" +
+                         "                   \"failed\": 0\n" +
+                         "                },\n" +
+                         "                \"created\": true,\n" +
+                         "                \"status\": 201\n" +
+                         "             }\n" +
+                         "          },\n" +
+                         "          {\n" +
+                         "             \"index\": {\n" +
+                         "                \"_index\": \"records\",\n" +
+                         "                \"_type\": \"record\",\n" +
+                         "                \"_id\": \"3\",\n" +
+                         "                \"_version\": 1,\n" +
+                         "                \"result\": \"created\",\n" +
+                         "                \"_shards\": {\n" +
+                         "                   \"total\": 2,\n" +
+                         "                   \"successful\": 1,\n" +
+                         "                   \"failed\": 0\n" +
+                         "                },\n" +
+                         "                \"created\": true,\n" +
+                         "                \"status\": 201\n" +
+                         "             }\n" +
+                         "          }\n" +
+                         "       ]\n" +
+                         "    }\n" +
+                         "\n";
+
+                 ObjectMapper objectMapper = new ObjectMapper();
+
+                 // Convert the response JSON string into an errorsDto object
+                 // NOTE:  This is substantially faster as Jackson can ignore the other fields
+                 ErrorsDto errorsDto = objectMapper.readValue(json, ErrorsDto.class);
+
+                 if (errorsDto.isErrors()) {
+                     logger.debug("The JSON string contained errors.");
+                 }
+                 else {
+                     logger.debug("The JSOn string does not contain errors.");
+                 }
+
+                 logger.debug("convertJsonToPojo() finished.");
+             }
+         }
+
