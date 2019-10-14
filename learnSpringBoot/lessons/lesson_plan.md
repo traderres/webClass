@@ -17,17 +17,17 @@
 
 1. Methods and Constructors
 
-1. Variables
-   Primitives
-   Objects
-   When to use primitives?
-   When to use objects?
+1. Variables<br/>
+   Primitives -- the 8 types<br/>
+   Objects<br/>
+   When to use primitives?<br/>
+   When to use objects?<br/>
        
 1. Java Strings
     
-1. Java Collections
-    Exercise: Working with lists
-    Exercise: Working with maps
+1. Java Collections<br/>
+    Exercise: Working with lists<br/>
+    Exercise: Working with maps<br/>
     
 1. More Java fundamentals<br/>
     Java Constructors Explained<br/>
