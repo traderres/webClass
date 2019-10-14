@@ -15,6 +15,20 @@
     Variables:  Local, Instance, and Class (Static) <br/>
     Data Types: Primitives vs Objects<br/>
 
+1. Methods and Constructors
+
+1. Variables
+   Primitives
+   Objects
+   When to use primitives?
+   When to use objects?
+       
+1. Java Strings
+    
+1. Java Collections
+    Exercise: Working with lists
+    Exercise: Working with maps
+    
 1. More Java fundamentals<br/>
     Java Constructors Explained<br/>
     Exercise: Change the Queries class so that there is a no-arg constructor<br/>
