@@ -10,7 +10,7 @@
 
 ### Lesson Plan
 1. Java fundamentals<br/>
-    [Exercise: Create a basic command-line Java program in Intellij](/learnJava/howToCreateJavaCommandLineProgramUsingIntellijMaven.txt)<br/>
+    [Exercise: Create the "addNumbers" command-line Java program in Intellij](/learnJava/howToCreateJavaCommandLineProgram_numbers.txt)<br/>
     [Exercise: Create a spring-jdbc command-line Java program in Intellij](/learnJava/howToCreateJavaCommandLineProgram_springJdbc.txt)<br/>
     Variables:  Local, Instance, and Class (Static) <br/>
     Data Types: Primitives vs Objects<br/>
