@@ -33,12 +33,12 @@ Procedure
          </dependency>
 
 
- 2. Create this class:  DashboardDao
+ 2. Create this class:  DashboardService
     a. Right-click on webapp/src/main/java/com/lessons -> New Package
        Package Name:  services
 
     b. Right-click on services -> New Java Class
-       Name:  DashboardDao
+       Name:  DashboardService
 
     c. Copy this to your class
 
@@ -53,16 +53,17 @@ Procedure
             import javax.sql.DataSource;
 
             @Service
-            public class DashboardDao
+            public class DashboardService
             {
-                private static final Logger logger = LoggerFactory.getLogger(DashboardDao.class);
+                private static final Logger logger = LoggerFactory.getLogger(DashboardService.class);
 
                 @Resource
-                private DataSource dataSource;
+                private DataSource dataSource;             // Injected data source
 
-                public DashboardDao()
+
+                public DashboardService()
                 {
-                    logger.debug("DashboardDao() Constructor called");
+                    logger.debug("DashboardService() Constructor called");
                 }
 
 
@@ -70,12 +71,16 @@ Procedure
                 {
                     logger.debug("getDatabaseTime() started.");
 
-                    // Run a SQL query to get the current date time
+                    // Construct a SQL select query to get the current date time
                     String sql = "Select NOW()";
-                    JdbcTemplate jt = new JdbcTemplate(this.dataSource);
-                    String sDateTime = jt.queryForObject(sql, String.class);
-                    logger.debug("Database Time is {}", sDateTime);
 
+                    JdbcTemplate jt = new JdbcTemplate(this.dataSource);
+
+                    // Get a connection from the connection pool, run the query, return the value, return the connection to the connection pool
+                    String sDateTime = jt.queryForObject(sql, String.class);
+
+                    // This method returns date/time as a string
+                    logger.debug("Database Time is {}", sDateTime);
                     return sDateTime;
                 }
             }
@@ -89,7 +94,7 @@ Procedure
             package com.lessons.controllers;
 
 
-            import com.lessons.services.DashboardDao;
+            import com.lessons.services.DashboardService;
             import org.slf4j.Logger;
             import org.slf4j.LoggerFactory;
             import org.springframework.http.HttpStatus;
@@ -106,19 +111,20 @@ Procedure
                 private static final Logger logger = LoggerFactory.getLogger(DashboardController.class);
 
                 @Resource
-                private DashboardDao dashboardDao;
+                private DashboardService dashboardService;
 
 
                 /*************************************************************************
-                 * getDateTime()
-                 * @return JSON string that holds the date/time
+                 * REST endpoint /api/dashboard/time
+                 *
+                 * @return a plain-old string with the database time (not JSON)
                  *************************************************************************/
                 @RequestMapping(value = "/api/dashboard/time", method = RequestMethod.GET, produces = "application/json")
                 public ResponseEntity<?> getDateTime() {
                     logger.debug("getDashboardDetails() started.");
 
                     // Get the date/time from the database
-                    String sDateTime = dashboardDao.getDatabaseTime();
+                    String sDateTime = dashboardService.getDatabaseTime();
 
                     // Return the date/time string as plain-text
                     return ResponseEntity
@@ -127,6 +133,7 @@ Procedure
                             .body(sDateTime);
                 }
             }
+
 
  4. Startup your SpringBoot App in debug mode
     ASSUMPTION:  Your postgres database is up and it was created (see lesson07)
