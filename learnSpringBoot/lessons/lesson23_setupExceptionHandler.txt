@@ -1,0 +1,106 @@
+How to Create a Global Exception Handler for Your REST calls
+-------------------------------------------------------------
+Suppose you want to create an exception handler that will do two things:
+ 1) Log the exception
+ 2) If the web app is making an ajax call,
+       then set a status to 500 and return the message
+    Otherwise
+       Forward the user to an error.jsp page
+
+
+
+Procedure
+---------
+ 1. Setup a MyExceptionHandler class
+    a. Right-click on src/main/java/app1/utilities -> New -> Java Class
+       Name:  MyExceptionHandler
+
+
+    b. Copy this to your new MyExceptionHandler class
+
+        package app1.utilities;
+
+
+        @ControllerAdvice
+        public class MyExceptionHandler
+        {
+            private static final Logger logger = LoggerFactory.getLogger(MyExceptionHandler.class);
+
+            @Value("${development.mode}")
+            private boolean developmentMode;
+
+            /************************************************************************
+             * handleException()
+             *
+             * This is the Global Exception Handler
+             ************************************************************************/
+            @ExceptionHandler( Exception.class )
+            public ResponseEntity<?>  handleException(Exception aException)
+            {
+                HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+
+                // Log the error *and* stack trace
+                if (null != request) {
+                   logger.error("Exception raised from call to " + request.getRequestURI(), aException);
+                } else {
+                   logger.error("Exception raised from null request.", aException);
+                }
+
+                // Return a ResponseEntity with media type as text_plain so that the front-end does not convert this to a JSON map
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.TEXT_PLAIN);
+
+                if (developmentMode) {
+                    // I am in developer mode so send the *real* error message to the front-end
+                    return new ResponseEntity<>(exception.getLocalizedMessage(), headers, HttpStatus.INTERNAL_SERVER_ERROR);
+                }
+                else {
+                    // I am in production mode so send a *generic* error message to the front-end
+                    return new ResponseEntity<>("Something went wrong. Please contact an administrator.", headers, HttpStatus.INTERNAL_SERVER_ERROR);
+                }
+            }
+
+
+        }
+
+
+ 2. Test a regular HTML call by having a Controller method throw a RuntimeException
+
+    a. Add this to your WelcomeController.java
+
+        /**********************************************************************
+         * simulateError()
+         *
+         * The user browsed to the /error page
+         * -- Throw a RuntimeException
+         ***********************************************************************/
+        @RequestMapping("/error")
+        public ModelAndView simulateError( Model aModel )
+        {
+            logger.debug("simulateError() started");
+
+            // Create a modelAndView object
+            ModelAndView mav = new ModelAndView();
+
+            // Show the welcome.jsp page
+            mav.setViewName("welcome.jsp");
+
+            int x=5;
+
+            if (x==5)
+            {
+                // Throw a runtime exception
+                throw new RuntimeException("Something bad happened");
+            }
+
+
+            logger.debug("simulateError() finished");
+            return mav;
+        }
+
+
+
+      b. Add a link to the welcome.jsp
+
+         1) Open a browser
+         2) Go to your /error page
