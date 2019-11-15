@@ -1,0 +1,107 @@
+How to backup and restore the Postgres data from 50 Cluster to local Postgres
+-----------------------------------------------------------------------------
+
+
+Procedure
+---------
+ 1. Create the cde.sql on the 50 database server
+    ssh admin@192.168.50.3    # SSH to the 50 puppet master
+    unix> go postgres_server
+    unix> sudo -s
+    unix> rm -f /tmp/cde.sql
+    unix> pg_dump --create -U postgres cde -f /tmp/cde.sql
+    unix> chmod ugo+r /tmp/cde.sql
+    unix> exit
+    unix> exit
+
+    -- At this point, anyone can download the file found on 192.168.50.8:/tmp/cde.sql
+
+ 2. Download the /tmp/cde.sql to my local Downloads/
+    unix> cd ~/Downloads
+    unix> scp admin@192.168.50.8:/tmp/cde.sql .    # Transfer the file from 192.168.50.8 /tmp/cde.sql to the current directory (which is a dot)
+
+
+ 3. Stop your local cde webapp
+
+
+ 4. Drop the old cde database (on your local postgres)
+    unix> psql -U postgres -h localhost
+
+		drop database cde;
+		\q
+
+ 5. Create the cde_user  (on your local postgres)
+    unix>  psql -U postgres -h localhost
+ 
+		CREATE USER cde_user WITH PASSWORD 'secret';
+		\q
+
+
+ **OPTIONAL**
+ 6. Comment-out the REFRESH MATERIALIZED VIEW cde.flash2bang_view from cde.sql
+    because it takes up to 15 minutes to refresh this materialized view (really!)
+    unix> cd ~/Downloads
+    unix> grep -v "REFRESH MATERIALIZED VIEW cde.flash2bang_view" cde.sql > cde2.sql
+    unix> mv cde2.sql cde.sql
+
+
+
+ 8. Restore the CDE database (on your local postgres)
+    unix> cd ~/Downloads
+    unix> psql -U postgres -h localhost < cde.sql
+
+    
+ 9. Make sure your cde_user exists and has permissions to your *local* cde database
+    unix> psql -U postgres -h localhost
+
+		CREATE USER cde_user WITH PASSWORD 'secret';
+		GRANT ALL PRIVILEGES ON DATABASE cde to cde_user;
+		ALTER DATABASE cde  SET search_path=cde;
+		ALTER ROLE cde_user SET search_path=cde;
+		\q
+
+   
+10. Adjust your local development environment to use your new database credentials
+     username: cde_user
+     database: cde
+     password: secret
+     url:      jdbc:postgresql://localhost:5432/cde
+ 
+
+    Your database credentials are in 4 places:
+    1) Your Intellij database console
+
+    2) Your cde-webapp/pom.xml                                    (used for mvn flyway:migrate)
+           <plugin>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-maven-plugin</artifactId>
+                <version>${flyway_version}</version>
+                <configuration>
+                    <user>cde_user</user>
+                    <password>secret</password>
+                    <url>jdbc:postgresql://localhost:5432/cde</url>
+                </configuration>
+            </plugin>
+      
+       unix> cd cde-webapp
+       unix> mvn flyway:info   # this should work
+
+    3) Your cde-webapp/src/main/resources/application.yaml        (used for running cde-webapp)
+		app.datasource:
+			driver-class-name: org.postgresql.Driver
+			url: jdbc:postgresql://localhost:5432/cde
+			username: cde_user
+			password: secret
+			minPoolSize: 1
+			maxPoolSize: 5
+
+
+    4) Your cde-sync-reports/src/main/resources/application.yaml  (used for running sync service)
+		app.datasource:
+			driver-class-name: org.postgresql.Driver
+			url: jdbc:postgresql://localhost:5432/cde
+			username: cde_user
+			password: secret
+			minPoolSize: 1
+			maxPoolSize: 5
+
