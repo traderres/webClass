@@ -20,6 +20,7 @@ Advantages of Unit Tests (my opinion)
 + Good for testing edge cases
 + Gives developers confidence that your code changes did not break existing logic
   (I added some new code, ran the tests, and the tests pass -- so I feel good about this code change)
++ Useful for testing code that has no user interface -- e.g., you want to test ingesting a csv file and make sure it works
 
 
 Disadvantages of Unit Tests (my opinion)
@@ -29,17 +30,53 @@ Disadvantages of Unit Tests (my opinion)
 - Developers can spend months on unit tests and the code can still fail if not tested in a pre-prod environment
 - The code tests a small thing (and does not prove end-to-end functionality)
 - All of the unit tests can pass and your application can still fail
-- When you change business rules, you must change your unit tests
+- When you change business rules, you must change your unit tests (taking more time)
 - Gives developers false sense of confidence (yes, the code passed all of my unit tests so it must work -- not necessarily true)
-- Does not test performance
+- Unit tests do not prove that performance is acceptable (the unit test can pass and take 45 seconds but users will not wait 45 seconds for a page to load)
+- Unit tests can be poorly written -- e.g., you create a unit test that tests a REST endpoint and all you test is that the REST endpoint returns something.  That does not prove it works
 
 
-Good Practices
---------------
- 1. Writing unit tests is expensive
-    -- If you're going to spend the time on a unit test, make it a good one
+Flawed Thinking
+---------------
+Most developers believe that IF
+ 1) I change some code *AND*
+ 2) I run all of my unit tests *AND*
+ 3) All unit tests pass *AND*
+ Then
+   My code change is good
 
- 2. Create a separate logback-test.xml for unit tests
+This is not true for most web applications.
+-- If the unit tests are poorly written,      then your code change is not tested by the unit tests (and false sense of confidence)
+-- If the unit tests do not handle your case, then your code change is not tested by the unit tests (and false sense of confidence)
+-- If the unit tests are not up to date,      then your code change is not tested by the unit tests
+
+
+Resnick's Rules
+---------------
+Spending developer time on unit tests violates 2 critical rules
+ 1) Most expensive thing in any software project is the developer's time
+ 2) Customers care about feature (and nothing else)
+
+
+Therefore, I believe it is cheaper to have dedicated testers than to spend developer time on unit tests
+ + You get better coverage doing end-to-end testing
+ + Testers test to see where things fail (while developers test to see if thing works)
+ + It's cheaper
+ + Real testers can test to see if the application performance well (are the REST calls slow?)
+
+
+
+If you must write unit tests
+----------------------------
+ A) Keep the unit tests simple
+ B) Don't spend a lot of time on them
+
+
+
+
+Create a Unit Test
+------------------
+ 1. Create a separate logback-test.xml for unit tests
     NOTE:  Logback looks for logback-test.xml
            So, I would create one in /src/test/resources/logback-test.xml
 
@@ -66,20 +103,19 @@ Good Practices
 
 
 
-Create a FilterTestClass that tests your FilterService
-------------------------------------------------------
- 1. Add the spring-boot-starter-test dependency
+
+ 2. Add the spring-boot-starter-test dependency
          <dependency>
               <groupId>org.springframework.boot</groupId>
               <artifactId>spring-boot-starter-test</artifactId>
-              <version>2.0.0.RELEASE</version>
+              <version>2.0.0.RC1</version>
               <scope>test</scope>
           </dependency>
 
     NOTES:
        a. The <scope> tag holds test because we do not want to include this with production code
        b. The spring-boot-starter-test contains Junit 4, Spring Test, AssertJ, Hamcredt, Mockito, JSONassert, and JsonPath
-       b. The spring-boot-starter-test version should match your spring-boot version
+       c. The spring-boot-starter-test version should match your spring-boot version
 
         So, your spring boot version should look like this:
 
@@ -87,19 +123,20 @@ Create a FilterTestClass that tests your FilterService
                 <dependency>
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot</artifactId>
-                    <version>2.0.0.RELEASE</version>
+                    <version>2.0.0.RC1</version>
                 </dependency>
 
 
- 2. Create a class that ends with "Test" in the /src/test/java
+
+ 3. Create a class that ends with "Test" in the /src/test/java
     a. Right-click on /src/test/java/com/lessons-> New Java Class
-    b. ClassName:  FilterServiceTest
+    b. ClassName:  BogusTest
     c. Replace your class with this:
 
 
           package com.lessons;
 
-          import com.lessons.filter.FilterService;
+
           import org.junit.Test;
           import org.junit.runner.RunWith;
           import org.slf4j.Logger;
@@ -115,130 +152,11 @@ Create a FilterTestClass that tests your FilterService
           import static org.junit.Assert.assertThat;
           import static org.junit.Assert.assertTrue;
 
-          @RunWith(SpringRunner.class)    // Required to work with JUnit 4
-          @SpringBootTest                 // Start up a Spring Application Context
-          public class FilterServiceTest {
+          @RunWith(SpringRunner.class)                                                  // Required to work with JUnit 4
+          @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)   // Start up a Spring Boot webapp listening on random port
+          public class BogusTest {
 
-              private static final Logger logger = LoggerFactory.getLogger(FilterServiceTest.class);
-
-              @Resource
-              private FilterService filterService;
-
-              @Test
-              public void testValidFormat1() {
-                  logger.debug("testValidFormat1() started.");
-
-                  // Create an array of filters
-                  List<String> filters = Arrays.asList("ID~EQUALS~5");
-
-                  // Run the test
-                  boolean bFiltersAreValid = filterService.areFiltersValid(filters);
-
-                  // Old way of verifying result
-                  assertTrue("Filter did not have the expected match", bFiltersAreValid==Boolean.TRUE);
-
-                  // Newer way of verifying result
-                  assertThat("Filter did not have the expected match", bFiltersAreValid, is(Boolean.TRUE));
-
-                  logger.debug("testValidFormat1() finished.");
-              }
-
-          }
-
-
-
- 3. Run this single test case with the Intellij debugger
-    a. Set a breakpoint on this line:
-            boolean bFiltersAreValid = filterService.areFiltersValid(filters);
-    b. Right-click on testValidFormat1 -> Debug
-
-
- 4. Run this single test case from command-line
-    a. Open a unix terminal
-       unix> cd ~/intellijProjects/app1/webapp
-       unix> mvn clean test -Dtest=FilterServiceTest
-
-    b. You should see this:
-
-        [INFO]
-        [INFO] -------------------------------------------------------
-        [INFO]  T E S T S
-        [INFO] -------------------------------------------------------
-        [INFO] Running com.lessons.FilterServiceTest
-
-          .   ____          _            __ _ _
-         /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
-        ( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
-         \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
-          '  |____| .__|_| |_|_| |_\__, | / / / /
-         =========|_|==============|___/=/_/_/_/
-         :: Spring Boot ::            (v2.0.0.RC1)
-
-        06/02/2019 21:25:10 INFO  com.lessons.FilterServiceTest Starting FilterServiceTest on myCentos7 with PID 28699 (started by adam in /home/adam/intellijProjects/app1/webapp)
-        06/02/2019 21:25:10 DEBUG com.lessons.FilterServiceTest Running with Spring Boot v2.0.0.RC1, Spring v5.0.3.RELEASE
-        06/02/2019 21:25:10 INFO  com.lessons.FilterServiceTest No active profile set, falling back to default profiles: default
-        06/02/2019 21:25:10 DEBUG com.lessons.services.DashboardDao DashboardDao() Constructor called
-        06/02/2019 21:25:11 DEBUG com.lessons.services.DashboardDao stuff=null
-        06/02/2019 21:25:11 DEBUG com.lessons.filter.FilterService init() started.
-        06/02/2019 21:25:11 DEBUG com.lessons.filter.FilterService b=true
-        06/02/2019 21:25:11 DEBUG com.lessons.services.FilterSortService init() started.
-        06/02/2019 21:25:12 INFO  com.lessons.FilterServiceTest Started FilterServiceTest in 2.316 seconds (JVM running for 2.878)
-        06/02/2019 21:25:12 DEBUG com.lessons.FilterServiceTest testValidFormat1() started.
-        06/02/2019 21:25:12 DEBUG com.lessons.filter.FilterService areFiltersValid() started.
-        06/02/2019 21:25:12 DEBUG com.lessons.FilterServiceTest testValidFormat1() finished.
-        [INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.855 s - in com.lessons.FilterServiceTest
-        [INFO]
-        [INFO] Results:
-        [INFO]
-        [INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0
-        [INFO]
-        [INFO] ------------------------------------------------------------------------
-        [INFO] BUILD SUCCESS
-        [INFO] ------------------------------------------------------------------------
-        [INFO] Total time: 9.163 s
-        [INFO] Finished at: 2019-06-02T21:25:12-04:00
-        [INFO] Final Memory: 26M/400M
-        [INFO] ------------------------------------------------------------------------
-
-
- 5. Change the unit test class so it starts-up a full-fledged app server
-    a. Add this to your logback-test.xml
-         <?xml version="1.0" encoding="windows-1252" ?>
-         <configuration debug="false">
-             <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-                 <encoder>
-                     <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
-                 </encoder>
-             </appender>
-
-             <logger name="org.springframework" level="DEBUG" additivity="false">
-                 <appender-ref ref="CONSOLE"/>
-             </logger>
-
-             <logger name="com.lessons" level="DEBUG" additivity="false">
-                 <appender-ref ref="CONSOLE"/>
-             </logger>
-
-             <root level="DEBUG">
-                 <appender-ref ref="CONSOLE"/>
-             </root>
-         </configuration>
-
-
-    b. Change the @SpringBootTest annotation to this:
-         @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-
-    c. Kick off the unit test from command-line:
-       You should see this:
-          06/02/2019 21:39:19 INFO  org.springframework.boot.web.embedded.undertow.UndertowServletWebServer Undertow started on port(s) 33516 (http) with context path '/app1'
-
-
-       Why do this?
-       -- The unit test class is creating a real app server
-       -- So, we can send real POST calls to http://localhost:${local.server.port} and it will be routed to this app server
-       -- The RestTemplate object lets us make REST calls
-          example:
-
+              private static final Logger logger = LoggerFactory.getLogger(BogusTest.class);
 
                 @Value("${local.server.port}")
                 private String appServerPort;       // Holds the port that the test app server is listening on
@@ -255,4 +173,21 @@ Create a FilterTestClass that tests your FilterService
 
                     assertTrue("Expected dateTime to be non-null", (dateTime != null));
                 }
+
+
+          }
+
+
+
+       What is happening?
+       -- The unit test class is creating a real app server
+       -- So, we can send real POST calls to http://localhost:${local.server.port} and it will be routed to this app server
+       -- The RestTemplate object lets us make REST calls
+
+
+ 4. Set a breakpoint in your unit test method
+
+ 5. Step through your unit test with the debugger
+    -- Right-click on your testDashboardControllerGetTime2() -> Debug
+
 
