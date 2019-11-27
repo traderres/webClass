@@ -203,7 +203,62 @@ Procedure
 
 
 
- 8. Create a FlywayUtils class (that will run flyway:clean and flyway:migrate from java code)
+ 8. Modify your DataSourceConfig class (in the webapp/src/main/java) to run in non-test profile
+    a. Edit the webapp/src/main/java/com/lessons/config/DataSourceConfig.java
+    b. Add the @Profile( "!test" ) after the @Bean annotation
+
+    So, your DataSourceConfig should look something like this:
+         package com.lessons.config;
+
+         import com.zaxxer.hikari.HikariConfig;
+         import com.zaxxer.hikari.HikariDataSource;
+         import org.springframework.beans.factory.annotation.Value;
+         import org.springframework.context.annotation.Bean;
+         import org.springframework.context.annotation.Configuration;
+         import org.springframework.context.annotation.Profile;
+
+         import javax.sql.DataSource;
+
+         @Configuration
+         public class DataSourceConfig {
+
+             @Value("${app.datasource.driver-class-name}")
+             private String driverClassName;
+
+             @Value("${app.datasource.url}")
+             private String url;
+
+             @Value("${app.datasource.username}")
+             private String username;
+
+             @Value("${app.datasource.password}")
+             private String password;
+
+             @Value("${app.datasource.maxPoolSize:20}")
+             private int maxPoolSize;
+
+             @Bean
+             @Profile( "!test" ) // Exclude from unit tests
+             public DataSource dataSource() {
+                 HikariConfig hikariConfig = new HikariConfig();
+
+                 hikariConfig.setDriverClassName(this.driverClassName);
+                 hikariConfig.setJdbcUrl(this.url);
+                 hikariConfig.setUsername(this.username);
+                 hikariConfig.setPassword(this.password);
+                 hikariConfig.setMaximumPoolSize(this.maxPoolSize);
+                 hikariConfig.setConnectionTestQuery("SELECT 1");
+                 hikariConfig.setPoolName("app1_jdbc_connection_pool");
+
+                 HikariDataSource dataSource = new HikariDataSource(hikariConfig);
+                 return dataSource;
+             }
+
+         }
+
+
+
+ 9. Create a FlywayUtils class (that will run flyway:clean and flyway:migrate from java code)
     a. In IntelliJ go to webapp/src/test/java/com/lessons/ -> Right-click -> New Java Class
        Class Name:   FlywayUtils
 
@@ -252,7 +307,7 @@ Procedure
 
 
 
- 9. Create a unit test that starts-up an embedded postgres and runs flyway:migration on startup
+10. Create a unit test that starts-up an embedded postgres and runs flyway:migration on startup
     a. In IntelliJ go to webapp/src/test/java/com/lessons/ -> Right-click -> New Java Class
        Class Name:   DatabaseTest
 
@@ -354,13 +409,13 @@ Procedure
 
 
 
-10. Right-click on testDatabaseReportCount -> Debug
+11. Right-click on testDatabaseReportCount -> Debug
     -- You should see that the DataSource object has a random port number for the url
     -- Take a look at the jdbcUrl:  It should be a different port each time
 
 
 
-11. Startup your regular webapp
+12. Startup your regular webapp
     NOTE:  It should still be listening on the database at port 5432
 
 
