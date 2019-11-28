@@ -95,7 +95,13 @@
    1. [Fundamentals of Unit Tests](/learnSpringBoot/lessons/lesson17_unitTestsFundamentals.txt)<br/>
    1. Exercise: Create a test case for the service class<br/>
    1. Exercise: Create a test case for the controller class<br/>
-   1. [Setup Unit Tests that use an Embedded Postgres Data Source](/learnSpringBoot/lessons/lesson18_setupEmbeddedPostgres.txt)<br/>
+   1. [Setup Unit Tests that use an Embedded Postgres Data Source](/learnSpringBoot/lessons/lesson24_syncApp_setupStructure.txt)<br/>
+
+1. Build a Spring Boot Console Application that talks to ES and postgres<br/>
+   1. [Add maven module for command-line spring application](/learnSpringBoot/lessons/lesson24_syncApp_setupStructure.txt)<br/>
+   1. Add some reports records and try it out<br/>
+   1. [Add embedded Postgres](/learnSpringBoot/lessons/lesson25_syncApp_addEmbeddedDataSource.txt) and embedded Postgres test cases<br/>
+   1. [Add embedded ElasticSearch](/learnSpringBoot/lessons/lesson26_syncApp_addEmbeddedElasticSearch.txt) and embedded ElasticSearch test cases<br/>
    
 1. Even More Java:  Handling Java Exceptions
    1. What happens when controller method throws an exception?
