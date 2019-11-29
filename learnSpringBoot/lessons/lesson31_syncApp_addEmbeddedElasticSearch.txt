@@ -1,5 +1,186 @@
 Lesson:  Add an embedded ElasticSearch and Unit Test that queries the embedded ES
 ---------------------------------------------------------------------------------
+Problem:  Your unit tests need to query a real ElasticSearch *AND*
+          You don't want to use the localhost:9201 ElasticSearch
+
+Solution:
+  1) Add dependencies for an embedded ElasticSearch
+  2) Have your unit tests run under a "test" profile
+     Have your sync app   run under a non-test profile  (anything except "test")
+  3) Create an EmbeddedElasticSearchResources that is only run on "test" profile
+     -- This class will startup an Embedded ElasticSearch
+     -- This clsas will return an ElasticSearchServices spring bean that has the asyncHttpClient and elasticSearchUrl
+
+Procedure
+---------
+ 1. Add the maven dependency for the embedded ElasticSearch
+    a. Edit your sync-service/pom.xml
+
+         <dependency>
+             <!-- Embedded ElasticSearch -->
+             <!-- https://github.com/allegro/embedded-elasticsearch -->
+             <groupId>pl.allegro.tech</groupId>
+             <artifactId>embedded-elasticsearch</artifactId>
+             <version>2.7.0</version>
+             <scope>test</scope>
+         </dependency>
 
 
+ 2. Edit your logback-test.xml so you can see logging when the embedded ElasticSearch starts up
+         <logger name="com.opentable.db" level="INFO" additivity="false">
+             <!-- Embedded ElasticSearch Logging -->
+             <appender-ref ref="CONSOLE"/>
+         </logger>
+
+
+ 3. Add this file:  EmbeddedElasticSearchResources    (to your sync test)
+    a. Right-click on sync-service/src/test/java/com/lessons/sync -> New Java Class
+       Class Name:  EmbeddedElasticSearchResources
+
+    b. Copy this to your new class:
+
+        package com.lessons.sync;
+
+        import com.lessons.sync.config.ElasticSearchResources;
+        import com.ning.http.client.AsyncHttpClient;
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.context.annotation.Bean;
+        import org.springframework.context.annotation.Configuration;
+        import org.springframework.context.annotation.Profile;
+        import pl.allegro.tech.embeddedelasticsearch.EmbeddedElastic;
+        import pl.allegro.tech.embeddedelasticsearch.PopularProperties;
+
+        import javax.annotation.PreDestroy;
+        import java.util.Random;
+        import java.util.concurrent.TimeUnit;
+
+        @Configuration
+        public class EmbeddedElasticSearchResources {
+
+            private static final Logger logger = LoggerFactory.getLogger(EmbeddedElasticSearchResources.class);
+
+            private EmbeddedElastic embeddedElasticServer;
+
+            @Bean
+            @Profile( "test" ) // Include in unit tests
+            public ElasticSearchResources elasticSearchResources() throws Exception {
+                logger.debug("elasticSearchResources() started.");
+
+                int tcpPort = getRandomIntegerBetween(10000, 11000);
+                int httpPort = tcpPort + 1;
+
+                // Startup embedded ElasticSearch
+                embeddedElasticServer =  EmbeddedElastic.builder()
+                        .withElasticVersion("5.4.0")
+                        .withStartTimeout(60, TimeUnit.SECONDS)
+                        .withSetting(PopularProperties.TRANSPORT_TCP_PORT, tcpPort)
+                        .withSetting(PopularProperties.HTTP_PORT, httpPort)
+                        .withSetting(PopularProperties.CLUSTER_NAME, "csaac-test")
+                        .build();
+                embeddedElasticServer.start();
+
+
+
+                // Get the url
+                String elasticSearchUrl = "http://localhost:" + embeddedElasticServer.getHttpPort();
+
+                com.ning.http.client.AsyncHttpClientConfig.Builder configBuilder = new com.ning.http.client.AsyncHttpClientConfig.Builder();
+
+                // Set the read timeout to be infinite so that the request timeout determines how long to wait
+                configBuilder.setReadTimeout(-1);
+                configBuilder.setAcceptAnyCertificate(true);
+                configBuilder.setFollowRedirect(true);
+                com.ning.http.client.AsyncHttpClientConfig config = configBuilder.build();
+                AsyncHttpClient asyncHttpClient = new AsyncHttpClient(config);
+
+                ElasticSearchResources elasticSearchResources = new ElasticSearchResources(elasticSearchUrl, asyncHttpClient);
+                return elasticSearchResources;
+            }
+
+
+            /**
+             * Shutdown the embedded ElasticSearch server when spring shuts-down this bean
+             */
+            @PreDestroy
+            public void preDestroy() {
+                if (this.embeddedElasticServer != null) {
+                    logger.debug("Stopping ElasticSearch....");
+                    embeddedElasticServer.stop();
+                }
+            }
+
+            /**************************************************************
+             * getRandomIntegerBetween()
+             **************************************************************/
+            private static int getRandomIntegerBetween(int aMinNumber, int aMaxNumber)
+            {
+                Random random = new Random();
+
+                int randomNumber = random.nextInt(aMaxNumber - aMinNumber) + aMinNumber;
+
+                return(randomNumber);
+            }
+
+        }
+
+
+
+ 4. Create this test class:  ElasticSearchTest
+    a. Right-click on sync-service/src/test/java/com/lessons/sync -> New Java Class
+       Class Name:  EmbeddedElasticSearchResources
+
+    b. Copy this to your new class:
+
+
+         package com.lessons.sync;
+
+         import static org.junit.Assert.assertTrue;
+
+         import com.lessons.sync.Application;
+         import com.lessons.sync.services.ElasticSearchService;
+         import org.junit.Test;
+         import org.junit.runner.RunWith;
+         import org.slf4j.Logger;
+         import org.slf4j.LoggerFactory;
+         import org.springframework.boot.test.context.SpringBootTest;
+         import org.springframework.test.context.ActiveProfiles;
+         import org.springframework.test.context.junit4.SpringRunner;
+
+         import javax.annotation.Resource;
+
+
+
+         @ActiveProfiles(profiles = "test")                    // Set the profile to be "test"
+         @RunWith(SpringRunner.class)                          // Required to work with JUnit 4
+         @SpringBootTest(classes = Application.class)          // Start up a Spring Boot command-line application
+         public class ElasticSearchTest
+         {
+             private static final Logger logger = LoggerFactory.getLogger(ElasticSearchTest.class);
+
+             @Resource
+             ElasticSearchService elasticSearchService;
+
+
+             /**
+              * Test create index against an embedded ElasticSearch
+              */
+             @Test
+             public void testCreateIndex() throws Exception
+             {
+                 logger.debug("testCreateIndex() started.");
+
+                 String indexName = "bogus";
+                 elasticSearchService.createIndex(indexName, "");
+
+                 assertTrue(true);
+                 }
+             }
+         }
+
+
+
+ 5. Verify the unit tests work
+    a. Set a breakpoint on the first logger in testCreateIndex()
+    b. Right-click on ElasticSearchTest.testCreateIndex() -> Debug
 
