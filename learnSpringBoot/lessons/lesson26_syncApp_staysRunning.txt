@@ -1,0 +1,165 @@
+Lesson:  Setup a Spring Boot Command Line App so its stays Running
+------------------------------------------------------------------
+In the previous lesson, we created a bare-bones spring-boot console application
+-- It starts
+-- It ends
+
+But, the sync-service should stay *running* as we want it to run operations throughout the day.
+
+Approaches:
+ A) Approach #1: Use the thread.join() trick
+ B) Approach #2: Use the scheduler
+
+
+
+Procedure 1: Using the Thread.join()
+------------------------------------
+ 1. Modify your Application class.
+   a. Change the Application class to it Implements CommandLineRunner
+   b. Right-click on CommandLineRunner -> Implement methods
+   c. Replace the run method with this:
+
+			@Override
+			public void run(String... args) throws Exception {
+				// Tell Springboot application to not shutdown
+				logger.debug("Sync Service is up.");
+				Thread.currentThread().join();
+			}
+
+
+   When done, your Application class should look like this:
+
+		package com.lessons.sync;
+
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import org.springframework.boot.Banner;
+		import org.springframework.boot.CommandLineRunner;
+		import org.springframework.boot.SpringApplication;
+		import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+
+		@SpringBootApplication
+		public class Application implements CommandLineRunner
+		{
+			private static final Logger logger = LoggerFactory.getLogger(Application.class);
+
+
+			public static void main( String[] args ) throws Exception {
+				logger.debug("main() started.");
+
+				// Start up Spring Boot but disable the banner
+				SpringApplication app = new SpringApplication(Application.class);
+				app.setBannerMode(Banner.Mode.OFF);
+				app.run(args);
+			}
+
+
+			@Override
+			public void run(String... args) throws Exception {
+				// Tell Springboot application to not shutdown
+				logger.debug("Sync Service is up.");
+				Thread.currentThread().join();
+			}
+		}
+
+
+ 2. Verify your Application class starts-up and *KEEPS* running
+    a. Set a breakpoint in your Application class (on the first logger.debug call)
+    b. Right-click on the file -> Debug Application.main()
+       -- You should see the SyncService start and *STAY* running
+		
+	   -- You should see something like this:
+		11/29/2019 15:10:32 INFO  com.lessons.sync.Application Started Application in 0.508 seconds (JVM running for 0.896)
+		11/29/2019 15:10:32 DEBUG com.lessons.sync.Application Sync Service is up.
+
+       
+        The last line should show "Sync Service is up" which means it is up and running and will stay running forever
+
+
+
+
+Procedure 1: Using the Scheduler
+--------------------------------
+ 1. Modify your Application class.
+   a. Add the @EnableScheduling annotation to the top of the Application
+   b. Change the run() method so it does nothing
+   c. Add a @Scheduled method to Application class
+		/**
+		 * Run this method every day at 0500 server time
+		 */
+		@Scheduled(cron = "${sync.refresh.cron:0 0 5 * * ?}")
+		private void sync() throws Exception {
+
+		    logger.info("Scheduled call");
+		}
+
+
+
+   When done, your Application class should look like this:
+
+		package com.lessons.sync;
+
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import org.springframework.boot.Banner;
+		import org.springframework.boot.CommandLineRunner;
+		import org.springframework.boot.SpringApplication;
+		import org.springframework.boot.autoconfigure.SpringBootApplication;
+		import org.springframework.scheduling.annotation.EnableScheduling;
+		import org.springframework.scheduling.annotation.Scheduled;
+
+
+		@SpringBootApplication
+		@EnableScheduling
+		public class Application implements CommandLineRunner
+		{
+			private static final Logger logger = LoggerFactory.getLogger(Application.class);
+
+
+			public static void main( String[] args ) throws Exception {
+				logger.debug("main() started.");
+
+				SpringApplication app = new SpringApplication(Application.class);
+				app.setBannerMode(Banner.Mode.OFF);
+				app.run(args);
+
+
+				logger.debug("Sync Service is up.");
+			}
+
+
+			@Override
+			public void run(String... args) throws Exception {
+				logger.debug("run() method started.");
+			}
+
+
+			/**
+			 * Run this method every day at 0500 server time
+			 */
+			@Scheduled(cron = "${sync.refresh.cron:0 0 5 * * ?}")
+			private void sync() throws Exception {
+
+				logger.info("Scheduled call");
+			}
+
+		}
+
+
+ 2. Verify your Application class starts-up and *KEEPS* running
+    a. Set a breakpoint in your Application class (on the first logger.debug call)
+    b. Right-click on the file -> Debug Application.main()
+       -- You should see the SyncService start and *STAY* running
+		
+	   -- You should see something like this:
+		11/29/2019 15:16:57 INFO  com.lessons.sync.Application Started Application in 0.608 seconds (JVM running for 1.009)
+		11/29/2019 15:16:57 DEBUG com.lessons.sync.Application run() method started.
+		11/29/2019 15:16:57 DEBUG com.lessons.sync.Application Sync Service is up.
+       
+        The last line should show "Sync Service is up" which means it is up and running and will stay running forever
+
+
+
+
+

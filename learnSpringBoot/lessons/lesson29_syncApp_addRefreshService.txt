@@ -1,0 +1,133 @@
+Lesson:  Add RefreshService to Spring Boot Command Line App
+------------------------------------------------------------
+Your RefreshService is where everything starts.
+-- So, your main application will call refreshService.refreshAllMappings() on startup
+-- ANd, it will call this method every day at 0500
+
+
+
+
+Procedure
+---------
+ 1. Add this java class:  RefreshService      (to the services package)
+    a. Right-click on sync/src/main/java/com/lessons/sync/services -> New Java Class
+       Class Name:  RefreshService
+
+    b. Copy this to your new class
+
+		package com.lessons.sync.services;
+
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import org.springframework.stereotype.Service;
+
+		import javax.annotation.PostConstruct;
+
+		@Service("com.lessons.sync.services.RefreshService")
+		public class RefreshService {
+
+			private static final Logger logger = LoggerFactory.getLogger(RefreshService.class);
+
+			public RefreshService() {
+				logger.debug("Constructor called.");
+			}
+
+
+			@PostConstruct
+			public void init() {
+				logger.debug("Post Constructor called.");
+			}
+
+			public void refreshAllMappings() throws Exception {
+				logger.debug("refreshAllMappings() started.");
+
+
+				logger.debug("refreshAllMappings() finished.");
+			}
+
+		}
+
+ 
+ 2. Add SpringAppContextUtils
+    a. Right-click on sync/src/main/java/com/lessons/sync -> New Package
+       Package Name: utilities
+
+    b. Right-click on sync/src/main/java/com/lessons/sync/utilities -> New Java Class
+       Class Name:  SpringAppContextUtils
+
+    c. Copy this to your new class
+		package com.lessons.sync.utilities;
+
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import org.springframework.beans.BeansException;
+		import org.springframework.context.ApplicationContext;
+		import org.springframework.context.ApplicationContextAware;
+		import org.springframework.stereotype.Service;
+
+
+		@Service("com.lessons.sync.utilities.SpringAppContextUtils")
+		public class SpringAppContextUtils implements ApplicationContextAware
+		{
+			private static final Logger logger = LoggerFactory.getLogger(SpringAppContextUtils.class);
+
+			private static ApplicationContext applicationContext = null;
+
+
+			public static ApplicationContext getApplicationContext() {
+				return applicationContext;
+			}
+
+			public void setApplicationContext(ApplicationContext aApplicationContext) throws BeansException
+			{
+				// Assign the ApplicationContext into a static variable
+				applicationContext = aApplicationContext;
+			}
+
+
+			public static Object getBean(String aName)
+			{
+				if (applicationContext == null)
+				{
+				    throw new RuntimeException("Error in SpringAppContextUtils.getBean().  The applicationContext is null");
+				}
+
+				return applicationContext.getBean(aName);
+			}
+
+		}
+
+
+
+
+ 3. Adjust your main() so that it calls RefreshService.refreshAllMappings on startup
+
+    a. Edit your main Application class
+
+    b. Change your main() method to this:
+
+			public static void main( String[] args ) throws Exception {
+				logger.debug("main() started.");
+
+				// Start up Spring Boot but disable the banner
+				SpringApplication app = new SpringApplication(Application.class);
+				app.setBannerMode(Banner.Mode.OFF);
+				app.run(args);
+
+				// Refresh the ES indexes on startup
+				RefreshService refreshService = (RefreshService) SpringAppContextUtils.getBean("com.lessons.sync.services.RefreshService");
+				refreshService.refreshAllMappings();
+
+
+				logger.debug("Sync Service is up.");
+			}
+
+
+
+ 4. Verify that your RefreshService.refreshAllMappings() method is called
+    a. Set a breakpoint in your RefreshService.refreshAllMappings() method to make sure it is called
+    b. Debug your application
+       -- Make sure your breakpoint is hit.
+
+
+

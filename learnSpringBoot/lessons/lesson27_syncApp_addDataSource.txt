@@ -1,0 +1,115 @@
+Lesson:  Add DataSource to Spring Boot Command Line App
+-------------------------------------------------------
+
+
+
+Procedure
+---------
+ 1. Add the Postgres driver, Hikari Connection Pool, and Spring-JDBC dependencies to your maven pom.xml
+    a. Edit the sync-service/pom.xml
+    b. Add these dependencies:
+
+        <dependency>
+            <!-- Add the postgreSQL JDBC driver -->
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.1.4</version>
+        </dependency>
+
+        <dependency>
+            <!-- Hikari Data Source / JDBC Connection Pool -->
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+            <version>2.6.0</version>
+        </dependency>
+
+	    <dependency>
+            <!-- Provides JdbcTemplate and TransactionTemplate objects to run SQL from Java -->
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jdbc</artifactId>
+            <version>5.0.3.RELEASE</version>
+        </dependency>
+
+
+
+ 2. Add this java class:  DataSourceConfig
+    a. Right-click on the sync/src/main/java/com/lessons/sync -> New Package
+       Package Name:  config
+
+    b. Right-click on config -> New Java Class
+       Class Name:  DataSourceConfig
+
+    c. Copy this to your new class
+
+		package com.lessons.sync.config;
+
+		import com.zaxxer.hikari.HikariConfig;
+		import com.zaxxer.hikari.HikariDataSource;
+		import org.springframework.beans.factory.annotation.Value;
+		import org.springframework.context.annotation.Bean;
+		import org.springframework.context.annotation.Configuration;
+
+		import javax.sql.DataSource;
+
+		@Configuration
+		public class DataSourceConfig {
+
+			@Value("${app.datasource.driver-class-name}")
+			private String driverClassName;
+
+			@Value("${app.datasource.url}")
+			private String url;
+
+			@Value("${app.datasource.username}")
+			private String username;
+
+			@Value("${app.datasource.password}")
+			private String password;
+
+			@Value("${app.datasource.maxPoolSize:20}")
+			private int maxPoolSize;
+
+			@Bean
+			public DataSource dataSource() {
+				HikariConfig hikariConfig = new HikariConfig();
+
+				hikariConfig.setDriverClassName(this.driverClassName);
+				hikariConfig.setJdbcUrl(this.url);
+				hikariConfig.setUsername(this.username);
+				hikariConfig.setPassword(this.password);
+				hikariConfig.setMaximumPoolSize(this.maxPoolSize);
+				hikariConfig.setConnectionTestQuery("SELECT 1");
+				hikariConfig.setPoolName("app1_jdbc_connection_pool");
+
+				HikariDataSource dataSource = new HikariDataSource(hikariConfig);
+				return dataSource;
+			}
+
+		}
+
+
+
+ 3. Add the postgres credentials to your application.yaml
+    a. Edit the sync/src/main/resources/application.yaml
+   
+    b. Add this to your application.yaml
+
+		###########################################################
+		# Database Settings
+		##########################################################
+		app.datasource:
+		  driver-class-name: org.postgresql.Driver
+		  url: jdbc:postgresql://localhost:5432/app1_db
+		  username: app1_user
+		  password: secret
+		  maxPoolSize: 10
+
+
+
+ 4. Verify that your DataSource is created
+    a. Set a breakpoint in your DataSourceConfig.dataSource() method to make sure it is called
+    b. Debug your application
+       -- Make sure your breakpoint is hit.
+
+
+

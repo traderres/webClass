@@ -1,0 +1,226 @@
+Lesson:  Setup a Spring Boot Command Line App w/o DataSource
+------------------------------------------------------------
+
+Assumptions:
+ A) You already have an existing application setup (called "app1")
+ B) You want to add a Spring Boot command line module called "sync-service" to it
+
+
+Procedure
+---------
+ 1. Add the sync-service module
+    a. Open your app1 project in Intellij
+    b. Right-click on the app1 (top of the Project explorer) -> New -> Module
+       1) Click "Create from Archetype"
+       2) Select apache-maven-quickstart
+       3) Press Next
+       
+       4) For the ArtifactId:  sync-service
+          Press Next
+
+       5) For the Maven module settings
+          Press Next
+
+       6) For the Module Name:  sync-service   (yes, include the dash)
+          Press Finish
+
+ 2. Add the logback dependencies
+    a. Go to your sync-service/pom.xml
+    b. Add these 2 dependencies to your <dependencies>...</dependencies> section
+
+        <dependency>
+            <!-- Send logging from Java Common Logging to SLF4J -->
+            <groupId>org.slf4j</groupId>
+            <artifactId>jcl-over-slf4j</artifactId>
+            <version>1.7.5</version>
+        </dependency>
+
+        <dependency>
+            <!-- SLF4J will use Logback-classic as its logging implementation -->
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.2.3</version>
+        </dependency>
+
+
+ 3. Add resources/ directories
+    a. Right-click on sync-service/src/main -> New Directory -> resources
+    b. Right-click on sync-service/src/test -> New Directory -> resources
+ 
+
+
+ 3. Add this file to src/main/resources:  logback.xml
+    a. Right-click on sync-service/src/main/resources -> New File -> logback.xml
+    b. Copy this to your new file:
+
+		<?xml version="1.0" encoding="windows-1252" ?>
+		<configuration debug="false">
+			<appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+				<encoder>
+				    <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+				</encoder>
+			</appender>
+
+			<logger name="org.springframework" level="INFO" additivity="false">
+				<appender-ref ref="CONSOLE"/>
+			</logger>
+
+			<logger name="com.lessons" level="DEBUG" additivity="false">
+				<appender-ref ref="CONSOLE"/>
+			</logger>
+
+			<root level="DEBUG">
+				<appender-ref ref="CONSOLE"/>
+			</root>
+		</configuration>
+
+ 4. Add a logger to your App class (to prove that logging works)
+    a. Go to your src/main/java/com/lessons/App class
+    b. Change your App class so it looks like this:
+
+		package com.lessons;
+
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+
+
+		public class App 
+		{
+			private static final Logger logger = LoggerFactory.getLogger(App.class);
+
+		
+			public static void main( String[] args )
+			{
+				logger.debug("main() started.");
+				
+				logger.debug("main() finished.");
+			}
+		}
+
+
+ 5. Verify that logging works
+    a. Set a breakpoint on the first logger in your App class
+    b. Right-click on App -> Debug App.main()
+    c. Step through your code and make sure your logger calls show-up in your console
+
+
+
+   
+ 6. Add this file to src/main/resources:  application.yaml
+    a. Right-click on sync-service/src/main/resources -> New File -> application.yaml
+    b. Copy this to your new file:
+  
+		##########################################################
+		# application.yaml   (used for development purposes)
+		##########################################################
+
+		# Set the Active profile to be dev
+		spring.profiles.active: dev
+
+		# Tell Spring to disable DataSource Auto Configuration (so you can run a springboot app without a datasource
+		spring.autoconfigure:
+		  exclude:
+			- org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+			- org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+
+
+
+
+
+ 7. Add the spring boot dependencies to your sync-service/pom.xml
+    a. Edit your sync-service/pom.xml
+    b. Delete the entire <dependencies>...</dependencies> setion
+    c. Add this in its place
+		
+    <dependencyManagement>
+        <!-- Include Spring Boot Dependencies for version 2.1.3.RELEASE -->
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>2.1.3.RELEASE</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+
+    <dependencies>
+        <dependency>
+            <!-- Spring Boot Console Application -->
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+
+        <dependency>
+            <!-- Send logging from Java Common Logging to SLF4J -->
+            <groupId>org.slf4j</groupId>
+            <artifactId>jcl-over-slf4j</artifactId>
+            <version>1.7.5</version>
+        </dependency>
+
+        <dependency>
+            <!-- SLF4J will use Logback-classic as its logging implementation -->
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.2.3</version>
+        </dependency>
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.12</version>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
+ 8. Add the main Application class
+    a. Right-click on sync-service/src/main/java/com/lessons -> New Package -> sync
+    b. Right-click on sync -> New Java Class -> Application
+    c. Copy this to your new Application class
+
+		package com.lessons.sync;
+
+
+		import com.lessons.sync.utilities.SpringAppContextUtils;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import org.springframework.boot.Banner;
+		import org.springframework.boot.SpringApplication;
+		import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+
+		import javax.annotation.Resource;
+
+
+		@SpringBootApplication
+		public class Application
+		{
+			private static final Logger logger = LoggerFactory.getLogger(Application.class);
+
+
+			public static void main( String[] args ) throws Exception {
+				logger.debug("main() started.");
+
+				// Start up Spring Boot but disable the banner
+				SpringApplication app = new SpringApplication(Application.class);
+				app.setBannerMode(Banner.Mode.OFF);
+				app.run(args);
+
+				logger.debug("Sync Service is up.");
+			}
+
+
+		}
+
+
+ 9. Delete the old App class (found in src/main/java/com/lessons/App.java)
+
+10. Verify your Application class starts-up and you can see the logger work
+    a. Set a breakpoint in your Application class (on the first logger.debug call)
+    b. Right-click on the file -> Debug Application.main()
+      -- You should see the SyncService start and shutdown
+
+

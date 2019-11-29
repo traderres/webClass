@@ -1,0 +1,196 @@
+Lesson:  Add ElasticSearchService to Spring Boot Command Line App
+-----------------------------------------------------------------
+In order to make outgoing REST calls to ElasticSearch, the ElasticSearchService needs 2 things:
+ 1) The elastic search url -- e.g., http://localhost:9201
+ 2) The asyncHttpClient object
+
+
+Approach
+ A) The ElasticSearchService will depend on ElasticSearchResources
+ B) The ElasticSearchResources class will be built using a @Bean in the ElasticSearchResourcesConfig class
+
+
+
+Procedure
+---------
+ 1. Add the AsyncHttpClient and StringUtils dependencies to your pom.xml
+    a. Edit the sync-service/pom.xml
+    b. Add these dependencies:
+
+        <dependency>
+            <!-- AsyncHttpClient Client implementation (used to make outgoing REST calls out to ES) -->
+            <groupId>com.ning</groupId>
+            <artifactId>async-http-client</artifactId>
+            <version>1.9.40</version>
+        </dependency>
+
+        <dependency>
+            <!-- StringUtils Dependency -->
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.5</version>
+        </dependency>
+
+
+ 2. Add this java class:  ElasticSearchResources      (to the config package)
+    a. Right-click on sync/src/main/java/com/lessons/sync/config -> New Java Class
+       Class Name:  ElasticSearchResources
+
+    b. Copy this to your new class
+
+		package com.lessons.sync.config;
+
+		import com.ning.http.client.AsyncHttpClient;
+
+
+		public class ElasticSearchResources {
+
+			private AsyncHttpClient asyncHttpClient;
+			private String          elasticSearchUrl;
+
+			// Used for test classes
+			public ElasticSearchResources(String aElasticSearchUrl, AsyncHttpClient asyncHttpClient) {
+				this.elasticSearchUrl = aElasticSearchUrl;
+				this.asyncHttpClient = asyncHttpClient;
+			}
+
+
+			public String getElasticSearchUrl() {
+				return elasticSearchUrl;
+			}
+
+			public AsyncHttpClient getAsyncHttpClient() {
+				return this.asyncHttpClient;
+			}
+		}
+
+ 
+
+ 3. Add this java class:  ElasticSearchResourcesConfig      (to the config package)
+    a. Right-click on sync/src/main/java/com/lessons/sync/config -> New Java Class
+       Class Name:  ElasticSearchResourcesConfig
+
+    b. Copy this to your new class
+
+		package com.lessons.sync.config;
+
+		import com.ning.http.client.AsyncHttpClient;
+		import org.springframework.beans.factory.annotation.Value;
+		import org.springframework.context.annotation.Bean;
+		import org.springframework.context.annotation.Configuration;
+
+
+		@Configuration
+		public class ElasticSearchResourcesConfig {
+
+
+			@Value("${es.url:}")
+			private String elasticSearchUrl;
+
+			@Bean
+			public ElasticSearchResources elasticSearchResources() {
+
+				// Create a new AsyncHttpClient object
+				com.ning.http.client.AsyncHttpClientConfig.Builder configBuilder = new com.ning.http.client.AsyncHttpClientConfig.Builder();
+				configBuilder.setReadTimeout(-1);
+				configBuilder.setAcceptAnyCertificate(true);
+				configBuilder.setFollowRedirect(true);
+				com.ning.http.client.AsyncHttpClientConfig config = configBuilder.build();
+				AsyncHttpClient asyncHttpClient = new AsyncHttpClient(config);
+
+
+				// Store the AsyncHttpClient and elasticSearc url in the ElasticSearchResources object
+				// NOTE:  THe elastic search url is injected from the application.yaml
+				//        The AsyncHttpClient is constructed with java code
+				ElasticSearchResources elasticSearchResources = new ElasticSearchResources(this.elasticSearchUrl, asyncHttpClient);
+
+				// Return a spring bean that holds the AsyncHttpClient and elasticsearch url
+				return elasticSearchResources;
+			}
+
+		}
+
+
+ 4. Add this java class:  ElasticSearchService     (to the services package)
+    a. Right-click on sync/src/main/java/com/lessons/sync -> New Package
+       Package Name:  services
+
+    a. Right-click on sync/src/main/java/com/lessons/sync/services -> New Java Class
+       Class Name:  ElasticSearchService
+
+    c. Copy this to your new class
+		package com.lessons.sync.services;
+
+		import com.lessons.sync.config.ElasticSearchResources;
+		import com.ning.http.client.AsyncHttpClient;
+		import com.ning.http.client.Response;
+		import org.apache.commons.lang3.StringUtils;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import org.springframework.stereotype.Service;
+
+		import javax.annotation.PostConstruct;
+		import javax.annotation.Resource;
+		import javax.sql.DataSource;
+
+		@Service("com.lessons.sync.services.ElasticSearchService")
+		public class ElasticSearchService {
+
+			private static final Logger logger = LoggerFactory.getLogger(ElasticSearchService.class);
+
+			@Resource
+			private ElasticSearchResources elasticSearchResources;
+
+			@Resource
+			private DataSource dataSource;
+
+
+
+			private String elasticSearchUrl;
+			private AsyncHttpClient asyncHttpClient;
+			private final int ES_REQUEST_TIMEOUT_IN_MILLISECS = 30000;   // All ES requests timeout after 30 seconds
+
+
+			@PostConstruct
+			public void init() {
+				logger.debug("init() started.");
+
+				// In order to make outgoing calls to ElasticSearch you need 2 things:
+				//  1) The elastic search url
+				//  2) The initialiaed AsyncHttpClient object
+				this.elasticSearchUrl = elasticSearchResources.getElasticSearchUrl();
+				this.asyncHttpClient = elasticSearchResources.getAsyncHttpClient();
+			}
+
+
+			public void createIndex(String aIndexName, String aJsonMapping) throws Exception {
+				if (StringUtils.isEmpty(aIndexName)) {
+				    throw new RuntimeException("The passed-in aIndexName is null or empty.");
+				}
+
+				// Make a synchronous POST call to ElasticSearch to create this an index
+				Response response = this.asyncHttpClient.preparePut(this.elasticSearchUrl + "/" + aIndexName)
+				        .setRequestTimeout(this.ES_REQUEST_TIMEOUT_IN_MILLISECS)
+				        .setHeader("accept", "application/json")
+				        .setHeader("Content-Type", "application/json")
+				        .setBody(aJsonMapping)
+				        .execute()
+				        .get();
+
+				if (response.getStatusCode() != 200) {
+				    // ElasticSearch returned a non-200 status response
+				    throw new RuntimeException("Error in createIndex:  ES returned a status code of " + response.getStatusCode() + " with an error of: " + response.getResponseBody());
+				}
+
+				logger.info("Successfully created this ES index: {}", aIndexName);
+			}
+		}
+
+
+ 5. Verify that your DataSource is created
+    a. Set a breakpoint in your ElasticSearchService.init() method to make sure it is called
+    b. Debug your application
+       -- Make sure your breakpoint is hit.
+
+
+
