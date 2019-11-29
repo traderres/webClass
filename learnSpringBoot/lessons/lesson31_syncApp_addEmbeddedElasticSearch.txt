@@ -30,6 +30,7 @@ Procedure
 
 
  2. Edit your logback-test.xml so you can see logging when the embedded ElasticSearch starts up
+
          <logger name="com.opentable.db" level="INFO" additivity="false">
              <!-- Embedded ElasticSearch Logging -->
              <appender-ref ref="CONSOLE"/>
@@ -129,62 +130,120 @@ Procedure
         }
 
 
+ 4. Modify the real ElasticSearchResourcesConfig so that it is only created in non-test profiles
+    a. Edit sync-service/src/main/java/com/lessons/sync/ElasticSearchResourcesConfig
 
- 4. Create this test class:  ElasticSearchTest
+    b. Add this line above the method that has the @Bean annotation
+            @Profile( "!test" ) // Do not create when running unit tess
+
+
+    When done your class should look like this:
+
+        package com.lessons.sync.config;
+
+        import com.ning.http.client.AsyncHttpClient;
+        import org.springframework.beans.factory.annotation.Value;
+        import org.springframework.context.annotation.Bean;
+        import org.springframework.context.annotation.Configuration;
+        import org.springframework.context.annotation.Profile;
+
+
+        @Configuration
+        public class ElasticSearchResourcesConfig {
+
+
+            @Value("${es.url:}")
+            private String elasticSearchUrl;
+
+            @Bean
+            @Profile( "!test" ) // Do not create when running unit tess
+            public ElasticSearchResources elasticSearchResources() {
+
+                // Create a new AsyncHttpClient object
+                com.ning.http.client.AsyncHttpClientConfig.Builder configBuilder = new com.ning.http.client.AsyncHttpClientConfig.Builder();
+                configBuilder.setReadTimeout(-1);
+                configBuilder.setAcceptAnyCertificate(true);
+                configBuilder.setFollowRedirect(true);
+                com.ning.http.client.AsyncHttpClientConfig config = configBuilder.build();
+                AsyncHttpClient asyncHttpClient = new AsyncHttpClient(config);
+
+
+                // Store the AsyncHttpClient and elasticSearc url in the ElasticSearchResources object
+                // NOTE:  THe elastic search url is injected from the application.yaml
+                //        The AsyncHttpClient is constructed with java code
+                ElasticSearchResources elasticSearchResources = new ElasticSearchResources(this.elasticSearchUrl, asyncHttpClient);
+
+                // Return a spring bean that holds the AsyncHttpClient and elasticsearch url
+                return elasticSearchResources;
+            }
+
+
+        }
+
+
+
+
+ 5. Create this test class:  ElasticSearchTest
     a. Right-click on sync-service/src/test/java/com/lessons/sync -> New Java Class
-       Class Name:  EmbeddedElasticSearchResources
+       Class Name:  ElasticSearchTest
 
     b. Copy this to your new class:
 
 
-         package com.lessons.sync;
+        package com.lessons.sync;
 
-         import static org.junit.Assert.assertTrue;
+        import static org.junit.Assert.assertTrue;
 
-         import com.lessons.sync.Application;
-         import com.lessons.sync.services.ElasticSearchService;
-         import org.junit.Test;
-         import org.junit.runner.RunWith;
-         import org.slf4j.Logger;
-         import org.slf4j.LoggerFactory;
-         import org.springframework.boot.test.context.SpringBootTest;
-         import org.springframework.test.context.ActiveProfiles;
-         import org.springframework.test.context.junit4.SpringRunner;
+        import com.lessons.sync.Application;
+        import com.lessons.sync.services.ElasticSearchService;
+        import org.junit.Test;
+        import org.junit.runner.RunWith;
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.boot.test.context.SpringBootTest;
+        import org.springframework.test.context.ActiveProfiles;
+        import org.springframework.test.context.junit4.SpringRunner;
 
-         import javax.annotation.Resource;
-
-
-
-         @ActiveProfiles(profiles = "test")                    // Set the profile to be "test"
-         @RunWith(SpringRunner.class)                          // Required to work with JUnit 4
-         @SpringBootTest(classes = Application.class)          // Start up a Spring Boot command-line application
-         public class ElasticSearchTest
-         {
-             private static final Logger logger = LoggerFactory.getLogger(ElasticSearchTest.class);
-
-             @Resource
-             ElasticSearchService elasticSearchService;
-
-
-             /**
-              * Test create index against an embedded ElasticSearch
-              */
-             @Test
-             public void testCreateIndex() throws Exception
-             {
-                 logger.debug("testCreateIndex() started.");
-
-                 String indexName = "bogus";
-                 elasticSearchService.createIndex(indexName, "");
-
-                 assertTrue(true);
-                 }
-             }
-         }
+        import javax.annotation.Resource;
 
 
 
- 5. Verify the unit tests work
+        @ActiveProfiles(profiles = "test")                    // Set the profile to be "test"
+        @RunWith(SpringRunner.class)                          // Required to work with JUnit 4
+        @SpringBootTest(classes = Application.class)          // Start up a Spring Boot command-line application
+        public class ElasticSearchTest
+        {
+            private static final Logger logger = LoggerFactory.getLogger(ElasticSearchTest.class);
+
+            @Resource
+            ElasticSearchService elasticSearchService;
+
+
+            /**
+             * Test create index against an embedded ElasticSearch
+             */
+            @Test
+            public void testCreateIndex() throws Exception
+            {
+                logger.debug("testCreateIndex() started.");
+
+                String indexName = "bogus";
+                elasticSearchService.createIndex(indexName, "");
+
+                assertTrue(true);
+            }
+        }
+
+
+
+
+
+
+ 6. Verify the unit tests work
     a. Set a breakpoint on the first logger in testCreateIndex()
     b. Right-click on ElasticSearchTest.testCreateIndex() -> Debug
 
+       When the test finishes, you should see this:
+
+       11/29/2019 17:54:29 DEBUG com.lessons.sync.ElasticSearchTest testCreateIndex() started.
+       11/29/2019 17:54:32 INFO  com.lessons.sync.services.ElasticSearchService Successfully created this ES index: bogus
