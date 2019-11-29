@@ -99,9 +99,13 @@
 
 1. Build a Spring Boot Console Application that talks to ES and postgres<br/>
    1. [Add maven module for command-line spring application](/learnSpringBoot/lessons/lesson24_syncApp_setupStructure.txt)<br/>
-   1. Add some reports records and try it out<br/>
-   1. [Add embedded Postgres](/learnSpringBoot/lessons/lesson25_syncApp_addEmbeddedDataSource.txt) test cases<br/>
-   1. [Add embedded ElasticSearch](/learnSpringBoot/lessons/lesson26_syncApp_addEmbeddedElasticSearch.txt) test cases<br/>
+   1. [Configure the app to stay running on startup](/learnSpringBoot/lessons/lesson25_syncApp_staysRunning.txt)<br/>
+   1. [Add a Postgres data source and Hikari connection pool](/learnSpringBoot/lessons/lesson26_syncApp_addDataSource.txt)<br/>
+   1. [Add an ElasticSearchService](/learnSpringBoot/lessons/lesson27_syncApp_addElasticSearchService.txt)<br/>
+   1. [Call Refresh Service on App startup](/learnSpringBoot/lessons/lesson28_syncApp_addRefreshService.txt)<br/>
+   1. [Fill-in Refresh Service](/learnSpringBoot/lessons/lesson29_syncApp_fillinRefreshService.txt)<br/>
+   1. [Add Embedded Data Source unit tests](/learnSpringBoot/lessons/lesson30_syncApp_addEmbeddedDataSource.txt)<br/>
+   1. [Add Embedded ElasticSearch unit test](/learnSpringBoot/lessons/lesson31_syncApp_addEmbeddedElasticSearch.txt)<br/>
    
 1. Even More Java:  Handling Java Exceptions
    1. What happens when controller method throws an exception?
