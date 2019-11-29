@@ -1,0 +1,505 @@
+Lesson:  Add an embedded Postgres data source and Unit Test that queries the embedded database
+----------------------------------------------------------------------------------------------
+Problem:  Your unit tests need to query a database *AND*
+          You don't want to use the localhost:5432 database *AND*
+          You don't want to use an in-memory hsql database (as they have slight differences with a real database)
+
+Solution:
+  1) Add dependencies for flyway and embedded postgres
+  2) Have your unit tests run under a "test" profile
+     Have your web app    run under a "dev" profile  (anything except "test")
+  3) Create an EmbeddedDataSourceConfig that is only run on "test" profile
+  4) Modify your DataSourceConfig so that it only runs on non-test profile
+
+
+
+Procedure
+---------
+ 1. Setup logical links between the sync module and database-migration module
+    a. Create these directories:  sync/src/test/resources/db/migration
+       unix> cd ~/intellijProjects/app1/sync-service
+       unix> mkdir -p src/test/resources/db/migration
+
+    b. Create links so that the sync-service/src/test/resources/db/migration/V1.1 file points to database-migration/src/main/resources/db/migration/V1.1
+       unix> cd src/test/resources/db/migration
+       unix> ln -s ../../../../../../database-migration/src/main/resources/db/migration/V1.1__baseline.sql V1.1__baseline.sql
+       unix> ln -s ../../../../../../database-migration/src/main/resources/db/migration/V1.2__tables.sql V1.2__tables.sql
+
+       unix> ls -l
+       lrwxrwxrwx. 1 adam adam 87 Nov 27 15:44 V1.1__baseline.sql -> ../../../../../../database-migration/src/main/resources/db/migration/V1.1__baseline.sql
+       lrwxrwxrwx. 1 adam adam 85 Nov 27 15:44 V1.2__tables.sql -> ../../../../../../database-migration/src/main/resources/db/migration/V1.2__tables.sql
+
+       -- Now, the sync service's src/test/resources/db/migration point to the database-migration/src/main/resources/db/migration
+       -- So, the sync service has its own copy of the database migration SQL scripts
+
+
+
+ 2. Create some sample database data
+    a. In Intellij, right-click on sync-service/src/test/resources -> new directory
+       Directory Name:  sampleData1
+
+    b. Right-click on sampleData1 -> New File
+       Filename:  R__sample.sql
+
+    c. Copy this to your new file:
+
+        --
+        -- R__sample.sql
+        --
+        INSERT INTO reports (id, version, description, display_name, reviewed) values(1, 1, 'this is report 1', 'report1.txt', false);
+        INSERT INTO reports (id, version, description, display_name, reviewed) values(2, 1, 'this is report 2', 'report2.txt', false);
+        INSERT INTO reports (id, version, description, display_name, reviewed) values(3, 1, 'this is report 3', 'report3.txt', false);
+
+
+
+ 3. Add the following maven dependencies to the webapp's pom.xml
+    a. Edit the sync-service/pom.xml
+
+    b. Add this to the <dependencies> ... </dependencies> section
+
+        <!-- Embedded Postgres -->
+        <!-- https://mvnrepository.com/artifact/com.opentable.components/otj-pg-embedded -->
+        <dependency>
+            <groupId>com.opentable.components</groupId>
+            <artifactId>otj-pg-embedded</artifactId>
+            <version>0.11.4</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Flyway core libraries -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+            <version>5.0.7</version>
+            <scope>test</scope>
+        </dependency>
+
+
+    c. Make sure your sync-service has the spring-boot-starter-test dependency:
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+
+ 4. Update your logback-test.xml so that you can see logging when the embedded postgres starts or when flyway runs from java code
+    a. Edit your webapp/src/test/resources/logback-test.xml
+
+    b. Add these loggers to it:
+
+            <logger name="org.flywaydb" level="INFO" additivity="false">
+                <!-- Flyway Logging -->
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+
+            <logger name="com.opentable.db" level="INFO" additivity="false">
+                <!-- Embedded postgres logging -->
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+
+
+     When done, your logback-test.xml should look something like this:
+
+        <?xml version="1.0" encoding="windows-1252" ?>
+        <configuration debug="false">
+            <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+                <encoder>
+                    <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+                </encoder>
+            </appender>
+
+            <logger name="org.springframework" level="INFO" additivity="false">
+                <!-- Spring Logging -->
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+
+            <logger name="com.lessons" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+
+            <logger name="org.flywaydb" level="INFO" additivity="false">
+                <!-- Flyway Logging -->
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+
+            <logger name="com.opentable.db" level="INFO" additivity="false">
+                <!-- Embedded postgres logging -->
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+
+
+            <root level="WARN">
+                <appender-ref ref="CONSOLE"/>
+            </root>
+        </configuration>
+
+
+
+ 5. Setup the application.yaml for *TEST* classes so that the active profile is "test"
+    a. Go to sync-service/src/test/resources/application
+
+    b. Add this entry
+           # Set the active profile to be test
+           spring.profiles.active: test
+
+
+    So, your applicaiton.yaml (in sync-service/src/test/resources/application.yaml) should look loike this:
+            ##################################################################
+            # Application.yaml file for running unit tests
+            #
+            ##################################################################
+
+            # Set the active profile to be "test"
+            # NOTE:  This is needed so that the embdded datasource is activated
+            spring.profiles.active: test
+
+
+            # Tell Spring to disable DataSource and Flyway Auto Configuration (so you can run a springboot app without a datasource
+            spring.autoconfigure:
+              exclude:
+                - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+                - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+                - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
+
+
+            ##################################################################
+            # Database Settings
+            # The DataSourceConfig class has these as required properties
+            # NOTE:  While we are not using them, they still must be set
+            ##################################################################
+            app.datasource:
+              driver-class-name: does.not.matter
+              url: does.not.matter
+              username: does.not.matter
+              password: does.not.matter
+
+
+            ##################################################################
+            # ElasticSearch Settings
+            ##################################################################
+            es.url: http://localhost:9201
+
+
+
+ 6. Setup the application.yaml for *MAIN* classes so that the active profile is *NOT* "test"
+    -- The main profile can be dev or prod
+    -- The main profile should not be test
+
+    If you have an application.yaml for your main classes, then add this to the top:
+        spring.profiles.active: dev
+
+    So, your applicaiton.yaml (in sync-service/src/main/resources/application.yaml) should look loike this:
+            ##########################################################
+            # application.yaml   (used for development purposes)
+            ##########################################################
+
+
+            # Active profile is dev
+            spring.profiles.active: dev
+
+            # Tell Spring to disable DataSource and Flyway Auto Configuration (so you can run a springboot app without a datasource
+            spring.autoconfigure:
+              exclude:
+                - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+                - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+                - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
+
+
+            ###########################################################
+            # Database Settings
+            ##########################################################
+            app.datasource:
+                driver-class-name: org.postgresql.Driver
+                url: jdbc:postgresql://localhost:5432/app1_db
+                username: app1_user
+                password: secret
+                maxPoolSize: 10
+
+
+ 7. Create a sync package in the sync-service/src/test/java/com/lessons
+    a. In IntelliJ go to sync-service/src/test/java/com/lessons/ -> Right-click -> New Package
+       Package Name:   sync
+
+
+ 8. Create an EmbeddedDataSourceConfig class that will generate a DataSource that refers to the in-memory-postgres instance
+    a. In IntelliJ go to sync-service/src/test/java/com/lessons/sync -> Right-click -> New Java Class
+        Class Name:   EmbeddedDataSourceConfig
+
+    b. Copy this to your class:
+
+          package com.lessons.sync;
+
+          import com.opentable.db.postgres.embedded.EmbeddedPostgres;
+          import com.zaxxer.hikari.HikariConfig;
+          import com.zaxxer.hikari.HikariDataSource;
+          import org.slf4j.Logger;
+          import org.slf4j.LoggerFactory;
+          import org.springframework.context.annotation.Bean;
+          import org.springframework.context.annotation.Configuration;
+          import org.springframework.context.annotation.Profile;
+
+          import javax.annotation.PreDestroy;
+          import javax.sql.DataSource;
+          import java.io.IOException;
+
+          @Configuration
+          public class EmbeddedDataSourceConfig {
+              private static final Logger logger = LoggerFactory.getLogger(EmbeddedDataSourceConfig.class);
+
+              private EmbeddedPostgres embeddedPostgres;
+
+              @Bean
+              @Profile( "test" )           // This spring bean is only created when the profile is "test" -- so it will be included when running unit tests
+              public DataSource getDataSource() throws Exception {
+                  logger.debug("getDataSource() started.");
+
+                  // Start-up the embedded database
+                  // Note, that the embdded data source is running, we can get the jdbc url information
+                  this.embeddedPostgres = EmbeddedPostgres.start();
+
+                  // Get the jdbcUrl from the running postgres database
+                  String jdbcUrl = embeddedPostgres.getJdbcUrl("postgres", "postgres");
+
+                  // Build a HikariConfig object
+                  HikariConfig hikariConfig = new HikariConfig();
+                  hikariConfig.setJdbcUrl(jdbcUrl);
+                  hikariConfig.setUsername("postgres");
+                  hikariConfig.setPassword("postgres");
+
+                  // Build a HikariDataSource object (using the hikariConfig)
+                  HikariDataSource dataSource = new HikariDataSource(hikariConfig);
+
+                  logger.debug("getDataSource() finished");
+
+                  return dataSource;
+              }
+
+
+              /**
+               * Shutdown the embedded Postgres server when spring shuts-down this class
+               */
+              @PreDestroy
+              public void preDestroy() {
+                  if (this.embeddedPostgres != null) {
+                      try {
+                          logger.debug("Stopping Embedded Postgres....");
+                          this.embeddedPostgres.close();
+                      } catch (IOException e) {
+                          logger.warn("Ignoring exception attempting to stop embedded postgres");
+                      }
+                  }
+              }
+          }
+
+
+
+
+
+ 9. Modify your *MAIN* DataSourceConfig class (in the sync-service/src/main/java) to run in non-test profile
+    a. Edit the sync-service/src/main/java/com/lessons/config/DataSourceConfig.java
+    b. Add one line above the dataSource() method
+
+           @Profile( "!test" )       // Do not call when running in test profile (so it will be excluded from unit tests)
+
+
+    So, your DataSourceConfig should look something like this:
+         package com.lessons.config;
+
+         import com.zaxxer.hikari.HikariConfig;
+         import com.zaxxer.hikari.HikariDataSource;
+         import org.springframework.beans.factory.annotation.Value;
+         import org.springframework.context.annotation.Bean;
+         import org.springframework.context.annotation.Configuration;
+         import org.springframework.context.annotation.Profile;
+
+         import javax.sql.DataSource;
+
+         @Configuration
+         public class DataSourceConfig {
+
+             @Value("${app.datasource.driver-class-name}")
+             private String driverClassName;
+
+             @Value("${app.datasource.url}")
+             private String url;
+
+             @Value("${app.datasource.username}")
+             private String username;
+
+             @Value("${app.datasource.password}")
+             private String password;
+
+             @Value("${app.datasource.maxPoolSize:20}")
+             private int maxPoolSize;
+
+             @Bean
+             @Profile( "!test" )            // Do not call when running in test profile (so it will be excluded from unit tests)
+             public DataSource dataSource() {
+                 HikariConfig hikariConfig = new HikariConfig();
+
+                 hikariConfig.setDriverClassName(this.driverClassName);
+                 hikariConfig.setJdbcUrl(this.url);
+                 hikariConfig.setUsername(this.username);
+                 hikariConfig.setPassword(this.password);
+                 hikariConfig.setMaximumPoolSize(this.maxPoolSize);
+                 hikariConfig.setConnectionTestQuery("SELECT 1");
+                 hikariConfig.setPoolName("app1_jdbc_connection_pool");
+
+                 HikariDataSource dataSource = new HikariDataSource(hikariConfig);
+                 return dataSource;
+             }
+
+         }
+
+
+
+10. Create a FlywayUtils class (that will run flyway:clean and flyway:migrate from java code)
+    a. In IntelliJ go to sync-service/src/test/java/com/lessons/sync -> Right-click -> New Java Class
+       Class Name:   FlywayUtils
+
+    b. Copy this to your class:
+
+          package com.lessons.sync;
+
+          import org.apache.commons.lang3.StringUtils;
+          import org.flywaydb.core.Flyway;
+          import org.slf4j.Logger;
+          import org.slf4j.LoggerFactory;
+
+          import javax.sql.DataSource;
+
+          public class FlywayUtils {
+
+              private static final Logger logger = LoggerFactory.getLogger(FlywayUtils.class);
+
+
+
+              public static void runCleanMigrate(DataSource aDataSource, String aDirectoryPathToSampleData ) {
+                  logger.debug( "runFlywayCleanMigrate() started." );
+
+                  Flyway flyway = new Flyway();
+
+                  // Have flyway code point to our embedded database
+                  flyway.setDataSource(aDataSource);
+
+                  if (StringUtils.isEmpty(aDirectoryPathToSampleData)) {
+                      flyway.setLocations("db");
+                  }
+                  else {
+                      flyway.setLocations("db", aDirectoryPathToSampleData);
+                  }
+
+                  // Run flyway clean
+                  flyway.clean();
+
+                  // Run flyway migrate
+                  flyway.migrate();
+
+                  logger.debug( "runFlywayCleanMigrate() finished." );
+              }
+
+          }
+
+
+
+11. Create this class:  DatabaseTest   (that runs united tests against your  embedded postgres and runs flyway:migration on startup)
+    a. In IntelliJ go to sync-service/src/test/java/com/lessons/ -> Right-click -> New Java Class
+       Class Name:   DatabaseTest
+
+    b. Copy this to your new class:
+
+             package com.lessons.sync;
+
+             import com.zaxxer.hikari.HikariDataSource;
+             import org.junit.Before;
+             import org.junit.Test;
+             import org.junit.runner.RunWith;
+             import org.slf4j.Logger;
+             import org.slf4j.LoggerFactory;
+             import org.springframework.boot.test.context.SpringBootTest;
+             import org.springframework.jdbc.core.JdbcTemplate;
+             import org.springframework.test.context.ActiveProfiles;
+             import org.springframework.test.context.junit4.SpringRunner;
+
+             import javax.annotation.Resource;
+             import javax.sql.DataSource;
+
+             import static org.junit.Assert.assertTrue;
+
+             @ActiveProfiles(profiles = "test")                    // Set the profile to be "test"
+             @RunWith(SpringRunner.class)                          // Required to work with JUnit 4
+             @SpringBootTest(classes = Application.class)          // Start up a Spring Boot command-line application
+             public class DatabaseTest {
+
+                 private static final Logger logger = LoggerFactory.getLogger(DatabaseTest.class);
+
+                 private static boolean databaseIsInitialized = false;
+
+                 @Resource
+                 private DataSource dataSource;
+
+                 /**
+                  * This method gets called before every test class
+                  * -- We use setup() to make sure that flyway:clean and flyway:migrate is already run on the database
+                  * -- Alternatively, we could have the the EmbeddedDataSourceConfig run flywy:clean and flyway:migrate as well
+                  */
+                 @Before
+                 public void setup() {
+
+                     if (databaseIsInitialized) {
+                         // The database is already initialized, so do nothing
+                         return;
+                     }
+                     else {
+                         // Initialize the database by running flyway clean migrate
+                         databaseIsInitialized = true;
+
+                         // Run flyway clean & flyway migrate
+                         FlywayUtils.runCleanMigrate(this.dataSource, "sampleData1");
+                     }
+                 }
+
+
+                 @Test
+                 public void testDatabaseReportCount() {
+                     logger.debug("testDatabaseCalls() started.");
+
+                     // Display the jdbc url information for the embedded data source
+                     HikariDataSource ds = ((HikariDataSource) this.dataSource);
+                     logger.debug("Database is located here: {}", ds.getJdbcUrl());
+
+                     final int expectedReportCount = 3;
+
+                     // Run a database query
+                     JdbcTemplate jt = new JdbcTemplate(this.dataSource);
+                     String sql = "Select count(*) from reports";
+                     int actualReportCount = jt.queryForObject(sql, Integer.class);
+
+                     assertTrue("Report count is not what was expected", (expectedReportCount == actualReportCount));
+
+                     logger.debug("testDatabaseCalls() finished.");
+                 }
+
+
+
+             }
+
+
+
+
+12. Right-click on testDatabaseReportCount -> Debug
+    -- You should see that the DataSource object has a random port number for the url
+    -- Take a look at the jdbcUrl:  It should be a different port each time
+
+
+
+13. Startup your regular sycn service
+    NOTE:  It should still be show running
+
+
+
+
+
+
+
