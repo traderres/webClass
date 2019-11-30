@@ -125,9 +125,8 @@
    1. Run Java code to run SQL insert and return newly-created id
   
 1. Run SQL transactions in Java w/Spring-JDBC
-   1. Run SQL transaction manually (inside & outside perspectives)
-   1. Run Java code to execute a transaction 
-   1. Run Java code to execute a transaction that returns an object
+   1. [Run Java code to execute a transaction w/o returning anything](/learnSpringJdbc/howToRunSqlTransactionWithNoResults.txt)
+   1. [Run Java code to execute a transaction that returns an object](/learnSpringJdbc/howToRunSqlTransactionWithReturnObject.txt)
    
 1. Create a REST endpoint that returns a list of data
    1. Construct SQL join that retrieves the data
