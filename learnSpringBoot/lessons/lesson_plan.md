@@ -164,9 +164,10 @@
    1. [Setup your own Certificate Authority](/learnSSL/howToUseYourCertAuthority_InitialSetup.txt)
    1. [Create your own server certificate](/learnSSL/howToUseYourCertAuthority_MakeServerCert.txt)
    1. [Create your own PKI client certificate](/learnSSL/howToUseYourCertAuthority_MakeServerCert.txt)
-   1. Configure SpringBoot to use your server cert
-   1. Configure SpringBoot to require PKI client certificate
-   1. Configure Security to protect your REST endpoints
+   1. [Configure SpringBoot to use require PKI certificates to protect REST endpoints](/learnSpringBoot/lessons/lesson19_secureWebappWithPki.txt)
+   1. Setup a Spring Profile called "prod" that uses https
+   1. Setup a Spring Profile called "dev"  that uses http
+   
    
 1. Building & Deployment
    1. Create Jenkins Job to build the uber JAR
