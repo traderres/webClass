@@ -1,0 +1,280 @@
+How to Setup Your Own Certificate Authority (on Centos 7)
+---------------------------------------------------------
+
+Assumptions:
+ A) You want to setup your own Certificate Authority
+ B) You have a Java JDK [that includes keytool]
+
+
+
+Procedures
+----------
+ 1. Check if you have openssl
+    unix> openssl version
+    OpenSSL 1.0.2k-fips  26 Jan 2017
+
+    If you want to install or upgrade openssl, follow these commands:
+    unix> sudo yum install openssl
+
+  
+ 2. Setup you own Root Certificate Authority directories
+    unix> cd   # cd to your home directory
+    unix> mkdir root-ca
+    unix> cd root-ca
+    unix> mkdir conf private public signed-keys
+    unix> echo 01 > conf/serial
+    unix> touch conf/index
+    unix> echo unique_subject = no > conf/index.attr
+  
+  
+  
+  3. Create this file:  openssl.cnf
+     unix> vi conf/openssl.cnf
+
+     Create an empty file here:  /home/<Your unix account>/root-ca/conf/openssl.cnf
+
+     NOTE:  Remove any leading spaces
+     
+     Copy this to your file located here:   /home/<Your unix account>/root-ca/conf/openssl.cnf
+     NOTE:  for the default_md, you can use sha256
+     
+     
+        [ req ]
+        default_bits            = 4096
+        default_keyfile         = ./private/root.pem
+        default_md              = sha256
+        prompt                  = no
+        distinguished_name      = root_ca_distinguished_name
+        x509_extensions = v3_ca
+        
+        [ root_ca_distinguished_name ]
+        countryName             = US
+        stateOrProvinceName     = Virginia
+        localityName            = Merrifield
+        organizationName        = Example Inc Root
+        commonName              = Example Inc Root CA
+        emailAddress            = adam@zztop.com
+        
+        [ v3_ca ]
+        subjectKeyIdentifier=hash
+        authorityKeyIdentifier=keyid:always,issuer:always
+        basicConstraints = CA:true
+        
+        [ ca ]
+        default_ca              = CA_default
+        
+        [ CA_default ]
+        dir                     = .
+        new_certs_dir           = ./signed-keys
+        database                = ./conf/index
+        certificate             = ./public/root.pem
+        serial                  = ./conf/serial
+        private_key             = ./private/root.pem
+        x509_extensions         = usr_cert
+        name_opt                = ca_default
+        cert_opt                = ca_default
+        default_crl_days        = 30
+        default_days            = 365
+        default_md              = sha1
+        preserve                = no
+        policy                  = policy_match
+        
+        [ policy_match ]
+        countryName             = optional
+        stateOrProvinceName     = optional
+        organizationName        = optional
+        organizationalUnitName  = optional
+        commonName              = supplied
+        emailAddress            = optional
+        
+        [ usr_cert ]
+        basicConstraints=CA:FALSE
+        subjectKeyIdentifier=hash
+        authorityKeyIdentifier=keyid,issuer:always
+        nsCaRevocationUrl     = https://www.example.com/example-ca-crl.pem
+     
+
+  4. Remove leading spaces from your conf/openssl.cnf file
+     unix> cd ~/root-ca
+     unix> sed -i 's/^ *//g' conf/openssl.cnf
+
+
+     NOTE:  At this point, you should have these files:
+        unix> cd ~/root-ca
+        unix> find . -type f -print
+        ./conf
+        ./conf/serial
+        ./conf/index
+        ./conf/index.attr
+        ./conf/openssl.cnf
+        ./private
+        ./public
+        ./signed-keys
+
+
+
+
+ 5. Verify that your  /home/<your unix account>/root-ca/conf/serial holds this [with no quotes]
+    unix> cd ~/root-ca
+    unix> more conf/serial
+    01
+     
+ 
+ 
+ 6. Verify that your /home/<your unix account>/root-ca/conf/index.attr holds this  [with no quotes]
+    unix> cd ~/root-ca
+    unix> more conf/index.attr
+    unique_subject = no
+    
+      
+  
+ 7. Generate the public and private Root CA keys
+    unix> cd ~/root-ca
+    unix> openssl req -nodes -config conf/openssl.cnf -days 1825 -x509 -newkey rsa:4096 -out public/root.pem -outform PEM
+         Loading 'screen' into random state - done
+         Generating a 4096 bit RSA private key
+         .............++++++
+         ........++++++
+         unable to write 'random state'
+         writing new private key to './private/root.pem'
+         -----
+    
+    Explanation of the command options
+    •   The –nodes tells openssl to not encrypt the private key.  This is useful when your web server starts automatically at boot time.  If the private key is encrypted, you will be required to enter the password every time your web server is restarted.
+    •   The –newkey rsa:4096 generates a new private key of type RSA of length 4096 bytes
+    •   The –days 1825 makes the certificate valid for 1825 days
+    •   The –x509 output a self-signed certificate instead of a certificate request
+
+    The Public Root CA file looks like this:   /home/<your unix account/root-ca/public/root.pem
+        -----BEGIN CERTIFICATE-----
+        MIIDkDCCAvmgAwIBAgIJAPayvU45UJdjMA0GCSqGSIb3DQEBBQUAMIGNMQswCQYD
+        VQQGEwJVUzERMA8GA1UECAwIVmlyZ2luaWExEzARBgNVBAcMCk1lcnJpZmllbGQx
+        GTAXBgNVBAoMEEV4YW1wbGUgSW5jIFJvb3QxHDAaBgNVBAMME0V4YW1wbGUgSW5j
+        IFJvb3QgQ0ExHTAbBgkqhkiG9w0BCQEWDmFkYW1Aenp0b3AuY29tMB4XDTE2MDEw
+        NjAzMTQxMloXDTIxMDEwNDAzMTQxMlowgY0xCzAJBgNVBAYTAlVTMREwDwYDVQQI
+        DAhWaXJnaW5pYTETMBEGA1UEBwwKTWVycmlmaWVsZDEZMBcGA1UECgwQRXhhbXBs
+        ZSBJbmMgUm9vdDEcMBoGA1UEAwwTRXhhbXBsZSBJbmMgUm9vdCBDQTEdMBsGCSqG
+        SIb3DQEJARYOYWRhbUB6enRvcC5jb20wgZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJ
+        AoGBALPVwmO5po/7IZc6bwOqc60pXECcJ3wwQdrQTZjhWcuBMAJP9TsKAmilWhMx
+        LaW+3PxUg9P2EJEFHKEV5LYGvwV6QSHuR13bO0/ft2vBuW22rvSIhY50wUauKaf9
+        kz/cOq9oGbyS6E3BI2WkQzygiF7REQh0IS6irIYA2WqFvDjHAgMBAAGjgfUwgfIw
+        HQYDVR0OBBYEFE74ZAu+SOXjOM75SmxuSgj8aV8xMIHCBgNVHSMEgbowgbeAFE74
+        ZAu+SOXjOM75SmxuSgj8aV8xoYGTpIGQMIGNMQswCQYDVQQGEwJVUzERMA8GA1UE
+        CAwIVmlyZ2luaWExEzARBgNVBAcMCk1lcnJpZmllbGQxGTAXBgNVBAoMEEV4YW1w
+        bGUgSW5jIFJvb3QxHDAaBgNVBAMME0V4YW1wbGUgSW5jIFJvb3QgQ0ExHTAbBgkq
+        hkiG9w0BCQEWDmFkYW1Aenp0b3AuY29tggkA9rK9TjlQl2MwDAYDVR0TBAUwAwEB
+        /zANBgkqhkiG9w0BAQUFAAOBgQAeI8d2FZlHyk63LgmuB0Dy63zN2gNG4KpHyroT
+        9FNamy2PYXSa5mdUXzCa1gfYQnSxkNmyAD1n6vlMYi0bb1HRLvrUHYqRd5Eqpxo1
+        vmVAjuM039TeB1FIbWXsHUpj79tKuAOhEVxgc0eE46lnSlFhninmB3g2iEMmwuYx
+        9MpP2Q==
+        -----END CERTIFICATE-----
+    
+    
+    The Private Root CA file looks like this:   /home/<your unix account/root-ca/private/root.pem
+        -----BEGIN PRIVATE KEY-----
+        MIICdQIBADANBgkqhkiG9w0BAQEFAASCAl8wggJbAgEAAoGBALPVwmO5po/7IZc6
+        bwOqc60pXECcJ3wwQdrQTZjhWcuBMAJP9TsKAmilWhMxLaW+3PxUg9P2EJEFHKEV
+        5LYGvwV6QSHuR13bO0/ft2vBuW22rvSIhY50wUauKaf9kz/cOq9oGbyS6E3BI2Wk
+        QzygiF7REQh0IS6irIYA2WqFvDjHAgMBAAECgYBmXlYLYpDYAQJ8DX1IPu0eMx8a
+        gElRvj6eiljBn/X3jBCCIHXeJ7J7UzTVG/d6FA3DbXClZbrEcn57i/TnUSvGxBEW
+        2gqNrERN34i8hJCN47WyOrc+WYJSaQlh1yuv8ZAigEY/tYATlCrWueGa0fwRPRx0
+        OXgy76T5e6v6I+YwgQJBANzmU50yex1260wGK4ixcS9MIeaEQA/YFJ1CqFvh8Hfa
+        VAZNbrESP4XNY8YB78pnZoeYdDojO1BoV8ph3NslTKcCQQDQaQSdvG8ww3Vq9FJC
+        58W2SPBpbFzJLSGu/o6mK4SGLcvLlIBOnd/eivoi7euFHyZdfzZhS6so7eNNCJRn
+        5pbhAkABfIdJgoJzk05IB66ZT+BcGh4MSA2KTcDtwfoSDDYrCEwScsjw5heJVfV6
+        6p5rdUCqXutBTOVkSB93HCt5Sgn3AkB6mm1GxgW7cCDxLI4AIg0jsUENI9xp1Q0N
+        v173zn4F2YccWl4o4aNDbgq85a46ABs3wZCiKDumtluTg8qaXQLBAkBkfbLsARcd
+        Qkuwvzy17EtWUAephul1WjE0qku5VVsiF5ujPybdxjQ+kr3ahr2Hslfe/M3sKd2M
+        lcsr7wKCVZtx
+        -----END PRIVATE KEY-----
+
+
+
+ 7. Look inside the Public CA Key
+    unix> cd ~/root-ca
+    unix> openssl x509 -in public/root.pem -noout -text
+  
+        Certificate:
+            Data:
+                Version: 3 (0x2)
+                Serial Number:
+                    f6:b2:bd:4e:39:50:97:63
+            Signature Algorithm: sha1WithRSAEncryption
+                Issuer: C=US, ST=Virginia, L=Merrifield, O=Example Inc Root, CN=Example Inc Root CA/emailAddress=adam@zztop.com
+                Validity
+                    Not Before: Jan  6 03:14:12 2016 GMT
+                    Not After : Jan  4 03:14:12 2021 GMT
+                Subject: C=US, ST=Virginia, L=Merrifield, O=Example Inc Root, CN=Example Inc Root CA/emailAddress=adam@zztop.com
+        
+                Subject Public Key Info:
+                    Public Key Algorithm: rsaEncryption
+                        Public-Key: (2048 bit)
+                        Modulus:
+                            00:b3:d5:c2:63:b9:a6:8f:fb:21:97:3a:6f:03:aa:
+                            73:ad:29:5c:40:9c:27:7c:30:41:da:d0:4d:98:e1:
+                            59:cb:81:30:02:4f:f5:3b:0a:02:68:a5:5a:13:31:
+                            2d:a5:be:dc:fc:54:83:d3:f6:10:91:05:1c:a1:15:
+                            e4:b6:06:bf:05:7a:41:21:ee:47:5d:db:3b:4f:df:
+                            b7:6b:c1:b9:6d:b6:ae:f4:88:85:8e:74:c1:46:ae:
+                            29:a7:fd:93:3f:dc:3a:af:68:19:bc:92:e8:4d:c1:
+                            23:65:a4:43:3c:a0:88:5e:d1:11:08:74:21:2e:a2:
+                            ac:86:00:d9:6a:85:bc:38:c7
+                        Exponent: 65537 (0x10001)
+                X509v3 extensions:
+                    X509v3 Subject Key Identifier:
+                        4E:F8:64:0B:BE:48:E5:E3:38:CE:F9:4A:6C:6E:4A:08:FC:69:5F:31
+                    X509v3 Authority Key Identifier:
+                        keyid:4E:F8:64:0B:BE:48:E5:E3:38:CE:F9:4A:6C:6E:4A:08:FC:69:5F:31
+                        DirName:/C=US/ST=Virginia/L=Merrifield/O=Example Inc Root/CN=Example Inc Root CA/emailAddress=adam@zztop.com
+                        serial:F6:B2:BD:4E:39:50:97:63
+        
+                    X509v3 Basic Constraints:
+                        CA:TRUE
+            Signature Algorithm: sha1WithRSAEncryption
+                 1e:23:c7:76:15:99:47:ca:4e:b7:2e:09:ae:07:40:f2:eb:7c:
+                 cd:da:03:46:e0:aa:47:ca:ba:13:f4:53:5a:9b:2d:8f:61:74:
+                 9a:e6:67:54:5f:30:9a:d6:07:d8:42:74:b1:90:d9:b2:00:3d:
+                 67:ea:f9:4c:62:2d:1b:6f:51:d1:2e:fa:d4:1d:8a:91:77:91:
+                 2a:a7:1a:35:be:65:40:8e:e3:34:df:d4:de:07:51:48:6d:65:
+                 ec:1d:4a:63:ef:db:4a:b8:03:a1:11:5c:60:73:47:84:e3:a9:
+                 67:4a:51:61:9e:29:e6:07:78:36:88:43:26:c2:e6:31:f4:ca:
+                 4f:d9
+ 
+            
+            
+ 8. Verify that the public and private key have the *Same* modulus
+    unix> cd ~/root-ca
+    unix> openssl x509 -in public/root.pem -noout -modulus
+         Modulus=B3D5C263B9A68FFB21973A6F03AA73AD295C409C277C3041DAD04D98E159CB8130024FF53B0A0268A55A13312DA5BEDCFC5483D3F6109105
+         1CA115E4B606BF057A4121EE475DDB3B4FDFB76BC1B96DB6AEF488858E74C146AE29A7FD933FDC3AAF6819BC92E84DC12365A4433CA0885ED1110874
+         212EA2AC8600D96A85BC38C7
+   
+    unix> openssl rsa -in private/root.pem -noout -modulus
+         Modulus=B3D5C263B9A68FFB21973A6F03AA73AD295C409C277C3041DAD04D98E159CB8130024FF53B0A0268A55A13312DA5BEDCFC5483D3F6109105
+         1CA115E4B606BF057A4121EE475DDB3B4FDFB76BC1B96DB6AEF488858E74C146AE29A7FD933FDC3AAF6819BC92E84DC12365A4433CA0885ED1110874
+         212EA2AC8600D96A85BC38C7      
+
+
+
+ 9. Distribute your Root Public Certificate (import it into your web browser)
+    a. Give the /home/<your unix account>/root-ca/public/root.pem to teammates
+
+
+
+10. Import the public root.pem into your firefox web browser
+    a. Startup Firefox
+    b. Pull Edit / Preferences / View Certificates
+    c. Click "View Certificates"
+    d. Click "Authorities" tab
+    e. Click "Import"
+    f. Browse to where you have the/home/<your unix account>/root-ca/public/root.pem
+    g. Check “Trust this CA to identify websites"
+       Check "Trust this CA to identify email users"
+       Press OK
+       Press OK
+
+
+
+
+    
+          
