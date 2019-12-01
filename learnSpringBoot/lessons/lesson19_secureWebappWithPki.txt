@@ -130,157 +130,152 @@ Procedure
 
     b Copy this to your new class
 
-           package com.lessons.security;
+            package com.lessons.security;
 
-           import org.apache.commons.lang3.StringUtils;
-           import org.slf4j.Logger;
-           import org.slf4j.LoggerFactory;
-           import org.springframework.beans.factory.annotation.Value;
-           import org.springframework.security.authentication.AuthenticationManager;
-           import org.springframework.security.core.Authentication;
-           import org.springframework.security.core.AuthenticationException;
-           import org.springframework.security.core.GrantedAuthority;
-           import org.springframework.security.core.authority.SimpleGrantedAuthority;
-           import org.springframework.security.core.context.SecurityContextHolder;
-           import org.springframework.security.core.userdetails.UserDetails;
-           import org.springframework.security.core.userdetails.UsernameNotFoundException;
-           import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
-           import org.springframework.stereotype.Component;
+            import org.apache.commons.lang3.StringUtils;
+            import org.slf4j.Logger;
+            import org.slf4j.LoggerFactory;
+            import org.springframework.beans.factory.annotation.Value;
+            import org.springframework.security.authentication.AuthenticationManager;
+            import org.springframework.security.core.Authentication;
+            import org.springframework.security.core.AuthenticationException;
+            import org.springframework.security.core.GrantedAuthority;
+            import org.springframework.security.core.authority.SimpleGrantedAuthority;
+            import org.springframework.security.core.context.SecurityContextHolder;
+            import org.springframework.security.core.userdetails.UserDetails;
+            import org.springframework.security.core.userdetails.UsernameNotFoundException;
+            import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
+            import org.springframework.stereotype.Component;
 
-           import java.util.ArrayList;
-           import java.util.List;
-           import java.util.regex.Matcher;
-           import java.util.regex.Pattern;
+            import java.util.ArrayList;
+            import java.util.List;
+            import java.util.regex.Matcher;
+            import java.util.regex.Pattern;
 
-           @Component("com.lessons.security.MyAuthenticationManager")
-           public class MyAuthenticationManager implements AuthenticationManager {
-               private static final Logger logger = LoggerFactory.getLogger(MyAuthenticationManager.class);
+            @Component("com.lessons.security.MyAuthenticationManager")
+            public class MyAuthenticationManager implements AuthenticationManager {
+                private static final Logger logger = LoggerFactory.getLogger(MyAuthenticationManager.class);
 
-               private static final Pattern patExtractCN = Pattern.compile("cn=(.*?)(?:,|/|\\z)", Pattern.CASE_INSENSITIVE);
-
-
-               @Value("${spring.profiles.active:}")             // If not found, then holds an empty string
-               private String activeProfileName;
+                private static final Pattern patExtractCN = Pattern.compile("cn=(.*?)(?:,|/|\\z)", Pattern.CASE_INSENSITIVE);
 
 
-               @Override
-               public Authentication authenticate(Authentication authentication) throws AuthenticationException {
-                   if (null != SecurityContextHolder.getContext().getAuthentication()) {
-                       // Users is already authenticated, so do nothing
-                       return  SecurityContextHolder.getContext().getAuthentication();
-                   }
-
-                   // Load user dteails with information
-                   UserDetails userDetails;
-
-                   // We are really authenticating in the UserDetailService -- so do nothing here
-                   if ( activeProfileName.equalsIgnoreCase("prod") ) {
-                       // Get the user details from *real* source -- e.g., ActiveDirectory or a database
-                       userDetails = loadUserDetailsFromRealSource(authentication);
-                   }
-                   else {
-                       // Get the hard-coded bogus user details
-                       userDetails = loadUserDetailsForDevelopment(authentication);
-                   }
-
-                   // Return an AuthenticationToken object
-                   PreAuthenticatedAuthenticationToken preapproved = new PreAuthenticatedAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                   preapproved.setAuthenticated(true);
-                   return preapproved;
-               }
+                @Value("${spring.profiles.active:}")             // If not found, then holds an empty string
+                private String activeProfileName;
 
 
-               private UserDetails loadUserDetailsFromRealSource(Authentication authentication) {
-                   String userDN = null;
-                   PreAuthenticatedAuthenticationToken token = null;
+                @Override
+                public Authentication authenticate(Authentication authentication) throws AuthenticationException {
+                    if (SecurityContextHolder.getContext().getAuthentication() != null) {
+                        // Users is already authenticated, so do nothing
+                        return  SecurityContextHolder.getContext().getAuthentication();
+                    }
 
-                   if (authentication.getPrincipal() instanceof String) {
-                       userDN = authentication.getPrincipal().toString();
-                   } else if (authentication.getPrincipal() instanceof UserInfo) {
-                       return (UserDetails) authentication.getPrincipal();
-                   } else {
-                       token = ( PreAuthenticatedAuthenticationToken ) authentication.getPrincipal();
-                       userDN = token.getName();
-                   }
-                   // Get the user's UID from the CN=<...>
-                   // NOTE:  This works in both the development and production environments
-                   //        In production, the UID is in the format of john.smith.k.12345678
-                   //        In development, the uid is in the format of testuser
-                   try {
-                       String userUID = getCnValueFromLongDnString(userDN);
+                    UserDetails userDetails;
 
-                       List<GrantedAuthority> grantedRoleAuthorities = new ArrayList<>();
+                    // We are really authenticating in the UserDetailService -- so do nothing here
+                    if ( activeProfileName.equalsIgnoreCase("prod") ) {
+                        // Get the user details from *real* source -- e.g., ActiveDirectory or a database
+                        userDetails = loadUserDetailsFromRealSource(authentication);
+                    }
+                    else {
+                        // Get the hard-coded bogus user details
+                        userDetails = loadUserDetailsForDevelopment(authentication);
+                    }
 
-                       // Get the list or roles for this user from the real ActiveDirectory or Header
-                       grantedRoleAuthorities.add(new SimpleGrantedAuthority("ROLE_SUPERUSER"));
-
-
-                       if ((grantedRoleAuthorities != null) && (grantedRoleAuthorities.size() > 0)) {
-                           // This user has atleast one role found in Citadel
-                           // NOTE:  All granted authorities must start with the "ROLE_" prefix
-                           grantedRoleAuthorities.add(new SimpleGrantedAuthority("ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS"));
-                       }
-                       else {
-                           // This user has no roles so throw a runtime exception
-                           throw new RuntimeException("No roles were found for this user: " + userUID);
-                       }
-
-                       logger.info("{} successfully logged-in.", userUID);
-
-                       // User is about to login
-                       // -- This would be the place to add/update a database record indicating that the user logged-in
-
-                       // Get the user's userid from the database
-                       int userId = 25;
-
-                       // We *MUST* set the database ID in the UserInfo object here
-                       return new UserInfo()
-                               .withId(userId)
-                               .withUsernameDn(userDN)
-                               .withUsernameUID(userUID)
-                               .withGrantedAuthorities(grantedRoleAuthorities);
-                   } catch (Exception e) {
-                       throw new UsernameNotFoundException("Exception raised in loadUserDetailsFromRealSource():  This user will definitely not login", e);
-                   }
-               }
+                    // Return an AuthenticationToken object
+                    PreAuthenticatedAuthenticationToken preapproved = new PreAuthenticatedAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                    preapproved.setAuthenticated(true);
+                    return preapproved;
+                }
 
 
-               public UserDetails loadUserDetailsForDevelopment(Authentication authentication) {
+                private UserDetails loadUserDetailsFromRealSource(Authentication authentication) {
+                    String userDN;
+                    PreAuthenticatedAuthenticationToken token = null;
 
-                   final String userUID = "my_test_user";
-                   final String userDN = "3.2.12.144549.1.9.1=#161760312e646576,CN=my_test_user,OU=Hosts,O=ZZTop.Org,C=ZZ";
+                    if (authentication.getPrincipal() instanceof String) {
+                        userDN = authentication.getPrincipal().toString();
+                    } else if (authentication.getPrincipal() instanceof UserInfo) {
+                        return (UserDetails) authentication.getPrincipal();
+                    } else {
+                        token = ( PreAuthenticatedAuthenticationToken ) authentication.getPrincipal();
+                        userDN = token.getName();
+                    }
 
-                   // Create a list of granted authorities
-                   ArrayList<GrantedAuthority> grantedAuthorities = new ArrayList<>();
+                    // Get the user's UID from the CN=<...>
+                    try {
+                        String userUID = getCnValueFromLongDnString(userDN);
 
-                   grantedAuthorities.add(new SimpleGrantedAuthority("ROLE_SUPER_USER"));
+                        List<GrantedAuthority> grantedRoleAuthorities = new ArrayList<>();
 
-                   // Create a list of authorizations
-                   ArrayList<String> authorizations = new ArrayList<>();
-                   authorizations.add("FOUO");
-
-                   // Create a bogus UserInfo object
-                   // NOTE:  I am hard-coding the user's userid=25
-                   UserInfo anonymousUserInfo = new UserInfo()
-                           .withId(25)
-                           .withUsernameUID(userUID)
-                           .withUsernameDn(userDN)
-                           .withGrantedAuthorities(grantedAuthorities);
-                   return anonymousUserInfo;
-               }
+                        // Get the list or roles for this user from the real ActiveDirectory or Header
+                        grantedRoleAuthorities.add(new SimpleGrantedAuthority("ROLE_SUPERUSER"));
 
 
-               private static String getCnValueFromLongDnString(String userDN) {
-                   String cnValue = null;
-                   // Use the regular expression pattern to getByUserId the value part of "CN=value"
-                   Matcher matcher = patExtractCN.matcher(userDN);
-                   if (matcher.find()) {
-                       cnValue = matcher.group(1);
-                   }
-                   return cnValue;
-               }
+                        if ((grantedRoleAuthorities != null) && (grantedRoleAuthorities.size() > 0)) {
+                            // This user has atleast one role found in my authorizatoin service
+                            // NOTE:  All granted authorities must start with the "ROLE_" prefix
+                            grantedRoleAuthorities.add(new SimpleGrantedAuthority("ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS"));
+                        }
+                        else {
+                            // This user has no roles so throw a runtime exception
+                            throw new RuntimeException("No roles were found for this user: " + userUID);
+                        }
 
-           }
+                        logger.info("{} successfully logged-in.", userUID);
+
+                        // User is about to login
+                        // -- This would be the place to add/update a database record indicating that the user logged-in
+
+                        // Get the user's userid from the database
+                        int userId = 25;
+
+                        // We *MUST* set the database ID in the UserInfo object here
+                        return new UserInfo()
+                                .withId(userId)
+                                .withUsernameDn(userDN)
+                                .withUsernameUID(userUID)
+                                .withGrantedAuthorities(grantedRoleAuthorities);
+                    } catch (Exception e) {
+                        throw new UsernameNotFoundException("Exception raised in loadUserDetailsFromRealSource():  This user will definitely not login", e);
+                    }
+                }
+
+
+                public UserDetails loadUserDetailsForDevelopment(Authentication authentication) {
+
+                    final String userUID = "my_test_user";
+                    final String userDN = "3.2.12.144549.1.9.1=#161760312e646576,CN=my_test_user,OU=Hosts,O=ZZTop.Org,C=ZZ";
+
+                    // Create a list of granted authorities
+                    List<GrantedAuthority> grantedAuthorities = new ArrayList<>();
+                    grantedAuthorities.add(new SimpleGrantedAuthority("ROLE_SUPER_USER"));
+                    grantedAuthorities.add(new SimpleGrantedAuthority("ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS"));
+
+                    // Create a bogus UserInfo object
+                    // NOTE:  I am hard-coding the user's userid=25
+                    UserInfo anonymousUserInfo = new UserInfo()
+                            .withId(25)
+                            .withUsernameUID(userUID)
+                            .withUsernameDn(userDN)
+                            .withGrantedAuthorities(grantedAuthorities);
+                    return anonymousUserInfo;
+                }
+
+
+                private static String getCnValueFromLongDnString(String userDN) {
+                    String cnValue = null;
+                    // Use the regular expression pattern to getByUserId the value part of "CN=value"
+                    Matcher matcher = patExtractCN.matcher(userDN);
+                    if (matcher.find()) {
+                        cnValue = matcher.group(1);
+                    }
+                    return cnValue;
+                }
+
+            }
+
+
 
 
  8. Add this java class:  MyAuthorizationFilter
@@ -289,74 +284,74 @@ Procedure
 
     b Copy this to your new class
 
-            package com.lessons.security;
+         package com.lessons.security;
 
-            import org.slf4j.Logger;
-            import org.slf4j.LoggerFactory;
-            import org.springframework.stereotype.Component;
-            import org.springframework.web.filter.OncePerRequestFilter;
+         import org.slf4j.Logger;
+         import org.slf4j.LoggerFactory;
+         import org.springframework.stereotype.Component;
+         import org.springframework.web.filter.OncePerRequestFilter;
 
-            import javax.servlet.FilterChain;
-            import javax.servlet.ServletException;
-            import javax.servlet.http.HttpServletRequest;
-            import javax.servlet.http.HttpServletResponse;
-            import java.io.IOException;
+         import javax.servlet.FilterChain;
+         import javax.servlet.ServletException;
+         import javax.servlet.http.HttpServletRequest;
+         import javax.servlet.http.HttpServletResponse;
+         import java.io.IOException;
 
-            /**
-             * Bean to filter all requests to check Authorization.
-             */
-            @Component("com.lessons.security.myAuthorizationFilter")
-            public class MyAuthorizationFilter extends OncePerRequestFilter {
+         @Component("com.lessons.security.myAuthorizationFilter")
+         public class MyAuthorizationFilter extends OncePerRequestFilter {
 
-                private static final Logger logger = LoggerFactory.getLogger(MyAuthorizationFilter.class);
+             private static final Logger logger = LoggerFactory.getLogger(MyAuthorizationFilter.class);
 
 
-                /**
-                 * Filters such that all api calls will be sent to the filter.  All other calls are skipped
-                 * @param request the request
-                 * @return true if the filter is not applied, false if to filter
-                 * @throws ServletException
-                 */
-                @Override
-                protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
-                    if (request.getRequestURI().startsWith("/api")) {
-                        return false;
-                    } else  if (request.getRequestURI().startsWith("/app1/api")) {
-                        return false;
-                    }
-                    return true;
-                }
+             /**
+              * Filters such that all api calls will be sent to the filter.  All other calls are skipped
+              * @param request the request
+              * @return true if the filter is not applied, false if to filter
+              * @throws ServletException
+              */
+             @Override
+             protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+                 if (request.getRequestURI().startsWith("/api")) {
+                     // Do not skip this check
+                     return false;
+                 } else  if (request.getRequestURI().startsWith("/app1/api")) {
+                     // Do not skip this check
+                     return false;
+                 }
 
-                /**
-                 * Performs the security filtering for all the api calls
-                 * See shouldNotFilter above to see what is included
-                 * @param request the request
-                 * @param response the response
-                 * @param filterChain the filter chain
-                 * @throws ServletException
-                 * @throws IOException
-                 */
-                @Override
-                protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+                 // Skip this check
+                 return true;
+             }
 
-                    boolean isAuthorized = true;
-                    if (isAuthorized == false) {
-                        // Someone made a request that is *NOT* allowed
-                        logger.warn("User made a request that is not allowed:  Requested URI is {}", request.getRequestURI());
+             /**
+              * Performs the security filtering for all the api calls
+              * See shouldNotFilter above to see what is included
+              * @param request the request
+              * @param response the response
+              * @param filterChain the filter chain
+              * @throws ServletException
+              * @throws IOException
+              */
+             @Override
+             protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
 
-                        // Change the response object to tell the front-end that this request is forbidden
-                        // NOTE: Do not set the content type to be TEXT/PLAIN here
-                        HttpServletResponse httpResponse = (HttpServletResponse ) response;
-                        httpResponse.sendError(HttpServletResponse.SC_FORBIDDEN, "You do not have sufficient permissions to perform this action.");
-                        return;
-                    }
+                 boolean isAuthorized = true;
+                 if (isAuthorized == false) {
+                     // Someone made a request that is *NOT* allowed
+                     logger.warn("User made a request that is not allowed:  Requested URI is {}", request.getRequestURI());
 
-                    // Log a successful attempt to access
-                    logger.info("Authorized user made a request:  Requested URI is {}", request.getRequestURI());
+                     // Change the response object to tell the front-end that this request is forbidden
+                     // NOTE: Do not set the content type to be TEXT/PLAIN here
+                     HttpServletResponse httpResponse = (HttpServletResponse ) response;
+                     httpResponse.sendError(HttpServletResponse.SC_FORBIDDEN, "You are not authorized to perform this action.");
+                     return;
+                 }
 
-                    filterChain.doFilter(request, response);
-                }
-            }
+                 // Continue on with the request (as the user is allowed to make this call
+                 logger.info("Authorized user made a request:  Requested URI is {}", request.getRequestURI());
+                 filterChain.doFilter(request, response);
+             }
+         }
 
 
  9. Add this java class:  MyRequestHeaderAuthFilter
@@ -365,69 +360,70 @@ Procedure
 
     b Copy this to your new class
 
-            package com.lessons.security;
+           package com.lessons.security;
 
-            import org.slf4j.Logger;
-            import org.slf4j.LoggerFactory;
-            import org.springframework.beans.factory.annotation.Value;
-            import org.springframework.security.web.authentication.preauth.RequestHeaderAuthenticationFilter;
-            import org.springframework.stereotype.Component;
+           import org.slf4j.Logger;
+           import org.slf4j.LoggerFactory;
+           import org.springframework.beans.factory.annotation.Value;
+           import org.springframework.security.web.authentication.preauth.RequestHeaderAuthenticationFilter;
+           import org.springframework.stereotype.Component;
 
-            import javax.annotation.PostConstruct;
-            import javax.annotation.Resource;
-            import javax.servlet.http.HttpServletRequest;
-
-
-            @Component("com.lessons.security.RequestHeaderAuthFilter")
-            public class MyRequestHeaderAuthFilter extends RequestHeaderAuthenticationFilter
-            {
-                @Resource
-                private MyAuthenticationManager myAuthenticationManager;
-
-                @Value("${security.authenticate.header.dn:SSL_CLIENT_S_DN}")
-                private String nameOfHeaderHoldingDN;
-
-                @Value("${development.mode}")
-                private boolean developmentMode;
-
-                private static final Logger logger = LoggerFactory.getLogger(MyRequestHeaderAuthFilter.class);
-
-                @PostConstruct
-                public void init() {
-                    this.setAuthenticationManager(myAuthenticationManager);
-                    logger.debug("RequestHeaderAuthFilter()  sNameOfHeaderHoldingDN={}", nameOfHeaderHoldingDN);
-                }
+           import javax.annotation.PostConstruct;
+           import javax.annotation.Resource;
+           import javax.servlet.http.HttpServletRequest;
 
 
-                /**************************************************************
-                 * getPreAuthenticatedPrincipal()
-                 *
-                 * This is called when a request is made, the returned object identifies the
-                 * user and will either be {@literal null} or a String.
-                 *
-                 * This method will throw an exception if
-                 * exceptionIfHeaderMissing is set to true (default) and the required header is missing.
-                 **************************************************************/
-                @Override
-                protected Object getPreAuthenticatedPrincipal(HttpServletRequest request)
-                {
-                    logger.debug("getPreAuthenticatedPrincipal() called");
+           @Component("com.lessons.security.RequestHeaderAuthFilter")
+           public class MyRequestHeaderAuthFilter extends RequestHeaderAuthenticationFilter
+           {
+               @Resource
+               private MyAuthenticationManager myAuthenticationManager;
 
-                    // Get the principal from the header
-                    String userDnFromHeader = (String) request.getHeader(this.nameOfHeaderHoldingDN);
-                    if (developmentMode) {
-                        //Since the dev profile is the only one that does not have info in the header
-                        // The name has to be "hacked here" so the the CEDAuthenticationManager is called.
-                        // We are assuming a preApprovedAuthentication so something must be in the header.
-                        userDnFromHeader = "Bogus_user";
-                    }
+               @Value("${security.authenticate.header.dn:SSL_CLIENT_S_DN}")
+               private String nameOfHeaderHoldingDN;
 
-                    // If this method returns null, then the user will see a 403 Forbidden Message
-                    return userDnFromHeader;
-                }
+               @Value("${development.mode}")
+               private boolean developmentMode;
+
+               private static final Logger logger = LoggerFactory.getLogger(MyRequestHeaderAuthFilter.class);
+
+               @PostConstruct
+               public void init() {
+                   this.setAuthenticationManager(myAuthenticationManager);
+                   logger.debug("RequestHeaderAuthFilter()  sNameOfHeaderHoldingDN={}", nameOfHeaderHoldingDN);
+               }
 
 
-            }
+               /**************************************************************
+                * getPreAuthenticatedPrincipal()
+                *
+                * This is called when a request is made, the returned object identifies the
+                * user and will either be {@literal null} or a String.
+                *
+                * This method will throw an exception if
+                * exceptionIfHeaderMissing is set to true (default) and the required header is missing.
+                **************************************************************/
+               @Override
+               protected Object getPreAuthenticatedPrincipal(HttpServletRequest request)
+               {
+                   logger.debug("getPreAuthenticatedPrincipal() called");
+
+                   // Get the principal from the header
+                   String userDnFromHeader = (String) request.getHeader(this.nameOfHeaderHoldingDN);
+                   if (developmentMode) {
+                       //Since the dev profile is the only one that does not have info in the header
+                       // The name has to be "hacked here" so the the CEDAuthenticationManager is called.
+                       // We are assuming a preApprovedAuthentication so something must be in the header.
+                       userDnFromHeader = "Bogus_user";
+                   }
+
+                   // If this method returns null, then the user will see a 403 Forbidden Message
+                   return userDnFromHeader;
+               }
+
+
+           }
+
 
 
 10. Add this java class:  SubjectX509PrincipalExtractor
@@ -456,7 +452,6 @@ Procedure
                     // Get the Distinguished Name (DN) from the cert
                     return clientCertificate.getSubjectX500Principal().getName();
                 }
-
             }
 
 
@@ -597,116 +592,136 @@ Procedure
 
     b Copy this to your new class
 
-            package com.lessons.security;
+          package com.lessons.security;
 
-            import org.slf4j.Logger;
-            import org.slf4j.LoggerFactory;
-            import org.springframework.beans.factory.annotation.Autowired;
-            import org.springframework.beans.factory.annotation.Value;
-            import org.springframework.context.annotation.Bean;
-            import org.springframework.context.annotation.Configuration;
-            import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
-            import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-            import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-            import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
-            import org.springframework.security.config.http.SessionCreationPolicy;
-            import org.springframework.security.web.authentication.preauth.x509.X509AuthenticationFilter;
+          import org.slf4j.Logger;
+          import org.slf4j.LoggerFactory;
+          import org.springframework.beans.factory.annotation.Autowired;
+          import org.springframework.beans.factory.annotation.Value;
+          import org.springframework.context.annotation.Bean;
+          import org.springframework.context.annotation.Configuration;
+          import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+          import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+          import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+          import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+          import org.springframework.security.config.http.SessionCreationPolicy;
+          import org.springframework.security.web.authentication.preauth.x509.X509AuthenticationFilter;
 
-            import javax.annotation.Resource;
-
-
-            @Configuration
-            @EnableWebSecurity
-            public class SpringSecurityConfig extends WebSecurityConfigurerAdapter {
-
-                private static final Logger logger = LoggerFactory.getLogger(SpringSecurityConfig.class);
+          import javax.annotation.Resource;
 
 
-                @Value("${spring.profiles.active}")
-                private String activeProfileName;
+          @Configuration
+          @EnableWebSecurity
+          public class SpringSecurityConfig extends WebSecurityConfigurerAdapter {
 
-                /**
-                 * The authorization mode being
-                 * Possible values:  pki    (if user is sending PKI certificate directly to the spring boot webapp)
-                 *                   header (if a proxy is sending the PKI certificate info as headers to the spring boot webapp)
-                 */
-                @Value("${security.mode}")
-                private String securityMode;
-
-                @Resource
-                private MyAuthenticationManager myAuthenticationManager;
-
-                @Resource
-                private MyRequestHeaderAuthFilter requestHeaderAuthFilter;
-
-                @Resource
-                private SubjectX509PrincipalExtractor subjectX509PrincipalExtractor;
-
-                @Resource
-                private MyAuthorizationFilter myAuthorizationFilter;
-
-                /**
-                 * Global configuration to set the authorization listener.
-                 * @param authenticationManagerBuilder
-                 * @throws Exception
-                 */
-                @Autowired
-                public void configureGlobal(AuthenticationManagerBuilder authenticationManagerBuilder) throws Exception {
-                    logger.debug("configureGlobal() started");
-                    super.configure(authenticationManagerBuilder);
-
-                    logger.debug("configureGlobal() finished");
-                }
+              private static final Logger logger = LoggerFactory.getLogger(SpringSecurityConfig.class);
 
 
+              @Value("${spring.profiles.active}")
+              private String activeProfileName;
 
-                /*************************************************************************
-                 * configure()
-                 *
-                 * Configure Spring Security
-                 *
-                 * If the security.authenticate.mechanism property holds 'header'
-                 *   then use the Request Header to getByUserId the DN from the header
-                 *
-                 * If the security.authenticate.mechanism property holds 'x509'
-                 *   then use the x509 filter to getByUserId the DN from the x509 certificate
-                 *************************************************************************/
-                @Override
-                public void configure(HttpSecurity aHttpSecurity) throws Exception {
-                    logger.debug("configure() started.");
+              /**
+               * The authorization mode being
+               * Possible values:  pki    (if user is sending PKI certificate directly to the spring boot webapp)
+               *                   header (if a proxy is sending the PKI certificate info as headers to the spring boot webapp)
+               */
+              @Value("${security.mode}")
+              private String securityMode;
 
-                    aHttpSecurity.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
-                                .and()
-                                .authorizeRequests()    // Filters out any URLs that are ignored.  This should be before any authorization filters
-                                .antMatchers("/resources/**", "/app1/resources/**", "/error").permitAll()
-                                .antMatchers("/**").access("hasRole('ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS')")   // All users must have the grantedAuthority called ROLE_UserFoundInLdap to view all pages
-                                .and()
-                                .requiresChannel().antMatchers("/**").requiresSecure()    // Redirect http to https
-                                .and()
-                                .addFilter(x509Filter())                                  // Pull the DN from the user's X509 certificate
-                                .addFilterAfter(myAuthorizationFilter, MyRequestHeaderAuthFilter.class)
-                                .headers().frameOptions().disable()                       // By default X-Frame-Options is set to denied.  Disable frameoptions to let this webapp work in OWF
-                                .and()
-                                .anonymous().disable();
+              @Resource
+              private MyAuthenticationManager myAuthenticationManager;
 
-                }
+              @Resource
+              private MyRequestHeaderAuthFilter requestHeaderAuthFilter;
+
+              @Resource
+              private SubjectX509PrincipalExtractor subjectX509PrincipalExtractor;
+
+              @Resource
+              private MyAuthorizationFilter myAuthorizationFilter;
+
+              /**
+               * Global configuration to set the authorization listener.
+               * @param authenticationManagerBuilder
+               * @throws Exception
+               */
+              @Autowired
+              public void configureGlobal(AuthenticationManagerBuilder authenticationManagerBuilder) throws Exception {
+                  logger.debug("configureGlobal() started");
+                  super.configure(authenticationManagerBuilder);
+
+                  logger.debug("configureGlobal() finished");
+              }
 
 
 
-                /**
-                 * Configures the X509AuthenticationFilter for extracting information from the Cert
-                 * @return
-                 */
-                @Bean
-                public X509AuthenticationFilter x509Filter() {
-                    // Setup a filter that extracts the principal from the cert
-                    X509AuthenticationFilter x509Filter = new X509AuthenticationFilter();
-                    x509Filter.setContinueFilterChainOnUnsuccessfulAuthentication(false);
-                    x509Filter.setAuthenticationManager(myAuthenticationManager);
-                    x509Filter.setPrincipalExtractor(subjectX509PrincipalExtractor);
-                    return x509Filter;
-                }
-            }
+              /*************************************************************************
+               * configure()
+               *
+               * Configure Spring Security
+               *
+               * If the security.authenticate.mechanism property holds 'header'
+               *   then use the Request Header to getByUserId the DN from the header
+               *
+               * If the security.authenticate.mechanism property holds 'x509'
+               *   then use the x509 filter to getByUserId the DN from the x509 certificate
+               *************************************************************************/
+              @Override
+              public void configure(HttpSecurity aHttpSecurity) throws Exception {
+                  logger.debug("configure() started.");
+
+                  if (activeProfileName.equalsIgnoreCase("prod")) {
+                      // Running in prod mode
+                      aHttpSecurity.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
+                              .and()
+                              .authorizeRequests()    // Filters out any URLs that are ignored.  This should be before any authorization filters
+                              .antMatchers("/resources/**", "/app1/resources/**", "/error").permitAll()
+                              .antMatchers("/**").access("hasRole('ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS')")   // All users must have the grantedAuthority called ROLE_UserFoundInLdap to view all pages
+                              .and()
+                              .requiresChannel().antMatchers("/**").requiresSecure()    // Redirect http to https
+                              .and()
+                              .addFilter(x509Filter())                                  // Pull the DN from the user's X509 certificate
+                              .addFilterAfter(myAuthorizationFilter, MyRequestHeaderAuthFilter.class)
+                              .headers().frameOptions().disable()                       // By default X-Frame-Options is set to denied.  Disable frameoptions to let this webapp work in OWF
+                              .and()
+                              .anonymous().disable();
+                  }
+                  else {
+                      // Running in non-prod mode
+                      aHttpSecurity.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
+                              .and()
+                              .authorizeRequests()     // Filters out any URLs that are ignored.  This should be before any authorization filters
+                              .antMatchers("/resources/**", "/app1/resources/**", "/app1/error", "/error").permitAll()
+                              .antMatchers("/**").access("hasRole('ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS')")   // All users must have the grantedAuthority called ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS to view all pages
+                              .anyRequest().authenticated()
+                              .and()
+                              .requiresChannel().antMatchers("/**").requiresInsecure()
+                              .and()
+                              .addFilter(requestHeaderAuthFilter)
+                              .addFilterAfter(myAuthorizationFilter, MyRequestHeaderAuthFilter.class)
+                              .headers().frameOptions().disable()                       // By default X-Frame-Options is set to denied.
+                              .and()
+                              .anonymous().disable();
+                  }
+              }
+
+
+
+              /**
+               * Configures the X509AuthenticationFilter for extracting information from the Cert
+               * @return
+               */
+              @Bean
+              public X509AuthenticationFilter x509Filter() {
+                  // Setup a filter that extracts the principal from the cert
+                  X509AuthenticationFilter x509Filter = new X509AuthenticationFilter();
+                  x509Filter.setContinueFilterChainOnUnsuccessfulAuthentication(false);
+                  x509Filter.setAuthenticationManager(myAuthenticationManager);
+                  x509Filter.setPrincipalExtractor(subjectX509PrincipalExtractor);
+                  return x509Filter;
+              }
+          }
+
 
 
 
