@@ -1,0 +1,107 @@
+How to Use Your Certificate Authority to Make a Client Cert (for Centos 7)
+--------------------------------------------------------------------------
+
+Assumptions:
+ A) You already have a Root Certificate Authority Created 
+    [see howToUseYourCertAuthority_InitialSetup.txt]
+ B) You want to create your own self-signed client certificate in .p12 format
+
+
+
+Procedures
+----------
+ 1. Create a Client certificate signing request (CSR) and client key
+    unix> mkdir /tmp/client_cert
+    unix> cd /tmp/client_cert
+    unix> openssl req -new -newkey rsa:4096 -nodes -keyout client.key -out client.csr
+   
+    -- You are prompted to enter the following:
+        County Name:  [US]          US
+        State or Province name:     Virginia
+        Locality Name:              Merrifield
+        Organization Name:          Secure
+        Organizational Unit:        Secure
+        Common Name:                John Smith
+        Email Address:              <blank>
+        A challenge Password:       <blank>
+        An optional company name:   <blank>
+        
+        -- Generates a certificate signing request (called client.csr)
+        -- Generates a private key file (called client.key
+
+
+
+ 2. Sign the Client CSR (generate client.cert.notes)
+    unix> cd ~/root-ca
+    unix> openssl ca -batch -config conf/openssl.cnf -in /tmp/client_cert/client.csr -out /tmp/client_cert/client.cert.notes
+  
+          Using configuration from conf/openssl.cnf
+          Loading 'screen' into random state - done
+          Check that the request matches the signature
+          Signature ok
+          Certificate Details:
+                    Serial Number: 1 (0x1)
+                    Validity
+                        Not Before: Jan  6 03:38:32 2016 GMT
+                        Not After : Jan  5 03:38:32 2017 GMT
+                    Subject:
+                        countryName               = US
+                        stateOrProvinceName       = Virginia
+                        organizationName          = Secure
+                        organizationalUnitName    = Secure
+                        commonName                = John Smith
+                    X509v3 extensions:
+                        X509v3 Basic Constraints:
+                            CA:FALSE
+                        X509v3 Subject Key Identifier:
+                            86:CC:8C:A4:EE:06:0A:0E:56:A6:2F:B2:EC:CF:DA:AE:67:7D:8F:95
+                        X509v3 Authority Key Identifier:
+                            keyid:88:98:A1:46:98:5A:5A:C0:8E:78:32:36:65:E7:D9:6B:25:49:E3:DC
+                            DirName:/C=US/ST=Virginia/L=Merrifield/O=Example Inc Root/CN=Example Inc Root CA/emailAddress=adam@zztop.com
+                            serial:E4:59:C3:2F:EF:D6:1B:05
+            
+                        Netscape CA Revocation Url:
+                            https://www.example.com/example-ca-crl.pem
+          Certificate is to be certified until Jan  5 03:38:32 2017 GMT (365 days)
+            
+          Write out database with 1 new entries
+          Data Base Updated
+      
+      
+     NOTE:  At this point, your conf\serial file should hold 02      
+            At this point, your /tmp/client_cert/client.cert.notes file should hold your *signed* client certificate
+            
+
+
+ 3. Extract the signed client certificate from the /tmp/client_cert/client.cert.notes
+    a. Open this file with notepad:  /tmp/client_cert/client.cert.notes
+       unix> vi /tmp/client_cert/client.cert.notes
+    b. Highlight the section between  
+          -----BEGIN CERTIFICATE-----
+          
+          -----END CERTIFICATE-----
+          
+    c. Copy + Paste it into this file:  /tmp/client_cert/client.cert
+    
+ 
+ 
+ 4. Convert the signed client cert into PKCS12 format
+    NOTE:  Your signed client cert should be herE:  c:\temp\client_cert\client.cert
+    CMD> cd /tmp/client_cert
+    CMD> openssl pkcs12 -export -clcerts -in client.cert -inkey client.key -out client.p12
+         Enter Export Password:              secret
+         Verifying - Enter Export Password:  secret
+     
+
+
+ 5. Import the signed client certificate into your web browser
+    a. Startup Firefox
+    b. Pull Edit / Preferences
+    c. Click "View Certificates"
+    d. Click "Your Certificates" tab
+    d. Click "Import"
+    e. Browser to where the client.p12 file is located:  /tmp/client_cert/client.p12
+       Enter password from the previous step:  secret
+       
+   
+          
