@@ -163,6 +163,7 @@
 1. Security Design & Decisionss
    1. [What will be protected](/learnSpringBoot/lessons/lesson19_securityDecisions.txt) in addition to REST calls?
    1. [Will security be implemented inside or outside](/learnSpringBoot/lessons/lesson19_securityDecisions.txt) of the REST code?
+   1. Will you use PKI authentication or login/password?
    
 1. Add SSL and PKI Client Certificate Authentication
    1. Setup your own Certificate Authority&nbsp;&nbsp;[(in Windows)](/learnSSL/howToUseYourCertAuthority_InitialSetup.txt)&nbsp;&nbsp;[(in Unix)](/learnSSL/howToUseYourCertAuthority_InitialSetup_centos7.txt)<br/>
