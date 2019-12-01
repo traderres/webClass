@@ -161,9 +161,9 @@
    1. Used to run health checks
    
 1. Add SSL and PKI Client Certificate Authentication
-   1. [Setup your own Certificate Authority](/learnSSL/howToUseYourCertAuthority_InitialSetup.txt)
-   1. [Create your own server certificate](/learnSSL/howToUseYourCertAuthority_MakeServerCert.txt)
-   1. [Create your own PKI client certificate](/learnSSL/howToUseYourCertAuthority_MakeServerCert.txt)
+   1. Setup your own Certificate Authority&nbsp;&nbsp;[(in Windows)](/learnSSL/howToUseYourCertAuthority_InitialSetup.txt)&nbsp;&nbsp;[(in Unix)](/learnSSL/howToUseYourCertAuthority_InitialSetup_centos7.txt)<br/>
+   1. Create your own server certificate&nbsp;&nbsp;[(in Windows)](/learnSSL/howToUseYourCertAuthority_MakeServerCert.txt)&nbsp;&nbsp;[(in Unix)](/learnSSL/howToUseYourCertAuthority_MakeServerCert_centos7.txt)<br/>
+   1. Create your own PKI client certificate&nbsp;&nbsp;[(in Windows)](/learnSSL/howToUseYourCertAuthority_MakeClientCert.txt)&nbsp;&nbsp;[(in Unix)](/learnSSL/howToUseYourCertAuthority_MakeClientCert_centos7.txt)
    1. [Configure SpringBoot to use require PKI certificates to protect REST endpoints](/learnSpringBoot/lessons/lesson19_secureWebappWithPki.txt)
    1. Setup a Spring Profile called "prod" that uses https
    1. Setup a Spring Profile called "dev"  that uses http
