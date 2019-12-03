@@ -94,3 +94,67 @@ In this class, the setupAuthenticationToken() establishes an authentication toke
 
             }
         }
+
+
+
+Dashboard Controller
+--------------------
+Inside the getDataTime() method, you will find this line:
+   UserInfo userInfo = (UserInfo) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+The userInfo object returned is the *same* object as the one established in setupAuthenticationToken()
+
+
+
+        package com.lessons.controllers;
+
+
+        import com.lessons.security.UserInfo;
+        import com.lessons.services.DashboardService;
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.http.HttpStatus;
+        import org.springframework.http.MediaType;
+        import org.springframework.http.ResponseEntity;
+        import org.springframework.security.access.prepost.PreAuthorize;
+        import org.springframework.security.core.context.SecurityContextHolder;
+        import org.springframework.stereotype.Controller;
+        import org.springframework.web.bind.annotation.RequestMapping;
+        import org.springframework.web.bind.annotation.RequestMethod;
+
+        import javax.annotation.Resource;
+
+        @Controller("com.lessons.controllers.DashboardController")
+        public class DashboardController {
+            private static final Logger logger = LoggerFactory.getLogger(DashboardController.class);
+
+            @Resource
+            private DashboardService dashboardService;
+
+
+            /*************************************************************************
+             * REST endpoint /api/dashboard/time
+             *
+             * @return a plain-old string with the database time (not JSON)
+             *************************************************************************/
+            @RequestMapping(value = "/api/dashboard/time", method = RequestMethod.GET, produces = "application/json")
+            @PreAuthorize("hasRole('ROLE_SUPERUSER')")
+            public ResponseEntity<?> getDateTime() {
+                logger.debug("getDashboardDetails() started.");
+
+                // Log who is actually logged-in
+                UserInfo userInfo = (UserInfo) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+                logger.debug("Logged-in as {}", userInfo.getUsername());
+
+                // Get the date/time from the database
+                String sDateTime = dashboardService.getDatabaseTime();
+
+                // Return the date/time string as plain-text
+                return ResponseEntity
+                        .status(HttpStatus.OK)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .body(sDateTime);
+            }
+
+
+        }
+
