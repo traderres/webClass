@@ -172,6 +172,7 @@
    1. [Configure SpringBoot to use require PKI certificates to protect REST endpoints](/learnSpringBoot/lessons/lesson20_secureWebappWithPki.txt)
    1. Setup a Spring Profile called "dev"  that uses http
    1. Setup a Spring Profile called "prod" that uses https
+   1. [How to create a mocked logged-in user for test classes](/learnSpringBoot/lessons/lesson21_testControllersWithMockUser.txt)
 
 1. Building & Deployment
    1. Create Jenkins Job to build the uber JAR
