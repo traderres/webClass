@@ -95,7 +95,7 @@
    1. [Fundamentals of Unit Tests](/learnSpringBoot/lessons/lesson17_unitTestsFundamentals.txt)<br/>
    1. Exercise: Create a test case for the service class<br/>
    1. Exercise: Create a test case for the controller class<br/>
-   1. [Setup Unit Tests that use an Embedded Postgres Data Source](/learnSpringBoot/lessons/lesson24_syncApp_setupStructure.txt)<br/>
+   1. [Setup Unit Tests that use an Embedded Postgres Data Source](/learnSpringBoot/lessons/lesson18_setupEmbeddedPostgres.txt)<br/>
 
 1. Build a Spring Boot Console Application that talks to ES and postgres<br/>
    1. [Setup Spring Console application as Maven module](/learnSpringBoot/lessons/lesson24_syncApp_setupStructure.txt)<br/>
