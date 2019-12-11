@@ -169,7 +169,8 @@
    1. Setup your own Certificate Authority&nbsp;&nbsp;[(in Windows)](/learnSSL/howToUseYourCertAuthority_InitialSetup.txt)&nbsp;&nbsp;[(in Unix)](/learnSSL/howToUseYourCertAuthority_InitialSetup_centos7.txt)<br/>
    1. Create your own server certificate&nbsp;&nbsp;[(in Windows)](/learnSSL/howToUseYourCertAuthority_MakeServerCert.txt)&nbsp;&nbsp;[(in Unix)](/learnSSL/howToUseYourCertAuthority_MakeServerCert_centos7.txt)<br/>
    1. Create your own PKI client certificate&nbsp;&nbsp;[(in Windows)](/learnSSL/howToUseYourCertAuthority_MakeClientCert.txt)&nbsp;&nbsp;[(in Unix)](/learnSSL/howToUseYourCertAuthority_MakeClientCert_centos7.txt)
-   1. [Configure SpringBoot to use require PKI certificates to protect REST endpoints](/learnSpringBoot/lessons/lesson20_secureWebappWithPki.txt)
+   1. [Configure SpringBoot to use require PKI certificates to protect REST endpoints using AuthorizationFilter](/learnSpringBoot/lessons/lesson20a_secureWebappWithPki_authFilter.txt)
+   1. [Configure SpringBoot to use require PKI certificates to protect REST endpoints using PreAuthorize](/learnSpringBoot/lessons/lesson20b_secureWebappWithPki_preAuthorize.txt)
    1. Setup a Spring Profile called "dev"  that uses http
    1. Setup a Spring Profile called "prod" that uses https
    1. [How to create a mocked logged-in user for test classes](/learnSpringBoot/lessons/lesson21_testControllersWithMockUser.txt)
