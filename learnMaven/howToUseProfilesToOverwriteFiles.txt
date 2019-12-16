@@ -1,0 +1,107 @@
+How to Use Profiles to Overwrite Files in Build
+-----------------------------------------------
+Problem:  I want to overwrite a constants file based on the profile
+Solution: Tell Maven to replace a file based on the profile
+
+
+Procedure
+---------
+ 1. Create this file:   src/main/profiles/dev/constants.js
+       // **DEVELOPMENT** Constants are found here
+       //
+       // If you change this file, then please change constants.dev.js and constants.prod.js
+       //
+       var Constants = {
+           ES_URL: 'http://localhost:9201'
+       };
+
+
+ 2. Create this file:   src/main/profiles/prod/constants.js
+        // **PRODUCTION** Constants are found here
+        //
+        // If you change this file, then please change constants.dev.js and constants.prod.js
+        //
+        var Constants = {
+            ES_URL: 'https://192.168.90.7/elasticsearch-url'
+        };
+
+
+ 3. Copy the src/main/profiles/dev/constants.js to your destination
+    unix> cp src/main/profiles/dev/constants.js src/main/resources/public/resources/config/constants.js
+
+
+ 4. Tell maven to replace the file based on profile
+    a. Add this profiles section to your pom.xml
+
+            <profiles>
+                <profile>
+                    <!-- Dev Profile -->
+                    <id>dev</id>
+                    <activation>
+                        <activeByDefault>true</activeByDefault>
+                    </activation>
+
+                    <properties>
+                        <profile.name>dev</profile.name>
+                    </properties>
+                </profile>
+
+                <profile>
+                    <!-- Prod Profile -->
+                    <id>prod</id>
+                    <properties>
+                        <profile.name>prod</profile.name>
+                    </properties>
+                </profile>
+            </profiles>
+
+
+    b. Add this plugin to your <plugins>...<plugins> section
+       This will tell maven to copy the file based on the profile
+
+            <plugin>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>copy-resource-one</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+
+                        <configuration>
+                            <overwrite>true</overwrite>
+                            <outputDirectory>${basedir}/target/classes/public/resources/config</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${basedir}/src/main/profiles/${profile.name}</directory>
+                                    <includes>
+                                        <include>constants.js</include>
+                                    </includes>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+
+ 5. Verify it works
+    a. Build using the "prod" profile
+       unix> mvn clean install -Pprod -DskipTests
+       unix> more webapp/target/classes/public/resources/config/constants.js
+       -- You should see the production constants.js
+
+
+    b. Build using the "dev" profile
+       unix> mvn clean install -Pdev -DskipTests
+       unix> more webapp/target/classes/public/resources/config/constants.js
+       -- You should see dev constants.js file
+
+
+    c. Build using the default profile
+       unix> mvn clean install -DskipTests
+       unix> more webapp/target/classes/public/resources/config/constants.js
+       -- You should see dev constants.js file
+
