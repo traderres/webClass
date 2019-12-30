@@ -146,6 +146,7 @@
    1. [Add a Search box](/learnSpringBoot/lessons/lesson_frontend4_setupSearchBox.txt)
    1. [Add a Lookup Factory](/learnSpringBoot/lessons/lesson_frontend5_setupLookupFactory.txt)
    1. [Add a Cache to the Lookup Factory](/learnSpringBoot/lessons/lesson_frontend6_setupCacheForLookups.txt)
+   1. [Have front-end wait for user's permissions](/learnSpringBoot/lessons/lesson_frontend7_getPermissionsOnStartup.txt)
    
 1. Using Spring Profiles
    1. How to setup multiple profiles in application.yaml -- e.g., "dev", "prod"
