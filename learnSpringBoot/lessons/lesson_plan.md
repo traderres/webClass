@@ -142,7 +142,10 @@
 1. Add a front-end using Angular and NPM
    1. [Add a navigation bar](/learnSpringBoot/lessons/lesson_frontend1_setupNavigationBar.txt)
    1. [Add a page that has a UI-Grid](/learnSpringBoot/lessons/lesson_frontend2_setupAngularUiGrid.txt)
+   1. [Have page wait for REST calls to resolve](/learnSpringBoot/lessons/lesson_frontend3_resolveRestCallsOnPageLoad.txt)
    1. [Add a Search box](/learnSpringBoot/lessons/lesson_frontend3_setupSearchBox.txt)
+   1. [Add a Lookup Factory](/learnSpringBoot/lessons/lesson_frontend5_setupLookupFactory.txt)
+   1. [Add a Cache to the Lookup Factory](/learnSpringBoot/lessons/lesson_frontend6_setupCacheForLookups.txt)
    
 1. Using Spring Profiles
    1. How to setup multiple profiles in application.yaml -- e.g., "dev", "prod"
