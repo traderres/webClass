@@ -139,17 +139,6 @@
 
 1. Create a REST endpoint that returns CSV values
 
-1. Add a front-end using Angular and NPM
-   1. [Add a navigation bar](/learnSpringBoot/lessons/lesson_frontend1_setupNavigationBar.txt)
-   1. [Add a page that has a UI-Grid](/learnSpringBoot/lessons/lesson_frontend2_setupGrid.txt)
-   1. [Have page wait for REST calls to resolve](/learnSpringBoot/lessons/lesson_frontend3_setupGridDataWithResolve.txt)
-   1. [Setup Grid Filter dropdowns](/learnSpringBoot/lessons/lesson_frontend4_setupGridFilterDropDowns.txt)
-   1. [Setup Grid Filter w/Server Side REST calls](/learnSpringBoot/lessons/lesson_frontend5_setupGridServerSideFiltering.txt)
-   1. [Add a Lookup Factory](/learnSpringBoot/lessons/lesson_frontend6_setupLookupFactory.txt)
-   1. [Add a Cache to the Lookup Factory](/learnSpringBoot/lessons/lesson_frontend7_setupCacheForLookups.txt)
-   1. [Have front-end wait for user's permissions](/learnSpringBoot/lessons/lesson_frontend8_getPermissionsOnStartup.txt)
-   1. [Add a Search box](/learnSpringBoot/lessons/lesson_frontend9_setupSearchBox.txt)
-   
 1. Using Spring Profiles
    1. How to setup multiple profiles in application.yaml -- e.g., "dev", "prod"
    1. How to switch profiles
@@ -186,6 +175,17 @@
    1. Setup a Spring Profile called "prod" that uses https
    1. [How to create a mocked logged-in user for test classes](/learnSpringBoot/lessons/lesson21_testControllersWithMockUser.txt)
 
+1. Add a front-end using Angular and NPM
+   1. [Add a navigation bar](/learnSpringBoot/lessons/lesson_frontend1_setupNavigationBar.txt)
+   1. [Add a page that has a UI-Grid](/learnSpringBoot/lessons/lesson_frontend2_setupGrid.txt)
+   1. [Have page wait for REST calls to resolve](/learnSpringBoot/lessons/lesson_frontend3_setupGridDataWithResolve.txt)
+   1. [Setup Grid Filter dropdowns](/learnSpringBoot/lessons/lesson_frontend4_setupGridFilterDropDowns.txt)
+   1. [Setup Grid Filter w/Server Side REST calls](/learnSpringBoot/lessons/lesson_frontend5_setupGridServerSideFiltering.txt)
+   1. [Add a Lookup Factory](/learnSpringBoot/lessons/lesson_frontend6_setupLookupFactory.txt)
+   1. [Add a Cache to the Lookup Factory](/learnSpringBoot/lessons/lesson_frontend7_setupCacheForLookups.txt)
+   1. [Have front-end wait for user's permissions](/learnSpringBoot/lessons/lesson_frontend8_getPermissionsOnStartup.txt)
+   1. [Add a Search box](/learnSpringBoot/lessons/lesson_frontend9_setupSearchBox.txt)
+   
 1. Building & Deployment
    1. Create Jenkins Job to build the uber JAR
    1. Add a MANIFEST.MF to your uber JAR
