@@ -1,10 +1,419 @@
 Lesson:  Setup Grid Data with View Resolve
 ------------------------------------------
-Problem:  The front-end grid must *wait* for a REST call to get grid data
+Problem:  Some angular views make a REST call to get data for the view
+          We want the view to *wait* for the REST calls to complete
 Solution: Use rosolve
+
+
+
+Approach
+ A) Add a Reports Factory to the project with a method called getAllReports()
+ B) Change the routes.js so that the state 'viewReports' will call your ReportsFactory.getAllReports() method
+ C) Edit the viewReports controller so that the view-reports-data is injected
 
 
 
 Procedure
 ---------
+ 1. Add a Reports Factory to the project
+    a. Right-click on webapp/src/main/resources/public/resources/factory -> New File
+       File Name:  reports.factory.js
 
+    b. Copy this to the newly-created reports.factory.js
+            (function(){
+                //
+                //  ReportsFactory holds methods to run REST calls and return promises
+                //
+                angular.module('app1')
+                    .factory('ReportsFactory', ['$http', '$q', init] )
+
+                    function init($http, $q) {
+                        let ReportsFactory = {};
+
+                        ReportsFactory.getAllReportsDummyData = getAllReportsDummyData;
+
+
+                        return ReportsFactory;
+
+
+                        function getAllReportsDummyData() {
+                            console.log('getAllReportsDummyData() started.');
+
+                            let allReports = [
+                                { id: 1, display_name: "rpt1.txt", priority: "low", "active": true, created_by: "John Smith"},
+                                { id: 2, display_name: "rpt2.txt", priority: "high", "active": true},
+                                { id: 3, display_name: "rpt3.txt", priority: "high", "active": true}
+                            ];
+
+                            return allReports;
+                        }
+                    }
+            })();
+
+
+
+    c. Edit the app.html so it includes the new reports.factory.js *before* the modules
+
+       <!-- Load all factories *before* loading feature controllers -->
+       <script src="./resources/factories/reports.factory.js"></script>
+
+
+       So, the top of your app.html should look like this:
+
+            <!-- Load All Node Modules JavaScript Dependencies -->
+            <script src="./resources/node_modules/angular/angular.js"></script>
+            <script src="./resources/node_modules/@uirouter/angularjs/release/angular-ui-router.min.js"></script>
+            <script src="./resources/node_modules/angular-aria/angular-aria.min.js"></script>
+            <script src="./resources/node_modules/angular-animate/angular-animate.min.js"></script>
+            <script src="./resources/node_modules/angular-material/angular-material.min.js"></script>
+            <script src="./resources/node_modules/angular-messages/angular-messages.min.js"></script>
+            <script src="./resources/node_modules/angular-sanitize/angular-sanitize.min.js"></script>
+            <script src="./resources/node_modules/angular-scroll/angular-scroll.min.js"></script>
+            <script src="./resources/node_modules/angular-resizable/angular-resizable.min.js"></script>
+            <script src="./resources/node_modules/@fortawesome/fontawesome-free/js/all.js"></script>
+            <script src="./resources/node_modules/angular-ui-grid/ui-grid.js"></script>
+            <script src="./resources/node_modules/angular-ui-grid/ui-grid.exporter.js"></script>
+
+            <!-- Load all custom JavaScript Files -->
+            <script src="./resources/config/app.js"></script>
+            <script src="./resources/config/routes.js"></script>
+            <script src="./resources/config/state.js"></script>
+            <script src="./resources/config/nav.controller.js"></script>
+
+            <!-- Load all factories *before* loading feature controllers -->
+            <script src="./resources/factories/reports.factory.js"></script>
+
+            <!-- Load all JavaScript files for the various features -->
+            <script src="./resources/modules/features.js"></script>
+            <script src="./resources/features/reports/view_reports/main.controller.js"></script>
+            <script src="./resources/features/reports/add_report/main.controller.js"></script>
+
+
+ 2. Change the routes.js so that the state 'viewReports' will call your ReportsFactory.getAllReportsDummyData() method
+    a. Edit the webapp/src/main/resources/public/resources/config/routes.js
+
+    b. Replace the getViewReportState() method with this
+
+            function getViewReportState() {
+                return {
+                    url: URL_PAGE_PREFIX + '/reports/view',
+                    templateUrl: './resources/features/reports/view_reports/index.html',
+                    controller: 'viewReports',
+                    controllerAs: 'viewReportsVM',
+                    resolve: {
+
+                        // Inject reportsViewData into the viewReports controller
+                        reportsViewData: function(ReportsFactory) {
+                            return ReportsFactory.getAllReportsDummyData();
+                        }
+                    }
+                }
+            }
+
+
+ 3. Edit the viewReports controller so that the view-reports-data is injected
+    a. Go to the webapp/src/main/resources/public/resources/features/reports/view_reports/main.controller.js
+
+    b. Inject the 'reportsViewData' into the controller
+       Add 'reportsViewData' to the list of injected items
+       Add reportsViewData to the Callback() method
+
+
+       When completed, the top of the main.controller.js should look like this:
+
+          (function(){
+              angular.module('app.features')
+                  .controller('viewReports', ['$timeout', '$stateParams', '$scope', '$window', 'reportsViewData', Callback])
+
+              function Callback($timeout, $stateParams, $scope, $window, reportsViewData) {
+                  console.log('viewReports controller started.');
+
+                  let gridOptions = { };
+
+
+    c. Replace the hard-coded gridOptions.data with the reportsViewData
+       Change these line:
+            gridOptions.data = [
+                { id: 1, display_name: "rpt1.txt", priority: "low", "active": true, created_by: "John Smith"},
+                { id: 2, display_name: "rpt2.txt", priority: "high", "active": true},
+                { id: 3, display_name: "rpt3.txt", priority: "high", "active": true}
+            ];
+
+       With this line:
+          gridOptions.data = reportsViewData;
+
+
+ 4. Verify it works
+    a. Activate your webapp with the debugger
+    b. Open a browser
+    c. Connect to http://localhost:8080/app1
+    d. Go to "View Reports"
+        -- You should see the results in the grid
+
+
+ 5. Add this REST endpoint:  GET /api/reports/all
+
+    a. Create a ReportDTO model object
+       1) Go to webapp/src/main/java/com/lessons/models -> New Java Class
+          Class Name:  ReportDTO
+
+       2) Copy this to your ReportDTO object:
+            package com.lessons.models;
+
+            import com.fasterxml.jackson.annotation.JsonProperty;
+
+            public class ReportDTO {
+                private int     id;
+                private String  description;
+                private Integer priority;
+
+                @JsonProperty("display_name")
+                private String  displayName;
+
+
+                public int getId() {
+                    return id;
+                }
+
+                public void setId(int id) {
+                    this.id = id;
+                }
+
+                public String getDescription() {
+                    return description;
+                }
+
+                public void setDescription(String description) {
+                    this.description = description;
+                }
+
+                public Integer getPriority() {
+                    return priority;
+                }
+
+                public void setPriority(Integer priority) {
+                    this.priority = priority;
+                }
+
+                public String getDisplayName() {
+                    return displayName;
+                }
+
+                public void setDisplayName(String displayName) {
+                    this.displayName = displayName;
+                }
+            }
+
+
+    b. Create a ReportService java class:
+       1) Go to webapp/src/main/java/com/lessons/services -> New Java Class
+          Class Name:  ReportsService
+
+       2) Copy this to your newly-created ReportsService class
+             package com.lessons.services;
+
+             import com.lessons.models.ReportDTO;
+             import org.slf4j.Logger;
+             import org.slf4j.LoggerFactory;
+             import org.springframework.jdbc.core.BeanPropertyRowMapper;
+             import org.springframework.jdbc.core.JdbcTemplate;
+             import org.springframework.stereotype.Service;
+             import javax.annotation.Resource;
+             import javax.sql.DataSource;
+             import java.util.List;
+
+
+             @Service("com.lessons.services.ReportsService")
+             public class ReportsService {
+                 private static final Logger logger = LoggerFactory.getLogger(ReportsService.class);
+
+                 @Resource
+                 private DataSource dataSource;             // Injected data source
+
+                 /**
+                  * @return list of ReportDTO objects
+                  */
+                 public List<ReportDTO> getAllReports() {
+                     logger.debug("getAllReports() started.");
+
+                     String sql = "SELECT id, version, description, display_name, priority " +
+                                  "FROM reports " +
+                                  "ORDER BY id";
+
+                     JdbcTemplate jt = new JdbcTemplate(this.dataSource);
+                     BeanPropertyRowMapper rowMapper = new BeanPropertyRowMapper(ReportDTO.class);
+
+                     // Execute the SQL and use the rowMapper to convert the returned list of records into a list of DTO objects
+                     List<ReportDTO> listOfReports = jt.query(sql, rowMapper);
+
+                     logger.debug("getAllReports() finished.  Returning listOfReports.size={}", listOfReports.size());
+                     return listOfReports;
+                 }
+             }
+
+
+
+      b. Create a ReportController java class:
+         1) Go to webapp/src/main/java/com/lessons/controllers -> New Java Class
+            Class Name:  ReportsController
+
+         2) Copy this to your newly-created ReportsController class
+                package com.lessons.controllers;
+
+                import com.lessons.models.ReportDTO;
+                import com.lessons.services.ReportsService;
+                import org.slf4j.Logger;
+                import org.slf4j.LoggerFactory;
+                import org.springframework.http.HttpStatus;
+                import org.springframework.http.ResponseEntity;
+                import org.springframework.stereotype.Controller;
+                import org.springframework.web.bind.annotation.RequestMapping;
+                import org.springframework.web.bind.annotation.RequestMethod;
+                import javax.annotation.Resource;
+                import java.util.List;
+
+
+                @Controller("com.lessons.controllers.ReportsController")
+                public class ReportsController {
+                    private static final Logger logger = LoggerFactory.getLogger(ReportsController.class);
+
+                    @Resource
+                    private ReportsService reportsService;
+
+
+                    /*************************************************************************
+                     * REST endpoint /api/reports/all
+                     *
+                     * @return list of ReportsDTO objects
+                     *************************************************************************/
+                    @RequestMapping(value = "/api/reports/all", method = RequestMethod.GET, produces = "application/json")
+                    public ResponseEntity<?> getAllReports() {
+                        logger.debug("getAllReports() started.");
+
+                        List<ReportDTO> allReports = reportsService.getAllReports();
+
+                        // Return the list of ReportDTO objects back to the front-end
+                        // (Spring will convert from Java to JSON)
+                        return ResponseEntity
+                                .status(HttpStatus.OK)
+                                .body(allReports);
+                    }
+                }
+
+
+
+ 6. Add a new method to the ReportsFactory called getAllReports()
+    that makes a REST call to get the data
+    a. Go to webapp/src/main/resources/public/resources/factory/reports.factory.js
+    b. Add this line to your ReportsFactory:
+          ReportsFactory.getAllReportsData = getAllReportsData;
+
+
+    c. Add this function to your ReportsFactory:
+
+        /*
+         * Make a REST call and returns all of the reports data
+         */
+        function getAllReports() {
+            console.log('getAllReportsData() started.');
+
+            return $http.get('./api/reports/all').then(function(results) {
+                // The REST call returned with a 200-299 status code
+                console.log('results.data=', results.data);
+
+                // So, return some data
+                return results.data;
+            })
+        }
+
+
+    When done, your ReportsFactory should look like this:
+
+        (function(){
+            //
+            //  ReportsFactory holds methods to run REST calls and return promises
+            //
+            angular.module('app1')
+                .factory('ReportsFactory', ['$http', '$q', init] )
+
+            function init($http, $q) {
+                let ReportsFactory = {};
+
+                ReportsFactory.getAllReportsDummyData = getAllReportsDummyData;
+                ReportsFactory.getAllReports = getAllReports;
+
+
+                return ReportsFactory;
+
+
+                /*
+                 * Return dummy report data
+                 */
+                function getAllReportsDummyData() {
+                    console.log('getAllReportsDummyData() started.');
+
+                    let allReports = [
+                        {id: 1, display_name: "rpt1.txt", priority: "low", "active": true, created_by: "John Smith"},
+                        {id: 2, display_name: "rpt2.txt", priority: "high", "active": true},
+                        {id: 3, display_name: "rpt3.txt", priority: "high", "active": true}
+                    ];
+
+                    return allReports;
+                }
+
+                /*
+                 * Make a REST call and returns all of the reports data
+                 */
+                function getAllReports() {
+                    console.log('getAllReportsData() started.');
+
+                    return $http.get('./api/reports/all').then(function(results) {
+                        // The REST call returned with a 200-299 status code
+                        console.log('results.data=', results.data);
+
+                        // So, return some data
+                        return results.data;
+                    })
+                }
+            }
+        })();
+
+
+
+ 7. Change the routes.js so that the state 'viewReports' will call your ReportsFactory.getAllReports() method
+    a. Edit the webapp/src/main/resources/public/resources/config/routes.js
+
+    b. Replace the getViewReportState() method with this
+
+            function getViewReportState() {
+                return {
+                    url: URL_PAGE_PREFIX + '/reports/view',
+                    templateUrl: './resources/features/reports/view_reports/index.html',
+                    controller: 'viewReports',
+                    controllerAs: 'viewReportsVM',
+                    resolve: {
+
+                        // Inject reportsViewData into the viewReports controller
+                        reportsViewData: function(ReportsFactory) {
+                            return ReportsFactory.getAllReports();
+                        }
+                    }
+                }
+            }
+
+
+ 8. Add some records to your reports table (if you have not so already)
+    a. Open a SQL console to your local app1_db database
+    b. Run this SQL:
+        insert into reports(id, version, description, display_name) values(1, 1, 'this is report 1', 'rpt1.txt');
+        insert into reports(id, version, description, display_name) values(2, 1, 'this is report 2', 'rpt2.txt');
+        insert into reports(id, version, description, display_name) values(3, 1, 'this is report 3', 'rpt3.txt');
+
+
+
+ 9. Verify it works
+    a. Activate your webapp with the debugger
+    b. Open a browser
+    c. Connect to http://localhost:8080/app1
+    d. Go to "View Reports"
+        -- You should see the results in the grid
