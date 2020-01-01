@@ -141,7 +141,7 @@
 
 1. Add a front-end using Angular and NPM
    1. [Add a navigation bar](/learnSpringBoot/lessons/lesson_frontend1_setupNavigationBar.txt)
-   1. [Add a page that has a UI-Grid](/learnSpringBoot/lessons/lesson_frontend2_setupAngularUiGrid.txt)
+   1. [Add a page that has a UI-Grid](/learnSpringBoot/lessons/lesson_frontend2_setupGrid.txt)
    1. [Have page wait for REST calls to resolve](/learnSpringBoot/lessons/lesson_frontend3_setupGridDataWithResolve.txt)
    1. [Setup Grid Filter dropdowns](/learnSpringBoot/lessons/lesson_frontend4_setupGridFilterDropDowns.txt)
    1. [Setup Grid Filter w/Server Side REST calls](/learnSpringBoot/lessons/lesson_frontend5_setupGridServerSideFiltering.txt)
