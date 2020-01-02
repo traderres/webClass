@@ -1,8 +1,478 @@
 Lesson:  Setup Grid Filter Drop Downs
 -------------------------------------
 
+Approach
+ 1) Create a factory called GridService
+
+ 2) Create this method : GridService.getListOfFilters()
+    -- This method will loop through the columns and return a list of maps [with filter information]
+
+ 3) Add this method:  ReportsFactory.getAllReportsFiltered()
+    -- This method will be called when a user types-in filters
+
+ 4) Edit the view-reports main.controller.js
+    a) Inject the GridService and ReportsFactory
+    a) Tell the grid so that it knows that we are using server-side filtering
+    c) Tell the grid to call GridService.getListOfFilters() and ReportsFactory.getAllReportsFiltered()
+
+ 5) Verify the stub code works
+
+ 6) Add a new REST endpoint POST /api/reports/filtered
+
+ 7) Replace stub code with real code
+    -- Change ReportsFactory.getAllReportsFiltered() to call our new REST endpoint
+
+ 8) Verify the real code works
+
+
 
 
 Procedure
 ---------
+ 1. Add the GridService to the project
+    a. Right-click on webapp/src/main/resources/public/resources/factories -> New File
+       Filename:  grid.service.js
 
+    b. Copy this to your newly-created grid.service.js
+
+
+        (function(){
+            //
+            //  GridService
+            //
+            angular.module('app1')
+                .factory('GridService', [init] )
+
+            function init() {
+                let GridService = {};
+
+                GridService.getListOfFilters = getListOfFilters;
+
+                return GridService;
+
+
+                /*
+                 * Returns a list of maps that hold filter information
+                 */
+                function getListOfFilters(aColumns) {
+                    console.log('getListOfFilters() started.');
+
+                    if ((!aColumns || aColumns.length == 0)) {
+                        // The passed-in list of column info is null or empty.  So, return null
+                        return null;
+                    }
+
+                    filters = [ ];
+
+                    // Loop through all of the columns, generating a map of filters
+                    aColumns.forEach((column) => {
+                        if (column.enableFiltering) {
+                            // INCOMPLETE
+                        }
+
+                    })
+
+
+                    return filters;
+                }
+
+
+            }
+        })();
+
+
+     c. Include the new grid.service.js on page load
+        1) Go to webapp/src/main/resources/public/app.html
+
+        2) Add this include to the factories
+             <script src="./resources/factories/grid.service.js"></script>
+
+        When done, the <head>...</head> section of the app.html should look like this:
+
+            <head>
+                <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+                <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+                <title>App Main Page</title>
+
+                <base href="/app1/">
+
+                <!-- Include CSS Files -->
+                <link rel="stylesheet" type="text/css" href="./resources/node_modules/angular-resizable/angular-resizable.min.css">
+                <link rel="stylesheet" type="text/css" href="./resources/node_modules/angular-material/angular-material.min.css">
+                <link rel="stylesheet" type="text/css" href="./resources/node_modules/angular-ui-grid/ui-grid.min.css">
+                <link rel="stylesheet" type="text/css" href="./resources/node_modules/@fortawesome/fontawesome-free/css/all.css">
+                <link rel="stylesheet" type="text/css" href="./resources/css/index.css">
+
+                <!-- Load All Node Modules JavaScript Dependencies -->
+                <script src="./resources/node_modules/angular/angular.js"></script>
+                <script src="./resources/node_modules/@uirouter/angularjs/release/angular-ui-router.min.js"></script>
+                <script src="./resources/node_modules/angular-aria/angular-aria.min.js"></script>
+                <script src="./resources/node_modules/angular-animate/angular-animate.min.js"></script>
+                <script src="./resources/node_modules/angular-material/angular-material.min.js"></script>
+                <script src="./resources/node_modules/angular-messages/angular-messages.min.js"></script>
+                <script src="./resources/node_modules/angular-sanitize/angular-sanitize.min.js"></script>
+                <script src="./resources/node_modules/angular-scroll/angular-scroll.min.js"></script>
+                <script src="./resources/node_modules/angular-resizable/angular-resizable.min.js"></script>
+                <script src="./resources/node_modules/@fortawesome/fontawesome-free/js/all.js"></script>
+                <script src="./resources/node_modules/angular-ui-grid/ui-grid.js"></script>
+                <script src="./resources/node_modules/angular-ui-grid/ui-grid.exporter.js"></script>
+
+                <!-- Load all custom JavaScript Files -->
+                <script src="./resources/config/app.js"></script>
+                <script src="./resources/config/routes.js"></script>
+                <script src="./resources/config/state.js"></script>
+                <script src="./resources/config/nav.controller.js"></script>
+
+                <!-- Load all factories *before* loading feature controllers -->
+                <script src="./resources/factories/reports.factory.js"></script>
+                <script src="./resources/factories/grid.service.js"></script>
+
+                <!-- Load all JavaScript files for the various features -->
+                <script src="./resources/modules/features.js"></script>
+                <script src="./resources/features/reports/view_reports/main.controller.js"></script>
+                <script src="./resources/features/reports/add_report/main.controller.js"></script>
+            </head>
+
+
+ 2. Add this method to the ReportsFactory:   getAllReportsFiltered()
+    a. Go to webapp/src/main/resources/public/resources/factories/reports.factory.js
+
+    b. Add this to the top:
+            ReportsFactory.getAllReportsFiltered = getAllReportsFiltered;
+
+    c. Add this to the bottom:
+            /*
+             * Make a REST call that returns a subset of the reports
+             */
+            function getAllReportsFiltered(aFilters) {
+                console.log('getAllReportsFiltered() started.');
+
+                let dto = {
+                    'filters': aFilters
+                };
+
+                return $http.get('./api/reports/all').then(function(results) {
+                    // The REST call returned with a 200-299 status code
+                    console.log('results.data=', results.data);
+
+                    let allReports = [
+                        {id: 3, display_name: "rpt3.txt", priority: "high", "active": true}
+                    ];
+
+                    // So, return some data
+                    let returnedMap = {
+                        'data': allReports,
+                        'total': 1
+                    }
+
+                    return returnedMap;
+                })
+            }
+
+
+     When done, your ReportsFactory should look like this:
+
+         (function(){
+             //
+             //  ReportsFactory holds methods to run REST calls and return promises
+             //
+             angular.module('app1')
+                 .factory('ReportsFactory', ['$http', '$q', init] )
+
+             function init($http, $q) {
+                 let ReportsFactory = {};
+
+                 ReportsFactory.getAllReportsDummyData = getAllReportsDummyData;
+                 ReportsFactory.getAllReports = getAllReports;
+                 ReportsFactory.getAllReportsFiltered = getAllReportsFiltered;
+
+                 return ReportsFactory;
+
+
+                 /*
+                  * Return dummy report data
+                  */
+                 function getAllReportsDummyData() {
+                     console.log('getAllReportsDummyData() started.');
+
+                     let allReports = [
+                         {id: 1, display_name: "rpt1.txt", priority: "low", "active": true, created_by: "John Smith"},
+                         {id: 2, display_name: "rpt2.txt", priority: "high", "active": true},
+                         {id: 3, display_name: "rpt3.txt", priority: "high", "active": true}
+                     ];
+
+                     return allReports;
+                 }
+
+
+
+
+                 /*
+                  * Make a REST call and returns all of the reports data
+                  */
+                 function getAllReports() {
+                     console.log('getAllReportsData() started.');
+
+                     return $http.get('./api/reports/all').then(function(results) {
+                         // The REST call returned with a 200-299 status code
+                         console.log('results.data=', results.data);
+
+                         // So, return some data
+                         return results.data;
+                     })
+                 }
+
+
+
+
+                 /*
+                  * Make a REST call that returns a subset of the reports
+                  */
+                 function getAllReportsFiltered(aFilters) {
+                     console.log('getAllReportsFiltered() started.');
+
+                     let dto = {
+                         'filters': aFilters
+                     };
+
+                     return $http.get('./api/reports/all').then(function(results) {
+                         // The REST call returned with a 200-299 status code
+                         console.log('results.data=', results.data);
+
+                         let allReports = [
+                             {id: 3, display_name: "rpt3.txt", priority: "high", "active": true}
+                         ];
+
+                         // So, return some data
+                         let returnedMap = {
+                             'data': allReports,
+                             'total': 1
+                         }
+
+                         return returnedMap;
+                     })
+                 }
+             }
+         })();
+
+
+ 2. Tell the grid that we are using server-side filtering
+    a. Go to webapp/src/main/resources/public/resources/features/reports/view_reports/main.controller.js
+
+    b. Add this line to to where all of the gridOptions are defined:
+         gridOptions.useExternalFiltering = true;
+
+
+ 3. Inject the ReportsFactory and GridService into the view_reports main.controller.js
+    a. Go to webapp/src/main/resources/public/resources/features/reports/view_reports/main.controller.js
+
+    b. Inject the GridService and ReportsFactory into this controller
+
+        (function(){
+            angular.module('app.features')
+                .controller('viewReports', ['$timeout', '$stateParams', '$scope', '$window', 'reportsViewData', 'GridService', 'ReportsFactory', Callback])
+
+            function Callback($timeout, $stateParams, $scope, $window, reportsViewData, GridService, ReportsFactory) {
+                console.log('viewReports controller started.');
+
+                let viewReportsVM = this;
+
+
+                window.document.title = "View Reports | APP1";
+
+
+ 4. Tell the grid to call our code when a user enters a filter
+
+        gridOptions.onRegisterApi = registerGridApi;
+
+
+
+        function registerGridApi (gridApi) {
+            console.log('registerGridApi() started.');
+
+            $scope.gridApi = gridApi;
+            viewReportsVM.gridApi = gridApi;
+
+            gridApi.core.on.filterChanged($scope, function() {
+                // The user has typed-in or selected a filter
+
+                // Get the list of filter maps from the grid
+                let currentFilters = GridService.getListOfFilters(this.grid.columns)
+
+                if (angular.isDefined(viewReportsVM.currentFilterTimeout)) {
+                    // Another filter is running -- so cancel it
+                    $timeout.cancel(viewReportsVM.currentFilterTimeout)
+                }
+
+                // Define a new filter with a timeout of 1000 milliseconds
+                viewReportsVM.currentFilterTimeout = $timeout(function() {
+
+                    // Set this flag so that the web page will show a spinner (telling the user to wait for the results)
+                    viewReportsVM.dataIsLoading = true;
+
+                    ReportsFactory.getAllReportsFiltered(currentFilters).then(function(results) {
+                        // The REST call has returned with data.
+
+                        console.log('Got results:  results=', results);
+
+                        // Set the grid data with the returned data
+                        viewReportsVM.gridOptions.data = results.data;
+
+                        // Set the grid total with the new total
+                        viewReportsVM.gridOptions.totalItems = results.total;
+
+                    }).catch(function (results) {
+                        // Something went wrong -- display an error
+                        console.log('Something failed getting the filtered results.  results=', results);
+                    }).finally(function () {
+                        // Kill the spinner
+                        viewReportsVM.dataIsLoading = false;
+                    });
+
+                }, 1000)
+            })
+        };
+
+
+  When done, your view_reports main.controller.js should look like this:
+
+        (function(){
+            angular.module('app.features')
+                .controller('viewReports', ['$timeout', '$stateParams', '$scope', '$window', 'reportsViewData', 'GridService', 'ReportsFactory', Callback])
+
+            function Callback($timeout, $stateParams, $scope, $window, reportsViewData, GridService, ReportsFactory) {
+                console.log('viewReports controller started.');
+
+                let viewReportsVM = this;
+
+
+                window.document.title = "View Reports | APP1";
+
+
+                viewReportsVM.$onInit = function() {
+                    console.log('viewReports onInit() started.');
+
+                    let gridOptions = { };
+
+                    // Initialize the grid with the data
+                    gridOptions.data = reportsViewData;
+
+                    gridOptions.appScopeProvider = $scope;
+                    gridOptions.flatEntityAccess = true;
+                    gridOptions.enableFiltering = true;
+                    gridOptions.enableColumnResizing = true;
+                    gridOptions.enableGridMenu = true;
+                    gridOptions.saveFocus = false;
+                    gridOptions.saveGrouping = false;
+                    gridOptions.savePinning = false;
+                    gridOptions.saveSelection = false;
+                    gridOptions.saveTreeView = false;
+                    gridOptions.multiSelect = true;
+                    gridOptions.exporterMenuPdf = false;
+                    gridOptions.exporterMenuExcel = false;
+                    gridOptions.exporterFieldApplyFilters = true;
+                    gridOptions.rowHeight = 45;
+                    gridOptions.enableSelectAll = true;
+                    gridOptions.enableSelectionBatchEvent = false;
+                    gridOptions.scope = $scope;
+
+                    gridOptions.useExternalFiltering = true;
+
+                    // Define the grid columns
+                    gridOptions.columnDefs = [
+                        {
+                            name: 'id',
+                            field: 'id',
+                            displayName: 'Id',
+                            visible: true,
+                            type: 'number'
+                        },
+                        {
+                            name: 'display_name',
+                            field: 'display_name',
+                            displayName: 'Report Name',
+                            visible: true,
+                            type: 'string'
+                        },
+                        {
+                            name: 'priority',
+                            field: 'priority',
+                            displayName: 'Priority',
+                            visible: true,
+                            type: 'string'
+                        },
+                        {
+                            name: 'active',
+                            field: 'active',
+                            displayName: 'Active',
+                            visible: true,
+                            type: 'boolean'
+                        },
+                    ]
+
+                    gridOptions.onRegisterApi = registerGridApi;
+
+
+                    // Set the pagination properties (required in order for ui-grid pagination to work)
+                    gridOptions.totalItems = gridOptions.data.length;
+                    gridOptions.paginationPageSize = 50;
+                    gridOptions.paginationPageSizes = [25, 50, 100, 250];
+
+                    viewReportsVM.gridOptions = gridOptions;
+
+                    console.log('viewReports onInit() finished.');
+                };
+
+
+
+                function registerGridApi (gridApi) {
+                    console.log('registerGridApi() started.');
+
+                    $scope.gridApi = gridApi;
+                    viewReportsVM.gridApi = gridApi;
+
+                    gridApi.core.on.filterChanged($scope, function() {
+                        // The user has typed-in or selected a filter
+
+                        // Get the list of filter maps from the grid
+                        let currentFilters = GridService.getListOfFilters(this.grid.columns)
+
+                        if (angular.isDefined(viewReportsVM.currentFilterTimeout)) {
+                            // Another filter is running -- so cancel it
+                            $timeout.cancel(viewReportsVM.currentFilterTimeout)
+                        }
+
+                        // Define a new filter with a timeout of 1000 milliseconds
+                        viewReportsVM.currentFilterTimeout = $timeout(function() {
+
+                            // Set this flag so that the web page will show a spinner (telling the user to wait for the results)
+                            viewReportsVM.dataIsLoading = true;
+
+                            ReportsFactory.getAllReportsFiltered(currentFilters).then(function(results) {
+                                // The REST call has returned with data.
+
+                                console.log('Got results:  results=', results);
+
+                                // Set the grid data with the returned data
+                                viewReportsVM.gridOptions.data = results.data;
+
+                                // Set the grid total with the new total
+                                viewReportsVM.gridOptions.totalItems = results.total;
+
+                            }).catch(function (results) {
+                                // Something went wrong -- display an error
+                                console.log('Something failed getting the filtered results.  results=', results);
+                            }).finally(function () {
+                                // Kill the spinner
+                                viewReportsVM.dataIsLoading = false;
+                            });
+
+                        }, 1000)
+                    })
+                };
+
+
+                console.log('viewReports controller finished.');
+            }
+        })();
