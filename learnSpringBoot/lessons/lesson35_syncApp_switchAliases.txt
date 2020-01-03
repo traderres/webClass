@@ -1,0 +1,174 @@
+Lesson:  Have the Sync-Service switch the Alias
+-----------------------------------------------
+After creating a new reportsYYYYMMDD_HH24MISS index, we need to tell ES
+to set the reports alias --> reportsYYYYMMDD_HH24MISS
+
+
+
+Procedure
+---------
+ 1. Modify your ElasticSearchService
+    a. Go to your sync-service/src/main/java/com/lessons/sync/services/ElasticSearchService
+
+    b. Add these methods:
+            /**
+             * Submit an alias change to ElasticSearch
+             *
+             * @param aJsonBody holds the JSON for a list of actions to add/delete aliases
+             * @throws Exception
+             */
+            public void setAliases(String aJsonBody) throws Exception {
+                if (StringUtils.isEmpty(aJsonBody)) {
+                    throw new RuntimeException("The passed-in JSON body is null or empty.");
+                }
+
+                // Make a synchronous POST call to ElasticSearch to set/unset these aliases
+                Response response = this.asyncHttpClient.preparePost(this.elasticSearchUrl + "/_aliases")
+                        .setRequestTimeout(this.ES_REQUEST_TIMEOUT_IN_MILLISECS)
+                        .setHeader("accept", "application/json")
+                        .setHeader("Content-Type", "application/json")
+                        .setBody(aJsonBody)
+                        .execute()
+                        .get();
+
+                if (response.getStatusCode() != 200) {
+                    // ElasticSearch returned a non-200 status response
+                    throw new RuntimeException("Error in setAliases:  ES returned a status code of " + response.getStatusCode() + " with an error of: " + response.getResponseBody());
+                }
+
+            }
+
+
+            /**
+             * Query ES for a list of indicies that are currently used by this index
+             *
+             * @param aAliasName holds the alias name to query
+             * @return a list of ES indeces that are used by this alias (empty list if none are found)
+             * @throws Exception
+             */
+            public List<String> getIndexesUsedByAlias(String aAliasName) throws Exception {
+                if (StringUtils.isEmpty(aAliasName)) {
+                    throw new RuntimeException("The passed-in alias name is null or empty.");
+                }
+
+                // Make a synchronous POST call to ElasticSearch to get all indicies (if any) that are used by this alias
+                Response response = this.asyncHttpClient.prepareGet(this.elasticSearchUrl + "/_cat/aliases/" + aAliasName)
+                        .setRequestTimeout(this.ES_REQUEST_TIMEOUT_IN_MILLISECS)
+                        .setHeader("accept", "application/json")
+                        .setHeader("Content-Type", "application/json")
+                        .execute()
+                        .get();
+
+                if (response.getStatusCode() != 200) {
+                    // ElasticSearch returned a non-200 status response
+                    throw new RuntimeException("Error in getIndexesUsedByAlias:  ES returned a status code of " + response.getStatusCode() + " with an error of: " + response.getResponseBody());
+                }
+
+                // Convert the ES response into a list of java maps
+                String esJsonResponse = response.getResponseBody();
+                List<Map<String, Object>> listOfMaps = this.objectMapper.readValue(esJsonResponse, new TypeReference<List<Map<String, Object>>>(){});
+
+
+                ArrayList<String> indexNamesUsingAlias = new ArrayList<>();
+
+                // Loop through the list of maps, pulling-out the name from the map
+                for (Map<String, Object> indexMapDetails: listOfMaps) {
+                    String indexName = (String) indexMapDetails.get("index");
+                    if (StringUtils.isNotEmpty(indexName)) {
+                        indexNamesUsingAlias.add(indexName);
+                    }
+                }
+
+                // Return an unmodifiable list
+                return Collections.unmodifiableList(indexNamesUsingAlias);
+            }
+
+
+
+
+
+ 2. Add the RefreshService.setAliasToUseThisIndex() method
+    a. Go to your sync-service/src/main/java/com/lessons/services/RefreshService
+    b. Add this method to it:
+
+          /**
+           * Switch the aliases
+           *  1) Get the list of indeces that are used by the current alias name
+           *  2) Construct the JSON to
+           *      a) Remove the existing indeces
+           *      b) Add the newly-created index
+           *  3) Submit the JSON to make this alias change
+           *
+           * @param aAliasName
+           * @param esNewIndexName
+           */
+          private void setAliasToUseThisIndex(String aAliasName, String esNewIndexName) throws Exception {
+              List<String> currentIndexesAliasUses = elasticSearchService.getIndexesUsedByAlias(aAliasName);
+
+              String jsonAliasChange = "{" +
+                      "     \"actions\": [" +
+                      "       {" +
+                      "          \"add\": {\n" +
+                      "             \"index\": \"" + esNewIndexName + "\"," +
+                      "             \"alias\": \"" + aAliasName + "\"" +
+                      "          }" +
+                      "       }";
+
+
+              for (String indexName: currentIndexesAliasUses) {
+                  jsonAliasChange = jsonAliasChange + ",{\n" +
+                          "          \"remove\": {\n" +
+                          "             \"index\": \"" + indexName + "\",\n" +
+                          "             \"alias\": \"" + aAliasName + "\"\n" +
+                          "          }\n" +
+                          "       }";
+              }
+
+
+              // Complete the JSON string
+              jsonAliasChange = jsonAliasChange + "]}";
+
+              // Submit the JSON request
+              elasticSearchService.setAliases(jsonAliasChange);
+          }
+
+
+
+ 3. Modify your RefreshService.refreshMappingWithAlias() to call your new method
+    a. Add this to refreshMappingWithAlias()
+
+            // Switch the alias
+            setAliasToUseThisIndex(aAliasName, esNewIndexName);
+
+
+       When completed, your refreshMappingWithAlias() method should look like this:
+
+            private void refreshMappingWithAlias(String aAliasName) throws Exception {
+                 try {
+                     // Set the flag to indicate a refresh is work-in-progress
+                     isRefreshInProgress = true;
+
+                     String mappingFilename = aAliasName + ".mapping.json";
+
+                     // Get the json mapping as a string
+                     String jsonMapping = readFileInClasspathToString(mappingFilename);
+
+                     // Create a new index
+                     String esNewIndexName = aAliasName + getCurrentDateTime();
+                     elasticSearchService.createIndex(esNewIndexName, jsonMapping);
+
+                     // Add data to this new index
+                     addDataToIndex(esNewIndexName);
+
+                     // Switch the alias
+                     setAliasToUseThisIndex(aAliasName, esNewIndexName);
+                 }
+                 finally {
+                     isRefreshInProgress = false;
+                 }
+             }
+
+
+
+ 4. Verify it works
+
