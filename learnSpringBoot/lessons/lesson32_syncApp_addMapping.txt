@@ -1,0 +1,208 @@
+Lesson:  Create a Reports ES index and verify it is valid
+---------------------------------------------------------
+
+Assumptions:
+ A) You have installed a local kibana console
+    If not, then go to the learnElasticSearch/ and install Kibana
+
+ B) Your reports database table has the *same* column names as this mapping
+
+
+Procedure
+---------
+ 1. Verify that the mapping is good
+    a. Connect to http://localhost:5601
+    b. Click on Dev Tools
+    c. Enter this:
+
+        DELETE reports
+
+        PUT reports
+            {
+               "settings": {
+                   "analysis": {
+                     "analyzer" : {
+                       "my_ngram_analyzer" : {
+                         "tokenizer" : "my_ngram_tokenizer",
+                         "filter": ["lowercase"]
+                       }
+                     },
+                     "tokenizer" : {
+                       "my_ngram_tokenizer" : {
+                         "type" : "ngram",
+                         "min_gram" : "1",
+                         "max_gram" : "75",
+                         "token_chars": [ ]
+                       }
+                     },
+                     "normalizer": {
+                       "case_insensitive_normalizer": {
+                         "type": "custom",
+                         "char_filter": [],
+                         "filter": [ "lowercase", "asciifolding" ]
+                       }
+                     }
+                   },
+                   "max_result_window": 500000,
+                   "refresh_interval": "1s"
+                 },
+
+               "mappings": {
+                     "record": {
+                        "dynamic": "strict",
+                            "properties": {
+                                "id": {
+                                      "type": "integer",
+                                      "ignore_malformed": false
+                                  },
+                                 "description": {
+                                     "type": "text",
+                                     "include_in_all": true
+                                  },
+                                 "display_name": {
+                                     "type": "text",
+                                     "include_in_all": true,
+                                     "fields": {
+                                       "raw": {
+                                         "type": "keyword"
+                                       },
+                                       "sort": {
+                                         "type": "keyword",
+                                         "normalizer": "case_insensitive_normalizer"
+                                       },
+                                       "filtered": {
+                                          "type": "text",
+                                          "analyzer": "my_ngram_analyzer"
+                                       }
+                                     }
+                                },
+                                "priority": {
+                                     "type": "text",
+                                     "include_in_all": true,
+                                     "fields": {
+                                       "raw": {
+                                         "type": "keyword"
+                                       },
+                                       "sort": {
+                                         "type": "keyword",
+                                         "normalizer": "case_insensitive_normalizer"
+                                       },
+                                       "filtered": {
+                                          "type": "text",
+                                          "analyzer": "my_ngram_analyzer"
+                                       }
+                                     }
+                                }
+                            }
+                       }
+                    }
+                 }
+
+    d. Run the JSON to delete the reports index
+
+    e. Run the JSON to put the reports index
+       -- Verify that you get "acknowledged": true
+
+
+
+ 2. Add some records to your reports ES index
+
+    POST _bulk
+     { "index": { "_index": "reports", "_type": "record", "_id": 1 }}
+     { "priority": "low",  "description": "he really likes o'reilly"}
+     { "index": { "_index": "reports", "_type": "record", "_id": 2 }}
+     { "priority": "LOW",  "description": "depending on the kind query, you might want to go different ways with it"}
+
+
+
+ 3. Run a search against your reports ES index
+
+    POST /reports/_search
+    -- You should see 2 records
+
+
+
+ 4. Add this file:  reports.mapping.json
+    a. Right-click on sync-service/src/main/resources -> New File
+       File Name:  reports.mapping.json
+
+    b. Copy this to your newly-created file:
+        {
+            "settings": {
+            "analysis": {
+              "analyzer" : {
+                "my_ngram_analyzer" : {
+                  "tokenizer" : "my_ngram_tokenizer",
+                  "filter": ["lowercase"]
+                }
+              },
+              "tokenizer" : {
+                "my_ngram_tokenizer" : {
+                  "type" : "ngram",
+                  "min_gram" : "1",
+                  "max_gram" : "75",
+                  "token_chars": [ ]
+                }
+              },
+              "normalizer": {
+                "case_insensitive_normalizer": {
+                  "type": "custom",
+                  "char_filter": [],
+                  "filter": [ "lowercase", "asciifolding" ]
+                }
+              }
+            },
+            "max_result_window": 500000,
+            "refresh_interval": "1s"
+            },
+
+            "mappings": {
+              "record": {
+                 "dynamic": "strict",
+                     "properties": {
+                         "id": {
+                               "type": "integer",
+                               "ignore_malformed": false
+                           },
+                          "description": {
+                              "type": "text",
+                              "include_in_all": true
+                           },
+                          "display_name": {
+                              "type": "text",
+                              "include_in_all": true,
+                              "fields": {
+                                "raw": {
+                                  "type": "keyword"
+                                },
+                                "sort": {
+                                  "type": "keyword",
+                                  "normalizer": "case_insensitive_normalizer"
+                                },
+                                "filtered": {
+                                   "type": "text",
+                                   "analyzer": "my_ngram_analyzer"
+                                }
+                              }
+                         },
+                         "priority": {
+                              "type": "text",
+                              "include_in_all": true,
+                              "fields": {
+                                "raw": {
+                                  "type": "keyword"
+                                },
+                                "sort": {
+                                  "type": "keyword",
+                                  "normalizer": "case_insensitive_normalizer"
+                                },
+                                "filtered": {
+                                   "type": "text",
+                                   "analyzer": "my_ngram_analyzer"
+                                }
+                              }
+                         }
+                     }
+                }
+             }
+        }

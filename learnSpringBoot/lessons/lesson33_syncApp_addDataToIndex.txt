@@ -1,0 +1,218 @@
+Lesson:  Have the Sync-Service add records to ElasticSearch
+-----------------------------------------------------------
+
+
+
+Procedure
+---------
+ 1. Add some records to your Reports database table
+    a. Go to the database console
+    b. Enter this SQL:
+            insert into reports(id, version, description, display_name) values(1, 1, 'this is report 1', 'rpt1.txt');
+            insert into reports(id, version, description, display_name) values(2, 1, 'this is report 2', 'rpt2.txt');
+            insert into reports(id, version, description, display_name) values(3, 1, 'this is report 3', 'rpt3.txt');
+
+    c. Verify that you have some reports
+            select * from reports;
+            -- You should see the 3 records
+
+
+
+ 2. Add the maven dependency for the jackson-databind
+    NOTE:  We need this to use the object mapper
+    a. Edit your sync-service/pom.xml
+
+        <dependency>
+          <!-- Implementation for converting Java objects to JSON -->
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-databind</artifactId>
+          <version>2.9.10.1</version>
+        </dependency>
+
+
+ 3. Add this method to your ElasticSearchService
+    a. Go to sync-service/src/main/java/com/lessons/services/ElasticSearchService
+
+    b. Add this method:
+
+            /**
+             * Submit a bulk JSON request to ElasticSearch
+             *
+             * @param aJsonBody Holds the bulk JSON request
+             * @param aForceRefresh Force an ES refresh if set to True.  Otherwise, wait for refrehs interval
+             */
+            public void submitBulkJsonRequest(String aJsonBody, boolean aForceRefresh) throws Exception {
+                if (StringUtils.isEmpty(aJsonBody)) {
+                    throw new RuntimeException("The passed-in JSON body is null or empty.");
+                }
+
+                String esRequestUrl;
+                if (aForceRefresh) {
+                    esRequestUrl = this.elasticSearchUrl + "/_bulk?refresh=true";
+                }
+                else {
+                    esRequestUrl = this.elasticSearchUrl + "/_bulk";
+                }
+
+                // Make a synchronous POST call to ElasticSearch to create this an index
+                Response response = this.asyncHttpClient.preparePost(esRequestUrl)
+                        .setRequestTimeout(this.ES_REQUEST_TIMEOUT_IN_MILLISECS)
+                        .setHeader("accept", "application/json")
+                        .setHeader("Content-Type", "application/json")
+                        .setBody(aJsonBody)
+                        .execute()
+                        .get();
+
+                if (response.getStatusCode() != 200) {
+                    // ElasticSearch returned a non-200 status response
+                    throw new RuntimeException("Error in submitBulkJsonRequest:  ES returned a status code of " + response.getStatusCode() + " with an error of: " + response.getResponseBody());
+                }
+            }
+
+
+
+ 4. Add a ReportDTO object
+    a. Right-click on sync-service/src/mainjava/com/lessons/sync -> New Package
+       Package Name:  models
+
+    b. Right-click on models -> New Java Class
+       Java Class name:  ReportDTO
+
+    c. Copy this to your newly-created ReportDTO class
+
+            package com.lessons.sync.models;
+
+            public class ReportDTO {
+
+                private int id;
+                private String displayName;
+                private String description;
+
+                public int getId() {
+                    return id;
+                }
+
+                public void setId(int id) {
+                    this.id = id;
+                }
+
+                public String getDisplayName() {
+                    return displayName;
+                }
+
+                public void setDisplayName(String displayName) {
+                    this.displayName = displayName;
+                }
+
+                public String getDescription() {
+                    return description;
+                }
+
+                public void setDescription(String description) {
+                    this.description = description;
+                }
+            }
+
+
+ 5. Modify your Refresh Service
+    a. Add a private objectMapper
+            private ObjectMapper objectMapper;
+
+    b. Add a PostConstruct that initialized the objectMapper
+
+            @PostConstruct
+            public void init() {
+                // Initialize the objectMapper
+                this.objectMapper = new ObjectMapper();
+
+                // Ensure that when Java is converted to JSON that the fields use snake case (because ES fields are in snake case)
+                // -- So, if the ReportDTO.getDisplayName() --> display_name in the JSON
+                this.objectMapper.setPropertyNamingStrategy(PropertyNamingStrategy.SNAKE_CASE);
+            }
+
+
+    c. Add this method addDataToIndex()
+            /**
+             * Copy data from the Reports db table to the Reports ES Index
+             * @param aIndexName holds the name of the index to write to
+             * @throws Exception
+             */
+            private void addDataToIndex(String aIndexName) throws Exception
+            {
+                logger.debug("addDataToIndex() started  aIndexName={}", aIndexName);
+
+                // Execute the SQL to get a list of ReportDTO objects
+                String sql = "select id, display_name, description from reports";
+                JdbcTemplate jt = new JdbcTemplate(this.dataSource);
+                BeanPropertyRowMapper rowMapper = new BeanPropertyRowMapper(ReportDTO.class);
+                List<ReportDTO> allReports = jt.query(sql, rowMapper);
+
+                StringBuilder bulkJsonRequest = new StringBuilder();
+
+                // Loop through the ReportDTO objects building a Bulk JSON string
+                for (ReportDTO rpt: allReports) {
+                    String line1 = "{ \"index\": { \"_index\": \"" + aIndexName + "\", \"_type\": \"record\", \"_id\": " + rpt.getId() + " }}\n";
+
+                    // Use the objectMapper to convert this ReportDTO object --> JSON
+                    String line2 = objectMapper.writeValueAsString(rpt) + "\n";
+
+                    bulkJsonRequest.append(line1);
+                    bulkJsonRequest.append(line2);
+                }
+
+                // Submit the Bulk Request to ElasticSearch
+                elasticSearchService.submitBulkJsonRequest(bulkJsonRequest.toString(), false);
+
+                logger.debug("addDataToIndex() finishedaIndexName={}", aIndexName);
+            }
+
+
+    d. Have the refreshMappingWithAlias() method call your addDataToIndex() method
+       Replace the refreshMappingWithAlias() method with this new code:
+
+            /**
+             * Refresh this mapping
+             *  1. Create a new index called         reports_YYYYMMDD__HH24MISS
+             *  2. Add records from reports table to reports_YYYYMMDD__HH24MISS
+             *  3. Have the reports alias point to   reports_YYYYMMDD__HH24MISS
+             *  4. Cleanup:  Delete any other indexes that start with reports_
+             *
+             * @param aAliasName the alias name -- e.g., "reports"
+             * @throws Exception if something bad happens
+             */
+            private void refreshMappingWithAlias(String aAliasName) throws Exception {
+                try {
+                    // Set the flag to indicate a refresh is work-in-progress
+                    isRefreshInProgress = true;
+
+                    String mappingFilename = aAliasName + ".mapping.json";
+
+                    // Get the json mapping as a string
+                    String jsonMapping = readFileInClasspathToString(mappingFilename);
+
+                    // Create a new index
+                    String esNewIndexName = aAliasName + getCurrentDateTime();
+                    elasticSearchService.createIndex(esNewIndexName, jsonMapping);
+
+                    // Add data to this new index
+                    addDataToIndex(esNewIndexName);
+                }
+                finally {
+                    isRefreshInProgress = false;
+                }
+            }
+
+
+
+ 6. Verify it works
+    a. Activate the Sync-Service
+    b. Step through the code
+    c. Search the records using your local kibana
+       1) Connect to http://localhost:5601
+       2) List your report indicies
+             GET _cat/indices/report*
+
+       3) Search the latest report index
+             POST /reports20200102_213041/_search
+             -- You should see your records (from the database)
+
