@@ -1,0 +1,117 @@
+Lesson:  Improve Error Checking
+-------------------------------
+Problem:  The ElasticSearchService.submitBulkJsonRequest() method
+          does not do a good enough job checking if the bulk index worked
+
+          The bulk index can fail and still return a 200 status code
+
+Solution: Check the JSON response from ES and look for errors:true
+
+
+Procedure
+---------
+ 1. Modify your ElasticSearchService
+    a. Go to your sync-service/src/main/java/com/lessons/sync/services/ElasticSearchService
+
+    b. Add a private objectMapper
+            private ObjectMapper objectMapper;
+
+    c. Make sure your init() method also initializes the objectMapper
+       Add these lines to your init() PostConstruct method
+
+                // Initialize the objectMapper
+                this.objectMapper = new ObjectMapper();
+
+
+
+ 2. Add this file:  ErrorsDTO
+    a. Right-click on sync-service/src/main/java/com/lessons/sync/models -> New Java Class
+       Java Class Name:  ErrorsDTO
+
+    b. Copy this to your newly-created class:
+
+            package com.lessons.sync.models;
+
+            import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+            @JsonIgnoreProperties(value = { "took", "items" })   // Tell Jackson to ignore the "took" and "items" fields
+            public class ErrorsDTO {
+
+                private boolean errors;
+
+                public boolean isErrors() {
+                    return errors;
+                }
+
+                public void setErrors(boolean errors) {
+                    this.errors = errors;
+                }
+            }
+
+
+ 3. Modify your submitBulkJsonRequest so that it checks for errors="true" in the JSON response
+    a. Add these lines to the end of the method:
+
+            String esJsonResponse = response.getResponseBody();
+
+            // Convert the response JSON string into an errorsDto object
+            // NOTE:  This is substantially faster as Jackson can ignore the other fields
+            ErrorsDTO errorsDTO = objectMapper.readValue(esJsonResponse, ErrorsDTO.class);
+
+            if (errorsDTO.isErrors()) {
+                logger.error("The JSON string contained errors.");
+
+                // ElasticSearch returned a non-200 status response
+                throw new RuntimeException("Error in submitBulkJsonRequest:  There were errors performing this bulk index.  ES returned this message:  " + response.getResponseBody());
+            }
+
+
+    After this change, your submitBulkJsonRequest() method should look something like this:
+
+         /**
+          * Submit a bulk JSON request to ElasticSearch
+          *
+          * @param aJsonBody Holds the bulk JSON request
+          * @param aForceRefresh Force an ES refresh if set to True.  Otherwise, wait for refrehs interval
+          */
+         public void submitBulkJsonRequest(String aJsonBody, boolean aForceRefresh) throws Exception {
+             if (StringUtils.isEmpty(aJsonBody)) {
+                 throw new RuntimeException("The passed-in JSON body is null or empty.");
+             }
+
+             String esRequestUrl;
+             if (aForceRefresh) {
+                 esRequestUrl = this.elasticSearchUrl + "/_bulk?refresh=true";
+             }
+             else {
+                 esRequestUrl = this.elasticSearchUrl + "/_bulk";
+             }
+
+             // Make a synchronous POST call to ElasticSearch to create this an index
+             Response response = this.asyncHttpClient.preparePost(esRequestUrl)
+                     .setRequestTimeout(this.ES_REQUEST_TIMEOUT_IN_MILLISECS)
+                     .setHeader("accept", "application/json")
+                     .setHeader("Content-Type", "application/json")
+                     .setBody(aJsonBody)
+                     .execute()
+                     .get();
+
+             if (response.getStatusCode() != 200) {
+                 // ElasticSearch returned a non-200 status response
+                 throw new RuntimeException("Error in submitBulkJsonRequest:  ES returned a status code of " + response.getStatusCode() + " with an error of: " + response.getResponseBody());
+             }
+
+             String esJsonResponse = response.getResponseBody();
+
+             // Convert the response JSON string into an errorsDto object
+             // NOTE:  This is substantially faster as Jackson will ignore the other fields
+             ErrorsDTO errorsDTO = objectMapper.readValue(esJsonResponse, ErrorsDTO.class);
+
+             if (errorsDTO.isErrors()) {
+                 logger.error("The JSON string contained errors.");
+
+                 // ElasticSearch returned a non-200 status response
+                 throw new RuntimeException("Error in submitBulkJsonRequest:  There were errors performing this bulk index.  ES returned this message:  " + response.getResponseBody());
+             }
+
+         }
