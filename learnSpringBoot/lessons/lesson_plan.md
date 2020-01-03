@@ -106,7 +106,7 @@
    1. [Fill-in Refresh Service](/learnSpringBoot/lessons/lesson29_syncApp_fillinRefreshService.txt)<br/>
    1. [Add a mapping to the Sync Service](/learnSpringBoot/lessons/lesson32_syncApp_addMapping.txt)
    1. [Add data to your new ES index](/learnSpringBoot/lessons/lesson33_syncApp_addDataToIndex.txt)
-   1. Improve Error Checking in the bulk index operation
+   1. Improve Error Checking after running the bulk index operation
    1. Switch the alias
    1. [Add Embedded Data Source unit tests](/learnSpringBoot/lessons/lesson30_syncApp_addEmbeddedDataSource.txt)<br/>
    1. [Add Embedded ElasticSearch unit test](/learnSpringBoot/lessons/lesson31_syncApp_addEmbeddedElasticSearch.txt)<br/>
