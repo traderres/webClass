@@ -1,0 +1,188 @@
+Lesson:  Have the Sync-Service Delete Unused Indexes
+----------------------------------------------------
+After switching the aliases, the Sync-Service should delete unused indexes
+NOTE:  This is not crucial for the Sync-Service to function
+
+
+
+Procedure
+---------
+ 1. Modify your ElasticSearchService
+    a. Go to your sync-service/src/main/java/com/lessons/sync/services/ElasticSearchService
+
+    b. Add these methods:
+
+        /**
+         * Return a list of ES index names with the passed-in prefix
+         * NOTE:  The passed-in prefix can be null or empty
+         *
+         * @param aPrefix holds a string of characters used to match index names
+         * @return List of strings that hold matching ES index names
+         */
+        public List<String> getIndexesThatStartWith(String aPrefix) throws Exception {
+
+            // Make a synchronous POST call to ElasticSearch to get all indicies (if any) that are used by this alias
+            Response response = this.asyncHttpClient.prepareGet(this.elasticSearchUrl + "/_cat/indices/" + aPrefix + "*")
+                    .setRequestTimeout(this.ES_REQUEST_TIMEOUT_IN_MILLISECS)
+                    .setHeader("accept", "application/json")
+                    .execute()
+                    .get();
+
+            if (response.getStatusCode() != 200) {
+                // ElasticSearch returned a non-200 status response
+                throw new RuntimeException("Error in getIndexesUsedByAlias:  ES returned a status code of " + response.getStatusCode() + " with an error of: " + response.getResponseBody());
+            }
+
+            // Convert the ES response into a list of java maps
+            String esJsonResponse = response.getResponseBody();
+            List<Map<String, Object>> listOfMaps = this.objectMapper.readValue(esJsonResponse, new TypeReference<List<Map<String, Object>>>(){});
+
+
+            ArrayList<String> indexNamesMatchingPrefix = new ArrayList<>();
+
+            // Loop through the list of maps, pulling-out the name from the map
+            for (Map<String, Object> indexMapDetails: listOfMaps) {
+                String indexName = (String) indexMapDetails.get("index");
+                if (StringUtils.isNotEmpty(indexName)) {
+                    indexNamesMatchingPrefix.add(indexName);
+                }
+            }
+
+            // Return an unmodifiable list
+            return Collections.unmodifiableList(indexNamesMatchingPrefix);
+        }
+
+
+        /**
+         * Attempt to delete the passed-in ES index
+         *
+         * @param aIndexName holds the index name to delete
+         */
+        public void deleteIndex(String aIndexName) throws Exception {
+            if (StringUtils.isEmpty(aIndexName)) {
+                throw new RuntimeException("The passed-in index name is null or empty.");
+            }
+
+            // Make a synchronous POST call to ElasticSearch to get all indicies (if any) that are used by this alias
+            Response response = this.asyncHttpClient.prepareDelete(this.elasticSearchUrl + "/" + aIndexName)
+                    .setRequestTimeout(this.ES_REQUEST_TIMEOUT_IN_MILLISECS)
+                    .setHeader("accept", "application/json")
+                    .execute()
+                    .get();
+
+            if (response.getStatusCode() != 200) {
+                // ElasticSearch returned a non-200 status response
+                throw new RuntimeException("Error in deleteIndex:  ES returned a status code of " + response.getStatusCode() + " with an error of: " + response.getResponseBody());
+            }
+        }
+
+
+
+
+
+ 2. Add the RefreshService.deleteOldIndexesThatStartWith() method
+    a. Go to your sync-service/src/main/java/com/lessons/services/RefreshService
+    b. Add this method to it:
+
+        /**
+         * Get a list of indexes that have the aliasName -- e.g., reports20200103 and reports2010.....
+         * Loop through all of the old indexes
+         * -- If the index name is not the same as the passed-in new index name
+         *      Then delete the index
+         *
+         * @param aAliasName
+         * @param aNewIndexName
+         */
+        private void deleteOldIndexesThatStartWith(String aAliasName, String aNewIndexName) {
+
+            try {
+                List<String> allIndexNamesWithAliasPrefix = elasticSearchService.getIndexesThatStartWith(aAliasName + "_");
+
+                for (String oldIndexName : allIndexNamesWithAliasPrefix) {
+                    if (!oldIndexName.equalsIgnoreCase(aNewIndexName)) {
+                        // I found an index that does *NOT* have the same name as the newly-created index.  So, delete it
+                        elasticSearchService.deleteIndex(oldIndexName);
+                    }
+                }
+            }
+            catch (Exception e) {
+                // Catch the exception and **IGNORE IT**
+                logger.warn("Warning in deleteOldIndexesThatStartWith():  This exception will be ignored as the Sync-Service finished up to this point", e);
+            }
+        }
+
+
+
+ 3. Modify your RefreshService.refreshMappingWithAlias() to call your new method
+    a. Add this to refreshMappingWithAlias()
+
+             // Delete old indexes
+             deleteOldIndexesThatStartWith(aAliasName, esNewIndexName);
+
+       When completed, your refreshMappingWithAlias() method should look like this:
+
+
+        /**
+         * Refresh this mapping
+         *  1. Create a new index called         reports_YYYYMMDD__HH24MISS
+         *  2. Add records from reports table to reports_YYYYMMDD__HH24MISS
+         *  3. Have the reports alias point to   reports_YYYYMMDD__HH24MISS
+         *  4. Cleanup:  Delete any other indexes that start with reports_
+         *
+         * @param aAliasName the alias name -- e.g., "reports"
+         * @throws Exception if something bad happens
+         */
+        private void refreshMappingWithAlias(String aAliasName) throws Exception {
+            try {
+                // Set the flag to indicate a refresh is work-in-progress
+                isRefreshInProgress = true;
+
+                String mappingFilename = aAliasName + ".mapping.json";
+
+                // Get the json mapping as a string
+                String jsonMapping = readFileInClasspathToString(mappingFilename);
+
+                // Create a new index
+                String esNewIndexName = aAliasName + "_" + getCurrentDateTime();
+                elasticSearchService.createIndex(esNewIndexName, jsonMapping);
+
+                // Add data to this new index
+                addDataToIndex(esNewIndexName);
+
+                // Switch the alias
+                setAliasToUseThisIndex(aAliasName, esNewIndexName);
+
+                // Delete old indexes
+                deleteOldIndexesThatStartWith(aAliasName, esNewIndexName);
+            }
+            finally {
+                isRefreshInProgress = false;
+            }
+        }
+
+
+ 4. Drop any existing "reports" index you have
+    -- The reason is simple:  You cannot have an alias called "reports" AND an index called "reports
+    a. Connect to your kibana console at localhost:5601
+    b. Run these commands:
+        DELETE /reports
+
+
+ 5. Verify it works
+    a. List all reports indeces that start with reports_ *before* running the Sync-Service
+       1) Connect to http://localhost:5601
+       2) In the DevTools
+          GET _cat/indices/reports_*
+
+    b. Run your Sync Server
+
+    c. List all reports indeces that start with reports_ *after* running the Sync-Service
+        1) Connect to http://localhost:5601
+        2) In the DevTools
+           GET _cat/indices/reports_*
+
+           -- You should see the only newly-created index
+           yellow open reports_20200103_213653 T099vjF3RV2NCIhDqAuRFA 5 1 3 0 14.6kb 14.6kb
+
+
+
