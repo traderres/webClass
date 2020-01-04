@@ -190,6 +190,7 @@
    1. [Add a Cache to the Lookup Factory](/learnSpringBoot/lessons/lesson_frontend7_setupCacheForLookups.txt)
    1. [Have front-end wait for user's permissions](/learnSpringBoot/lessons/lesson_frontend8_getPermissionsOnStartup.txt)
    1. [Add a Search box](/learnSpringBoot/lessons/lesson_frontend9_setupSearchBox.txt)
+   1. [Add a External Export Menu Option](/learnSpringBoot/lessons/lesson_frontend10_setupExternalExportMenuOption.txt)
    
 1. Building & Deployment
    1. Create Jenkins Job to build the uber JAR
