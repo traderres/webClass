@@ -191,9 +191,9 @@
    1. [Have front-end wait for user's permissions](/learnSpringBoot/lessons/lesson_frontend8_getPermissionsOnStartup.txt)
    1. [Add Dialog Box](/learnSpringBoot/lessons/lesson_frontend9_addDialogBox.txt)
    1. [Add a External Export Menu Option](/learnSpringBoot/lessons/lesson_frontend10_setupExternalExportMenuOption.txt)
-   1. [Add a Search box](/learnSpringBoot/lessons/lesson_frontend9_addDialogBox.txt)
    1. [Add Tabs](/learnSpringBoot/lessons/lesson_frontend11_addTabsToPage.txt)
    1. [Add Graphs](/learnSpringBoot/lessons/lesson_frontend12_addGraphsToPage.txt)
+   1. [Add a Search box](/learnSpringBoot/lessons/lesson_frontend13_setupSearchBox.txt)
    
 1. Building & Deployment
    1. Create Jenkins Job to build the uber JAR
