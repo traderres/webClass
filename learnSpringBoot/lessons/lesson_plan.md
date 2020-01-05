@@ -189,10 +189,10 @@
    1. [Add a Lookup Factory](/learnSpringBoot/lessons/lesson_frontend6_setupLookupFactory.txt)
    1. [Add a Cache to the Lookup Factory](/learnSpringBoot/lessons/lesson_frontend7_setupCacheForLookups.txt)
    1. [Have front-end wait for user's permissions](/learnSpringBoot/lessons/lesson_frontend8_getPermissionsOnStartup.txt)
-   1. [Add Popup](/learnSpringBoot/lessons/lesson_frontend9_setupAddPopup.txt)
+   1. [Add Dialog Box](/learnSpringBoot/lessons/lesson_frontend9_addDialogBox.txt)
    1. [Add a External Export Menu Option](/learnSpringBoot/lessons/lesson_frontend10_setupExternalExportMenuOption.txt)
-   1. [Add a Search box](/learnSpringBoot/lessons/lesson_frontend9_setupAddPopup.txt)
-   1. [Add Tabs](/learnSpringBoot/lessons/lesson_frontend11_setupPageWithTabs.txt)
+   1. [Add a Search box](/learnSpringBoot/lessons/lesson_frontend9_addDialogBox.txt)
+   1. [Add Tabs](/learnSpringBoot/lessons/lesson_frontend11_addTabsToPage.txt)
    1. [Add Graphs](/learnSpringBoot/lessons/lesson_frontend12_addGraphsToPage.txt)
    
 1. Building & Deployment
