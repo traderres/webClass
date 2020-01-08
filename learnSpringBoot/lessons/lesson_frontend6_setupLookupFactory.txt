@@ -15,10 +15,11 @@ Approach
 
 
  2) Create a REST endpoint to get all lookup values with category name sorted by...
-    -- Generates SQL to select * from lookup values where category name is....
+    -- GET /api/lookup/type/{type}
+    -- Generates SQL to select id, name from lookup values where category name is....
     -- Returns a list of lookup DTO objects (with id and name)
 
- 3) Create a lookup.factory.js with a call to getLookupsForCategoryName('priorities')
+ 3) Create a lookup.factory.js with a call to getLookupWithTypeName('priorities')
 
  4) Change the routes.js so that the lookup data is resolved on page loadup
     -- It should get lookup data for priority
@@ -30,4 +31,174 @@ Approach
 
 Procedure
 ---------
+ 1. Add a new flyway script with the tables for lookups
+    a. Go to database-migration/src/main/resources/db/migration -> New File
+       Filename:  V1.4__lookup_tables.sql
 
+       NOTE:  If you have a V1.4, then make this new file 1.5....
+
+
+    b. Copy this to your newly-created sql script
+
+            --------------------------------------------------------------
+            -- Filename:  V1.4__lookup_tables.sql
+            --------------------------------------------------------------
+
+            -- Create this table:  LookupType
+            create table lookup_type
+            (
+                id         integer      not null,
+                version    integer      not null,
+                name       varchar(256) not null,
+                primary key (id),
+                constraint lookup_type_name_uniq UNIQUE(name) -- Each lookup type name must be unique
+            );
+            comment on table  lookup_type      is 'This lookup_type table holds all of the lookup type names.  Every lookup must have a type';
+            comment on column lookup_type.name is 'Lookup_type.name holds the name or category of this lookup -- e.g., priority.';
+
+
+
+            -- Create this table:  Lookup
+            create table lookup
+            (
+                id           integer      not null,
+                version      integer      not null,
+                lookup_type  integer      not null,
+                name         varchar(256) not null,
+                primary key(id),
+                constraint lookup_name_uniq UNIQUE(lookup_type, name),                           -- Each lookup name and type must be unique
+                constraint lookup_type_fkey FOREIGN KEY(lookup_type) references lookup_type(id)  -- Each lookup type must exist in the lookup_type table
+            );
+            comment on table  lookup         is 'The lookup table holds all of the lookup values';
+            comment on column lookup.name    is 'Lookup.name holds the actual lookup name -- low, medium, high';
+
+
+            -- Insert Starting Lookup Types
+            insert into lookup_type(id, version, name) values(100, 1, 'priority');
+            insert into lookup_type(id, version, name) values(101, 1, 'report_type');
+
+
+            -- Insert Starting Lookup Values for priority
+            insert into lookup(id, version, lookup_type, name)  values(1, 1, 100, 'low');
+            insert into lookup(id, version, lookup_type, name)  values(2, 1, 100, 'medium');
+            insert into lookup(id, version, lookup_type, name)  values(3, 1, 100, 'high');
+            insert into lookup(id, version, lookup_type, name)  values(4, 1, 100, 'critical');
+
+
+            -- Insert Starting Lookup Values for report_type
+            insert into lookup(id, version, lookup_type, name)  values(5, 1, 101, 'Marketing');
+            insert into lookup(id, version, lookup_type, name)  values(6, 1, 101, 'H&R');
+            insert into lookup(id, version, lookup_type, name)  values(7, 1, 101, 'CEO');
+
+
+    c. Run flyway:migrate to apply these changes to your local database
+       unix> cd database-migration
+       unix> mvn flyway:migrate
+       
+    
+
+ 2. Create a REST endpoint to get all lookup values with the given lookup type
+    a. Create the Java class:  LookupDTO
+
+    b. Create the Java class:  LookupService
+
+    c. Create the Java class:  LookupController
+
+
+
+ 3. Create a lookup.factory.js
+    a. Right-click on webapp/src/main/resources/public/resources/factories -> New File
+       Filename:  lookup.factory.js
+
+    b. Copy this to your newly-created lookup.factory.js
+
+            (function(){
+                //
+                //  LookupFactory holds methods to get lookup values from the app server
+                //
+                angular.module('app1')
+                    .factory('LookupFactory', ['$http', '$q', init] )
+
+                function init($http, $q) {
+                    let LookupFactory = {};
+
+                    LookupFactory.getLookupWithTypeName = getLookupWithTypeName;
+
+                    return LookupFactory;
+
+
+
+                    /*
+                     * Make a REST call and returns a list of lookup DTOs with the passed-in category name
+                     */
+                    function getLookupWithTypeName(aType) {
+                        console.log('getLookupWithTypeName() started.');
+
+                        return $http.get('./api/lookups/type/' + aType).then(function(results) {
+                            // The REST call returned with a 200-299 status code
+
+                            // So, return some data
+                            return results.data;
+                        })
+                    }
+
+
+                }
+            })();
+
+    c. Make sure your app.html loads this file on page startup
+       a. Go to webapp/src/main/resources/public/app.html
+
+       b. Add this line to it:
+              <script src="./resources/factories/lookup.factory.js"></script>
+
+
+          So, the top of your app.html should look something like this:
+
+            <!DOCTYPE html>
+            <html lang="en" data-ng-app="app1">
+            <head>
+                <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+                <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+                <title>App Main Page</title>
+
+                <base href="/app1/">
+
+                <!-- Include CSS Files -->
+                <link rel="stylesheet" type="text/css" href="./resources/node_modules/angular-resizable/angular-resizable.min.css">
+                <link rel="stylesheet" type="text/css" href="./resources/node_modules/angular-material/angular-material.min.css">
+                <link rel="stylesheet" type="text/css" href="./resources/node_modules/angular-ui-grid/ui-grid.min.css">
+                <link rel="stylesheet" type="text/css" href="./resources/node_modules/@fortawesome/fontawesome-free/css/all.css">
+                <link rel="stylesheet" type="text/css" href="./resources/css/index.css">
+
+                <!-- Load All Node Modules JavaScript Dependencies -->
+                <script src="./resources/node_modules/angular/angular.js"></script>
+                <script src="./resources/node_modules/@uirouter/angularjs/release/angular-ui-router.min.js"></script>
+                <script src="./resources/node_modules/angular-aria/angular-aria.min.js"></script>
+                <script src="./resources/node_modules/angular-animate/angular-animate.min.js"></script>
+                <script src="./resources/node_modules/angular-material/angular-material.min.js"></script>
+                <script src="./resources/node_modules/angular-messages/angular-messages.min.js"></script>
+                <script src="./resources/node_modules/angular-sanitize/angular-sanitize.min.js"></script>
+                <script src="./resources/node_modules/angular-scroll/angular-scroll.min.js"></script>
+                <script src="./resources/node_modules/angular-resizable/angular-resizable.min.js"></script>
+                <script src="./resources/node_modules/@fortawesome/fontawesome-free/js/all.js"></script>
+                <script src="./resources/node_modules/angular-ui-grid/ui-grid.js"></script>
+                <script src="./resources/node_modules/angular-ui-grid/ui-grid.exporter.js"></script>
+
+                <!-- Load all custom JavaScript Files -->
+                <script src="./resources/config/app.js"></script>
+                <script src="./resources/config/routes.js"></script>
+                <script src="./resources/config/state.js"></script>
+                <script src="./resources/config/nav.controller.js"></script>
+
+                <!-- Load all factories *before* loading feature controllers -->
+                <script src="./resources/factories/reports.factory.js"></script>
+                <script src="./resources/factories/grid.service.js"></script>
+                <script src="./resources/factories/lookup.factory.js"></script>
+
+                <!-- Load all JavaScript files for the various features -->
+                <script src="./resources/modules/features.js"></script>
+                <script src="./resources/features/reports/view_reports/main.controller.js"></script>
+                <script src="./resources/features/reports/add_report/main.controller.js"></script>
+            </head>
