@@ -1,0 +1,499 @@
+Lesson:  Adjust Sync-Service to Query More Fields (using a view)
+----------------------------------------------------------------
+We want to add the priority and created_date to the reports ES index
+But, you will need to run a SQL join to get priority strings.
+-- Right now, the reports database table has those as integers
+-- But, we need these to be strings in the reports ES index
+
+
+Approach
+ 1) Add to flyway:  Add lookup and lookup_type tables to the database
+ 2) Add to flyway:  Add a new view (called "view_all_reports")
+ 3) Insert 3 report records
+ 4) Adjust the SyncService so it queries the database view
+ 5) Adjust the SyncService ReportDTO object so it has the new fields
+ 6) Adjust the reports ES mapping by adding priority and created_date
+ 7) Adjust your ObjectMapper so it sets dates in a human-readable format
+ 8) Verify it works
+
+
+Assumptions:
+ A) Your reports table has a created_date in it
+         -- Create the reports table
+         CREATE TABLE reports
+         (
+           id                  INTEGER PRIMARY KEY NOT NULL,
+           version             INTEGER,
+           description         TEXT,
+           display_name        VARCHAR(255),
+           reviewed            BOOLEAN,
+           reference_source    INTEGER,
+           priority            INTEGER,
+           created_date        TIMESTAMP,
+           last_modified_date  TIMESTAMP,
+           is_custom_report    BOOLEAN DEFAULT FALSE,
+           reserved            BOOLEAN,
+           reserved_by         VARCHAR(255)
+         );
+
+
+
+
+Procedure
+---------
+ 1. Add a flyway script for your new lookup tables
+    a. Go to database-migration/src/main/resources/db/migration -> New File
+       Filename:  V1.4__lookup_tables.sql
+
+       NOTE:  If you have a V1.4, then make this new file 1.5....
+
+
+    b. Copy this to your newly-created sql script
+
+            --------------------------------------------------------------
+            -- Filename:  V1.4__lookup_tables.sql
+            --------------------------------------------------------------
+
+            -- Create this table:  LookupType
+            create table lookup_type
+            (
+                id         integer      not null,
+                version    integer      not null,
+                name       varchar(256) not null,
+                primary key (id),
+                constraint lookup_type_name_uniq UNIQUE(name) -- Each lookup type name must be unique
+            );
+            comment on table  lookup_type      is 'This lookup_type table holds all of the lookup type names.  Every lookup must have a type';
+            comment on column lookup_type.name is 'Lookup_type.name holds the name or category of this lookup -- e.g., priority.';
+
+
+
+            -- Create this table:  Lookup
+            create table lookup
+            (
+                id           integer      not null,
+                version      integer      not null,
+                lookup_type  integer      not null,
+                name         varchar(256) not null,
+                primary key(id),
+                constraint lookup_name_uniq UNIQUE(lookup_type, name),                           -- Each lookup name and type must be unique
+                constraint lookup_type_fkey FOREIGN KEY(lookup_type) references lookup_type(id)  -- Each lookup type must exist in the lookup_type table
+            );
+            comment on table  lookup         is 'The lookup table holds all of the lookup values';
+            comment on column lookup.name    is 'Lookup.name holds the actual lookup name -- low, medium, high';
+
+
+            -- Insert Starting Lookup Types
+            insert into lookup_type(id, version, name) values(100, 1, 'priority');
+            insert into lookup_type(id, version, name) values(101, 1, 'reference_source');
+
+
+            -- Insert Starting Lookup Values for priority
+            insert into lookup(id, version, lookup_type, name)  values(1, 1, 100, 'low');
+            insert into lookup(id, version, lookup_type, name)  values(2, 1, 100, 'medium');
+            insert into lookup(id, version, lookup_type, name)  values(3, 1, 100, 'high');
+            insert into lookup(id, version, lookup_type, name)  values(4, 1, 100, 'critical');
+
+
+            -- Insert Starting Lookup Values for report_type
+            insert into lookup(id, version, lookup_type, name)  values(5, 1, 101, 'Marketing');
+            insert into lookup(id, version, lookup_type, name)  values(6, 1, 101, 'H&R');
+            insert into lookup(id, version, lookup_type, name)  values(7, 1, 101, 'CEO');
+
+
+    c. Run flyway:info to verify that flyway "sees" your new script
+       unix> cd database-migration
+       unix> mvn flyway:info
+       -- Your new SQL script should be seen with the status of "pending"
+
+    d. Run flyway:migrate to apply these changes to your local database
+       unix> mvn flyway:migrate
+
+
+ 2. Add a flyway script to hold your database views
+    NOTE:  This script will start with R__
+           This script will run as a repeatable migration
+
+    a. Go to database-migration/src/main/resources/db/migration -> New File
+       Filename:  R__views.sql
+
+
+    b. Copy this to your newly-created sql script
+
+              --------------------------------------------------------------
+              -- Filename:  R__views.sql
+              --
+              -- This is a repeatable migration script
+              --  so every view is destroyed and re-created
+              --------------------------------------------------------------
+
+
+              -- Destroy the view (if it actually exists)
+              drop view if exists view_all_reports;
+
+              -- Create this view:  View_all_reports
+              -- This view is used by the sync-service to get information for the reports ES index
+              create view view_all_reports AS
+                select r.id, r.description, r.display_name, r.created_date, l_priority.name as priority
+                from reports r
+                join lookup l_priority ON (r.priority=l_priority.id)
+              ;
+
+
+    c. Run flyway:info to verify that flyway "sees" your new script
+       unix> cd database-migration
+       unix> mvn flyway:info
+       -- Your new SQL script should be seen with the status of "pending"
+
+    d. Run flyway:migrate to apply these changes to your local database
+       unix> mvn flyway:migrate
+
+
+ 3. Insert some reports records into your database
+    If reports.priority==1, then it should appear as 'low' in view_all_reports
+    If reports.priority==2, then it should appear as 'medium' in view_all_reports
+    If reports.priority==3, then it should appear as 'high' in view_all_reports
+
+    a. Open your Database console (in Intellij)
+
+    b. Run these commands (to insert some test records)
+
+        -- Insert some test records
+        insert into reports(id, description, display_name, created_date, priority) values(100, 'this is rpt 100', 'rpt100.txt', now(), 1);
+        insert into reports(id, description, display_name, created_date, priority) values(101, 'this is rpt 101', 'rpt101.txt', now(), 1);
+        insert into reports(id, description, display_name, created_date, priority) values(102, 'this is rpt 102', 'rpt102.txt', now(), 1);
+
+        -- Query the database view
+        select * from view_all_reports;
+
+
+
+ 4. Adjust the SyncService so that it queries the view
+    a. Edit your sync-service/src/main/java/com/lessons/sync/services/RefreshService.java
+
+    b. Change this entry:
+          String sql = "select id, display_name, description from reports";
+
+       To this:
+          String sql = "select id, display_name, description, priority, created_date from view_all_reports";
+
+
+
+ 5. Adjust the ReportDTO so that all 5 fields
+    NOTE:  Everything is *MUCH EASIER* if all 5 fields must have the same name in both the database view and the reports ES index
+
+    a. Edit your sync-service/src/main/java/com/lessons/sync/models/ReportDTO.java
+
+    b. Add 2 more private fields to the top
+            private String priority;
+            private Timestamp created_date;
+
+    c. Delete all of the getters and setters
+
+    d. Use IntelliJ to regenerate all of the getters/setters
+       -- Right click -> Generate -> Getters and Setters -> Highlight all
+
+
+    When done, your ReportDTO should look like this:
+
+        package com.lessons.sync.models;
+
+        import java.sql.Timestamp;
+
+        public class ReportDTO {
+
+            private int id;
+            private String displayName;
+            private String description;
+            private String priority;
+            private Timestamp created_date;
+
+            public int getId() {
+                return id;
+            }
+
+            public void setId(int id) {
+                this.id = id;
+            }
+
+            public String getDisplayName() {
+                return displayName;
+            }
+
+            public void setDisplayName(String displayName) {
+                this.displayName = displayName;
+            }
+
+            public String getDescription() {
+                return description;
+            }
+
+            public void setDescription(String description) {
+                this.description = description;
+            }
+
+            public String getPriority() {
+                return priority;
+            }
+
+            public void setPriority(String priority) {
+                this.priority = priority;
+            }
+
+            public Timestamp getCreated_date() {
+                return created_date;
+            }
+
+            public void setCreated_date(Timestamp created_date) {
+                this.created_date = created_date;
+            }
+        }
+
+
+
+
+ 6. Adjust the ES mapping:  Add created_date and reference_source to the reports ES index
+    a. Edit your sync-service/src/main/resources/reports.mapping.json
+
+    b. Add the created_date to the "mapping" -> "record" -> "properties" section
+
+            "created_date": {
+              "type": "date",
+              "ignore_malformed": false,
+              "format": "epoch_millis||epoch_second||yyyy/MM/dd HH:mm:ss.SSS||yyyy-MM-dd HH:mm:ss.SSS||yyyy/MM/dd HH:mm:ss||yyyy-MM-dd HH:mm:ss.SSSZ||yyyy-MM-dd'T'HH:mm:ss||yyyy-MM-dd'T'HH:mm:ssZ||yyyy-MM-dd HH:mm:ss||yyyy-MM-dd HH:mm:ssZ||yyyy/MM/dd||yyyy-MM-dd||S"
+            }
+
+
+    c. Add the reference_source to the mapping
+
+          "reference_source": {
+            "type": "text",
+            "include_in_all": true,
+            "fields": {
+              "raw": {
+                "type": "keyword"
+              },
+              "sort": {
+                "type": "keyword",
+                "normalizer": "case_insensitive_normalizer"
+              },
+              "filtered": {
+                "type": "text",
+                "analyzer": "my_ngram_analyzer"
+              }
+            }
+          }
+
+    When finished, your reports.mapping.json should look like this:
+
+        {
+          "settings": {
+            "analysis": {
+              "analyzer" : {
+                "my_ngram_analyzer" : {
+                  "tokenizer" : "my_ngram_tokenizer",
+                  "filter": ["lowercase"]
+                }
+              },
+              "tokenizer" : {
+                "my_ngram_tokenizer" : {
+                  "type" : "ngram",
+                  "min_gram" : "1",
+                  "max_gram" : "75",
+                  "token_chars": [ ]
+                }
+              },
+              "normalizer": {
+                "case_insensitive_normalizer": {
+                  "type": "custom",
+                  "char_filter": [],
+                  "filter": [ "lowercase", "asciifolding" ]
+                }
+              }
+            },
+            "max_result_window": 500000,
+            "refresh_interval": "1s"
+          },
+
+          "mappings": {
+            "record": {
+              "dynamic": "strict",
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "ignore_malformed": false
+                },
+                "description": {
+                  "type": "text",
+                  "include_in_all": true
+                },
+
+                "display_name": {
+                  "type": "text",
+                  "include_in_all": true,
+                  "fields": {
+                    "raw": {
+                      "type": "keyword"
+                    },
+                    "sort": {
+                      "type": "keyword",
+                      "normalizer": "case_insensitive_normalizer"
+                    },
+                    "filtered": {
+                      "type": "text",
+                      "analyzer": "my_ngram_analyzer"
+                    }
+                  }
+                },
+
+                "priority": {
+                  "type": "text",
+                  "include_in_all": true,
+                  "fields": {
+                    "raw": {
+                      "type": "keyword"
+                    },
+                    "sort": {
+                      "type": "keyword",
+                      "normalizer": "case_insensitive_normalizer"
+                    },
+                    "filtered": {
+                      "type": "text",
+                      "analyzer": "my_ngram_analyzer"
+                    }
+                  }
+                },
+
+                "created_date": {
+                  "type": "date",
+                  "ignore_malformed": false,
+                  "format": "epoch_millis||epoch_second||yyyy/MM/dd HH:mm:ss.SSS||yyyy-MM-dd HH:mm:ss.SSS||yyyy/MM/dd HH:mm:ss||yyyy-MM-dd HH:mm:ss.SSSZ||yyyy-MM-dd'T'HH:mm:ss||yyyy-MM-dd'T'HH:mm:ssZ||yyyy-MM-dd HH:mm:ss||yyyy-MM-dd HH:mm:ssZ||yyyy/MM/dd||yyyy-MM-dd||S"
+                },
+
+                "reference_source": {
+                  "type": "text",
+                  "include_in_all": true,
+                  "fields": {
+                    "raw": {
+                      "type": "keyword"
+                    },
+                    "sort": {
+                      "type": "keyword",
+                      "normalizer": "case_insensitive_normalizer"
+                    },
+                    "filtered": {
+                      "type": "text",
+                      "analyzer": "my_ngram_analyzer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
+
+
+
+ 7. Tell the objectMapper in the RefreshService to set dates as YYYY--MM-DD HH24:MI
+
+    a. Go to your RefreshService
+
+    b. Edit the @PostContruct method by adding these 2 lines:
+          // Tell the object mapper to set dates to this format:
+          DateFormat outputDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+          this.objectMapper.setDateFormat(outputDateFormat);
+
+
+       When finished, your @PostConstruct method should look similar to this:
+
+           @PostConstruct
+           public void init() {
+               this.objectMapper = new ObjectMapper();
+
+               // Ensure that when Java is converted to JSON that the fields use snake case (because ES fields are in snake case)
+               // -- So, if the ReportDTO.getDisplayName() --> display_name in the JSON
+               this.objectMapper.setPropertyNamingStrategy(PropertyNamingStrategy.SNAKE_CASE);
+
+               // Tell the object mapper to set dates to this format:
+               DateFormat outputDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+               this.objectMapper.setDateFormat(outputDateFormat);
+           }
+
+
+
+    KEY POINT:  By default, ES will return the date in the *SAME FORMAT* as you put in the bulk request
+                If the bulk-request has the dates formatted as the seconds since 1970,
+                  then the searches will (by default) return the dates as seconds since 1970
+
+                If the bulk-request has the dates formatted as "yyyy-MM-dd HH:mm:ss",
+                  then the searches will (by default) return the date as that same format
+
+
+
+ 8. Verify it works
+    a. Run the sync-service
+    b. Query the records in Kibana to see if the new fields are present
+       1) Open a browser
+       2) Go to http://localhost:5601
+       3) Click on "Dev Tools"
+       4) Run a search against your reports index
+
+            POST reports/_search
+
+          You should see the priority and created_dates like this:
+
+              {
+                "took": 3,
+                "timed_out": false,
+                "_shards": {
+                  "total": 5,
+                  "successful": 5,
+                  "failed": 0
+                },
+                "hits": {
+                  "total": 3,
+                  "max_score": 1,
+                  "hits": [
+                    {
+                      "_index": "reports_20200108_210057",
+                      "_type": "record",
+                      "_id": "101",
+                      "_score": 1,
+                      "_source": {
+                        "id": 101,
+                        "display_name": "rpt101.txt",
+                        "description": "this is rpt 101",
+                        "priority": "low",
+                        "created_date": "2020-01-09 01:17:39"
+                      }
+                    },
+                    {
+                      "_index": "reports_20200108_210057",
+                      "_type": "record",
+                      "_id": "100",
+                      "_score": 1,
+                      "_source": {
+                        "id": 100,
+                        "display_name": "rpt100.txt",
+                        "description": "this is rpt 100",
+                        "priority": "low",
+                        "created_date": "2020-01-09 01:17:38"
+                      }
+                    },
+                    {
+                      "_index": "reports_20200108_210057",
+                      "_type": "record",
+                      "_id": "102",
+                      "_score": 1,
+                      "_source": {
+                        "id": 102,
+                        "display_name": "rpt102.txt",
+                        "description": "this is rpt 102",
+                        "priority": "low",
+                        "created_date": "2020-01-09 01:17:39"
+                      }
+                    }
+                  ]
+                }
+              }

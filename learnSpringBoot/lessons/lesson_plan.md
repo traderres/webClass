@@ -109,6 +109,7 @@
    1. [Improve Error Checking](/learnSpringBoot/lessons/lesson34_syncApp_improveErrorChecking.txt) after running the bulk index operation
    1. [Switch the alias](/learnSpringBoot/lessons/lesson35_syncApp_switchAliases.txt)
    1. [Cleanup old indices](/learnSpringBoot/lessons/lesson36_syncApp_cleanup.txt)
+   1. [Sync more fields using view](/learnSpringBoot/lessons/lesson37_syncApp_syncFieldsUsingView.txt)
    1. [Add Embedded Data Source unit tests](/learnSpringBoot/lessons/lesson30_syncApp_addEmbeddedDataSource.txt)<br/>
    1. [Add Embedded ElasticSearch unit test](/learnSpringBoot/lessons/lesson31_syncApp_addEmbeddedElasticSearch.txt)<br/>
    
