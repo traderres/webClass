@@ -361,3 +361,105 @@ Procedure
                 <script src="./resources/features/reports/view_reports/main.controller.js"></script>
                 <script src="./resources/features/reports/add_report/main.controller.js"></script>
             </head>
+
+ 4. Change the routes.js so that the lookup data is resolved on page loadup
+    a. Edit the webapp/src/main/resources/public/resources/config/routes.js
+
+    b. Modify the getViewReportsState() so that it waits for these 3 promises to resolve *before* loading
+        reportsViewData
+        lookupPriorities
+        lookupReportTypes
+
+
+       Change the getViewReportState() to this:
+
+               function getViewReportState() {
+                   return {
+                       url: URL_PAGE_PREFIX + '/reports/view',
+                       templateUrl: './resources/features/reports/view_reports/index.html',
+                       controller: 'viewReports',
+                       controllerAs: 'viewReportsVM',
+                       resolve: {
+
+                           // Inject reportsViewData into the viewReports controller
+                           reportsViewData: function(ReportsFactory) {
+                               return ReportsFactory.getAllReports();
+                           },
+
+                           // Inject lookupData into the viewReports controller
+                           lookupPriorities: function(LookupFactory) {
+                               return LookupFactory.getLookupWithTypeName('priority');
+                           },
+
+                           lookupReportTypes: function(LookupFactory) {
+                               return LookupFactory.getLookupWithTypeName('report_type');
+                           }
+                       }
+                   }
+               }
+
+  5. Change the reports_view main.controller.js so that it uses the lookup data for dropdowns
+     a. Go to webapp/src/main/resources/public/resources/features/reports/view_reports/main.controller.js
+
+     b. Inject lookupPriorities and lookupReportTypes into the top of the controller
+
+        Change the top of the main.controller.js to this:
+
+        (function(){
+            angular.module('app.features')
+                .controller('viewReports', ['$timeout', '$stateParams', '$scope', '$window', 'reportsViewData',  'GridService', 'ReportsFactory', 'lookupPriorities', 'lookupReportTypes', Callback])
+
+            function Callback($timeout, $stateParams, $scope, $window, reportsViewData, GridService, ReportsFactory, lookupPriorities, lookupReportTypes) {
+                console.log('viewReports controller started.   reportsViewData=', reportsViewData);
+
+                let viewReportsVM = this;
+
+
+     c. Change the $scope.lookupData to this:
+
+             // Create a lookup map that holds a map of all of the lookup values
+             $scope.lookupData = {
+                 'priorities' : lookupPriorities,
+                 'report_types' : lookupReportTypes
+             }
+
+     d. Change the priorities filter dropdown to show the lookup name
+        -- Before: lookupData.priorities *was* an array of strings
+        -- Now:    lookupData.priorities is now an array of maps
+
+        We want users to select the lookup.id (holding the id of the lookup value)
+        We want users to *see* the lookup.name (which holds the actual lookup name -- e.g., 'critical'
+             {
+                 name: 'priority',
+                 field: 'priority',
+                 displayName: 'Priority',
+                 visible: true,
+                 type: 'string',
+                 width: 150,
+                 filterHeaderTemplate: '<md-select placeholder="select" ng-model="col.filters[0].term" multiple>\n' +
+                                           '<md-option ng-value="lookup.id" ng-repeat="lookup in grid.appScope.lookupData.priorities">{{lookup.name}}</md-option>\n' +
+                                       '</md-select>'
+             },
+
+
+     e. Add a new column that shows the report types
+             {
+                 name: 'report_type',
+                 field: 'report_type',
+                 displayName: 'Report Type',
+                 visible: true,
+                 type: 'string',
+                 width: 150,
+                 filterHeaderTemplate: '<md-select placeholder="select" ng-model="col.filters[0].term" multiple>\n' +
+                     '<md-option ng-value="lookup.id" ng-repeat="lookup in grid.appScope.lookupData.report_types">{{lookup.name}}</md-option>\n' +
+                     '</md-select>'
+             }
+
+
+  6. Verify it works
+     a. Activate your webapp with the debugger
+     b. Open a browser
+     c. Connect to http://localhost:8080/app1
+     d. Go to "View Reports"
+        -- You should be able to click on the priorities   drop down and see the 4 priority values
+        -- You should be able to click on the Report Types drop down and see the 3 report types
