@@ -189,13 +189,14 @@
    1. [Setup Grid Filter w/Server Side REST calls](/learnSpringBoot/lessons/lesson_frontend4_setupGridServerSideFiltering.txt)
    1. [Setup Grid Filter dropdowns](/learnSpringBoot/lessons/lesson_frontend5_setupGridFilterDropDowns.txt)
    1. [Add a Lookup Factory](/learnSpringBoot/lessons/lesson_frontend6_setupLookupFactory.txt)
-   1. [Add a Cache to the Lookup Factory](/learnSpringBoot/lessons/lesson_frontend7_setupCacheForLookups.txt)
-   1. [Have front-end wait for user's permissions](/learnSpringBoot/lessons/lesson_frontend8_getPermissionsOnStartup.txt)
+   1. [Improve Lookup Factory with map of lookups](/learnSpringBoot/lessons/lesson_frontend7_improveLookupFactoryWithMaps.txt)
+   1. [Add a Cache to the Lookup Factory](/learnSpringBoot/lessons/lesson_frontend8_setupCacheForLookups.txt)
+   1. [Have front-end wait for user's permissions](/learnSpringBoot/lessons/lesson_frontend10_getUserPermissionsOnStartup.txt)
    1. [Add Dialog Box](/learnSpringBoot/lessons/lesson_frontend9_addDialogBox.txt)
-   1. [Add a External Export Menu Option](/learnSpringBoot/lessons/lesson_frontend10_setupExternalExportMenuOption.txt)
-   1. [Add Tabs](/learnSpringBoot/lessons/lesson_frontend11_addTabsToPage.txt)
-   1. [Add Graphs](/learnSpringBoot/lessons/lesson_frontend12_addGraphsToPage.txt)
-   1. [Add a Search box](/learnSpringBoot/lessons/lesson_frontend13_setupSearchBox.txt)
+   1. [Add a External Export Menu Option](/learnSpringBoot/lessons/lesson_frontend11_addMenuOptionForExportCsv.txt)
+   1. [Add Tabs](/learnSpringBoot/lessons/lesson_frontend12_addTabsToPage.txt)
+   1. [Add Graphs](/learnSpringBoot/lessons/lesson_frontend13_addGraphsToPage.txt)
+   1. [Add a Search box](/learnSpringBoot/lessons/lesson_frontend14_setupSearchBox.txt)
    
 1. Building & Deployment
    1. Create Jenkins Job to build the uber JAR
