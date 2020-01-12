@@ -1,0 +1,218 @@
+Lesson:  Add a LookupFactory that will use the new REST endpoint
+----------------------------------------------------------------
+
+
+Approach
+ 1) Create a lookup.factory.js with a call to getLookupWithTypeName('priorities')
+ 2) Change the routes.js so that the lookup data is resolved on page loadup
+    -- It should get lookup data for priority
+    -- It should get lookup data for report_type
+ 3) Change the reports_view main.controller.js so that it uses the lookup data for dropdowns
+
+
+
+Procedure
+---------
+ 1. Create a lookup.factory.js
+    a. Right-click on webapp/src/main/resources/public/resources/factories -> New File
+       Filename:  lookup.factory.js
+
+    b. Copy this to your newly-created lookup.factory.js
+
+            (function(){
+                //
+                //  LookupFactory holds methods to get lookup values from the app server
+                //
+                angular.module('app1')
+                    .factory('LookupFactory', ['$http', '$q', init] )
+
+                function init($http, $q) {
+                    let LookupFactory = {};
+
+                    LookupFactory.getLookupWithTypeName = getLookupWithTypeName;
+
+                    return LookupFactory;
+
+
+
+                    /*
+                     * Make a REST call and returns a list of lookup DTOs with the passed-in category name
+                     */
+                    function getLookupWithTypeName(aType) {
+                        console.log('getLookupWithTypeName() started.');
+
+                        return $http.get('./api/lookups/' + aType).then(function(results) {
+                            // The REST call returned with a 200-299 status code
+
+                            // So, return some data
+                            return results.data;
+                        })
+                    }
+
+
+                }
+            })();
+
+ 2. Make sure your app.html loads this file on page startup
+    a. Go to webapp/src/main/resources/public/app.html
+
+    b. Add this line to it:
+          <script src="./resources/factories/lookup.factory.js"></script>
+
+
+    So, the top of your app.html should look something like this:
+
+            <!DOCTYPE html>
+            <html lang="en" data-ng-app="app1">
+            <head>
+                <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+                <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+                <title>App Main Page</title>
+
+                <base href="/app1/">
+
+                <!-- Include CSS Files -->
+                <link rel="stylesheet" type="text/css" href="./resources/node_modules/angular-resizable/angular-resizable.min.css">
+                <link rel="stylesheet" type="text/css" href="./resources/node_modules/angular-material/angular-material.min.css">
+                <link rel="stylesheet" type="text/css" href="./resources/node_modules/angular-ui-grid/ui-grid.min.css">
+                <link rel="stylesheet" type="text/css" href="./resources/node_modules/@fortawesome/fontawesome-free/css/all.css">
+                <link rel="stylesheet" type="text/css" href="./resources/css/index.css">
+
+                <!-- Load All Node Modules JavaScript Dependencies -->
+                <script src="./resources/node_modules/angular/angular.js"></script>
+                <script src="./resources/node_modules/@uirouter/angularjs/release/angular-ui-router.min.js"></script>
+                <script src="./resources/node_modules/angular-aria/angular-aria.min.js"></script>
+                <script src="./resources/node_modules/angular-animate/angular-animate.min.js"></script>
+                <script src="./resources/node_modules/angular-material/angular-material.min.js"></script>
+                <script src="./resources/node_modules/angular-messages/angular-messages.min.js"></script>
+                <script src="./resources/node_modules/angular-sanitize/angular-sanitize.min.js"></script>
+                <script src="./resources/node_modules/angular-scroll/angular-scroll.min.js"></script>
+                <script src="./resources/node_modules/angular-resizable/angular-resizable.min.js"></script>
+                <script src="./resources/node_modules/@fortawesome/fontawesome-free/js/all.js"></script>
+                <script src="./resources/node_modules/angular-ui-grid/ui-grid.js"></script>
+                <script src="./resources/node_modules/angular-ui-grid/ui-grid.exporter.js"></script>
+
+                <!-- Load all custom JavaScript Files -->
+                <script src="./resources/config/app.js"></script>
+                <script src="./resources/config/routes.js"></script>
+                <script src="./resources/config/state.js"></script>
+                <script src="./resources/config/nav.controller.js"></script>
+
+                <!-- Load all factories *before* loading feature controllers -->
+                <script src="./resources/factories/reports.factory.js"></script>
+                <script src="./resources/factories/grid.service.js"></script>
+                <script src="./resources/factories/lookup.factory.js"></script>
+
+                <!-- Load all JavaScript files for the various features -->
+                <script src="./resources/modules/features.js"></script>
+                <script src="./resources/features/reports/view_reports/main.controller.js"></script>
+                <script src="./resources/features/reports/add_report/main.controller.js"></script>
+            </head>
+
+
+
+ 3. Change the routes.js so that the lookup data is resolved on page loadup
+    a. Edit the webapp/src/main/resources/public/resources/config/routes.js
+
+    b. Modify the getViewReportsState() so that it waits for these 3 promises to resolve *before* loading
+        reportsViewData
+        lookupPriorities
+        lookupReportTypes
+
+
+       Change the getViewReportState() to this:
+
+               function getViewReportState() {
+                   return {
+                       url: URL_PAGE_PREFIX + '/reports/view',
+                       templateUrl: './resources/features/reports/view_reports/index.html',
+                       controller: 'viewReports',
+                       controllerAs: 'viewReportsVM',
+                       resolve: {
+
+                           // Inject reportsViewData into the viewReports controller
+                           reportsViewData: function(ReportsFactory) {
+                               return ReportsFactory.getAllReports();
+                           },
+
+                           // Inject lookupData into the viewReports controller
+                           lookupPriorities: function(LookupFactory) {
+                               return LookupFactory.getLookupWithTypeName('priority');
+                           },
+
+                           lookupReportTypes: function(LookupFactory) {
+                               return LookupFactory.getLookupWithTypeName('report_type');
+                           }
+                       }
+                   }
+               }
+
+ 4. Change the reports_view main.controller.js so that it uses the lookup data for dropdowns
+     a. Go to webapp/src/main/resources/public/resources/features/reports/view_reports/main.controller.js
+
+     b. Inject lookupPriorities and lookupReportTypes into the top of the controller
+
+        Change the top of the main.controller.js to this:
+
+        (function(){
+            angular.module('app.features')
+                .controller('viewReports', ['$timeout', '$stateParams', '$scope', '$window', 'reportsViewData',  'GridService', 'ReportsFactory', 'lookupPriorities', 'lookupReportTypes', Callback])
+
+            function Callback($timeout, $stateParams, $scope, $window, reportsViewData, GridService, ReportsFactory, lookupPriorities, lookupReportTypes) {
+                console.log('viewReports controller started.   reportsViewData=', reportsViewData);
+
+                let viewReportsVM = this;
+
+
+     c. Change the $scope.lookupData to this:
+
+             // Create a lookup map that holds a map of all of the lookup values
+             $scope.lookupData = {
+                 'priorities' : lookupPriorities,
+                 'report_types' : lookupReportTypes
+             }
+
+     d. Change the priorities filter dropdown to show the lookup name
+        -- Before: lookupData.priorities *was* an array of strings
+        -- Now:    lookupData.priorities is now an array of maps
+        NOTE: we add the "track by lookup.id" to the ng-repeat
+
+        We want users to select the lookup.id (holding the id of the lookup value)
+        We want users to *see* the lookup.name (which holds the actual lookup name -- e.g., 'critical'
+             {
+                 name: 'priority',
+                 field: 'priority',
+                 displayName: 'Priority',
+                 visible: true,
+                 type: 'string',
+                 width: 150,
+                 filterHeaderTemplate: '<md-select placeholder="select" ng-model="col.filters[0].term" multiple>\n' +
+                                           '<md-option ng-value="lookup.id" ng-repeat="lookup in grid.appScope.lookupData.priorities track by lookup.id">{{lookup.name}}</md-option>\n' +
+                                       '</md-select>'
+             },
+
+
+     e. Add a new column that shows the report types
+        NOTE: we add the "track by lookup.id" to the ng-repeat
+
+             {
+                 name: 'report_type',
+                 field: 'report_type',
+                 displayName: 'Report Type',
+                 visible: true,
+                 type: 'string',
+                 width: 150,
+                 filterHeaderTemplate: '<md-select placeholder="select" ng-model="col.filters[0].term" multiple>\n' +
+                     '<md-option ng-value="lookup.id" ng-repeat="lookup in grid.appScope.lookupData.report_types track by lookup.id">{{lookup.name}}</md-option>\n' +
+                     '</md-select>'
+             }
+
+
+ 5. Verify it works
+     a. Activate your webapp with the debugger
+     b. Open a browser
+     c. Connect to http://localhost:8080/app1
+     d. Go to "View Reports"
+        -- You should be able to click on the priorities   drop down and see the 4 priority values
+        -- You should be able to click on the Report Types drop down and see the 3 report types
