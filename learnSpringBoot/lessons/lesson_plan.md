@@ -181,7 +181,7 @@
    1. Setup a Spring Profile called "prod" that uses https
    1. [How to create a mocked logged-in user for test classes](/learnSpringBoot/lessons/lesson21_testControllersWithMockUser.txt)
 
-1. Add a front-end using Angular and NPM
+1. Add an AngularJS front-end
    1. [Add a navigation bar](/learnSpringBoot/lessons/lesson_frontend1_setupNavigationBar.txt)
    1. [Navigate to different views](/learnSpringBoot/lessons/lesson_frontend1b_howToSwitchViews.txt)
    1. [Add a page that has a UI-Grid](/learnSpringBoot/lessons/lesson_frontend2_setupGrid.txt)
