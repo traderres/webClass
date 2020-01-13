@@ -191,7 +191,7 @@
    1. [Add a Lookup REST call](/learnSpringBoot/lessons/lesson_frontend6_addRestCallToGetLookups.txt)
    1. [Add a Lookup Factory](/learnSpringBoot/lessons/lesson_frontend7_addLookupFactory.txt)
    1. [Improve Lookup Factory with map of lookups](/learnSpringBoot/lessons/lesson_frontend8_improveLookupFactoryWithMaps.txt)
-   1. [Improve Lookup Factory with a front-end Cache](/learnSpringBoot/lessons/lesson_frontend9_setupCacheForLookups.txt)
+   1. [Improve Lookup Factory with a front-end Cache](/learnSpringBoot/lessons/lesson_frontend9_addCacheToLookupFactory.txt)
    1. [Have front-end wait for user's permissions](/learnSpringBoot/lessons/lesson_frontend11_getUserPermissionsOnStartup.txt)
    1. [Add Dialog Box](/learnSpringBoot/lessons/lesson_frontend10_addDialogBox.txt)
    1. [Add a External Export Menu Option](/learnSpringBoot/lessons/lesson_frontend12_addMenuOptionForExportCsv.txt)
