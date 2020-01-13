@@ -1,6 +1,308 @@
 Lesson:  Improve the Lookup Factory by Retrieving multiple Lookups
 ------------------------------------------------------------------
 Problem:  Page views needs to get *multiple* lookup values
-Solution: Create a LookupFactory method that will invoke a
-          *single* REST call that will return a map of *multiple* lookup values
+          We don't want the front-end to make 4 REST calls to get lookup values
+          We want to make just 1 REST call to get all of the lookup values
 
+Approach
+ 1) Create a REST endpoint that will return a map of lookup values
+    with key=LookupType and value=List of LookupsDTOs
+ 2) Create a LookupFactory method that will invoke a
+    *single* REST call that will return a map of *multiple* lookup values
+
+
+
+
+Procedure
+---------
+ 1. Add a method to the LookupService
+    a. Go to webapp/src/main/java/com/lessons/services/LookupService
+
+    b. Add this method to the class:
+
+            /**
+             * @param aLookupTypes holds a list of lookup-type names
+             * @return TRUE if *all* of the passed-in lookup-type names are found in the lookup_type database table
+             */
+            public boolean doesAllLookupsExist(List<String> aLookupTypes) {
+                // Construct the SQL to see if all lookup types are found in the database
+                String sql = "select count(distinct(id)) from lookup_type where name in (:lookupTypes)";
+
+                // Create a parameter map
+                Map<String, Object> paramMap = new HashMap<>();
+                paramMap.put("lookupTypes", aLookupTypes);
+
+                // Execute the SQL returning the total lookup types found in the database
+                NamedParameterJdbcTemplate np = new NamedParameterJdbcTemplate(this.dataSource);
+                Integer totalLookupTypesFound = np.queryForObject(sql, paramMap, Integer.class);
+
+                // If the total lookup types found in the database match the size of the map, then return TRUE
+                return totalLookupTypesFound == aLookupTypes.size();
+            }
+
+
+ 2. Add a new REST endpoint to the LookupController
+    a. Go to webapp/src/main/java/com/lessons/controllers/LookupController
+
+    b. Add this method to the class:
+
+            @RequestMapping(value = "/api/lookups/map/{lookupTypes}", method = RequestMethod.GET, produces = "application/json")
+            public ResponseEntity<?> getMapofLookupTypes(@PathVariable(name="lookupTypes") List<String> aLookupTypes) {
+                logger.debug("getMapofLookupTypes() started.   aLookupTypes={}", StringUtils.join(aLookupTypes, ","));
+
+                if (! lookupService.doesAllLookupsExist(aLookupTypes) ) {
+                    return ResponseEntity
+                            .status(HttpStatus.BAD_REQUEST)
+                            .contentType(MediaType.TEXT_PLAIN)
+                            .body("One or more of these lookup types do not existt: " + StringUtils.join(aLookupTypes, ","));
+                }
+
+                HashMap<String, List<LookupDTO>> mapLookupTypeInfo = new HashMap<>();
+
+                for (String lookupType: aLookupTypes) {
+                    List<LookupDTO> lookupDTOS = lookupService.getLookupsWithType(lookupType, "display_order");
+
+                    // Add this list of LookupDTOs to the map
+                    mapLookupTypeInfo.put(lookupType, lookupDTOS);
+                }
+
+                // Return the map of key=lookupType value=listOfLookupDtos
+                return ResponseEntity
+                        .status(HttpStatus.OK)
+                        .body(mapLookupTypeInfo);
+            }
+
+
+ 3. Verify the new REST endpoint works
+    a. Startup Postman
+    b. Make a GET call to http://localhost:8080/app1/api/lookups/map/priority,report_type
+       -- You should see this sa the result:
+
+       {
+           "report_type": [
+               {
+                   "id": 7,
+                   "name": "CEO"
+               },
+               {
+                   "id": 6,
+                   "name": "H&R"
+               },
+               {
+                   "id": 5,
+                   "name": "Marketing"
+               }
+           ],
+           "priority": [
+               {
+                   "id": 1,
+                   "name": "low"
+               },
+               {
+                   "id": 2,
+                   "name": "medium"
+               },
+               {
+                   "id": 3,
+                   "name": "high"
+               },
+               {
+                   "id": 4,
+                   "name": "critical"
+               }
+           ]
+       }
+
+ 4. Add a method to the LookupFactory to call this new REST endpoint
+    a. Go to webapp/src/main/resources/public/resources/factories/lookup.factory.js
+
+    b. Add this method:
+
+            /*
+             * Make a REST call that returns a map of lookupData
+             * -- If called with a list of ['priorities', 'status']
+             *    then returns a map of lookups
+             *       {
+             *         'status':      [list of LookupDTOs ],
+             *         'priorities':  [list of LookupDTOs]
+             *       }
+             *
+             */
+            function getMapOfLookupsWithTypes(aTypes) {
+
+                let csvTypes = aTypes.join(",")
+
+                return $http.get('./api/lookups/map/' + csvTypes).then(function(results) {
+                    // The REST call returned with a 200-299 status code
+
+                    // So, return some data
+                    return results.data;
+                })
+            }
+
+     c. Make this new method publicly accessable by adding this line:
+           LookupFactory.getMapOfLookupsWithTypes = getMapOfLookupsWithTypes;
+
+
+     When complete, your LookupFactory should look like this:
+
+          (function(){
+              //
+              //  LookupFactory holds methods to get lookup values from the app server
+              //
+              angular.module('app1')
+                  .factory('LookupFactory', ['$http', '$q', init] )
+
+              function init($http, $q) {
+                  let LookupFactory = {};
+
+                  LookupFactory.getLookupWithTypeName = getLookupWithTypeName;
+                  LookupFactory.getMapOfLookupsWithTypes = getMapOfLookupsWithTypes;
+                  return LookupFactory;
+
+
+
+                  /*
+                   * Make a REST call and returns a list of lookup DTOs with the passed-in category name
+                   */
+                  function getLookupWithTypeName(aType) {
+                      console.log('getLookupWithTypeName() started.');
+
+                      return $http.get('./api/lookups/' + aType + '/display_order').then(function(results) {
+                          // The REST call returned with a 200-299 status code
+
+                          // So, return some data
+                          return results.data;
+                      })
+                  }
+
+
+
+                  /*
+                   * Make a REST call that returns a map of lookupData
+                   * -- If called with a list of ['priorities', 'status']
+                   *    then returns a map of lookups
+                   *       {
+                   *         'status':      [list of LookupDTOs ],
+                   *         'priorities':  [list of LookupDTOs]
+                   *       }
+                   *
+                   */
+                  function getMapOfLookupsWithTypes(aTypes) {
+
+                      let csvTypes = aTypes.join(",")
+
+                      return $http.get('./api/lookups/map/' + csvTypes).then(function(results) {
+                          // The REST call returned with a 200-299 status code
+
+                          // So, return some data
+                          return results.data;
+                      })
+                  }
+
+
+              }
+          })();
+
+
+ 5. Change your routes.js to call the new LookupFactory.getMapOfLookupsWithTypes()
+    a. Go to webapp/src/main/resources/public/resources/config/routes.js
+
+    b. Edit the getViewReportState() method:
+       1) Remove the call for lookupPriorities
+
+            // Inject lookupData into the viewReports controller
+            lookupPriorities: function(LookupFactory) {
+                return LookupFactory.getLookupWithTypeName('priority');
+            }
+
+       2) Remove the call for lookupReportTypes
+
+            lookupReportTypes: function(LookupFactory) {
+             return LookupFactory.getLookupWithTypeName('report_type');
+            }
+
+
+       3) Add a call for lookupMap:
+
+            lookupMap: function(LookupFactory) {
+               // Make 1 REST call to get a map of multiple lookups
+               return LookupFactory.getMapOfLookupsWithTypes( ['priority', 'report_type'])
+            }
+
+
+       When done, your getViewReportState() method should look like this:
+
+          function getViewReportState() {
+              return {
+                  url: URL_PAGE_PREFIX + '/reports/view',
+                  templateUrl: './resources/features/reports/view_reports/index.html',
+                  controller: 'viewReports',
+                  controllerAs: 'viewReportsVM',
+                  resolve: {
+
+                      // Inject reportsViewData into the viewReports controller
+                      reportsViewData: function(ReportsFactory) {
+                          return ReportsFactory.getAllReports();
+                      },
+
+                      lookupMap: function(LookupFactory) {
+                          // Make 1 REST call to get a map of multiple lookups
+                          return LookupFactory.getMapOfLookupsWithTypes( ['priority', 'report_type'])
+                      }
+
+                  }
+              }
+          }
+
+
+ 6. Change your view-reports main.controller.js so that the lookupMap is injected
+    a. Go to webapp/src/main/resources/public/resources/features/reports/view_reports/main.controller.js
+
+    b. Remove the injected lookupReportTypes from the top
+
+    c. Remove the injected lookupPriorities from the top
+
+    d. Inject lookupMap to the top
+
+    e. Replace the $scope.lookupData so that it refers to the passed-in lookupMap
+
+       Remove this code:
+            // Create a lookup map that holds a map of all of the lookup values
+            $scope.lookupData = {
+               'priority' : lookupPriorities,
+               'report_type' : lookupReportTypes
+            }
+
+       Add this code:
+            // $scope.lookupData holds a map of lookup info
+            // $scope.lookupData.priority holds a list of LookupDTO for the priorities
+            // $scope.lookupData.report_type holds a list of LookupDTOs for the report types
+            $scope.lookupData = lookupMap;
+
+
+    When completed, your top few lines should look like this:
+
+            (function(){
+                angular.module('app.features')
+                    .controller('viewReports', ['$timeout', '$stateParams', '$scope', '$window', 'reportsViewData',  'GridService', 'ReportsFactory', 'lookupMap', Callback])
+
+                function Callback($timeout, $stateParams, $scope, $window, reportsViewData, GridService, ReportsFactory, lookupMap) {
+                    console.log('viewReports controller started.  2 lookupMap=', lookupMap);
+
+                    let viewReportsVM = this;
+
+
+                    // $scope.lookupData holds a map of lookup info
+                    // $scope.lookupData.priority holds a list of LookupDTO for the priorities
+                    // $scope.lookupData.report_type holds a list of LookupDTOs for the report types
+                    $scope.lookupData = lookupMap;
+
+
+ 7. Verify your priorities and report_types still appear on the front-end
+     a. Activate your webapp with the debugger
+     b. Open a browser
+     c. Connect to http://localhost:8080/app1
+     d. Go to "View Reports"
+        -- You should be able to click on the priorities   drop down and see the 4 priority values
+        -- You should be able to click on the Report Types drop down and see the 3 report types
