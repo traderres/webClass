@@ -195,8 +195,8 @@
    1. [Have front-end wait for user's permissions](/learnSpringBoot/lessons/lesson_frontend11_getUserPermissionsOnStartup.txt)
    1. [Add Dialog Box](/learnSpringBoot/lessons/lesson_frontend10_addDialogBox.txt)
    1. [Add a External Export Menu Option](/learnSpringBoot/lessons/lesson_frontend12_addMenuOptionForExportCsv.txt)
-   1. [Add Tabs](/learnSpringBoot/lessons/lesson_frontend14_addTabsToPage.txt)
-   1. [Add Graphs](/learnSpringBoot/lessons/lesson_frontend13_addGraphsToPage.txt)
+   1. [Add a page with Tabs](/learnSpringBoot/lessons/lesson_frontend14_addTabsToPage.txt)
+   1. [Add a page with Graphs](/learnSpringBoot/lessons/lesson_frontend13_addGraphsToPage.txt)
    1. [Add a Search box](/learnSpringBoot/lessons/lesson_frontend15_addSearchBox.txt)
    
 1. Building & Deployment
