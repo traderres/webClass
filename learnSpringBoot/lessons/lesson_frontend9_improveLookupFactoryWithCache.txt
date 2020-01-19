@@ -140,288 +140,149 @@ Edit the lookup.factory.js file so that it checks a cache *before* making a REST
           }
 
 
-    When completed, the LookupFactory should look like this:
+    When completed, the lookup.factory.js file should look like this:
 
-     (function(){
-         //
-         //  LookupFactory holds methods to get lookup values from the app server
-         //
-         angular.module('app1')
-             .factory('LookupFactory', ['$http', init] )
+         (function(){
+             //
+             //  LookupFactory holds methods to get lookup values from the app server
+             //
+             angular.module('app1')
+                 .factory('LookupFactory', ['$http', init] )
 
-         function init($http) {
-             let LookupFactory = {};
+             function init($http) {
+                 let LookupFactory = {};
 
-             LookupFactory.getLookupsWithTypeName = getLookupsWithTypeName;
-             LookupFactory.getMapOfLookupsWithTypes = getMapOfLookupsWithTypes;
-
-
-             // Initialize/empty the cache (the first time this factory is created)
-             emptyLookupCache();
-
-             return LookupFactory;
+                 LookupFactory.getLookupsWithTypeName = getLookupsWithTypeName;
+                 LookupFactory.getMapOfLookupsWithTypes = getMapOfLookupsWithTypes;
 
 
-             function getFromLookupCache(aName) {
-                 return LookupFactory.cache[aName];
-             }
+                 // Initialize/empty the cache (the first time this factory is created)
+                 emptyLookupCache();
 
-             function addToLookupCache(aName, aCacheData) {
-                 LookupFactory.cache[aName] = aCacheData;
-             }
-
-             function emptyLookupCache() {
-                 LookupFactory.cache = {};
-             }
+                 return LookupFactory;
 
 
-             /*
-              * Return a map of lookups that were found in the cache
-              *      {
-              *        'status':      [list of LookupDTOs ],
-              *        'priorities':  [list of LookupDTOs]
-              *      }
-              */
-             function getMapOfItemsFromCache(aTypes) {
-                 let mapCachedItems = { };
-
-                 // Loop through the list of types
-                 aTypes.forEach(function (type) {
-                     let lookupInfo = getFromLookupCache(type);
-
-                     if (lookupInfo != null) {
-                         // This lookup was found in the cache.  So, add it to the returned map
-
-                         mapCachedItems[type] = lookupInfo;
-                     }
-                 });
-
-                 return mapCachedItems;
-             }
-
-
-             /*
-              * Returns a list of types that are not found in the cache
-              */
-             function getListOfTypesNotFoundInCache(aTypes) {
-                 let missingTypes = [];
-
-                 // Loop through the list of types
-                 aTypes.forEach(function (type) {
-                     if (getFromLookupCache(type) == null) {
-                         missingTypes.push(type);
-                     }
-                 });
-
-                 return missingTypes;
-             }
-
-             /*
-              * Make a REST call that returns a map of lookupData
-              *  returns a map of lookups
-              *       {
-              *         'status':      [list of LookupDTOs ],
-              *         'priorities':  [list of LookupDTOs]
-              *       }
-              *
-              *  If all elements are found in the cache
-              *         then return a resolved promise with the map of lookup types
-              *  Else
-              *     Identify elements not found in the cache
-              *     Make a REST call to get the missing lookups
-              *     Upon success, add the missing items to the cache
-              */
-             function getMapOfLookupsWithTypes(aTypes) {
-
-                 let mapItemsFoundInCache = getMapOfItemsFromCache(aTypes);
-                 if (Object.keys(mapItemsFoundInCache).length == aTypes.length) {
-                     // All lookups are found in cache.  So, return a reoslved promise that holds the map of cache items
-                     return Promise.resolve(mapItemsFoundInCache);
+                 function getFromLookupCache(aName) {
+                     return LookupFactory.cache[aName];
                  }
 
-                 let listMissingTypes = getListOfTypesNotFoundInCache(aTypes);
-
-                 // Make a REST call to get those elements that were missing
-                 let csvTypes = listMissingTypes.join(",");
-
-                 return $http.get('./api/lookups/map/' + csvTypes).then(function(results) {
-                     // The REST call returned with a 200-299 status code
-
-                     let mapNonCachedLookups = results.data;
-
-                     // Start the map of returned lookup data with items found in the cache
-                     let returnedLookupMap = mapItemsFoundInCache;
-
-                     // Loop through all of the keys that were not in the cache
-                     Object.keys(mapNonCachedLookups).forEach(function(type) {
-                         let lookupTypeInfo =  mapNonCachedLookups[type];
-
-                         // Add this info to the cache
-                         addToLookupCache(type, lookupTypeInfo);
-
-                         // Add this info to the returnedMap as well
-                         returnedLookupMap[type] = lookupTypeInfo;
-                     });
-
-                     // Return the map of lookup info
-                     return returnedLookupMap;
-                 })
-             }
-
-             /*
-              * Make a REST call and returns a list of lookup DTOs with the passed-in category name
-              */
-             function getLookupsWithTypeName(aType) {
-                 return $http.get('./api/lookups/' + aType).then(function(results) {
-                     // The REST call returned with a 200-299 status code
-
-                     // So, return some data
-                     return results.data;
-                 })
-             }
-
-
-         }
-     })();
-
-
-
-
-
- 2. Verify it works:
-
-
-             LookupFactory.getLookupsWithTypeName = getLookupsWithTypeName;
-             LookupFactory.getMapOfLookupsWithTypes = getMapOfLookupsWithTypes;
-
-
-             // Initialize/empty the cache (the first time this factory is created)
-             emptyLookupCache();
-
-             return LookupFactory;
-
-
-             function getFromLookupCache(aName) {
-                 return LookupFactory.cache[aName];
-             }
-
-             function addToLookupCache(aName, aCacheData) {
-                 LookupFactory.cache[aName] = aCacheData;
-             }
-
-             function emptyLookupCache() {
-                 LookupFactory.cache = {};
-             }
-
-
-             /*
-              * Return a map of lookups that were found in the cache
-              *      {
-              *        'status':      [list of LookupDTOs ],
-              *        'priorities':  [list of LookupDTOs]
-              *      }
-              */
-             function getMapOfItemsFromCache(aTypes) {
-                 let mapCachedItems = { };
-
-                 // Loop through the list of types
-                 aTypes.forEach(function (type) {
-                     let lookupInfo = getFromLookupCache(type);
-
-                     if (lookupInfo != null) {
-                         // This lookup was found in the cache.  So, add it to the returned map
-
-                         mapCachedItems[type] = lookupInfo;
-                     }
-                 });
-
-                 return mapCachedItems;
-             }
-
-
-             /*
-              * Returns a list of types that are not found in the cache
-              */
-             function getListOfTypesNotFoundInCache(aTypes) {
-                 let missingTypes = [];
-
-                 // Loop through the list of types
-                 aTypes.forEach(function (type) {
-                     if (getFromLookupCache(type) == null) {
-                         missingTypes.push(type);
-                     }
-                 });
-
-                 return missingTypes;
-             }
-
-             /*
-              * Make a REST call that returns a map of lookupData
-              *  returns a map of lookups
-              *       {
-              *         'status':      [list of LookupDTOs ],
-              *         'priorities':  [list of LookupDTOs]
-              *       }
-              *
-              *  If all elements are found in the cache
-              *         then return a resolved promise with the map of lookup types
-              *  Else
-              *     Identify elements not found in the cache
-              *     Make a REST call to get the missing lookups
-              *     Upon success, add the missing items to the cache
-              */
-             function getMapOfLookupsWithTypes(aTypes) {
-
-                 let mapItemsFoundInCache = getMapOfItemsFromCache(aTypes);
-                 if (Object.keys(mapItemsFoundInCache).length == aTypes.length) {
-                     // All lookups are found in cache.  So, return a reoslved promise that holds the map of cache items
-                     return Promise.resolve(mapItemsFoundInCache);
+                 function addToLookupCache(aName, aCacheData) {
+                     LookupFactory.cache[aName] = aCacheData;
                  }
 
-                 let listMissingTypes = getListOfTypesNotFoundInCache(aTypes);
+                 function emptyLookupCache() {
+                     LookupFactory.cache = {};
+                 }
 
-                 // Make a REST call to get those elements that were missing
-                 let csvTypes = listMissingTypes.join(",");
 
-                 return $http.get('./api/lookups/map/' + csvTypes).then(function(results) {
-                     // The REST call returned with a 200-299 status code
+                 /*
+                  * Return a map of lookups that were found in the cache
+                  *      {
+                  *        'status':      [list of LookupDTOs ],
+                  *        'priorities':  [list of LookupDTOs]
+                  *      }
+                  */
+                 function getMapOfItemsFromCache(aTypes) {
+                     let mapCachedItems = { };
 
-                     let mapNonCachedLookups = results.data;
+                     // Loop through the list of types
+                     aTypes.forEach(function (type) {
+                         let lookupInfo = getFromLookupCache(type);
 
-                     // Start the map of returned lookup data with items found in the cache
-                     let returnedLookupMap = mapItemsFoundInCache;
+                         if (lookupInfo != null) {
+                             // This lookup was found in the cache.  So, add it to the returned map
 
-                     // Loop through all of the keys that were not in the cache
-                     Object.keys(mapNonCachedLookups).forEach(function(type) {
-                         let lookupTypeInfo =  mapNonCachedLookups[type];
-
-                         // Add this info to the cache
-                         addToLookupCache(type, lookupTypeInfo)
-
-                         // Add this info to the returnedMap as well
-                         returnedLookupMap[type] = lookupTypeInfo;
+                             mapCachedItems[type] = lookupInfo;
+                         }
                      });
 
-                     // Return the map of lookup info
-                     return returnedLookupMap;
-                 })
+                     return mapCachedItems;
+                 }
+
+
+                 /*
+                  * Returns a list of types that are not found in the cache
+                  */
+                 function getListOfTypesNotFoundInCache(aTypes) {
+                     let missingTypes = [];
+
+                     // Loop through the list of types
+                     aTypes.forEach(function (type) {
+                         if (getFromLookupCache(type) == null) {
+                             missingTypes.push(type);
+                         }
+                     });
+
+                     return missingTypes;
+                 }
+
+                 /*
+                  * Make a REST call that returns a map of lookupData
+                  *  returns a map of lookups
+                  *       {
+                  *         'status':      [list of LookupDTOs ],
+                  *         'priorities':  [list of LookupDTOs]
+                  *       }
+                  *
+                  *  If all elements are found in the cache
+                  *         then return a resolved promise with the map of lookup types
+                  *  Else
+                  *     Identify elements not found in the cache
+                  *     Make a REST call to get the missing lookups
+                  *     Upon success, add the missing items to the cache
+                  */
+                 function getMapOfLookupsWithTypes(aTypes) {
+
+                     let mapItemsFoundInCache = getMapOfItemsFromCache(aTypes);
+                     if (Object.keys(mapItemsFoundInCache).length == aTypes.length) {
+                         // All lookups are found in cache.  So, return a reoslved promise that holds the map of cache items
+                         return Promise.resolve(mapItemsFoundInCache);
+                     }
+
+                     let listMissingTypes = getListOfTypesNotFoundInCache(aTypes);
+
+                     // Make a REST call to get those elements that were missing
+                     let csvTypes = listMissingTypes.join(",");
+
+                     return $http.get('./api/lookups/map/' + csvTypes).then(function(results) {
+                         // The REST call returned with a 200-299 status code
+
+                         let mapNonCachedLookups = results.data;
+
+                         // Start the map of returned lookup data with items found in the cache
+                         let returnedLookupMap = mapItemsFoundInCache;
+
+                         // Loop through all of the keys that were not in the cache
+                         Object.keys(mapNonCachedLookups).forEach(function(type) {
+                             let lookupTypeInfo =  mapNonCachedLookups[type];
+
+                             // Add this info to the cache
+                             addToLookupCache(type, lookupTypeInfo);
+
+                             // Add this info to the returnedMap as well
+                             returnedLookupMap[type] = lookupTypeInfo;
+                         });
+
+                         // Return the map of lookup info
+                         return returnedLookupMap;
+                     })
+                 }
+
+                 /*
+                  * Make a REST call and returns a list of lookup DTOs with the passed-in category name
+                  */
+                 function getLookupsWithTypeName(aType) {
+                     return $http.get('./api/lookups/' + aType).then(function(results) {
+                         // The REST call returned with a 200-299 status code
+
+                         // So, return some data
+                         return results.data;
+                     })
+                 }
+
+
              }
-
-             /*
-              * Make a REST call and returns a list of lookup DTOs with the passed-in category name
-              */
-             function getLookupsWithTypeName(aType) {
-                 return $http.get('./api/lookups/' + aType).then(function(results) {
-                     // The REST call returned with a 200-299 status code
-
-                     // So, return some data
-                     return results.data;
-                 })
-             }
-
-
-         }
-     })();
+         })();
 
 
 
