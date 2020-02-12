@@ -59,19 +59,26 @@ Restore one schema within the database
  1. Drop the old cde database (on your local postgres)
     unix> psql -U postgres -h localhost
 
-	    	drop database cde;
-	   	 \q
+	  drop database cde;
+	  \q
 
  2. Create the cde_user  (on your local postgres)
-    unix>  psql -U postgres -h localhost
+    unix> psql -U postgres -h localhost
  
-		    CREATE USER cde_user WITH PASSWORD 'secret';
-	    	\q
+	  CREATE USER cde_user WITH PASSWORD 'secret';
+	  \q
 
  3. Restore the CDE database (on your local postgres)
     unix> sudo -s
     unix> su - postgres
     unix> psql -h localhost -p 5432 -U postgres < /tmp/cde.sql
     
+ 4. Make sure your cde_user exists and has permissions to your *local* cde database
+    unix> psql -U postgres -h localhost
 
+	  CREATE USER cde_user WITH PASSWORD 'secret';
+	  GRANT ALL PRIVILEGES ON DATABASE cde to cde_user;
+	  ALTER DATABASE cde  SET search_path=cde;
+	  ALTER ROLE cde_user SET search_path=cde;
+	  \q
 
