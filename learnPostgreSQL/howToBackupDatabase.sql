@@ -35,14 +35,12 @@ Backup all schemas in the database
 ----------------------------------
  1. Backup all schemas in the databases
     unix> sudo -s
-    unix> su - postgres
     unix> pg_dumpall > /tmp/all.sql     # Export all databases without being prompted for password
 
 Restore all schemas in the database
 -----------------------------------
  1. Approach #1:  Use psql
     unix> sudo -s
-    unix> su - postgres
     unix> psql -h localhost -p 5432 -U postgres < /tmp/all.sql
 
 
@@ -51,7 +49,6 @@ Backup one schema in the database
 ---------------------------------
  1. Backup one schema found in the databases
     unix> sudo -s
-    unix> su - postgres
     unix> pg_dump --create -h localhost -U postgres cde -f /tmp/cde.sql   # Backup the cde schema
     
 Restore one schema within the database
@@ -70,7 +67,6 @@ Restore one schema within the database
 
  3. Restore the CDE database (on your local postgres)
     unix> sudo -s
-    unix> su - postgres
     unix> psql -h localhost -p 5432 -U postgres < /tmp/cde.sql
     
  4. Make sure your cde_user exists and has permissions to your *local* cde database
