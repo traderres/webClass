@@ -54,9 +54,8 @@ Backup one schema in the database
     unix> su - postgres
     unix> pg_dump --create -h localhost -U postgres cde -f /tmp/cde.sql   # Backup the cde schema
     
-    
 Restore one schema within the database
--------------------------===----------
+--------------------------------------
  1. Drop the old cde database (on your local postgres)
     unix> psql -U postgres -h localhost
 
