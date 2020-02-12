@@ -59,7 +59,7 @@ Restore one schema within the database
 	  drop database cde;
 	  \q
 
- 2. Create the cde_user  (on your local postgres)
+ 2. If your user does not exist, then create it 
     unix> psql -U postgres -h localhost
  
 	  CREATE USER cde_user WITH PASSWORD 'secret';
