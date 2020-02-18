@@ -1,0 +1,117 @@
+How to have the app-searchbox Emit a Message to the app-form1
+-----------------------------====-----------------------------
+
+
+
+Procedure
+---------
+ 1. Update the searchbox.component.ts so that it emits a message on search
+
+         import {Component, EventEmitter, OnInit, Output} from '@angular/core';
+
+         @Component({
+           selector: 'app-searchbox',
+           templateUrl: './searchbox.component.html',
+           styleUrls: ['./searchbox.component.css']
+         })
+         export class SearchboxComponent implements OnInit {
+           @Output() onSearch: EventEmitter<string> = new EventEmitter<string>();
+
+           public rawQuery: string;
+           public lastSearchQuery: string;
+
+           constructor() { }
+
+           ngOnInit() {
+             this.rawQuery = null;
+           }
+
+           search() {
+             console.log('user pressed search.  rawQuery=' + this.rawQuery);
+             this.lastSearchQuery = this.rawQuery;
+
+             // Emit the event
+             console.log('onSearch emit event:  string: -->' + this.rawQuery + '<--');
+             this.onSearch.emit(this.rawQuery);
+           }
+         }
+
+ 2. Change the app.component.html to call a different child method
+
+     <!-- When the onSearch event is received, then call form1.showSearch() -->
+     <app-searchbox (onSearch)="form1.showSearch($event)" ></app-searchbox>
+
+     <app-form1 #form1></app-form1>
+
+
+ 3. Add this to the form1.controller.ts
+      public lastSearch: string;
+
+      showSearch($event: string) {
+        console.log('in Form1Component.showSearch():  event-->' + $event + '<--');
+        this.lastSearch = $event;
+      }
+
+
+
+     When done, the form1.controller.ts looks like this:
+
+         import { Component, OnInit } from '@angular/core';
+
+         export class Report {
+           id: number;
+           name: string;
+           source: number;
+           priority: number;
+         }
+
+         @Component({
+           selector: 'app-form1',
+           templateUrl: './form1.component.html',
+           styleUrls: ['./form1.component.css']
+         })
+         export class Form1Component implements OnInit {
+
+           public report: Report;
+           public lastSearch: string;
+
+           constructor() { }
+
+           ngOnInit() {
+             this.report = new Report();
+             this.report.name = null;
+             this.report.source = null;
+             this.report.priority = 0;
+           }
+
+           reset() {
+             this.report.name = null;
+             this.report.source = null;
+             this.report.priority = 0;
+           }
+
+           save() {
+             console.log('user pressed save.  this.report=', this.report);
+           }
+
+           showSearch($event: string) {
+             console.log('in Form1Component.showSearch():  event-->' + $event + '<--');
+             this.lastSearch = $event;
+           }
+         }
+
+ 4. Change the form1.component.html so that it shows the lastSearch value
+
+    Change the bottom of this HTML to this:
+        <pre>
+        report={{ report | json}}
+        lastSearch={{ lastSearch }}
+        </pre>
+
+
+ 8. Startup the debugger
+    a. Pull Run / Run 'Angular CLI Server'
+    b. Pull Run / Debug 'Angular Application'
+    c. Enter some text in the search box and press Search
+       -- This sends a message up to the app-component
+       -- The app-component calls the app-form1.showSearch() method
