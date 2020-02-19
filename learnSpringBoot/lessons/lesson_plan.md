@@ -183,7 +183,6 @@
 
 1. Add an AngularJS front-end
    1. [Add a navigation bar](/learnAngularJS/lessons/lesson02_setupNavigationBar.txt)
-   1. [Navigate to different views](/learnAngularJS/lessons/lesson02b_howToSwitchViews.txt)
    1. ["Add Report" Page Setup](/learnAngularJS/lessons/lesson03_addReportPage.txt)
    1. ["Add Report" Page Invokes REST call](/learnAngularJS/lessons/lesson04_addReportPage_addRestCall.txt)
    1. ["Add Report" Page Validation](/learnAngularJS/lessons/lesson05_addReportPage_formValidation.txt)
