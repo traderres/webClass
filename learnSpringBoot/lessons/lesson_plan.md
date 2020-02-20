@@ -192,13 +192,8 @@
    1. [Have page wait for REST calls to resolve](/learnAngularJS/lessons/lesson09_setupGridDataWithResolve.txt)
    1. [Setup Grid Filter w/Server Side REST calls](/learnAngularJS/lessons/lesson08_setupGridServerSideFiltering.txt)
    1. [Setup Grid Filter dropdowns](/learnAngularJS/lessons/lesson10_setupGridFilterDropDowns.txt)
-   1. [Add a Lookup REST call](/learnAngularJS/lessons/lesson06_addReportPage_addLookupRestCall.txt)
-   1. [Add a Lookup Factory](/learnAngularJS/lessons/lesson11_setupGridWithLookupFactory.txt)
    1. [Improve Lookup Factory with map of lookups](/learnAngularJS/lessons/lesson12_improveLookupFactoryWithMaps.txt)
    1. [Improve Lookup Factory with a front-end Cache](/learnAngularJS/lessons/lesson13_improveLookupFactoryWithCache.txt)
-   1. [Improve "Add Report" Page Setup with lookup](/learnAngularJS/lessons/lesson14_improveAddReportPageWithLookups.txt)
-   1. ["Add Report" Page Invokes REST call](/learnAngularJS/lessons/lesson04_addReportPage_invokeRestCallOnSave.txt)
-   1. ["Add Report" Page Validation](/learnAngularJS/lessons/lesson05_addReportPage_formValidation.txt)
    1. Have front-end wait for user's permissions
    1. [Add a External Export Menu Option](/learnAngularJS/lessons/lesson15_addMenuOptionForExportCsv.txt)
    1. Add a page with Tabs
