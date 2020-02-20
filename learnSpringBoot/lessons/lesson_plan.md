@@ -185,15 +185,16 @@
    1. [Add a navigation bar](/learnAngularJS/lessons/lesson02_setupNavigationBar.txt)
    1. ["Add Report" Page: Setup](/learnAngularJS/lessons/lesson03_addReportPage.txt)
    1. ["Add Report" Page: Press "Save" Invokes REST call](/learnAngularJS/lessons/lesson04_addReportPage_invokeRestCallOnSave.txt)
-   1. ["Add Report" Page: Setup Lookup REST Call](/learnAngularJS/lessons/lesson06_addReportPage_addLookupRestCall.txt)
-   1. ["Add Report" Page: Setup Lookup Factory](/learnAngularJS/lessons/lesson07_addReportPage_addLookupFactory.txt)
+   1. ["Add Report" Page: Add Spinner](/learnAngularJS/lessons/lesson05_addReportPage_addSpinner.txt)
+   1. ["Add Report" Page: Setup Lookup REST Call](/learnAngularJS/lessons/lesson07_addReportPage_addLookupRestCall.txt)
+   1. ["Add Report" Page: Setup Lookup Factory](/learnAngularJS/lessons/lesson08_addReportPage_addLookupFactory.txt)
    1. "Add Report" Page: Form Validation
-   1. [Add a page that has a UI-Grid](/learnAngularJS/lessons/lesson08_setupGrid.txt)
-   1. [Have page wait for REST calls to resolve](/learnAngularJS/lessons/lesson09_setupGridDataWithResolve.txt)
+   1. [Add a page that has a UI-Grid](/learnAngularJS/lessons/lesson09_setupGrid.txt)
+   1. [Have page wait for REST calls to resolve](/learnAngularJS/lessons/lesson10_setupGridDataWithResolve.txt)
    1. [Setup Grid Filter w/Server Side REST calls](/learnAngularJS/lessons/lesson08_setupGridServerSideFiltering.txt)
-   1. [Setup Grid Filter dropdowns](/learnAngularJS/lessons/lesson10_setupGridFilterDropDowns.txt)
+   1. [Setup Grid Filter dropdowns](/learnAngularJS/lessons/lesson11_setupGridFilterDropDowns.txt)
    1. [Improve Lookup Factory with map of lookups](/learnAngularJS/lessons/lesson12_improveLookupFactoryWithMaps.txt)
-   1. [Improve Lookup Factory with a front-end Cache](/learnAngularJS/lessons/lesson13_improveLookupFactoryWithCache.txt)
+   1. [Improve Lookup Factory with a front-end Cache](/learnAngularJS/lessons/lesson14_improveLookupFactoryWithCache.txt)
    1. Have front-end wait for user's permissions
    1. [Add a External Export Menu Option](/learnAngularJS/lessons/lesson15_addMenuOptionForExportCsv.txt)
    1. Add a page with Tabs
