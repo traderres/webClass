@@ -184,7 +184,7 @@
 1. Add an AngularJS front-end
    1. [Add a navigation bar](/learnAngularJS/lessons/lesson02_setupNavigationBar.txt)
    1. ["Add Report" Page Setup](/learnAngularJS/lessons/lesson03_addReportPage.txt)
-   1. ["Add Report" Page Invokes REST call](/learnAngularJS/lessons/lesson04_addReportPage_addRestCall.txt)
+   1. ["Add Report" Page Invokes REST call](/learnAngularJS/lessons/lesson04_addReportPage_invokeRestCall.txt)
    1. ["Add Report" Page Validation](/learnAngularJS/lessons/lesson05_addReportPage_formValidation.txt)
    1. [Add a page that has a UI-Grid](/learnAngularJS/lessons/lesson08_setupGrid.txt)
    1. [Have page wait for REST calls to resolve](/learnAngularJS/lessons/lesson09_setupGridDataWithResolve.txt)
@@ -195,7 +195,7 @@
    1. [Improve Lookup Factory with map of lookups](/learnAngularJS/lessons/lesson12_improveLookupFactoryWithMaps.txt)
    1. [Improve Lookup Factory with a front-end Cache](/learnAngularJS/lessons/lesson13_improveLookupFactoryWithCache.txt)
    1. [Improve "Add Report" Page Setup with lookup](/learnAngularJS/lessons/lesson14_improveAddReportPageWithLookups.txt)
-   1. ["Add Report" Page Invokes REST call](/learnAngularJS/lessons/lesson04_addReportPage_addRestCall.txt)
+   1. ["Add Report" Page Invokes REST call](/learnAngularJS/lessons/lesson04_addReportPage_invokeRestCall.txt)
    1. ["Add Report" Page Validation](/learnAngularJS/lessons/lesson05_addReportPage_formValidation.txt)
    1. Have front-end wait for user's permissions
    1. [Add a External Export Menu Option](/learnAngularJS/lessons/lesson15_addMenuOptionForExportCsv.txt)

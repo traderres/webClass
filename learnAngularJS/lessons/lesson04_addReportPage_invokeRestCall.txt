@@ -1,0 +1,174 @@
+Lesson:  Add Report Page:  Add REST call
+----------------------------------------
+When the user clicks to "Add Report", we want to make a REST call
+
+Approach:
+ 1) User presses "Add Report"
+    -- Clicking the button should call addReport()
+        This method should do the following:
+        a. Show the progress bar
+        b. Make a REST call to add a report
+        c. If REST call is successful,
+             then show "Success" message
+           Else
+             then show "Failure" message
+
+Assumptions:
+ A) You have a REST endpoint /api/reports/add
+
+
+Procedure
+---------
+  1. Create report.factory.js
+    a. Right-click on webapp/src/main/resources/public/resources/factories -> New File
+       Filename:  report.factory.js
+
+    b. Copy this to your newly-created lookup.factory.js
+
+            (function(){
+                //
+                //  ReportFactory holds methods to invoke REST calls for report operations
+                //
+                angular.module('app1')
+                    .factory('ReportFactory', ['$http', '$q', init] )
+
+                function init($http, $q) {
+                    let LookupFactory = {};
+
+                    ReportFactory.addReport = addReport;
+
+                    return ReportFactory;
+
+
+
+                    /*
+                     * Make a REST call that adds a report to the system
+                     * NOTE:  This method returns a promise
+                     */
+                    function addReport(aReportDTO) {
+                        console.log('ReportFactory.addReport() started.   aReportDTO=', aReportDTO);
+
+                        return $http.post('./api/reports/add', aReportDTO).then(function(results) {
+                            // The REST call returned with a 200-299 status code
+
+                            // So, return some data
+                            return results.data;
+                        })
+                    }
+
+
+                }   // End of ReportFactory
+            })();
+
+
+ 2. Make sure your app.html loads this file on page startup
+    a. Go to webapp/src/main/resources/public/app.html
+
+    b. Add this line to it:
+          <script src="./resources/factories/report.factory.js"></script>
+
+
+    So, the top of your app.html should look something like this:
+
+            <!DOCTYPE html>
+            <html lang="en" data-ng-app="app1">
+            <head>
+                <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+                <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+                <title>App Main Page</title>
+
+                <base href="/app1/">
+
+                <!-- Include CSS Files -->
+                <link rel="stylesheet" type="text/css" href="./resources/node_modules/angular-resizable/angular-resizable.min.css">
+                <link rel="stylesheet" type="text/css" href="./resources/node_modules/angular-material/angular-material.min.css">
+                <link rel="stylesheet" type="text/css" href="./resources/node_modules/angular-ui-grid/ui-grid.min.css">
+                <link rel="stylesheet" type="text/css" href="./resources/node_modules/@fortawesome/fontawesome-free/css/all.css">
+                <link rel="stylesheet" type="text/css" href="./resources/css/index.css">
+
+                <!-- Load All Node Modules JavaScript Dependencies -->
+                <script src="./resources/node_modules/angular/angular.js"></script>
+                <script src="./resources/node_modules/@uirouter/angularjs/release/angular-ui-router.min.js"></script>
+                <script src="./resources/node_modules/angular-aria/angular-aria.min.js"></script>
+                <script src="./resources/node_modules/angular-animate/angular-animate.min.js"></script>
+                <script src="./resources/node_modules/angular-material/angular-material.min.js"></script>
+                <script src="./resources/node_modules/angular-messages/angular-messages.min.js"></script>
+                <script src="./resources/node_modules/angular-sanitize/angular-sanitize.min.js"></script>
+                <script src="./resources/node_modules/angular-scroll/angular-scroll.min.js"></script>
+                <script src="./resources/node_modules/angular-resizable/angular-resizable.min.js"></script>
+                <script src="./resources/node_modules/@fortawesome/fontawesome-free/js/all.js"></script>
+                <script src="./resources/node_modules/angular-ui-grid/ui-grid.js"></script>
+                <script src="./resources/node_modules/angular-ui-grid/ui-grid.exporter.js"></script>
+
+                <!-- Load all custom JavaScript Files -->
+                <script src="./resources/config/app.js"></script>
+                <script src="./resources/config/routes.js"></script>
+                <script src="./resources/config/state.js"></script>
+                <script src="./resources/config/nav.controller.js"></script>
+
+                <!-- Load all factories *before* loading feature controllers -->
+                <script src="./resources/factories/lookup.factory.js"></script>
+                <script src="./resources/factories/report.factory.js"></script>
+
+                <!-- Load all JavaScript files for the various features -->
+                <script src="./resources/modules/features.js"></script>
+                <script src="./resources/features/reports/view_reports/main.controller.js"></script>
+                <script src="./resources/features/reports/add_report/main.controller.js"></script>
+            </head>
+
+
+ 3. Change the add-report main.controller.js
+    a. Inject the ReportFactory
+       by changing the top few lines of the add-report main.controller.js
+
+         (function(){
+             angular.module('app.features')
+                 .controller('addReport', ['$timeout', '$stateParams', '$scope', 'ReportFactory', Callback])
+
+             function Callback($timeout, $stateParams, $scope, ReportFactory) {
+                 console.log('addReport controller started.');
+
+                 . . .
+
+
+
+    b. Use the ReportFactory in the save() function
+
+            function save() {
+                 console.log('save() started.');
+
+                 // Show the page spinner
+
+                 // Create a map that will hold the new report info
+                 let dto = {
+                    'name':  'stuff',
+                    'priority': 'low'
+                 }
+
+                 ReportFactory.addReport(dto).then(function(res) {
+                     // The REST worked  (it returned a status between 200-299)
+                     console.log('REST call succeeded.  returned info is res=', res);
+
+                 })
+                 .catch(function(res) {
+                     // The REST failed  (it returned a status code outside of 200-299)
+                     console.log('REST call failed.  returned info is res=', res);
+
+                 })
+                 .final(function() {
+                     // This method is always called
+
+                     // Hide the page spinner
+                 })
+             }
+
+
+
+ 4. Verify that the buttons work
+    a. Go to http://localhost:8080/app1/page/reports/add
+    b. Press F12 (to open your Developer Tools)
+    c. Go to the "Console" in your Developer Tools
+    d. Enter some stuff in the field
+    e. Press Save to invoke the REST call
+        -- You should see the log messages
