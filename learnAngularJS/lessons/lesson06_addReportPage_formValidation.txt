@@ -7,7 +7,288 @@ NOTE:  Users can easily get around your form validation
 Goal:  Disable the "Add Report" button until all required fields are set
 
 
-Procedure
----------
+Lecture
+-------
+ A) Form have states
+ B) Form Fields have states
+ C) If the form field is invalid, then it is not bound
+
+    If the form has the name of "myForm"
+       <form novalidate name="myForm">
+      ...
+       </form>
+
+    Then, you can access these states:
+       myForm.$invalid    ng-invalid    Set when any of the validation fails -- e.g., required, ng-minlength, ng-pattern, type="email", type="number", type="date", type="url"
+       myForm.$valid      ng-valid      Inverse of the above statement
+       myForm.$pristine   ng-pristine   All forms in AngularJS start with pristine=true.  Usually, you disable the reset button when pristine==true
+       myForm.$dirty      ng-dirty      Inverse of pristine: User has made some changes (he can revert the change but the $dirty flag remains)
+
+    AngularJS Validators
+       required      Marks a field as invalid if it's empty.  It's always required
+                        Sets <form name>.<form field name>.$error.required = true
+                        Sets <form name>.<form field name>.$invalid        = true
+
+
+       ng-required   Marks a field as invalid if a condition passes.  It's conditionally required
+
+       ng-minlength
+                        Sets <form name>.<form field name>.$error.minlength = true
+                        Sets <form name>.<form field name>.$invalid         = true
+
+
+       type="email"  Marks a field as invalid if it's not a valid email address
+                        Sets <form name>.<form field name>.$error.email = true
+                        Sets <form name>.<form field name>.$invalid     = true
+
+       type="number" Marks a field as invalid if it's not a valid number
+                        Sets <form name>.<form field name>.$error.number = true
+                        Sets <form name>.<form field name>.$invalid      = true
+
+
+
+
+
+Part 1: Enable submit button and display a text message around invalid fields
+------------------------------------------------------------------------------
+-- Often used today
+-- Assumption: Users will notice that the submit did nothing
+               Users will (grungingly) notice that there is text around the invalid fields
+
+ 1. Remove any placeholder tags you have  (not needed as we are using <label>...</label>
+
+ 2. Put a <form> tag around all controls and assign name="addReportForm"
+
+        <!-- The novalidate will disable a browser's native form validation -->
+        <form novalidate name="addReportForm">
+
+        </form>
+
+
+ 3. Make sure your form and form fields all have name="..." tags
+
+ 4. Add "required" tags to the textbox and the <md-select> dropdown
+    -- This will set a redline under required fields
+
+ 5. Make 2 changes to the "Save" button
+    a. Set type="submit"   (which is required to apply validation rules)
+    b. Change the ng-click to:  ng-click="addReportForm.$valid && addReportVM.save()"
+       -- So, it will only call the method if addReportForm.$valid == true
+
+
+ 6. Add some debugging to the page
+
+        <pre>
+          Form State
+            addReportForm.$invalid={{addReportForm.$invalid}}
+            addReportForm.$valid={{addReportForm.$valid}}
+            addReportForm.$pristine={{addReportForm.$pristine}}
+            addReportForm.$dirty={{addReportForm.$dirty}}
+
+          Display Name Form Field State
+            addReportForm.display_name.$error={{addReportForm.display_name.$error | json}}
+            addReportForm.display_name.$touched={{addReportForm.display_name.$touched}}
+            addReportForm.display_name.$invalid={{addReportForm.display_name.$invalid}}
+            addReportForm.display_name.$valid={{addReportForm.display_name.$valid}}
+            addReportForm.display_name.$pristine={{addReportForm.display_name.$pristine}}
+            addReportForm.display_name.$dirty={{addReportForm.display_name.$dirty}}
+
+            addReportVM.new.display_name={{addReportVM.new.display_name}}
+        </pre>
+
+ 7. Press the "Save" button
+    -- You should see a Red line under the
+
+
+
+Part 2: Have the "Reset" button set the form to pristine and untouched
+----------------------------------------------------------------------
+ 1. Inject the $scope service into your controller
+
+ 2. Add these 2 calls to your reset() method
+
+         // Set the form to be pristine
+         $scope.addReportForm.$setPristine();
+
+         // Set the form fields as untouched
+         $scope.addReportForm.$setUntouched();
+
+ 3. Pressing the "Reset" button should now clear all error messages
+
+
+
+Part 3: Insert error messages into the index.html
+-------------------------------------------------
+ 1. Add the <span> with the error message after the <input> tag
+
+        <span ng-show="addReportForm.display_name.$error.required && addReportForm.display_name.$touched">
+                 This is a required field
+        </span>
+
+    Now, the entire <div> looks like this:
+        <div layout="row" style="margin-top: 20px">
+           <md-input-container class="md-block">
+               <label>Display Name</label>
+
+               <!-- Insert a text box -->
+               <input name="display_name" required data-ng-model="addReportVM.new.display_name">
+
+               <span ng-show="addReportForm.display_name.$error.required && addReportForm.display_name.$touched">
+                This is a required field
+               </span>
+
+           </md-input-container>
+        </div>
+
+ 2. Try it out
+     a. Type-in text in the textbox
+     b. Then, clear the text
+
+
+
+Part 4: Check for minimum length and show an error
+--------------------------------------------------
+ 1. Set the minimum length on the <input> tag by adding ng-minlength="3"
+     <input name="name" ng-minlength="3"  required data-ng-model="addReportVM.new.display_name">
+
+ 2. Add the error message span beanth
+        <span ng-show="addReportForm.display_name.$error.minlength && addReportForm.display_name.$touched">
+           You must type-in at least 3 characters
+        </span>
+
+    Now, the entire <div> looks like this:
+        <div layout="row" style="margin-top: 20px">
+            <md-input-container class="md-block">
+                <label>Display Name</label>
+
+                <!-- Insert a text box -->
+                <input name="display_name" ng-minlength="3"  required data-ng-model="addReportVM.new.display_name">
+
+                <span ng-show="addReportForm.display_name.$error.required && addReportForm.display_name.$touched">
+                   This is a required field
+                </span>
+
+                <span ng-show="addReportForm.display_name.$error.minlength && addReportForm.display_name.$touched">
+                   You must type-in at least 3 characters
+                </span>
+
+            </md-input-container>
+        </div>
+
+
+ 3. Try it out
+
+
+
+Part 5: Provide a custom method to check
+----------------------------------------
+ 1. Create a public method called validateDisplayNameField
+
+         function validateDisplayNameField() {
+             console.log('validateDisplayNameField()  aForm.display_name.$modelValue=', $scope.addReportForm.display_name.$modelValue)
+             if ($scope.addReportForm.display_name.$modelValue == 'good') {
+
+                 // Angular will make form.display_name.$error.validationError = true;
+                 $scope.addReportForm.display_name.$setValidity('validationError', true);
+             }
+             else {
+                 // Angular will make form.display_name.$error.validationError = false;
+                 $scope.addReportForm.display_name.$setValidity('validationError', false);
+             }
+         }
+
+ 2. Make sure this method is public:
+        addReportVM.validateDisplayNameField = validateDisplayNameField;
+
+
+ 3. Have the input box call this method on every character change:
+        ng-change="addReportVM.validateDisplayNameField()"
+
+    So, the <input> tag looks like this:
+        <input name="display_name" ng-minlength="3" required ng-change="addReportVM.validateDisplayNameField()"  data-ng-model="addReportVM.new.display_name">
+
+
+ 4. Add an error message to display to the user when custom validation fails:
+        <span ng-show="addReportForm.display_name.$error.validationError && addReportForm.display_name.$touched">
+            You typed-in something but it's not "good"
+        </span>
+
+    When done your <div> should look like this:
+        <div layout="row" style="margin-top: 20px">
+            <md-input-container class="md-block">
+                <label>Display Name</label>
+
+                <!-- Insert a text box -->
+                <input name="display_name" ng-minlength="3" required ng-change="addReportVM.validateDisplayNameField()"  data-ng-model="addReportVM.new.display_name">
+
+                <span ng-show="addReportForm.display_name.$error.required && addReportForm.display_name.$touched">
+                   This field is required -- You did not type in anything
+                </span>
+
+                <span ng-show="addReportForm.display_name.$error.validationError && addReportForm.display_name.$touched">
+                   You typed-in something but it's not "good"
+                </span>
+
+            </md-input-container>
+        </div>
+
+
+ 5. Try it out
+
+
+
+
+Approach 2: Enable submit button and Highlight (in red) those fields that are invalid
+--------------------------------------------------------------------------------------
+-- Considered "Old school"
+-- Users will notice the red
+-- UI Police say that we should not piss on users when they enter invalid stuff
+
+ 1. Add class="css-form" to the <form> tag
+        <form novalidate name="addReportForm" class="css-form">
+
+ 2. Add this CSS to the top of the index.html or to the style.css
+
+    <style type="text/css">
+        .css-form input.ng-invalid.ng-touched {
+            /* Set the background to red for the form fields that are invalid and were touched */
+            background-color: #FA787E;
+        }
+
+        .css-form input.ng-valid.ng-touched {
+            /* Set the background to green for the form fields that are valid and were touched */
+            background-color: #78FA89;
+        }
+    </style>
+
+
+ 3. Try it out
+
+ 4. Change the CSS to this:
+     <style type="text/css">
+         .css-form input.ng-invalid.ng-touched {
+             /* Set a red box around the form fields that are invalid and were touched */
+             border: 2px solid #FA787E;
+         }
+
+         .css-form input.ng-valid.ng-touched {
+             /* Set a green box around the form fields that are valid and were touched */
+             border: 2px solid #78FA89;
+         }
+     </style>
+
+ 5. Try it out
+
+
+
+
+Approach 3: Disable the submit button until all fields are provided
+-------------------------------------------------------------------
+-- Often used today
+-- Comes across as passive aggressive:
+-- The app will not let users submit unless all fields are valid
+-- Users may struggle to find a submit button that is disabled
+
+
 
 
