@@ -59,19 +59,29 @@ Part 1: Enable submit button and display a text message around invalid fields
 
  2. Put a <form> tag around all controls and assign name="addReportForm"
 
-        <!-- The novalidate will disable a browser's native form validation -->
+        <!-- The novalidate is an HTML5 directive that will disable a browser's native form validation -->
         <form novalidate name="addReportForm">
 
         </form>
 
 
- 3. Make sure your form and form fields all have name="..." tags
+ 3. Make sure all of your form fields name="..." tags
+    -- Set the textbox to have a name="display_name"
+            <input name="display_name" data-ng-model="addReportVM.new.display_name">
 
  4. Add "required" tags to the textbox and the <md-select> dropdown
     -- This will set a redline under required fields
+            <input name="display_name" required data-ng-model="addReportVM.new.display_name">
+
+            <md-select required name="report_type" ng-model="addReportVM.new.report_type">
+                    <md-option value="100">report type 1</md-option>
+                    <md-option value="101">report type 2</md-option>
+                    <md-option value="102">report type 3</md-option>
+            </md-select>
 
  5. Make 2 changes to the "Save" button
-    a. Set type="submit"   (which is required to apply validation rules)
+    a. Set type="submit"
+       -- So, the validation rules are applied when the button is clicked
     b. Change the ng-click to:  ng-click="addReportForm.$valid && addReportVM.save()"
        -- So, it will only call the method if addReportForm.$valid == true
 
@@ -97,7 +107,8 @@ Part 1: Enable submit button and display a text message around invalid fields
         </pre>
 
  7. Press the "Save" button
-    -- You should see a Red line under the
+    -- You should see a Red line under the fields that are required
+    -- NOTE:  There are no explicit error message
 
 
 
@@ -134,22 +145,26 @@ Part 3: Insert error messages into the index.html
                <input name="display_name" required data-ng-model="addReportVM.new.display_name">
 
                <span ng-show="addReportForm.display_name.$error.required && addReportForm.display_name.$touched">
-                This is a required field
+                  This is a required field
                </span>
 
            </md-input-container>
         </div>
 
  2. Try it out
-     a. Type-in text in the textbox
-     b. Then, clear the text
+     a. Type-in text and then clear it
+        -- You should see the error
+
+     b. Press "Reset"
+        -- It should clear any errors
 
 
 
 Part 4: Check for minimum length and show an error
 --------------------------------------------------
  1. Set the minimum length on the <input> tag by adding ng-minlength="3"
-     <input name="name" ng-minlength="3"  required data-ng-model="addReportVM.new.display_name">
+        <input name="display_name"   ng-minlength="3"   required data-ng-model="addReportVM.new.display_name">
+
 
  2. Add the error message span beanth
         <span ng-show="addReportForm.display_name.$error.minlength && addReportForm.display_name.$touched">
@@ -162,11 +177,11 @@ Part 4: Check for minimum length and show an error
                 <label>Display Name</label>
 
                 <!-- Insert a text box -->
-                <input name="display_name" ng-minlength="3"  required data-ng-model="addReportVM.new.display_name">
+                <input name="display_name" required  ng-minlength="3"   data-ng-model="addReportVM.new.display_name">
 
                 <span ng-show="addReportForm.display_name.$error.required && addReportForm.display_name.$touched">
-                   This is a required field
-                </span>
+                  This is a required field
+               </span>
 
                 <span ng-show="addReportForm.display_name.$error.minlength && addReportForm.display_name.$touched">
                    You must type-in at least 3 characters
@@ -177,6 +192,7 @@ Part 4: Check for minimum length and show an error
 
 
  3. Try it out
+    -- Enter fewer than 3 chars in the textbox
 
 
 
@@ -184,18 +200,20 @@ Part 5: Provide a custom method to check
 ----------------------------------------
  1. Create a public method called validateDisplayNameField
 
-         function validateDisplayNameField() {
-             console.log('validateDisplayNameField()  aForm.display_name.$modelValue=', $scope.addReportForm.display_name.$modelValue)
-             if ($scope.addReportForm.display_name.$modelValue == 'good') {
+        function validateDisplayNameField() {
 
-                 // Angular will make form.display_name.$error.validationError = true;
-                 $scope.addReportForm.display_name.$setValidity('validationError', true);
+             if ($scope.addReportForm.display_name.$modelValue == 'good') {
+                 // User typed-in something good
+                 console.log('validateDisplayNameField() user entered something valid:   typed -->' + $scope.addReportForm.display_name.$modelValue + '<---');
+                 $scope.addReportForm.display_name.$setValidity('customError', true);
              }
              else {
-                 // Angular will make form.display_name.$error.validationError = false;
-                 $scope.addReportForm.display_name.$setValidity('validationError', false);
-             }
-         }
+                 // User typed-in something invalid
+                 console.log('validateDisplayNameField() user entered something invalid:  typed -->' + $scope.addReportForm.display_name.$modelValue + '<---');
+                 $scope.addReportForm.display_name.$setValidity('customError', false);
+            }
+        }
+
 
  2. Make sure this method is public:
         addReportVM.validateDisplayNameField = validateDisplayNameField;
@@ -205,13 +223,13 @@ Part 5: Provide a custom method to check
         ng-change="addReportVM.validateDisplayNameField()"
 
     So, the <input> tag looks like this:
-        <input name="display_name" ng-minlength="3" required ng-change="addReportVM.validateDisplayNameField()"  data-ng-model="addReportVM.new.display_name">
+        <input name="display_name" required ng-change="addReportVM.validateDisplayNameField()" data-ng-model="addReportVM.new.display_name">
 
 
  4. Add an error message to display to the user when custom validation fails:
-        <span ng-show="addReportForm.display_name.$error.validationError && addReportForm.display_name.$touched">
+        <span ng-show="addReportForm.display_name.$error.customError && addReportForm.display_name.$touched">
             You typed-in something but it's not "good"
-        </span>
+         </span>
 
     When done your <div> should look like this:
         <div layout="row" style="margin-top: 20px">
@@ -219,15 +237,15 @@ Part 5: Provide a custom method to check
                 <label>Display Name</label>
 
                 <!-- Insert a text box -->
-                <input name="display_name" ng-minlength="3" required ng-change="addReportVM.validateDisplayNameField()"  data-ng-model="addReportVM.new.display_name">
+                <input name="display_name" required ng-change="addReportVM.validateDisplayNameField()" data-ng-model="addReportVM.new.display_name">
 
                 <span ng-show="addReportForm.display_name.$error.required && addReportForm.display_name.$touched">
-                   This field is required -- You did not type in anything
-                </span>
+                  This is a required field
+               </span>
 
-                <span ng-show="addReportForm.display_name.$error.validationError && addReportForm.display_name.$touched">
-                   You typed-in something but it's not "good"
-                </span>
+                <span ng-show="addReportForm.display_name.$error.customError && addReportForm.display_name.$touched">
+                    You typed-in something but it's not "good"
+                 </span>
 
             </md-input-container>
         </div>
