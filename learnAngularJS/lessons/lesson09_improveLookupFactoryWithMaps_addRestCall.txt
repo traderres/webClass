@@ -1,0 +1,116 @@
+Lesson:  Improve the Lookup Factory by Retrieving multiple Lookups
+------------------------------------------------------------------
+Problem:  Page views needs to get *multiple* lookup values
+          We don't want the front-end to make 4 REST calls to get lookup values
+          We want to make just 1 REST call to get all of the lookup values
+
+Approach
+ 1) Create a REST endpoint that will return a map of lookup values
+    with key=LookupType and value=List of LookupsDTOs
+        GET /api/lookups/map/{lookupTypes}
+
+ 2) Verify the REST endpoint works using Postman
+
+
+
+Procedure
+---------
+ 1. Add a method to the LookupService
+    a. Go to webapp/src/main/java/com/lessons/services/LookupService
+
+    b. Add this method to the class:
+
+            /**
+             * @param aLookupTypes holds a list of lookup-type names
+             * @return TRUE if *all* of the passed-in lookup-type names are found in the lookup_type database table
+             */
+            public boolean doesAllLookupsExist(List<String> aLookupTypes) {
+                // Construct the SQL to see if all lookup types are found in the database
+                String sql = "select count(distinct(id)) from lookup_type where name in (:lookupTypes)";
+
+                // Create a parameter map
+                Map<String, Object> paramMap = new HashMap<>();
+                paramMap.put("lookupTypes", aLookupTypes);
+
+                // Execute the SQL returning the total lookup types found in the database
+                NamedParameterJdbcTemplate np = new NamedParameterJdbcTemplate(this.dataSource);
+                Integer totalLookupTypesFound = np.queryForObject(sql, paramMap, Integer.class);
+
+                // If the total lookup types found in the database match the size of the map, then return TRUE
+                return totalLookupTypesFound == aLookupTypes.size();
+            }
+
+
+ 2. Add a new REST endpoint to the LookupController for /api/lookups/map/{lookupTypes}
+    a. Go to webapp/src/main/java/com/lessons/controllers/LookupController
+
+    b. Add this method to the class:
+
+            @RequestMapping(value = "/api/lookups/map/{lookupTypes}", method = RequestMethod.GET, produces = "application/json")
+            public ResponseEntity<?> getMapofLookupTypes(@PathVariable(name="lookupTypes") List<String> aLookupTypes) {
+                logger.debug("getMapofLookupTypes() started.   aLookupTypes={}", StringUtils.join(aLookupTypes, ","));
+
+                if (! lookupService.doesAllLookupsExist(aLookupTypes) ) {
+                    return ResponseEntity
+                            .status(HttpStatus.BAD_REQUEST)
+                            .contentType(MediaType.TEXT_PLAIN)
+                            .body("One or more of these lookup types do not existt: " + StringUtils.join(aLookupTypes, ","));
+                }
+
+                HashMap<String, List<LookupDTO>> mapLookupTypeInfo = new HashMap<>();
+
+                // Loop through all of the lookup types, querying the database for a list of Lookup objects
+                for (String lookupType: aLookupTypes) {
+                    // Get a list of LookupDTOs for this *one* lookup type -- e.g., priority
+                    List<LookupDTO> lookupDTOS = lookupService.getLookupsWithType(lookupType, "display_order");
+
+                    // Add this list of LookupDTOs to the map
+                    mapLookupTypeInfo.put(lookupType, lookupDTOS);
+                }
+
+                // Return the map of key=lookupType value=listOfLookupDtos
+                return ResponseEntity
+                        .status(HttpStatus.OK)
+                        .body(mapLookupTypeInfo);
+            }
+
+
+ 3. Verify the new REST endpoint works
+    a. Startup Postman
+    b. Make a GET call to http://localhost:8080/app1/api/lookups/map/priority,report_type
+       -- You should see this sa the result:
+
+       {
+           "report_type": [
+               {
+                   "id": 7,
+                   "name": "CEO"
+               },
+               {
+                   "id": 6,
+                   "name": "H&R"
+               },
+               {
+                   "id": 5,
+                   "name": "Marketing"
+               }
+           ],
+           "priority": [
+               {
+                   "id": 1,
+                   "name": "low"
+               },
+               {
+                   "id": 2,
+                   "name": "medium"
+               },
+               {
+                   "id": 3,
+                   "name": "high"
+               },
+               {
+                   "id": 4,
+                   "name": "critical"
+               }
+           ]
+       }
