@@ -191,12 +191,12 @@
    1. ["Add Report" Page: Setup Lookup Factory](/learnAngularJS/lessons/lesson08_addReportPage_addLookupFactory.txt)
    1. [Improve Lookup Factory with map of lookups](/learnAngularJS/lessons/lesson09_improveLookupFactoryWithMaps.txt)
    1. [Improve Lookup Factory with a front-end Cache](/learnAngularJS/lessons/lesson10_improveLookupFactoryWithCache.txt)
-   1. ["View Reports" Page: Setup w/UI-Grid](/learnAngularJS/lessons/lesson11_setupGrid.txt)
-   1. ["VIew Reports" Page: Wait for REST calls to resolve](/learnAngularJS/lessons/lesson12_setupGridDataWithResolve.txt)
-   1. ["View Reports" Page: Add Grid Filter dropdowns](/learnAngularJS/lessons/lesson13_setupGridFilterDropDowns.txt)
-   1. ["View Reports" Page: Use Lookup Factory to Load Drop Downs](/learnAngularJS/lessons/lesson14_setupGridWithLookupFactory.txt)
-   1. ["View Reports" Page: Grid Filter using REST calls](/learnAngularJS/lessons/lesson15_setupGridServerSideFiltering.txt)
-   1. [Add a External Export Menu Option](/learnAngularJS/lessons/lesson16_addMenuOptionForExportCsv.txt)
+   1. ["View Reports" Page: Setup w/UI-Grid](/learnAngularJS/lessons/lesson11_viewReportsPage_setupGrid.txt)
+   1. ["VIew Reports" Page: Wait for REST calls to resolve](/learnAngularJS/lessons/lesson12_viewReportsPage_setupGridDataWithResolve.txt)
+   1. ["View Reports" Page: Add Grid Filter dropdowns](/learnAngularJS/lessons/lesson13_viewReportsPage_setupGridFilterDropDowns.txt)
+   1. ["View Reports" Page: Use Lookup Factory to Load Drop Downs](/learnAngularJS/lessons/lesson14_viewReportsPage_setupGridWithLookupFactory.txt)
+   1. ["View Reports" Page: Grid Filter using REST calls](/learnAngularJS/lessons/lesson15_viewReportsPage_setupGridServerSideFiltering.txt)
+   1. [Add a External Export Menu Option](/learnAngularJS/lessons/lesson16_viewReportsPage_addMenuOptionForExportCsv.txt)
    1. Add a page with Tabs
    1. [Add a page with Graphs](/learnAngularJS/lessons/lesson17_addGraphsToPage.txt)
    1. Have front-end wait for user's permissions
