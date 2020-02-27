@@ -186,19 +186,20 @@
    1. ["Add Report" Page: Setup](/learnAngularJS/lessons/lesson03_addReportPage.txt)
    1. ["Add Report" Page: Press "Save" Invokes REST call](/learnAngularJS/lessons/lesson04_addReportPage_invokeRestCallOnSave.txt)
    1. ["Add Report" Page: Add Spinner](/learnAngularJS/lessons/lesson05_addReportPage_addSpinner.txt)
+   1. ["Add Report" Page: Form Validation](/learnAngularJS/lessons/lesson06_addReportPage_formValidation.txt)
    1. ["Add Report" Page: Setup Lookup REST Call](/learnAngularJS/lessons/lesson07_addReportPage_addLookupRestCall.txt)
    1. ["Add Report" Page: Setup Lookup Factory](/learnAngularJS/lessons/lesson08_addReportPage_addLookupFactory.txt)
-   1. "Add Report" Page: Form Validation
-   1. [Add a page that has a UI-Grid](/learnAngularJS/lessons/lesson09_setupGrid.txt)
-   1. [Have page wait for REST calls to resolve](/learnAngularJS/lessons/lesson10_setupGridDataWithResolve.txt)
-   1. [Setup Grid Filter w/Server Side REST calls](/learnAngularJS/lessons/lesson08_setupGridServerSideFiltering.txt)
-   1. [Setup Grid Filter dropdowns](/learnAngularJS/lessons/lesson11_setupGridFilterDropDowns.txt)
-   1. [Improve Lookup Factory with map of lookups](/learnAngularJS/lessons/lesson12_improveLookupFactoryWithMaps.txt)
-   1. [Improve Lookup Factory with a front-end Cache](/learnAngularJS/lessons/lesson14_improveLookupFactoryWithCache.txt)
+   1. [Improve Lookup Factory with map of lookups](/learnAngularJS/lessons/lesson09_improveLookupFactoryWithMaps.txt)
+   1. [Improve Lookup Factory with a front-end Cache](/learnAngularJS/lessons/lesson10_improveLookupFactoryWithCache.txt)
+   1. [Add a page that has a UI-Grid](/learnAngularJS/lessons/lesson11_setupGrid.txt)
+   1. [Have page wait for REST calls to resolve](/learnAngularJS/lessons/lesson12_setupGridDataWithResolve.txt)
+   1. [Setup Grid Filter dropdowns](/learnAngularJS/lessons/lesson13_setupGridFilterDropDowns.txt)
+   1. [Setup Grid Filter w/Look Factory for Drop Downs](/learnAngularJS/lessons/lesson14_setupGridWithLookupFactory.txt)
+   1. [Setup Grid Filter w/Server Side REST calls](/learnAngularJS/lessons/lesson15_setupGridServerSideFiltering.txt)
    1. Have front-end wait for user's permissions
-   1. [Add a External Export Menu Option](/learnAngularJS/lessons/lesson15_addMenuOptionForExportCsv.txt)
+   1. [Add a External Export Menu Option](/learnAngularJS/lessons/lesson16_addMenuOptionForExportCsv.txt)
    1. Add a page with Tabs
-   1. [Add a page with Graphs](/learnAngularJS/lessons/lesson16_addGraphsToPage.txt)
+   1. [Add a page with Graphs](/learnAngularJS/lessons/lesson17_addGraphsToPage.txt)
    
 1. Building & Deployment
    1. Create Jenkins Job to build the uber JAR
