@@ -7,6 +7,8 @@ Problem:  Page views needs to get *multiple* lookup values
 Approach
  1) Create a REST endpoint that will return a map of lookup values
     with key=LookupType and value=List of LookupsDTOs
+        GET /api/lookups/map/{lookupTypes}
+
  2) Create a LookupFactory method that will invoke a
     *single* REST call that will return a map of *multiple* lookup values
 
@@ -41,7 +43,7 @@ Procedure
             }
 
 
- 2. Add a new REST endpoint to the LookupController
+ 2. Add a new REST endpoint to the LookupController for /api/lookups/map/{lookupTypes}
     a. Go to webapp/src/main/java/com/lessons/controllers/LookupController
 
     b. Add this method to the class:
@@ -231,75 +233,57 @@ Procedure
             }
 
 
-       When done, your getViewReportState() method should look like this:
+       When done, your getAddReportState() method should look like this:
 
-          function getViewReportState() {
+          function getAddReportState() {
               return {
-                  url: URL_PAGE_PREFIX + '/reports/view',
-                  templateUrl: './resources/features/reports/view_reports/index.html',
-                  controller: 'viewReports',
-                  controllerAs: 'viewReportsVM',
+                  url: URL_PAGE_PREFIX + '/reports/add',
+                  templateUrl: './resources/features/reports/add_report/index.html',
+                  controller: 'addReport',
+                  controllerAs: 'addReportVM',
                   resolve: {
 
-                      // Inject reportsViewData into the viewReports controller
-                      reportsViewData: function(ReportsFactory) {
-                          return ReportsFactory.getAllReports();
-                      },
-
                       lookupMap: function(LookupFactory) {
-                          // Make 1 REST call to get a map of multiple lookups
-                          return LookupFactory.getMapOfLookupsWithTypes( ['priority', 'report_type'])
+                          // Get multiple lookups using only one REST call
+                          return LookupFactory.getMapOfLookupsWithTypes( ['priority', 'report_type', 'source'])
                       }
-
                   }
               }
           }
 
 
+
  6. Change your view-reports main.controller.js so that the lookupMap is injected
-    a. Go to webapp/src/main/resources/public/resources/features/reports/view_reports/main.controller.js
+    a. Go to webapp/src/main/resources/public/resources/features/reports/add_report/main.controller.js
 
-    b. Remove the injected lookupReportTypes from the top
+    b. Remove the injected lookupData from the top
 
-    c. Remove the injected lookupPriorities from the top
+    c. Inject lookupMap to the top
 
-    d. Inject lookupMap to the top
+    d. Replace the $scope.lookupData so that it refers to the passed-in lookupMap
 
-    e. Replace the $scope.lookupData so that it refers to the passed-in lookupMap
-
-       Remove this code:
-            // Create a lookup map that holds a map of all of the lookup values
-            $scope.lookupData = {
-               'priority' : lookupPriorities,
-               'report_type' : lookupReportTypes
-            }
-
-       Add this code:
-            // $scope.lookupData holds a map of lookup info
-            // $scope.lookupData.priority holds a list of LookupDTO for the priorities
-            // $scope.lookupData.report_type holds a list of LookupDTOs for the report types
-            $scope.lookupData = lookupMap;
+            // addReportVM.lookupData holds a map of lookup info
+            // addReportVM.lookupData.priority holds a list of LookupDTO for the priorities
+            // addReportVM.lookupData.report_type holds a list of LookupDTOs for the report types
+            addReportVM.lookupData = lookupMap;
 
 
-    When completed, your top few lines should look like this:
 
-            (function(){
-                angular.module('app.features')
-                    .controller('viewReports', ['$timeout', '$stateParams', '$scope', '$window', 'reportsViewData',  'GridService', 'ReportsFactory', 'lookupMap', Callback])
+ 7. Update the ng-repeat calls in your index.html so that they use the correct map
+    a. Go to webapp/src/main/resources/public/resources/features/reports/add_report/index.html
 
-                function Callback($timeout, $stateParams, $scope, $window, reportsViewData, GridService, ReportsFactory, lookupMap) {
-                    console.log('viewReports controller started.  2 lookupMap=', lookupMap);
+    b. For the priority dropdown make sure you loop through addReportVM.lookupMap.priority
+            <md-option ng-value="lookup" ng-repeat="lookup in addReportVM.lookupMap.priority track by lookup.id">
+                {{lookup.name}}
+            </md-option>
 
-                    let viewReportsVM = this;
-
-
-                    // $scope.lookupData holds a map of lookup info
-                    // $scope.lookupData.priority holds a list of LookupDTO for the priorities
-                    // $scope.lookupData.report_type holds a list of LookupDTOs for the report types
-                    $scope.lookupData = lookupMap;
+    c. For the report_type dropdown make sure you loop through addReportVM.lookupMap.report_type
+               <md-option ng-value="lookup" ng-repeat="lookup in addReportVM.lookupMap.report_type track by lookup.id">
+                   {{lookup.name}}
+               </md-option>
 
 
- 7. Verify your priorities and report_types still appear on the front-end
+ 8. Verify your priorities and report_types still appear on the front-end
      a. Activate your webapp with the debugger
      b. Open a browser
      c. Connect to http://localhost:8080/app1
