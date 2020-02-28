@@ -177,9 +177,27 @@ Part 1:  Configure the Angular Code (within the "frontend" maven module)
               </resource>
             </resources>
 
-
+           <plugins>
              <plugins>
-                <plugin>
+               <plugin>
+                 <artifactId>maven-clean-plugin</artifactId>
+                 <version>2.4.1</version>
+                 <configuration>
+                   <filesets>
+                     <fileset>
+                       <!-- Tell mvn clean to remove the "dist" directory -->
+                       <directory>dist</directory>
+                       <includes>
+                         <include>**</include>
+                       </includes>
+                       <followSymlinks>false</followSymlinks>
+                     </fileset>
+                   </filesets>
+                 </configuration>
+               </plugin>
+
+
+               <plugin>
                   <groupId>com.github.eirslett</groupId>
                   <artifactId>frontend-maven-plugin</artifactId>
                   <version>1.3</version>
@@ -409,45 +427,13 @@ Part 2:  Configure Spring Boot (within the "backend" maven module)
 
           <build>
 
-
-
             <plugins>
-              <!--
-                    This will just copy the static resources into the spring static folder.
-                    The second solution (currently active) is to use the addResourceHandlers and get it from the JAR file
-                     -->
-              <plugin>
-                <artifactId>maven-resources-plugin</artifactId>
-                <executions>
-                  <execution>
-                    <id>copy-resources</id>
-                    <phase>validate</phase>
-                    <goals>
-                      <goal>copy-resources</goal>
-                    </goals>
-                    <configuration>
-                      <outputDirectory>${project.parent.basedir}/backend/target/classes/static/</outputDirectory>
-                      <resources>
-                        <resource>
-                          <directory>${project.parent.basedir}/frontend/dist/${project.name}</directory>
-                        </resource>
-                      </resources>
-                    </configuration>
-                  </execution>
-                </executions>
-              </plugin>
-
-
               <plugin>
                 <!-- This plugin provides the tools needed to repackage the Spring Boot JAR into a runnable JAR
                      Run this command to generate the runnable Spring Boot Jar
                         mvn clean package  *or*
                         mvn clean package spring-boot:repackage
-
-                     WARNING:
-                     If you are using a plugin to run npm install,
-                     then make sure this repackage plugin appears *after* the plugin that runs npm install plugin
-                     -->
+                 -->
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
@@ -498,11 +484,7 @@ Part 2:  Configure Spring Boot (within the "backend" maven module)
                     </encoder>
                 </appender>
 
-                <logger name="org.springframework" level="DEBUG" additivity="false">
-                    <appender-ref ref="CONSOLE"/>
-                </logger>
-
-                <logger name="org.springframework.core.env.PropertySourcesPropertyResolver" level="INFO" additivity="false">
+                <logger name="org.springframework" level="INFO" additivity="false">
                     <appender-ref ref="CONSOLE"/>
                 </logger>
 
@@ -597,7 +579,7 @@ Part 2:  Configure Spring Boot (within the "backend" maven module)
             # application.yaml   (used for development purposes)
             ##########################################################
             name: app1
-            server.servlet.context-path: /app1
+            server.servlet.context-path: /
             server.port: 8080
 
            NOTE:  Make sure there are no leading spaces on any of these lines
@@ -627,8 +609,36 @@ Part 2:  Configure Spring Boot (within the "backend" maven module)
 
 
 
+11. Tell Spring boot to look for the frontend static html inside a jar
+    a. Right-click on backend/src/main/java/com/lessons -> New Package
+       Package Name: config
 
-11. Create this file:  BogusController
+    b. Right-click on backend/src/main/java/com/lessons/config -> New Java Class
+       Class Name:  WebMvcConfig
+
+    c. Copy this to the newly-created class
+
+            package com.lessons.config;
+
+            import org.springframework.context.annotation.Configuration;
+            import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
+            import org.springframework.web.servlet.config.annotation.WebMvcConfigurationSupport;
+
+            @Configuration
+            public class WebMvcConfig extends WebMvcConfigurationSupport {
+
+              @Override
+              public void addResourceHandlers(ResourceHandlerRegistry registry) {
+                registry.addResourceHandler("/**")
+                        .addResourceLocations("/", "classpath:/angularApp1/", "classpath:/static/");
+              }
+
+            }
+
+
+
+
+12. Create this file:  BogusController
       a. Right-click on backend/src/main/java/com/lessons -> New Package
          Package Name:  controllers
 
@@ -681,17 +691,17 @@ Part 2:  Configure Spring Boot (within the "backend" maven module)
 
 
 
-12. Verify the web app runs in Intellij
+13. Verify the web app runs in Intellij
     a. Go to your Application class
     b. Right-click on main() -> Debug 'Application.main()'
     c. Open a browser
-    d. Connect to http://localhost:8080/app1/api/time
+    d. Connect to http://localhost:8080/api/time
        -- You should see the current time
     e. Stop the app in Intellij (as it is bound to port 8080)
 
 
 
-13. Verify that the webapp builds correctly and runs as a super-jar
+14. Verify that the webapp builds correctly and runs as a super-jar
     a. Build everything
        unix> cd ~/intellijProjects/angularApp1
        unix> mvn clean install
@@ -707,6 +717,8 @@ Part 2:  Configure Spring Boot (within the "backend" maven module)
     c. Verify that you can connect to the website:
        a. Open a browser
        b. Connect to http://localhost:8080
+
+
 
 
 Approaches:
