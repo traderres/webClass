@@ -19,6 +19,7 @@ https://blog.jdriven.com/2016/12/angular2-spring-boot-getting-started/
 https://keepgrowing.in/java/springboot/integrate-angular-with-a-spring-boot-project/
 https://stackoverflow.com/questions/42393211/how-can-i-serve-static-html-from-spring-boot
 https://gist.github.com/pavankjadda/8d17d697f86c1b80cc06c39cec74c87e
+https://stackoverflow.com/questions/24661289/spring-boot-not-serving-static-content
 
 
 Reasons to keep the webapp as one module
@@ -41,6 +42,15 @@ We need to create a new directory structure with this:
   angularApp1/frontend/
   angularApp1/backend/
 
+
+Rules
+-----
+ A) The backend listens on http://localhost:8080/app1
+ B) The frontend is built with base href of /app1
+ C) The frontend is built and written to dist/static
+ D) All routes start with 'page/'
+    So, that if a user refreshes, we can reload the index.html
+ E) The backend has a default listener on "/" and "/page/**" to take users to index.html
 
 
 
@@ -156,28 +166,27 @@ Part 1:  Configure the Angular Code (within the "frontend" maven module)
 
  6. Update the frontend/pom.xml so it looks like this:
 
-        <?xml version="1.0" encoding="UTF-8"?>
-        <project xmlns="http://maven.apache.org/POM/4.0.0"
-                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-          <parent>
-            <artifactId>angularApp1</artifactId>
-            <groupId>com.lessons</groupId>
-            <version>1.0-SNAPSHOT</version>
-          </parent>
-          <modelVersion>4.0.0</modelVersion>
+         <?xml version="1.0" encoding="UTF-8"?>
+         <project xmlns="http://maven.apache.org/POM/4.0.0"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+           <parent>
+             <artifactId>angularApp1</artifactId>
+             <groupId>com.lessons</groupId>
+             <version>1.0-SNAPSHOT</version>
+           </parent>
+           <modelVersion>4.0.0</modelVersion>
 
-          <artifactId>frontend</artifactId>
-          <packaging>jar</packaging>
+           <artifactId>frontend</artifactId>
+           <packaging>jar</packaging>
 
-          <build>
-            <resources>
-              <resource>
-                <directory>dist</directory>
-              </resource>
-            </resources>
+           <build>
+             <resources>
+               <resource>
+                 <directory>dist</directory>
+               </resource>
+             </resources>
 
-           <plugins>
              <plugins>
                <plugin>
                  <artifactId>maven-clean-plugin</artifactId>
@@ -198,57 +207,57 @@ Part 1:  Configure the Angular Code (within the "frontend" maven module)
 
 
                <plugin>
-                  <groupId>com.github.eirslett</groupId>
-                  <artifactId>frontend-maven-plugin</artifactId>
-                  <version>1.3</version>
+                 <groupId>com.github.eirslett</groupId>
+                 <artifactId>frontend-maven-plugin</artifactId>
+                 <version>1.3</version>
 
-                  <configuration>
-                    <!-- Angular 8 requires node of 12.5 or later -->
-                    <nodeVersion>v12.5.0</nodeVersion>
-                    <npmVersion>6.9.0</npmVersion>
-                  </configuration>
+                 <configuration>
+                   <!-- Angular 8 requires node of 12.5 or later -->
+                   <nodeVersion>v12.5.0</nodeVersion>
+                   <npmVersion>6.9.0</npmVersion>
+                 </configuration>
 
-                  <executions>
-                      <execution>
-                        <id>install node and npm</id>
-                        <goals>
-                          <goal>install-node-and-npm</goal>
-                        </goals>
-                      </execution>
+                 <executions>
+                   <execution>
+                     <id>install node and npm</id>
+                     <goals>
+                       <goal>install-node-and-npm</goal>
+                     </goals>
+                   </execution>
 
-                      <execution>
-                        <id>npm install</id>
-                        <goals>
-                          <goal>npm</goal>
-                        </goals>
-                      </execution>
+                   <execution>
+                     <id>npm install</id>
+                     <goals>
+                       <goal>npm</goal>
+                     </goals>
+                   </execution>
 
-                      <execution>
-                        <id>npm run build</id>
-                        <goals>
-                          <goal>npm</goal>
-                        </goals>
-                        <configuration>
-                          <arguments>run build</arguments>
-                        </configuration>
-                      </execution>
+                   <execution>
+                     <id>npm run build</id>
+                     <goals>
+                       <goal>npm</goal>
+                     </goals>
+                     <configuration>
+                       <arguments>run build</arguments>
+                     </configuration>
+                   </execution>
 
-                      <execution>
-                        <id>prod</id>
-                        <goals>
-                          <goal>npm</goal>
-                        </goals>
-                        <configuration>
-                          <arguments>run-script build</arguments>
-                        </configuration>
-                        <phase>generate-resources</phase>
-                      </execution>
-                  </executions>
-                </plugin>
-            </plugins>
+                   <execution>
+                     <id>prod</id>
+                     <goals>
+                       <goal>npm</goal>
+                     </goals>
+                     <configuration>
+                       <arguments>run-script build</arguments>
+                     </configuration>
+                     <phase>generate-resources</phase>
+                   </execution>
+                 </executions>
+               </plugin>
+             </plugins>
 
-        </build>
-        </project>
+           </build>
+         </project>
 
 
 
@@ -579,7 +588,7 @@ Part 2:  Configure Spring Boot (within the "backend" maven module)
             # application.yaml   (used for development purposes)
             ##########################################################
             name: app1
-            server.servlet.context-path: /
+            server.servlet.context-path: /app1
             server.port: 8080
 
            NOTE:  Make sure there are no leading spaces on any of these lines
@@ -609,43 +618,44 @@ Part 2:  Configure Spring Boot (within the "backend" maven module)
 
 
 
-11. Tell Spring boot to look for the frontend static html inside a jar
+
+11. Create this java class:  HomeController
     a. Right-click on backend/src/main/java/com/lessons -> New Package
-       Package Name: config
+       Package Name:  controllers
 
-    b. Right-click on backend/src/main/java/com/lessons/config -> New Java Class
-       Class Name:  WebMvcConfig
+    b. Right-click on backend/src/main/java/com/lessons/controllers -> New Java Class
+       Name: HomeController
 
-    c. Copy this to the newly-created class
+    c. Copy this to your new class
 
-            package com.lessons.config;
+            package com.lessons.controllers;
 
-            import org.springframework.context.annotation.Configuration;
-            import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
-            import org.springframework.web.servlet.config.annotation.WebMvcConfigurationSupport;
+            import org.springframework.stereotype.Controller;
+            import org.springframework.web.bind.annotation.RequestMapping;
+            import org.springframework.web.bind.annotation.RequestMethod;
 
-            @Configuration
-            public class WebMvcConfig extends WebMvcConfigurationSupport {
+            @Controller
+            public class HomeController {
 
-              @Override
-              public void addResourceHandlers(ResourceHandlerRegistry registry) {
-                registry.addResourceHandler("/**")
-                        .addResourceLocations("/", "classpath:/angularApp1/", "classpath:/static/");
+              @RequestMapping(value = {"/", "/page/**"}, method = RequestMethod.GET)
+              public String home() {
+
+                // This method handles two cases:
+                // Case 1: The user goes to http://localhost:8080/app1  --> Take users to the index.html
+                // Case 2: The user goes to http://localhost:8080/app1/page/addReport and presses refresh --> Take users to the index.html
+                return "forward:/index.html";
+
               }
 
             }
 
 
 
+12. Create this java class:  BogusController
+    a. Right-click on backend/src/main/java/com/lessons/controllers -> New Java Class
+       Name: BogusController
 
-12. Create this file:  BogusController
-      a. Right-click on backend/src/main/java/com/lessons -> New Package
-         Package Name:  controllers
-
-      b. Right-click on backend/src/main/java/com/lessons/controllers -> New Java Class
-         Name: BogusController
-
-      c. Copy this to your new class
+    b. Copy this to your new class
 
              package com.lessons.controllers;
 
@@ -689,9 +699,78 @@ Part 2:  Configure Spring Boot (within the "backend" maven module)
                }
              }
 
+13. Create this java class:  WebMvcConfig
+    NOTE:  This tellsell Spring boot to look for the frontend static html inside a jar
+    a. Right-click on backend/src/main/java/com/lessons -> New Package
+       Package Name: config
+
+    b. Right-click on backend/src/main/java/com/lessons/config -> New Java Class
+       Class Name:  WebMvcConfig
+
+    c. Copy this to the newly-created class
+
+            package com.lessons.config;
+
+            import org.springframework.context.annotation.Configuration;
+            import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
+            import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter;
 
 
-13. Verify the web app runs in Intellij
+            @Configuration
+            public class WebMvcConfig extends WebMvcConfigurerAdapter {
+
+              private static final String[] CLASSPATH_RESOURCE_LOCATIONS = {
+                "classpath:/META-INF/resources/", "classpath:/resources/",
+                "classpath:/static/", "classpath:/public/" };
+
+              @Override
+              public void addResourceHandlers(ResourceHandlerRegistry registry) {
+                registry.addResourceHandler("/**")
+                  .addResourceLocations(CLASSPATH_RESOURCE_LOCATIONS);
+              }
+            }
+
+
+
+14. Change the npm build output path to "dist/"
+    a. Edit the frontend/angular.json
+
+    b. Change this line:
+          "outputPath": "dist/angularApp1",
+
+       To this:
+          "outputPath": "dist/static",
+
+       NOTE:  this outputPath must match the classpath found in WebMvcConfig
+
+
+15. Change the npm build so that it adds the /app1/ prefix to all URLs
+    a. Edit the frontend/package.json
+
+    b. Change this line:
+         "build": "ng build",
+
+       To this:
+         "build": "ng build --base-href /app1/",
+
+16. Update nav bar routes to use the '/page' prefix
+    a. Edit the app.module.ts
+    b. Update the routes so they look like this:
+            const appRoutes: Routes = [
+              { path: 'page/addReport', component: AddReportComponent},
+              { path: '', redirectTo: '/', pathMatch: 'full'},
+              { path: '**', component: NotFoundComponent}
+            ];
+
+    a. Edit the app.copmonent.html  (where the navigation bar is defined)
+    b. Update the routerLinks so that they start with '/page'
+       They should look like this:
+             <a mat-button [routerLink]="'/page/addReport'"> Add Report </a>
+             <a mat-button [routerLink]="'/page/viewReports'"> View Reports </a>
+
+
+
+17. Verify the web app runs in Intellij
     a. Go to your Application class
     b. Right-click on main() -> Debug 'Application.main()'
     c. Open a browser
@@ -701,7 +780,7 @@ Part 2:  Configure Spring Boot (within the "backend" maven module)
 
 
 
-14. Verify that the webapp builds correctly and runs as a super-jar
+18. Verify that the webapp builds correctly and runs as a super-jar
     a. Build everything
        unix> cd ~/intellijProjects/angularApp1
        unix> mvn clean install
@@ -714,9 +793,17 @@ Part 2:  Configure Spring Boot (within the "backend" maven module)
           02/27/2020 22:54:41 INFO  com.lessons.Application Started Application in 1.804 seconds (JVM running for 2.259)
           02/27/2020 22:54:41 DEBUG com.lessons.Application WebApp is Up.
 
-    c. Verify that you can connect to the website:
+    c. Verify that http//localhost:8080/app1 takes users into the main web page
        a. Open a browser
-       b. Connect to http://localhost:8080
+       b. Connect to http://localhost:8080/app1
+          -- You should see the default page
+
+    d. Verify that users can refresh on a specific page
+       a. Open a browser
+       b. Connect to http://localhost:8080/app1/page/addReport
+          -- You should see the "App a Report" page
+
+
 
 
 
