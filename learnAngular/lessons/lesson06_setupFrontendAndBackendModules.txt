@@ -35,23 +35,26 @@ Reasons to split the webapp into two modules
 
 
 
-Procedure (using Two Maven Modules)
------------------------------------
-We need to create a new directory structure with this:
+General Approach
+----------------
+ A) We will change the data structure into a multi-maven project setup with these directories:
   angularApp1/
   angularApp1/frontend/
   angularApp1/backend/
-
-
-Rules
------
- A) The backend listens on http://localhost:8080/app1
- B) The frontend is built with base href of /app1
- C) The frontend is built and written to dist/static
- D) All routes start with '/page'
-    So, that if a user refreshes, we can load the index.html and then take user to that route page
- E) The backend has a default listener on "/" and "/page/**" to take users to index.html
- F) All REST endpoints will start with '/api'
+ B) The backend maven module has a dependency on the frontend jar file
+ C) The backend listens on http://localhost:8080/app1
+ D) The frontend is built with base href of /app1   (so all frontend requests add /app1)
+ E) The frontend is built and written to dist/static
+ F) All REST endpoints start with /api
+ G) All angular routes start with /page
+ H) The backend has a default listener on "/" and "/page/**" to take users to index.html
+    -- So, if a user refreshes the page, the backend sends the user to index.html
+    -- And, then the front-end forwards the user to the correct page view
+ I) Unblock cors policy so that the angular frontend on localhost:4200 is allowed to make calls to localhost:8080
+ J) Increase Intellij Memory settings (so that debugging is responsive)
+    In Intellij, Pull Help -> Change Memory Settings
+    Set max heap size to 4096M
+    Press "Save and Restart"
 
 
 Part 1:  Configure the Angular Code (within the "frontend" maven module)
@@ -709,30 +712,54 @@ Part 2:  Configure Spring Boot (within the "backend" maven module)
 
     c. Copy this to the newly-created class
 
-            package com.lessons.config;
+          package com.lessons.config;
 
-            import org.springframework.context.annotation.Configuration;
-            import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
-            import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter;
+          import org.springframework.beans.factory.annotation.Value;
+          import org.springframework.context.annotation.Configuration;
+          import org.springframework.web.servlet.config.annotation.CorsRegistry;
+          import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
+          import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter;
 
 
-            @Configuration
-            public class WebMvcConfig extends WebMvcConfigurerAdapter {
 
-              private static final String[] CLASSPATH_RESOURCE_LOCATIONS = {
-                "classpath:/META-INF/resources/", "classpath:/resources/",
-                "classpath:/static/", "classpath:/public/" };
+          @Configuration
+          public class WebMvcConfig extends WebMvcConfigurerAdapter {
 
-              @Override
-              public void addResourceHandlers(ResourceHandlerRegistry registry) {
-                registry.addResourceHandler("/**")
-                  .addResourceLocations(CLASSPATH_RESOURCE_LOCATIONS);
-              }
+            @Value("${disable.cors}")
+            private boolean disableCors;
+
+            private static final String[] CLASSPATH_RESOURCE_LOCATIONS = {
+              "classpath:/META-INF/resources/", "classpath:/resources/",
+              "classpath:/static/", "classpath:/public/" };
+
+            @Override
+            public void addResourceHandlers(ResourceHandlerRegistry registry) {
+              registry.addResourceHandler("/**")
+                .addResourceLocations(CLASSPATH_RESOURCE_LOCATIONS);
             }
 
 
+            /**
+             * Allow CORS requests to come from anywhere
+             * -- Should be used for local debugging only
+             * @param registry
+             */
+            @Override
+            public void addCorsMappings(CorsRegistry registry) {
+              if (disableCors) {
+                registry.addMapping("/**").allowedOrigins("*");
+              }
+            }
 
-14. Change the npm build output path to "dist/"
+          }
+
+
+14. Add this to your backend/src/main/resources/application.yaml
+        # Disable cors check because we are running in local dev mode
+        disable.cors: true
+
+
+15. Change the npm build output path to "dist/"
     a. Edit the frontend/angular.json
 
     b. Change this line:
@@ -744,7 +771,7 @@ Part 2:  Configure Spring Boot (within the "backend" maven module)
        NOTE:  this outputPath must match the classpath found in WebMvcConfig
 
 
-15. Change the npm build so that it adds the /app1/ prefix to all URLs
+16. Change the npm build so that it adds the /app1/ prefix to all URLs
     a. Edit the frontend/package.json
 
     b. Change this line:
@@ -753,7 +780,8 @@ Part 2:  Configure Spring Boot (within the "backend" maven module)
        To this:
          "build": "ng build --base-href /app1/",
 
-16. Update nav bar routes to use the '/page' prefix
+
+17. Update nav bar routes to use the '/page' prefix
     a. Edit the app.module.ts
     b. Update the routes so they look like this:
             const appRoutes: Routes = [
@@ -769,8 +797,7 @@ Part 2:  Configure Spring Boot (within the "backend" maven module)
              <a mat-button [routerLink]="'/page/viewReports'"> View Reports </a>
 
 
-
-17. Verify the web app runs in Intellij
+18. Verify the web app runs in Intellij
     a. Go to your Application class
     b. Right-click on main() -> Debug 'Application.main()'
     c. Open a browser
@@ -779,8 +806,7 @@ Part 2:  Configure Spring Boot (within the "backend" maven module)
     e. Stop the app in Intellij (as it is bound to port 8080)
 
 
-
-18. Verify that the webapp builds correctly and runs as a super-jar
+19. Verify that the webapp builds correctly and runs as a super-jar
     a. Build everything
        unix> cd ~/intellijProjects/angularApp1
        unix> mvn clean install
