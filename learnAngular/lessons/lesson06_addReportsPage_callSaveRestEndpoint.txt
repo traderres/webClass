@@ -17,5 +17,127 @@ Approach
     In dev  mode:  environment.baseUrl = "http://locahost:4200"
  F) Have your ReportService use the environment.baseUrl for production and non-production mode
 
+
 Procedure
 ---------
+ 1. Create a Report Service
+    unix> cd ~/intellijProjects/angularApp1/frontend
+    unix> ng generate service services/report
+
+ 2. Inject the http client and add a method getTime() to the ReportService
+    a. Replace the report.services.ts with this:
+
+        import { Injectable } from '@angular/core';
+        import {HttpClient} from "@angular/common/http";
+        import {environment} from "../../environments/environment";
+        import {Observable} from "rxjs";
+
+        @Injectable({
+          providedIn: 'root'
+        })
+        export class ReportService {
+          private httpClient: HttpClient
+
+
+          constructor(aHttpClient: HttpClient) {
+            this.httpClient = aHttpClient;
+          }
+
+
+          /*
+           * getTime() Invoke a REST call and return an observable
+           */
+          public getTime(): Observable<String> {
+            const restUrl = environment.baseUrl + '/api/time';
+
+            // Return an observable
+            // NOTE:  The REST call is not invoked until someone calls subscribe() on this observable
+            return this.httpClient.get<String>(restUrl);
+          }
+        }
+
+
+ 3. Update the add-report.component.ts to use the new ReportService
+    a. Inject the ReportService into the add-report.component.ts
+    b. Update the add-report.component save() method to use the reportService.getTime() method
+
+
+    When completed, the add-report-component.ts should look like this:
+        import { Component, OnInit } from '@angular/core';
+        import {ReportService} from "../../services/report.service";
+
+        export class Report {
+          name: string;
+          priority: number;
+          source: number;
+          authors: string;
+        }
+
+        @Component({
+          selector: 'app-add-report',
+          templateUrl: './add-report.component.html',
+          styleUrls: ['./add-report.component.css']
+        })
+        export class AddReportComponent implements OnInit {
+          private reportService: ReportService;
+          public report: Report;
+
+          constructor(aReportService: ReportService) {
+            this.reportService=aReportService;
+          }
+
+          ngOnInit() {
+            this.report = new Report();
+            this.report.name = "";
+            this.report.priority = 0;
+            this.report.source = 0;
+            this.report.authors = "";
+          }
+
+          public reset() {
+            this.report.name = "";
+            this.report.priority = 0;
+            this.report.source = 0;
+            this.report.authors = "";
+          }
+
+          public save() {
+            console.log('save() started  this.report=' , this.report);
+
+            /* Invoke the getTime REST endpoint */
+            this.reportService.getTime().subscribe(time => {
+              // REST call succeeded
+              console.log('Rest call succeeded:  time=', time);
+              console.log('hi');
+            },
+            error => {
+                 console.error(`There was an error calling getTime():  ${error}`);
+                 console.log('hi');
+              });
+          }
+
+        }
+
+ 4. Verify that the REST call works when using the debugger
+    a. Pull Debug / "Debug Webapp"
+    b. Click on "Add Report"
+    c. Press F12 to see the console
+    d. Press the "Save" button
+       -- You should see the time in the console
+
+
+ 5. Verify that the REST call works when building the uber JAR
+    a. Build the uber jar
+       unix> cd ~/intellijProjects/angularApp1
+       unix> mvn clean install -Prod
+
+    b. Run the uber jar
+       unix> java -jar ./backend/target/backend-1.0-SNAPSHOT-exec.jar
+
+    c. Connect to http://localhost:8080/app1
+    d. Click on "Add Report"
+    e. Press F12 to see the console
+    f. Press the "Save" button
+       -- You should see the time in the console
+
+
