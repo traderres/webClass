@@ -2,20 +2,12 @@ Lesson:  Have the "Add Reports" page "Save" button invoke a REST call
 ---------------------------------------------------------------------
 
 Approach
- A) Create a back-end REST call
-      POST /api/reports/add
-      {
-         "name": "report 1",
-         "priority": 2
-       }
-
- B) Setup a frontend ReportService (that make invokes the REST call)
- C) Inject the ReportService into the add-report.component.ts
- D) Have the add-report.compoennt.ts save() method call the ReportService
- E) Setup environment.baseUrl for dev and prod mode
-    In prod mode:  environment.baseUrl is an empty string
-    In dev  mode:  environment.baseUrl = "http://locahost:4200"
- F) Have your ReportService use the environment.baseUrl for production and non-production mode
+ A) Create a frontend ReportService (that makes a REST call to get the time)
+ B) Inject the ReportService into the add-report.component.ts
+ C) Have the add-report.compoennt.ts save() method call the ReportService.getTime() method
+    NOTE:  The ReportService uses the environment.baseUrl for production and non-production mode
+           -- If running in development, the url is http://localhost:8080/app1/api/time
+           -- If running in production,  the url is ./api/time
 
 
 Procedure
@@ -27,96 +19,99 @@ Procedure
  2. Inject the http client and add a method getTime() to the ReportService
     a. Replace the report.services.ts with this:
 
-        import { Injectable } from '@angular/core';
-        import {HttpClient} from "@angular/common/http";
-        import {environment} from "../../environments/environment";
-        import {Observable} from "rxjs";
+          import { Injectable } from '@angular/core';
+          import {HttpClient} from "@angular/common/http";
+          import {environment} from "../../environments/environment";
+          import {Observable} from "rxjs";
 
-        @Injectable({
-          providedIn: 'root'
-        })
-        export class ReportService {
-          private httpClient: HttpClient
+          @Injectable({
+            providedIn: 'root'
+          })
+          export class ReportService {
+            private httpClient: HttpClient;
 
 
-          constructor(aHttpClient: HttpClient) {
-            this.httpClient = aHttpClient;
+            constructor(aHttpClient: HttpClient) {
+              this.httpClient = aHttpClient;
+            }
+
+
+            /*
+             * getTime() Invoke a REST call and return an observable
+             */
+            public getTime(): Observable<string> {
+              // Consruct the URL for the REST endpoint (so it works in dev and prod mode)
+              const restUrl = environment.baseUrl + '/api/time';
+
+              // Setup the REST call to /api/time that returns a string response (not the usual json response)
+              // NOTE:  The REST call is not invoked until someone calls subscribe() on this observable
+              return this.httpClient.get(restUrl, {responseType: 'text'});
+            }
           }
 
 
-          /*
-           * getTime() Invoke a REST call and return an observable
-           */
-          public getTime(): Observable<String> {
-            const restUrl = environment.baseUrl + '/api/time';
-
-            // Return an observable
-            // NOTE:  The REST call is not invoked until someone calls subscribe() on this observable
-            return this.httpClient.get<String>(restUrl);
-          }
-        }
 
 
  3. Update the add-report.component.ts to use the new ReportService
     a. Inject the ReportService into the add-report.component.ts
     b. Update the add-report.component save() method to use the reportService.getTime() method
 
-
     When completed, the add-report-component.ts should look like this:
-        import { Component, OnInit } from '@angular/core';
-        import {ReportService} from "../../services/report.service";
+          import { Component, OnInit } from '@angular/core';
+          import {ReportService} from "../../services/report.service";
 
-        export class Report {
-          name: string;
-          priority: number;
-          source: number;
-          authors: string;
-        }
-
-        @Component({
-          selector: 'app-add-report',
-          templateUrl: './add-report.component.html',
-          styleUrls: ['./add-report.component.css']
-        })
-        export class AddReportComponent implements OnInit {
-          private reportService: ReportService;
-          public report: Report;
-
-          constructor(aReportService: ReportService) {
-            this.reportService=aReportService;
+          export class Report {
+            name: string;
+            priority: number;
+            source: number;
+            authors: string;
           }
 
-          ngOnInit() {
-            this.report = new Report();
-            this.report.name = "";
-            this.report.priority = 0;
-            this.report.source = 0;
-            this.report.authors = "";
+          @Component({
+            selector: 'app-add-report',
+            templateUrl: './add-report.component.html',
+            styleUrls: ['./add-report.component.css']
+          })
+          export class AddReportComponent implements OnInit {
+            private reportService: ReportService;
+            public report: Report;
+
+            constructor(aReportService: ReportService) {
+              this.reportService=aReportService;
+            }
+
+            ngOnInit() {
+              this.report = new Report();
+              this.report.name = "";
+              this.report.priority = 0;
+              this.report.source = 0;
+              this.report.authors = "";
+            }
+
+            public reset() {
+              this.report.name = "";
+              this.report.priority = 0;
+              this.report.source = 0;
+              this.report.authors = "";
+            }
+
+            public save() {
+              console.log('save() started  this.report=' , this.report);
+
+              /* Invoke the getTime REST endpoint */
+              this.reportService.getTime().subscribe(time => {
+                // REST call succeeded
+                console.log('Rest call succeeded:  time=', time);
+                console.log('hi');
+              },
+              error => {
+                   console.error(`There was an error calling getTime():  ${error}`);
+                   console.log('hi');
+                });
+            }
+
           }
 
-          public reset() {
-            this.report.name = "";
-            this.report.priority = 0;
-            this.report.source = 0;
-            this.report.authors = "";
-          }
-
-          public save() {
-            console.log('save() started  this.report=' , this.report);
-
-            /* Invoke the getTime REST endpoint */
-            this.reportService.getTime().subscribe(time => {
-              // REST call succeeded
-              console.log('Rest call succeeded:  time=', time);
-              console.log('hi');
-            },
-            error => {
-                 console.error(`There was an error calling getTime():  ${error}`);
-                 console.log('hi');
-              });
-          }
-
-        }
 
  4. Verify that the REST call works when using the debugger
     a. Pull Debug / "Debug Webapp"
@@ -139,5 +134,4 @@ Procedure
     e. Press F12 to see the console
     f. Press the "Save" button
        -- You should see the time in the console
-
 
