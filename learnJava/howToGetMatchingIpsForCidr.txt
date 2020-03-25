@@ -1,0 +1,99 @@
+How to Get Matching IPs for a given a CIDR Range (using Java Library)
+---------------------------------------------------------------------
+The commons-ip-math library is very fast
+-- It is able to check 160,000 IPs (to see if they exist in a single CIDR) in 80 msecs.
+
+
+References
+----------
+https://github.com/jgonian/commons-ip-math
+
+
+
+Procedure
+---------
+ 1. Add this maven dependency
+        <dependency>
+            <!-- https://github.com/jgonian/commons-ip-math -->
+            <groupId>com.github.jgonian</groupId>
+            <artifactId>commons-ip-math</artifactId>
+            <version>1.32</version>
+        </dependency>
+
+        <!-- Add the dependency for your postgreSQL JDBC driver -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>${postgres_version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Send Logging from SLF4j to Logback -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>${logback_classic_version}</version>
+        </dependency>
+
+
+
+ 2. Add this logback.xml
+		<?xml version="1.0" encoding="utf-8" ?>
+
+		<configuration debug="false">
+			<!-- Development Logback.xml -->
+			<appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+				<encoder>
+				    <pattern>%d{MM/dd/yyyy HH:mm:ss}  %thread %-5level %c %line %m%n</pattern>
+				</encoder>
+			</appender>
+
+			<!-- Root Logger - default level INFO -->
+			<root level="INFO" additivity="false">
+				<appender-ref ref="CONSOLE"/>
+			</root>
+
+			<logger name="csaac.ng" level="DEBUG" additivity="false">
+				<appender-ref ref="CONSOLE"/>
+			</logger>
+
+
+		</configuration>
+
+
+
+ 3. Add this test method
+
+    @Test
+    public void testIpRange() {
+        logger.info("testIpRange() started.");
+
+        SingleConnectionDataSource sd = new SingleConnectionDataSource();
+        sd.setUrl("jdbc:postgresql://localhost:5001/cde");
+        sd.setUsername("cde_user");
+        sd.setPassword("gc!r!r#g2#!%-^$kma");
+        sd.setDriverClassName("org.postgresql.Driver");
+
+
+        String sql = "select value from indicators where indicator_type=5 and NOT value like '%/%' ";
+        JdbcTemplate jt = new JdbcTemplate(sd);
+        logger.info("Getting list of indicators started.");
+        List<String> indicatorValues = jt.queryForList(sql, String.class);
+        logger.info("Getting list of indicators finished.");
+
+        long startTime = System.currentTimeMillis();
+        Ipv4Range ipv4Range = Ipv4Range.parse("7.7.0.0/16");
+
+
+        for (String indicatorValue: indicatorValues) {
+            Ipv4 ipv4 = Ipv4.of(indicatorValue);
+
+            // Determine if this IP exists within this CIDR range
+            boolean bExistsInRange = ipv4Range.contains(ipv4);
+        }
+
+        long endTime = System.currentTimeMillis();
+        logger.info("Running time is {} ms", endTime - startTime);
+
+    }
+
