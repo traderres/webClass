@@ -51,3 +51,93 @@ Procedure
         boolean ipExistsInCidr = cidrIpAddress.contains(ipAddress);
         assertTrue(ipExistsInCidr);
     }
+
+
+Procedure for Speed Test
+------------------------
+1. Add this maven dependency
+        <dependency>
+            <!-- https://github.com/jgonian/commons-ip-math -->
+            <groupId>com.github.jgonian</groupId>
+            <artifactId>commons-ip-math</artifactId>
+            <version>1.32</version>
+        </dependency>
+
+        <!-- Add the dependency for your postgreSQL JDBC driver -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>${postgres_version}</version>
+        </dependency>
+
+        <!-- Send Logging from SLF4j to Logback -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>${logback_classic_version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jdbc</artifactId>
+            <version>5.2.4.RELEASE</version>
+        </dependency>
+
+
+ 2. Add this logback.xml
+		<?xml version="1.0" encoding="utf-8" ?>
+
+		<configuration debug="false">
+			<!-- Development Logback.xml -->
+			<appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+				<encoder>
+				    <pattern>%d{MM/dd/yyyy HH:mm:ss}  %thread %-5level %c %line %m%n</pattern>
+				</encoder>
+			</appender>
+
+			<!-- Root Logger - default level INFO -->
+			<root level="INFO" additivity="false">
+				<appender-ref ref="CONSOLE"/>
+			</root>
+
+			<logger name="csaac.ng" level="DEBUG" additivity="false">
+				<appender-ref ref="CONSOLE"/>
+			</logger>
+		</configuration>
+
+
+  3. Add this test method
+
+   /*
+     * This method can compare 100,000 ipv6s against an ipv6 cidr in 300 msec on a laptop
+     */
+    @Test
+    public void testIpinCidrUsingSeanFoley() {
+
+        logger.info("testIpinCidrUsingSeanFoley() started.");
+
+        SingleConnectionDataSource sd = new SingleConnectionDataSource();
+        sd.setUrl("jdbc:postgresql://localhost:5432/test");
+        sd.setUsername("test");
+        sd.setPassword("test");
+        sd.setDriverClassName("org.postgresql.Driver");
+
+        // ASSUMPTION:  Your indicators table has 100,000 ipv6 records
+        String sql = "select ipv6_uncompressed from indicators";
+        JdbcTemplate jt = new JdbcTemplate(sd);
+        List<String> indicatorValues = jt.queryForList(sql, String.class);
+
+        long startTime = System.currentTimeMillis();
+
+        IPAddressString cidrIpAddress = new IPAddressString("::ffff:404:400/120");   // Same as 4.4.4.0/24
+
+        for (String ipv6AsString: indicatorValues) {
+            IPAddressString ipAddress = new IPAddressString(ipv6AsString);
+
+            // Determine if this IP exists within this CIDR range
+            boolean bExistsInRange = cidrIpAddress.contains(ipAddress);
+        }
+
+        long endTime = System.currentTimeMillis();
+        logger.info("Time to compare {} records is {} ms", indicatorValues.size(), endTime - startTime);
+    }

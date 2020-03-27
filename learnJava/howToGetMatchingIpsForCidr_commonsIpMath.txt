@@ -94,35 +94,36 @@ Procedure - Speed Test
 
  3. Add this test method
 
+    /*
+     * This method can compare 100,000 ipv6s against an ipv6 cidr in 450 msec on a laptop
+     */
     @Test
-    public void testIpRange() {
-        logger.info("testIpRange() started.");
+    public void testIpinCidrUsingCommonsMath() {
+
+        logger.info("testIpinCidrUsingCommonsMath() started.");
 
         SingleConnectionDataSource sd = new SingleConnectionDataSource();
-        sd.setUrl("jdbc:postgresql://localhost:5001/cde");
-        sd.setUsername("cde_user");
-        sd.setPassword("gc!r!r#g2#!%-^$kma");
+        sd.setUrl("jdbc:postgresql://localhost:5432/test");
+        sd.setUsername("test");
+        sd.setPassword("test");
         sd.setDriverClassName("org.postgresql.Driver");
 
-
-        String sql = "select value from indicators where indicator_type=5 and NOT value like '%/%' ";
+        // Get a list of 100,000 ipv6 indicators
+        String sql = "select ipv6_uncompressed from indicators ";
         JdbcTemplate jt = new JdbcTemplate(sd);
-        logger.info("Getting list of indicators started.");
         List<String> indicatorValues = jt.queryForList(sql, String.class);
-        logger.info("Getting list of indicators finished.");
 
         long startTime = System.currentTimeMillis();
-        Ipv4Range ipv4Range = Ipv4Range.parse("7.7.0.0/16");
+        Ipv6Range ipv6Range = Ipv6Range.parse("::ffff:404:400/120");    // Same as 4.4.4.0/24
 
-
-        for (String indicatorValue: indicatorValues) {
-            Ipv4 ipv4 = Ipv4.of(indicatorValue);
+        for (String ipv6AsString: indicatorValues) {
+            Ipv6 ipv6 = Ipv6.of(ipv6AsString);
 
             // Determine if this IP exists within this CIDR range
-            boolean bExistsInRange = ipv4Range.contains(ipv4);
+            boolean bExistsInRange = ipv6Range.contains(ipv6);
         }
 
         long endTime = System.currentTimeMillis();
-        logger.info("Running time is {} ms", endTime - startTime);
+        logger.info("Time to compare {} records is {} ms", indicatorValues.size(), endTime - startTime);
     }
 
