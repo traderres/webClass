@@ -1,0 +1,291 @@
+How to Setup am OpenSSH Server on Windows
+------------------------------------------
+You want to install Cygwin and the openSSH package for it on your home server
+
+NOTE:  THe *first* hyperlink has very good detailed instructions for setting-up CYGWIN, openSSH, and VNC
+ 1) http://www.erikjheels.com/?p=470
+    [How To Set Up VNC Over SSH On Windows XP]
+    -- good description of setting-up sshd on port 22000
+
+ 2) http://www.jfitz.com/tips/ssh_for_windows.html
+ 3) http://www.leedberg.com/2005/03/secure-windows-file-sharing-over.html
+ 4) http://pigtail.net/LRP/printsrv/cygwin-sshd.html
+ 5) http://www.unixwiz.net/techtips/ssh-agent-forwarding.html
+    [holds a graphical description of steps]
+ 
+ 6) http://lifehacker.com/software/home-server/geek-to-live--set-up-a-personal-home-ssh-server-205090.php
+
+ 7) http://the.earth.li/~sgtatham/putty/0.60/htmldoc/
+    [holds putty docs]
+
+ 8) http://www.astro.caltech.edu/~mbonati/WIRC/manual/DATARED/setting_up_no-password_ssh.html
+   [how to setup key/pairs without password]
+
+ 9) http://www.ibm.com/developerworks/library/l-keyc.html
+    [more information about public/private key pairs]
+
+
+
+IP Addresses of openSSH server
+------------------------------
+When you connect to your openSSH server, you can use an IP address or a dyndns.org account
+
+How do I get my open IP address, go to this website:  http://www.whatismyip.com/
+Even better, setup a dyndns.org account.  It's free and handy.
+
+
+
+Limit SSHD login accounts
+-------------------------
+ 1) vi /etc/ssh/sshd_config
+     AllowUsers user1 user2
+     DenyUsers root finadmin
+     DenyGroups root finadmin
+   
+ NOTE:  These are Windows user accounts and 
+        if "PasswordAuthentication yes" is set within the sshd_config
+          then the Windows password will authenticate the windows user
+
+
+
+Lockdown SSHD
+-------------
+ 1) http://www.linuxjournal.com/article/8759
+ 2) http://www.djatlantic.net/?page_id=191
+ 3) http://www.debian-administration.org/articles/573
+ 4) http://www.mylro.org/index.php/2007102698/Articole/How-To/Tips-for-a-more-secure-OpenSSH-server/menu-id-56.html
+ 5) http://ist.uwaterloo.ca/~kscully/CygwinSSHD_W2K3.html
+
+Additional Notes
+----------------
+ 1) limit private keys from certain IP addresses
+    add "from *.example.com, 10.*, external.example.com" to the public key on the $HOME/.ssh/authorized_keys 
+    see http://cfm.gs.washington.edu/software/ssh/client-pkauth/
+
+ 2) http://www.g-loaded.eu/2005/11/10/ssh-with-keys/
+ 
+ 3) http://www.linux.com/articles/61061
+
+If you would like to use DSA authentication only, make sure you uncomment and change the PasswordAuthentication line in sshd_config from yes to no:
+
+PasswordAuthentication no
+
+If anyone tries to connect to your SSH service and doesn't have a public key on the server, he will be rejected without even seeing the login prompt with this error:
+
+Permission denied (publickey). 
+
+
+
+
+Adjust SSHD Windows Service to send loggging to /var/log/sshd.log 
+-----------------------------------------------------------------
+By default, the openSSH service does not log anything.  These settings will allow us to log action.
+ 1) cygrunsrv --stop sshd       # stop sshd service
+ 2) cygrunsrv --remove sshd     # remove sshd service
+ 3) rm /var/log/sshd.log        # remove the existing log file
+ 4) touch /var/log/sshd.log
+ 5) chown SYSTEM:Administrators /var/log/sshd.log 
+ 6) cygrunsrv --install sshd -p /usr/sbin/sshd -a "-D -e" -d "CYGWIN sshd" --dep "tcpip" -e "CYGWIN=ntsec"  
+    # Install a new sshd service, passing-in command line args "-D -e"
+    # -a "-D -e"
+    #   -D --> daemon does not detach, which is needed in windows
+    #   -e --> send logging to stdout instead of event log
+    #
+ 
+ 7) cygrunsrv --start sshd      # start sshd service [or use net start sshd]
+ 8) tail -f /var/log/sshd.log   # look for errors here as well
+
+    
+ 9) cygrunsrv --query sshd --verbose    # display info about sshd service
+Service             : sshd
+Display name        : CYGWIN sshd
+Current State       : Running
+Controls Accepted   : Stop
+Command             : /usr/sbin/sshd -D -e
+stdin path          : /dev/null
+stdout path         : /var/log/sshd.log
+stderr path         : /var/log/sshd.log
+Environment         : CYGWIN="ntsec"
+Process Type        : Own Process
+Startup             : Automatic
+Dependencies        : tcpip
+Account             : LocalSystem
+
+
+
+
+
+Setup chroot jail  [incomplete]
+-------------------------------
+  http://sublimation.org/scponly/wiki/index.php/Main_Page
+  http://www.experts-exchange.com/OS/Linux/Q_22697487.html
+  http://adamsworld.name/chrootjail.php
+  http://www.minstrel.org.uk/papers/sftp/
+
+
+
+Allow you to tunnel SMB shares over ssh tunnel
+----------------------------------------------
+http://www.security-hacks.com/2007/05/18/tunneling-smb-over-ssh-secure-file-sharing
+ 1) Add Microsoft Loopback Adaptor
+   a. In the Control Panel click on Add Hardware.
+   b. In the Add Hardware Wizard, select “Yes, I have already connected the hardware” and click Next. 
+   c. Scroll down the list and click on “Add a new hardware device”.
+   d. Select “Install the hardware that I manually select from a list”. 
+   e. From the hardware types, select Network Adapters and choose Microsoft Loopback Adapter.
+   f. Go through the installation procedure.
+
+ 2) The next step is to configure the new virtual adapter.
+   a. Go to Network Connections configuration panel.
+   b. Right click on the Microsoft Loopback Adapter and select Properties.
+   c. Select Internet Protocol (TCP/IP) and click on the Properties button.
+   d. Check “Use the following IP address” option and 
+        enter the chosen IP address (e.g. 10.0.0.1) 
+        enter the subnet mask (255.255.255.0). 
+        leave gateway blank
+        leave DNS blank
+
+   e. Click on the Advanced button and in the WINS tab, 
+        select “Disable NetBIOS over TCP/IP”.
+   f. UNCHECK the "Client for Microsoft Networks"
+   g. UNCHECK the "File and Print Sharing for Microsoft Networks"
+
+ 4) Enable the loopback
+
+ 5) Open the putty tunnel:  
+      L<IP address of loopback adaptor>:139 --> 192.168.1.2:139
+      L10.0.0.1:139 --> 192.168.1.2:139
+ 
+ 6) Open shares on openSSH Server
+    -- start, run, \\<ip address of loopback adaptor>
+    \\10.0.0.1
+  
+
+Install SSH Client (putty & winscp)
+-----------------------------------
+ 1) Download putty installer from
+    http://www.puttyssh.org/download.html
+    -- click on putty-0.60-installer.exe
+   
+ 2) Download WinSCP  (Graphical Secure FTP client)
+    http://winscp.net/
+    -- click on [download]
+    -- NOTE:  Comes with putty-keygen
+
+
+
+
+
+
+Provide remote user with private key
+------------------------------------
+ 1) On SSHD Server, edit sshd_config so that a user can login *without* public/private key encryption
+    ./unlock.sh
+
+ 2) Have user use WinSCP to download the private key
+ 3) Restore sshd_config so that only users *with* public/private key can login
+    ./lock.sh
+
+
+Setup Public/Private Keys
+-------------------------
+NOTE:  A "passphrase" is associated with a public/private key
+       A "password"   is associated with a Windows user
+
+ 1) On SSHD Server
+      a) login in as the user that you will allow people to use and run a Cygwin shell
+          cygwin shell> ssh-keygen  -t rsa -b 2048
+          -- You will be prompted for passphrase:  Enter a strong one
+          -- it should generate $HOME/.ssh/id_rsa       # private key
+          -- it should generate $HOME/.ssh/id_rsa.pub   # public key
+      
+      b) cat $HOME/.ssh/id_rsa.pub >> $HOME/.ssh/authorized_keys
+      c) chmod 600 $HOME/.ssh/authorized_keys
+
+ 2) On SSHD Client, Securely Transfer private key to Windows Box
+      a) Run winSCP
+          -- host:  vault.dyndns.org
+          -- port:  443
+          -- user:  Windows Username
+          -- pw:    Windows Password
+          -- Download the $HOME/.ssh/id_rsa  file to Windows Desktop
+
+      b) Run puttygen.exe to reconfigure private key
+          -- Load id_rsa
+          -- enter passphrase (from step 1)
+          -- Press "Save Private Key" and save to desktop as useful.ppk
+          -- erase id_rsa on desktop
+
+ 3) Securely FTP using public/private keys
+      a) Run winSCP
+          -- host:  vault.dyndns.org
+          -- port:  443
+          -- user:  Windows Username
+          -- Private Key:  Enter path of your useful.ppk file 
+   
+      b) You should be prompted for the passphrase
+          -- Enter the strong passphrase (from step 1 above)
+     
+ 4) Move id_rsa to a flash USB drive for personal delivery
+ 5) Delete $HOME/.ssh/id_rsa from SSHD server
+  
+You can now securely transfer files back and forth!
+
+NOTE:  You are not prompted for username's Windows password
+
+
+
+
+
+
+
+
+Configure Remote Desktop over ssh tunnel
+----------------------------------------
+  1) Setup RDP http://theillustratednetwork.mvps.org/Ssh/RemoteDesktopSSH.html#SSH_Tunneling_the_Remote_Desktop_session
+
+  2) Troubleshoot RDP 
+http://theillustratednetwork.mvps.org/RemoteDesktop/RemoteDesktopSetupandTroubleshooting.html#Troubleshooting
+
+
+Configure Putty to create RDP tunnel within SSH
+-----------------------------------------------
+ In Session:
+   Hostname:  vault.dyndns.org
+   Port:      443
+   Connection: SSH
+
+ In Connection / SSH 
+   Check to enable compression
+   SSH Protocol:  2-only
+
+ In Connection / SSH / Tunnel
+   Source Port:  4000  [any open port really]
+   Destination:  192.168.1.2:3389   [this is internal IP address of RDP box]
+   NOTE:  Destination is *relative* to the openSSH server
+
+ In Connection / SSH / Auth
+   Check to Attempt "Keyboard Interactive"
+   Enter path of private key
+
+ In Session
+   Save Session Name
+
+
+Execute RDP Tunnel
+------------------
+ 1) Open Putty SSH session
+    -- Enter username and key password
+
+ 2) Open Remote Windows Desktop (or press <start><run>mstsc.exe
+    -- Enter localhost:4000
+
+ 3) You should see your server
+
+
+Have DNS queries go through openssh server on remote end in firefox
+-------------------------------------------------------------------
+ a) open firefox
+ b) about:config
+ c) filter:  network.proxy.socks_remote_dns 
+ d) set network.proxy.socks_remote_dns = true 
