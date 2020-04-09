@@ -1,0 +1,114 @@
+How to Convert ElasticSearch Hits into POJOs
+--------------------------------------------
+Problem:  I want to run an ES query and get the hits as a list of DTOs
+Solution: Use ObjectMapper
+
+
+
+Procedure
+---------
+ 1. Create the MyDto object with getters/setters for all fields in your ES query
+         package stuff;;
+
+         import com.fasterxml.jackson.annotation.JsonProperty;
+
+         public class MyDto {
+             private Integer id;
+             private String value;
+
+             @JsonProperty("is_valid")
+             private Boolean isValid;
+
+             @JsonProperty("num_records")
+             private Integer numberOfRecords;
+
+
+             // Getters and Setters */
+             public Integer getId() {
+                 return id;
+             }
+
+             public void setId(Integer id) {
+                 this.id = id;
+             }
+
+             public String getValue() {
+                 return value;
+             }
+
+             public void setValue(String value) {
+                 this.value = value;
+             }
+
+             public Boolean getValid() {
+                 return isValid;
+             }
+
+             public void setValid(Boolean valid) {
+                 isValid = valid;
+             }
+
+             public Integer getNumberOfRecords() {
+                 return numberOfRecords;
+             }
+
+             public void setNumberOfRecords(Integer numberOfRecords) {
+                 this.numberOfRecords = numberOfRecords;
+             }
+         }
+
+
+ 2. Run the code
+
+    // Construct the  ES query
+    String esQueryJson = "{\n" +
+                "  \"_source\": [\"id\", \"value\", \"is_valid\", \"num_records\"],\n" +
+                "  \"query\": {\n" +
+                "    \"query_string\": {\n" +
+                "      \"query\": \"id:5026 OR id:5023\"\n" +
+                "    }\n" +
+                "  }\n" +
+                "}";
+
+    // ASSUMPTION:  You have some service class that will talk to your ElasticSearch instance
+    //   POST my_index_name/_search?filter_path=hits.hits._source
+    //   Get the JSON back from ElasticSearch
+    String jsonResults = elasticSearchService.runSearchGetJson("my_index_name", esQueryJson, "filter_path=hits.hits._source");
+
+    // Create the Jackson Object mapper instance
+    ObjectMapper objectMapper = new ObjectMapper();
+
+    // Create a list of MyDto objects
+    List<MyDto> listOfMatchDtos = new ArrayList<>();
+
+
+    // Convert the JSON response into a Map object
+    Map<String, Object> mapResponse = objectMapper.readValue(jsonResults, Map.class);
+
+    if (mapResponse.size() > 0) {
+        // ES found some matches
+
+        // Get the outer hits map
+        Map<String, Object> outerHitsMap = (Map<String, Object>) mapResponse.get("hits");
+
+        // Get the list of matches from the inner hits
+        List<Map<String, Object>> matches = (List<Map<String, Object>>) outerHitsMap.get("hits");
+
+        // Loop through the list of matches
+        for (Map<String, Object> match: matches) {
+             // Get the map from _source
+             Map<String, Object> matchSource = (Map<String, Object>) match.get("_source");
+
+             // Use objectMapper to convert this map into a POJO
+             MyDto myDto = objectMapper.convertValue(matchSource, MyDto.class);
+
+             // Add this POJO object to the list
+             listOfMatchDtos.add(myDto);
+         }
+    }
+
+
+    // At this point, listOfMatchDtos holds either
+    //  a) An empty list
+    //  b) A list of MyDto objects
+
