@@ -6,7 +6,7 @@ References
 ----------
 https://tylersguides.com/guides/install-mate-on-centos-8/
 https://wiki.mate-desktop.org/pages/building.html
-https://pub.mate-desktop.org/releases/1.24
+https://pub.mate-desktop.org/releases/1.23
 
 INCOMPLETE -- NOT FULLY TESTED
 
@@ -175,7 +175,7 @@ Part 2: Build Mate from source code
         unix> make
         unix> sudo make install
         unix> cd ..
-        unix> mv libxpresent-master ../mate-installed
+        unix> cp -r libxpresent-master ../mate-installed
 
 
      c. Compile & Install libfakekey  (used to simulate X11 Keypress events)
@@ -189,9 +189,9 @@ Part 2: Build Mate from source code
 
         unix> sudo make install
         unix> cd ..
-        unix> mv cd libfakekey-0.3 ../mate-installed
+        unix> cp -r libfakekey-0.3 ../mate-installed
 
-     d. Compile and Install glib2 2.58.1
+     d. Compile and Install glib2 2.58.1   (required to compile caja)
         unix> cd ~/mate-build
         unix> cd glib-2.58.1
         unix> ./autogen.sh
@@ -209,7 +209,7 @@ Part 2: Build Mate from source code
             libmatemixer-1.23.0  --enable-oss
             libmateweather-1.23.0 --enable-locations-compression
             mate-menus-1.23.0
-            caja-1.23.4
+            caja-1.23.4   CFLAGS=" -std=gnu99 "
             marco-1.23.2
             mate-settings-daemon-1.23.3
             mate-session-manager-1.23.0
@@ -247,23 +247,23 @@ Part 2: Build Mate from source code
 
             for d in $(awk '{print $1}' /tmp/mate.packages.txt)
             do
-                   echo -e "\nProcessing $d"
+                   echo -e "\nStarted $d"
 
                    cd /home/adam/mate-build
 
-                   OPTIONS=$(grep $d pkgs | cut -f 1 -d ' ' --complement)
+                   OPTIONS=$(grep $d  /tmp/mate.packages.txt | sed -e 's/^ *//' | sed -e 's/^[-.0-9a-zA-Z]*//')
                    DIR=$(echo $d | awk '{print $1}')
-                   cd $DIR
-                   if [[ $OPTIONS == $DIR ]]
-                   then
-                      OPTIONS=" "
-                   fi
-                   ./configure $OPTIONS || { echo fail $DIR; break; }
-                   make -j 1 || { echo fail $DIR; break; }
-                   make install || { echo fail $DIR; break; }
+                   echo -e "Processing DIR-->${DIR}<--   OPTIONS-->${OPTIONS}<--\n"
+                   cd $DIR              || { echo cd failed for $DIR; break; }
+                   ./configure $OPTIONS || { echo configure failed for $DIR; break; }
+                   make -j 1            || { echo make failed for $DIR; break; }
+                   make install         || { echo make install failed for $DIR; break; }
                    cd ..
                    cp -r -f $DIR ../mate-installed
+
+                   echo -e "Finished $d"
              done
+
 
       c. Make the script executable
          unix> chmod u+x ~/compileAll.sh
@@ -272,8 +272,13 @@ Part 2: Build Mate from source code
          a. Open a new terminal
          b. Run the script
             unix> cd
-            unix> sudo bash ./compileAll.sh
+            unix> sudo bash ./compileAll.sh | tee /tmp/compileAll.log
+
+         c. Watch the log file
+            unix> tail -10000f /tmp/compileAll.log | grep -i processing
 
 
  7. Try out the MATE window manager
-
+    unix> sudo systemctl set-default graphical.target
+    unix> sudo systemctl enable gdm.service
+    unix> sudo systemctl restart gdm.service
