@@ -210,7 +210,7 @@ Part 2: Build Mate from source code
             libmatemixer-1.23.0  --enable-oss
             libmateweather-1.23.0 --enable-locations-compression
             mate-menus-1.23.0
-            caja-1.23.4            CFLAGS="-std=c99"
+            caja-1.23.4                   CFLAGS="-std=c99"
             marco-1.23.2
             mate-settings-daemon-1.23.3
             mate-session-manager-1.23.0
@@ -218,7 +218,7 @@ Part 2: Build Mate from source code
             mate-control-center-1.23.3    CFLAGS="-std=c99"   CPPFLAGS="-D__sun"
             mate-polkit-1.23.0
             mate-notification-daemon-1.23.1
-            mate-backgrounds-1.23.0
+            mate-backgrounds-1.23.0        USE_AUTOGEN
             mate-icon-theme-1.23.3
             pluma-1.23.3
             mate-terminal-1.23.1
@@ -244,43 +244,51 @@ Part 2: Build Mate from source code
       b. Create a bash script that will compile and build all packages
          unix> vi ~/compileAll.sh
 
-      export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig"
+              export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig"
+              export PATH=${PATH}:/usr/local/bin                   # Add /usr/local/bin to the PATH to find mate-autogen
 
-            for d in $(awk '{print $1}' /tmp/mate.packages.txt)
-            do
-                   echo -e "\nStarted $d"
+              for d in $(awk '{print $1}' /tmp/mate.packages.txt)
+              do
+                     echo -e "\nStarted $d"
 
-                   cd /home/adam/mate-build
+                     cd /home/adam/mate-build
 
-                   OPTIONS=$(grep $d  /tmp/mate.packages.txt | sed -e 's/^ *//' | sed -e 's/^[-.0-9a-zA-Z]*//' | sed -e 's/^ *//')
-                   DIR=$(echo $d | awk '{print $1}')
-                   cd $DIR                  || { echo cd failed for $DIR; break; }
+                     OPTIONS=$(grep $d  /tmp/mate.packages.txt | sed -e 's/^ *//' | sed -e 's/^[-.0-9a-zA-Z]*//' | sed -e 's/^ *//')
+                     DIR=$(echo $d | awk '{print $1}')
+                     cd $DIR                  || { echo cd failed for $DIR; break; }
 
-                   export CFLAGS=""
-                   if [[ "$OPTIONS" =~ CFLAGS ]]; then
-                      # I found CFLAGS.  So, pull them out (without the CFLAGS= part)
-                      export CFLAGS=`echo ${OPTIONS}  |  sed -r -e 's/.*CFLAGS="([^"]+)".*$/\1/'  `
-                   fi
+                     export CFLAGS=""
+                     if [[ "$OPTIONS" =~ CFLAGS ]]; then
+                        # I found CFLAGS.  So, pull them out (without the CFLAGS= part)
+                        export CFLAGS=`echo ${OPTIONS}  |  sed -r -e 's/.*CFLAGS="([^"]+)".*$/\1/'  `
+                     fi
 
-                   export CPPFLAGS=""
-                   if [[ "$OPTIONS" =~ CPPFLAGS ]]; then
-                      # I found CPPFLAGS.  So, pull them out (without the CPPFLAGS= part)
-                      export CPPFLAGS=`echo ${OPTIONS}  | sed -r -e 's/.*CPPFLAGS="([^"]+)".*$/\1/'`
-                   fi
+                     export CPPFLAGS=""
+                     if [[ "$OPTIONS" =~ CPPFLAGS ]]; then
+                        # I found CPPFLAGS.  So, pull them out (without the CPPFLAGS= part)
+                        export CPPFLAGS=`echo ${OPTIONS}  | sed -r -e 's/.*CPPFLAGS="([^"]+)".*$/\1/'`
+                     fi
 
-                   # The CONFIGURE_OPTIONS holds the other options
-                   export CONFIGURE_OPTIONS=` echo ${OPTIONS}  | sed -r -e  's/CFLAGS="[^"]+"//' | sed -r -e  's/CPPFLAGS="[^"]+"//'  `
+                     echo -e "\nProcessing DIR-->${DIR}<--  CONFIGURE_OPTIONS-->${CONFIGURE_OPTIONS}<--   CFLAGS-->${CFLAGS}<--   CPPFLAGS-->${CPPFLAGS}<--"
 
-                   echo -e "Processing DIR-->${DIR}<--  CONFIGURE_OPTIONS-->${CONFIGURE_OPTIONS}<--   CFLAGS-->${CFLAGS}<--   CPPFLAGS-->${CPPFLAGS}<--\n"
+                     if [[ "$OPTIONS" =~ USE_AUTOGEN ]]; then
+                         # I found USE_AUTOGEN.  So, do not run configure
+                        ./autogen.sh || { echo autogen.sh failed for $DIR; break; }
+                     else
+                         # Run configure
+                         export CONFIGURE_OPTIONS=""
+                         export CONFIGURE_OPTIONS=` echo ${OPTIONS}  | sed -r -e  's/CFLAGS="[^"]+"//' | sed -r -e  's/CPPFLAGS="[^"]+"//'  `
+                        ./configure $CONFIGURE_OPTIONS || { echo configure failed for $DIR; break; }
+                     fi
 
-                   ./configure $CONFIGURE_OPTIONS || { echo configure failed for $DIR; break; }
-                   make -j 1                      || { echo make failed for $DIR; break; }
-                   make install                   || { echo make install failed for $DIR; break; }
-                   cd ..
-                   cp -r -f $DIR ../mate-installed
+                     make -j 1                      || { echo make failed for $DIR; break; }
+                     make install                   || { echo make install failed for $DIR; break; }
+                     cd ..
+                     cp -r -f $DIR ../mate-installed
 
-                   echo -e "Finished $d"
-             done
+                     echo -e "Finished $d"
+               done
+
 
 
 
