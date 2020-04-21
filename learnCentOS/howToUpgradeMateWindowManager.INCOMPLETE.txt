@@ -210,12 +210,12 @@ Part 2: Build Mate from source code
             libmatemixer-1.23.0  --enable-oss
             libmateweather-1.23.0 --enable-locations-compression
             mate-menus-1.23.0
-            caja-1.23.4            CFLAGS=-std=c99
+            caja-1.23.4            CFLAGS="-std=c99"
             marco-1.23.2
             mate-settings-daemon-1.23.3
             mate-session-manager-1.23.0
             mate-panel-1.23.3
-            mate-control-center-1.23.3    CFLAGS=-std=c99   DEFS=-DHAS_TM_GMTOFF=0
+            mate-control-center-1.23.3    CFLAGS="-std=c99"   CPPFLAGS="-D__sun"
             mate-polkit-1.23.0
             mate-notification-daemon-1.23.1
             mate-backgrounds-1.23.0
@@ -244,7 +244,7 @@ Part 2: Build Mate from source code
       b. Create a bash script that will compile and build all packages
          unix> vi ~/compileAll.sh
 
-            export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig"
+      export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig"
 
             for d in $(awk '{print $1}' /tmp/mate.packages.txt)
             do
@@ -257,24 +257,31 @@ Part 2: Build Mate from source code
                    cd $DIR                  || { echo cd failed for $DIR; break; }
 
                    export CFLAGS=""
-                   if [[ "$OPTIONS" =~ ^CFLAGS ]]; then
-                      # The OPTIONS holds cflags so pull out the cflags and store them in the CFLAGS env variable
-                      export CFLAGS=`echo ${OPTIONS}  | sed -e 's/CFLAGS=//' `
-                      OPTIONS=""
-                   else
-                      ./configure $OPTIONS || { echo configure failed for $DIR; break; }
+                   if [[ "$OPTIONS" =~ CFLAGS ]]; then
+                      # I found CFLAGS.  So, pull them out (without the CFLAGS= part)
+                      export CFLAGS=`echo ${OPTIONS}  |  sed -r -e 's/.*CFLAGS="([^"]+)".*$/\1/'  `
                    fi
 
-                   echo -e "Processing DIR-->${DIR}<--   OPTIONS-->${OPTIONS}<--   CFLAGS-->${CFLAGS}<--\n"
-                   ./configure $OPTIONS || { echo configure failed for $DIR; break; }
+                   export CPPFLAGS=""
+                   if [[ "$OPTIONS" =~ CPPFLAGS ]]; then
+                      # I found CPPFLAGS.  So, pull them out (without the CPPFLAGS= part)
+                      export CPPFLAGS=`echo ${OPTIONS}  | sed -r -e 's/.*CPPFLAGS="([^"]+)".*$/\1/'`
+                   fi
 
-                   make -j 1           || { echo make failed for $DIR; break; }
-                   make install        || { echo make install failed for $DIR; break; }
+                   # The CONFIGURE_OPTIONS holds the other options
+                   export CONFIGURE_OPTIONS=` echo ${OPTIONS}  | sed -r -e  's/CFLAGS="[^"]+"//' | sed -r -e  's/CPPFLAGS="[^"]+"//'  `
+
+                   echo -e "Processing DIR-->${DIR}<--  CONFIGURE_OPTIONS-->${CONFIGURE_OPTIONS}<--   CFLAGS-->${CFLAGS}<--   CPPFLAGS-->${CPPFLAGS}<--\n"
+
+                   ./configure $CONFIGURE_OPTIONS || { echo configure failed for $DIR; break; }
+                   make -j 1                      || { echo make failed for $DIR; break; }
+                   make install                   || { echo make install failed for $DIR; break; }
                    cd ..
                    cp -r -f $DIR ../mate-installed
 
                    echo -e "Finished $d"
              done
+
 
 
 
