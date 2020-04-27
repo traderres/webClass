@@ -107,8 +107,6 @@ Part 2: Build Mate from source code
        unix> vi /tmp/mate.downloads.txt
 
                 caja-1.24.0.tar.xz
-                caja-dropbox-1.24.0.tar.xz
-                caja-extensions-1.24.0.tar.xz
                 engrampa-1.24.0.tar.xz
                 eom-1.24.0.tar.xz
                 libmatekbd-1.24.0.tar.xz
@@ -150,9 +148,16 @@ Part 2: Build Mate from source code
 
     c. Download source files for dependencies
        unix> cd ~/mate-src
-       unix> wget https://gitlab.freedesktop.org/xorg/lib/libxpresent/-/archive/master/libxpresent-master.tar.bz2
-       unix> wget http://git.yoctoproject.org/cgit.cgi/libfakekey/snapshot/libfakekey-0.3.tar.bz2
-       unix> wget http://ftp.gnome.org/pub/gnome/sources/glib/2.58/glib-2.58.1.tar.xz
+       unix> wget https://gitlab.freedesktop.org/xorg/lib/libxpresent/-/archive/master/libxpresent-master.tar.bz2    \
+        http://git.yoctoproject.org/cgit.cgi/libfakekey/snapshot/libfakekey-0.3.tar.bz2                              \
+        http://ftp.gnome.org/pub/gnome/sources/glib/2.58/glib-2.58.1.tar.xz                                          \
+        https://gitlab.freedesktop.org/upower/upower/uploads/93cfe7c8d66ed486001c4f3f55399b7a/upower-0.99.11.tar.xz  \
+        https://github.com//libusb/libusb/releases/download/v1.0.23/libusb-1.0.23.tar.bz2                            \
+        https://github.com/AyatanaIndicators/libayatana-indicator/archive/0.6.3.tar.gz                               \
+        https://github.com/AyatanaIndicators/ayatana-ido/archive/0.4.90.tar.gz                                       \
+        https://github.com/threatstack/libmagic/archive/5.18.tar.gz                                                  \
+        https://pub.mate-desktop.org/releases/1.20/caja-dropbox-1.20.0.tar.xz                                        \
+        https://pub.mate-desktop.org/releases/1.22/python-caja-1.22.1.tar.xz
 
     c. Unzip all of the files to this directory:  mate-build
        unix> cd ~/mate-build
@@ -282,7 +287,8 @@ Part 2: Build Mate from source code
                             iso-codes-devel gucharmap wireless-tools-devel xorg-x11-util-macros file-libs djvulibre libmount-devel libnotify-devel \
                             mesa-libGLES mesa-libGLES-devel xorg-x11-xtrans-devel enchant-devel gtksourceview3-devel  libpeas-devel \
                             python3  vte291-devel  libXScrnSaver-devel  libudisks2-devel  libgtop2-devel  gtkmm30-devel  \
-                            texlive-kpathsea-lib-devel  poppler-glib-devel   libevent libevent-devel
+                            texlive-kpathsea-lib-devel  poppler-glib-devel   libevent libevent-devel   \
+                            upower-devel pygobject3-devel  libindicator-develsu  python2-docutils  python36-docutils python36-devel python3-gobject python-gudev
 
 
  7. Compile MATE dependent libraries (that cannot be installed with Yum)
@@ -312,13 +318,50 @@ Part 2: Build Mate from source code
        unix> make
        unix> sudo make install
 
+    d. Compile & Install libusb  (required by libusb (which is required by mate-power-manager))
+       unix> sudo yum install libudev-devel
+       cd ~/mate-build
+       cd libusb-1.0.23
+       unix> ./configure
+       unix> make
+       unix> sudo make install
 
+    d. Compile & Install Upower (required by mate-power-manager)
+       unix> sudo yum install  libgudev1-devel  libusb-devel
+       unix> cd ~/mate-build
+       unix> cd upower-0.99.11
+       unix> ./configure
+       unix> make
+       unix> sudo make install
 
+    d. Compile & Install ayatana-ido-0.4.90  (for indicator applets)
+        unix> sudo yum install gtk-doc
+       unix> cd ~/mate-build
+       unix> cd ayatana-ido-0.4.90
+       unix> ./autogen.sh
+       unix> make
+       unix> sudo -s
+       unix> sudo make install  # Causes an error
+       unix> sudo cp  libayatana-ido3.pc   libayatana-ido3-0.4.pc  /usr/local/lib/pkgconfig
+
+    e. Compile & Install libayatana-indicator-0.6.3  (for indicator applets)
+       unix> export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:/usr/local/lib/x86_64-pc-linux-gnu/pkgconfig"
+       unix> cd ~/mate-build
+       unix> cd libayatana-indicator-0.6.3
+       unix> ./autogen.sh
+       unix> make
+       unix> sudo make install
+
+    f. Compile & Install ligmagic   (for engrampa)
+       unix> cd libmagic-5.18
+       unix> ./configure
+       unix> make
+       unix> sudo make install
 
  8. Compile MATE in this specific order
     Notes:
      A) The -std=gnu99 fixes the NGROUP_MAX not defined problem
-     B) We cannot install atril-1.24 because it requires glib-2.62 (which requires meson to build)
+     B) THe -DHAVE_LOCALE_H" fixes the problem of LC_NUMERIC not defined
 
 
      a. Create this file:   /tmp/mate.packages.txt
@@ -352,16 +395,16 @@ Part 2: Build Mate from source code
             atril-1.23.2   --enable-pixbuf --enable-introspection   CFLAGS="-std=gnu99"
             mate-media-1.24.0
             mate-power-manager-1.24.1
-            python-caja-1.24.0
             mozo-1.24.0
             mate-applets-1.24.0
-            mate-sensors-applet-1.24.0
+            mate-sensors-applet-1.24.0         CFLAGS="-std=gnu99 -DHAVE_LOCALE_H"
             mate-indicator-applet-1.24.0
-            caja-dropbox-1.24.0
             mate-user-guide-1.24.0
             mate-user-share-1.24.0
-            eengrampa-1.24.0  --enable-magic --enable-run-in-place
+            engrampa-1.24.0  --enable-magic --enable-run-in-place
             mate-netbook-1.24.0
+            python-caja-1.22.1
+            caja-dropbox-1.20.0
 
 
       b. Create a bash script that will compile and build all packages
@@ -379,6 +422,9 @@ Part 2: Build Mate from source code
 
               export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:/usr/local/lib/x86_64-pc-linux-gnu/pkgconfig"
               export PATH=${PATH}:/usr/local/bin               # Add /usr/local/bin to the PATH to find mate-autogen
+
+              # Required by python-caja to find the python interpreter of 3.6
+              export PYTHON=/usr/bin/python3.6
 
               # Compile the packages in the order specified by /tmp/mate.packages.txt
               for d in $(awk '{print $1}' /tmp/mate.packages.txt)
@@ -447,4 +493,16 @@ Part 2: Build Mate from source code
 
 
 
+
+PROBLEM:
+ A) python-caja 1.24 or 1.23 will not install  (does not get passed configure error about python 36)
+ B) caja-dropbox-1.24.0  will not install      (does not get psased configure error because I cannot find gi on python3
+
+
+WORKAROUND:
+ A) atril 1.24 will not build because I cannot build glib 2.62.0 (as it requires a newer version of meson that yum has)
+    -- Instead compiled Atril 1.23
+ B) python-caja 1.22.1 would build
+ C) python-caja-1.22.0 would build
+ D) caja-dropbox-1.20.0 would build
 
