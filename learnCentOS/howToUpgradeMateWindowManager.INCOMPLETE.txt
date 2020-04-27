@@ -106,7 +106,6 @@ Part 2: Build Mate from source code
     a. Create a text file with this information in it:
        unix> vi /tmp/mate.downloads.txt
 
-                atril-1.24.0.tar.xz
                 caja-1.24.0.tar.xz
                 caja-dropbox-1.24.0.tar.xz
                 caja-extensions-1.24.0.tar.xz
@@ -147,6 +146,7 @@ Part 2: Build Mate from source code
     b. Download all of the files to this directory:  mate-src
        unix> cd ~/mate-src
        unix> for file in $(cat /tmp/mate.downloads.txt);  do wget https://pub.mate-desktop.org/releases/1.24/${file}; done
+       unix> wget https://pub.mate-desktop.org/releases/1.23/atril-1.23.2.tar.xz
 
     c. Download source files for dependencies
        unix> cd ~/mate-src
@@ -166,7 +166,7 @@ Part 2: Build Mate from source code
 
     b. Create the destination directory
        unix> sudo rm -rf    /opt/texlive/2020
-       unix> sudo mkdir -p  /opt/texlive/2020/lib   /opt/texlive/2020/bin
+       unix> sudo mkdir -p  /opt/texlive/2020/lib   /opt/texlive/2020/bin   /opt/texlive/2020/include/synctex
 
     c. Add the directory /opt/texlive/2020/lib directory to the ld.so.conf
        -- So ldconfig will know to use these newly-compiled librariese
@@ -227,14 +227,21 @@ Part 2: Build Mate from source code
        cd /home/$USER/texlive-20200406-source/texk/web2c/.libs
        sudo -s
        cp synctex  /opt/texlive/2020/bin
-       cp  libsynctex.so.2.0.0    libsynctex.lai  /opt/texlive/2020/lib
+       cp libsynctex.la  libsynctex.so.2.0.0    libsynctex.lai  /opt/texlive/2020/lib
        cd /opt/texlive/2020/lib
        ln -s libsynctex.so.2.0.0 libsynctex.so.2
        ln -s libsynctex.so.2.0.0 libsynctex.so
-       ldconfig
+       ldconfig                                  # Update the ldconfig cache
        exit
 
-    h. Verify that the /opt/texlive/2020/lib looks like this
+    h. Install the synctex.pc (so configure can find the library)
+       cd /home/$USER/texlive-20200406-source/texk/web2c
+       sudo cp synctex.pc  /usr/local/lib/pkgconfig
+
+    i. Copy the include files to /opt/texlive/2020/include/synctex
+       sudo cp *.h /opt/texlive/2020/include/synctex
+
+    i. Verify that the /opt/texlive/2020/lib directory has these files:
        unix> ls -l  /opt/texlive/2020/lib
        -- You should see this:
                  -rw-r--r--. 1 root root    940 Apr 26 19:34 libsynctex.lai
@@ -242,7 +249,15 @@ Part 2: Build Mate from source code
                  lrwxrwxrwx. 1 root root     19 Apr 26 19:35 libsynctex.so.2 -> libsynctex.so.2.0.0*
                  -rwxr-xr-x. 1 root root 430400 Apr 26 19:34 libsynctex.so.2.0.0*
 
-    i. Verify that the synctex program can find its shared libraries
+
+    j. Verify the libsynctex.so libraries are found in the ldconfig cache
+       unix> ldconfig -p | grep /opt/texlive/2020/lib
+       -- You should see this:
+             	libsynctex.so.2 (libc6,x86-64) => /opt/texlive/2020/lib/libsynctex.so.2
+             	libsynctex.so (libc6,x86-64) => /opt/texlive/2020/lib/libsynctex.so
+
+
+    k. Verify that the synctex program can find its shared libraries
        unix> ldd /opt/texlive/2020/bin/synctex
        -- You should see this:
                     linux-vdso.so.1 =>  (0x00007fffe572e000)
@@ -270,7 +285,7 @@ Part 2: Build Mate from source code
                             texlive-kpathsea-lib-devel  poppler-glib-devel   libevent libevent-devel
 
 
- 7. Compile dependent libraries
+ 7. Compile MATE dependent libraries (that cannot be installed with Yum)
     a. Compile & Install libxpresent-master
        unix> cd ~/mate-build
        unix> cd libxpresent-master
@@ -286,9 +301,6 @@ Part 2: Build Mate from source code
        unix> cd libfakekey-0.3
        unix> ./autogen.sh
        unix> make
-       NOTE:  If you get errors, you may have to run this command:
-                autoreconf --force --install
-
        unix> sudo make install
        unix> cd ..
        unix> cp -r libfakekey-0.3 ../mate-installed
@@ -306,6 +318,8 @@ Part 2: Build Mate from source code
  8. Compile MATE in this specific order
     Notes:
      A) The -std=gnu99 fixes the NGROUP_MAX not defined problem
+     B) We cannot install atril-1.24 because it requires glib-2.62 (which requires meson to build)
+
 
      a. Create this file:   /tmp/mate.packages.txt
 
@@ -334,7 +348,8 @@ Part 2: Build Mate from source code
             mate-utils-1.24.0
             mate-system-monitor-1.24.0
             eom-1.24.0
-            atril-1.24.0   --enable-pixbuf --enable-introspection
+            caja-extensions-1.24.0
+            atril-1.23.2   --enable-pixbuf --enable-introspection
             mate-media-1.24.0
             mate-power-manager-1.24.1
             python-caja-1.24.0
@@ -345,7 +360,6 @@ Part 2: Build Mate from source code
             caja-dropbox-1.24.0
             mate-user-guide-1.24.0
             mate-user-share-1.24.0
-            caja-extensions-1.24.0
             eengrampa-1.24.0  --enable-magic --enable-run-in-place
             mate-netbook-1.24.0
 
@@ -364,7 +378,10 @@ Part 2: Build Mate from source code
               echo "${SCRIPT_NAME} started as of `date`"
 
               export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:/usr/local/lib/x86_64-pc-linux-gnu/pkgconfig"
-              export PATH=${PATH}:/usr/local/bin                   # Add /usr/local/bin to the PATH to find mate-autogen
+              export PATH=${PATH}:/usr/local/bin               # Add /usr/local/bin to the PATH to find mate-autogen
+
+
+              export SYNCTEX_LIBS=/opt/texlive/2020/lib        # Tell atril where to find the syntax libraries
 
               for d in $(awk '{print $1}' /tmp/mate.packages.txt)
               do
@@ -374,7 +391,7 @@ Part 2: Build Mate from source code
 
                      OPTIONS=$(grep $d  /tmp/mate.packages.txt | sed -e 's/^ *//' | sed -e 's/^[-.0-9a-zA-Z]*//' | sed -e 's/^ *//')
                      DIR=$(echo $d | awk '{print $1}')
-                     cd $DIR                  || { echo cd failed for $DIR; break; }
+                     cd $DIR                  || { echo cd failed for $DIR; exit 1; }
 
                      export CFLAGS=""
                      if [[ "$OPTIONS" =~ CFLAGS ]]; then
@@ -392,16 +409,16 @@ Part 2: Build Mate from source code
 
                      if [[ "$OPTIONS" =~ USE_AUTOGEN ]]; then
                          # I found USE_AUTOGEN.  So, do not run configure
-                        ./autogen.sh || { echo autogen.sh failed for $DIR; break; }
+                        ./autogen.sh || { echo autogen.sh failed for $DIR; exit 1; }
                      else
                          # Run configure
                          export CONFIGURE_OPTIONS=""
                          export CONFIGURE_OPTIONS=` echo ${OPTIONS}  | sed -r -e  's/CFLAGS="[^"]+"//' | sed -r -e  's/CPPFLAGS="[^"]+"//'  `
-                        ./configure $CONFIGURE_OPTIONS || { echo configure failed for $DIR; break; }
+                        ./configure $CONFIGURE_OPTIONS || { echo configure failed for $DIR; exit 1; }
                      fi
 
-                     make -j 1                      || { echo make failed for $DIR; break; }
-                     make install                   || { echo make install failed for $DIR; break; }
+                     make -j 1                      || { echo make failed for $DIR; exit 1; }
+                     make install                   || { echo make install failed for $DIR; exit 1; }
                      cd ..
                      cp -r -f $DIR ../mate-installed
 
@@ -429,3 +446,16 @@ Part 2: Build Mate from source code
     unix> sudo systemctl set-default graphical.target
     unix> sudo systemctl enable gdm.service
     unix> sudo systemctl restart gdm.service
+
+
+LATEST PROBLEM:  Atril will not link in synctex
+-- My guess is that synctex is not installed properly using pkg-config
+  export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:/usr/local/lib/x86_64-pc-linux-gnu/pkgconfig"
+  pkg-config --debug synctex
+
+  pkg-config --cflags synctex
+     -I/opt/texlive/2020/include/synctex       # Looks good
+
+  pkg-config --libs synctex
+     -L/opt/texlive/2020/lib -lsynctex         # Looks good
+
