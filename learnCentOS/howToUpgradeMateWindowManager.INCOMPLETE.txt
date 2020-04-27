@@ -92,8 +92,8 @@ Part 1: Use Yum to install MATE
 
 Part 2: Build Mate from source code
 -----------------------------------
- 1. Switch to the gnome class window manager
-    -- Login with the gnome
+ 1. Login to Centos 7 with the gnome (or any non-mate window manager)
+    -- Do not login with the Mate window Manager
 
  2. Uninstall MATE 1.16.2
     unix> sudo yum groupremove mate-desktop
@@ -104,7 +104,7 @@ Part 2: Build Mate from source code
 
  4. Download all of the source code
     a. Create a text file with this information in it:
-       unix> vi /tmp/mate.files.txt
+       unix> vi /tmp/mate.downloads.txt
 
                 atril-1.24.0.tar.xz
                 caja-1.24.0.tar.xz
@@ -144,15 +144,14 @@ Part 2: Build Mate from source code
                 pluma-1.24.0.tar.xz
                 python-caja-1.24.0.tar.xz
 
-
     b. Download all of the files to this directory:  mate-src
        unix> cd ~/mate-src
-       unix> for file in $(cat /tmp/mate.files.txt);  do wget https://pub.mate-desktop.org/releases/1.24/${file}; done
+       unix> for file in $(cat /tmp/mate.downloads.txt);  do wget https://pub.mate-desktop.org/releases/1.24/${file}; done
 
     c. Download source files for dependencies
        unix> cd ~/mate-src
        unix> wget https://gitlab.freedesktop.org/xorg/lib/libxpresent/-/archive/master/libxpresent-master.tar.bz2
-       unix> wget wget http://git.yoctoproject.org/cgit.cgi/libfakekey/snapshot/libfakekey-0.3.tar.bz2
+       unix> wget http://git.yoctoproject.org/cgit.cgi/libfakekey/snapshot/libfakekey-0.3.tar.bz2
        unix> wget http://ftp.gnome.org/pub/gnome/sources/glib/2.58/glib-2.58.1.tar.xz
 
     c. Unzip all of the files to this directory:  mate-build
@@ -161,34 +160,35 @@ Part 2: Build Mate from source code
 
 
 
- 5. Install dependencies
-     a. Compile libsynctex.so from the textlive source  library
-          1) Install dev files for libXaw
-             unix> sudo yum install libXaw-devel poppler-glib-devel harfbuzz-devel
+ 5. Compile and Install the libsynctex.so library
+    a. Install dev files for libXaw
+       unix> sudo yum install libXaw-devel poppler-glib-devel
 
-          2) Create the destination directory
-             unix> sudo rm -rf    /opt/texlive/2020
-             unix> sudo mkdir -p  /opt/texlive/2020/lib   /opt/texlive/2020/bin
+    b. Create the destination directory
+       unix> sudo rm -rf    /opt/texlive/2020
+       unix> sudo mkdir -p  /opt/texlive/2020/lib   /opt/texlive/2020/bin
 
-          3) Add the directory /opt/texlive/2020/lib directory to the ld.so.conf
-             -- So ldconfig will know to use these newly-compiled librariese
-             unix> sudo -s
-             unix> echo "/opt/texlive/2020/lib"  >  /etc/ld.so.conf.d/texlive.2020.conf
-             unix> chmod ugo+r /etc/ld.so.conf.d/texlive.2020.conf
-             unix> exit
+    c. Add the directory /opt/texlive/2020/lib directory to the ld.so.conf
+       -- So ldconfig will know to use these newly-compiled librariese
+       unix> sudo -s
+       unix> echo "/opt/texlive/2020/lib"  >  /etc/ld.so.conf.d/texlive.2020.conf
+       unix> chmod ugo+r /etc/ld.so.conf.d/texlive.2020.conf
+       unix> ldconfig -v   # Tell ldd to include this new directory when linking
+       unix> exit
 
-          4) Download source code
-             wget ftp://tug.org/texlive/historic/2020/texlive-20200406-source.tar.xz
+    d. Download texlive 2020 source code
+       unix> cd
+       unix> wget ftp://tug.org/texlive/historic/2020/texlive-20200406-source.tar.xz
 
-          5) Unzip the source
-             unix> cd
-             unix> rm -rf textlive-20200406-source
-             uinx> tar xvf texlive-20200406-source.tar.xz
+    e. Unzip the source
+       unix> cd
+       unix> rm -rf textlive-20200406-source
+       unix> tar xvf texlive-20200406-source.tar.xz
 
-          6) Compile *only* the synctex package  (to generate libsynctex.so)
-             export TEXARCH=$(uname -m | sed -e 's/i.86/i386/' -e 's/$/-linux/')
-             cd texlive-20200406-source/texk/web2c
-             ./configure     --enable-build-in-source-tree                               \
+    f. Compile *only* the synctex package  (to generate libsynctex.so)
+       export TEXARCH=$(uname -m | sed -e 's/i.86/i386/' -e 's/$/-linux/')
+       cd texlive-20200406-source/texk/web2c
+        ./configure     --enable-build-in-source-tree                               \
                              --prefix=/opt/texlive/2020                                  \
                              --bindir=/opt/texlive/2020/bin/$TEXARCH                     \
                              --datarootdir=/opt/texlive/2020                             \
@@ -210,80 +210,119 @@ Part 2: Build Mate from source code
                              --with-system-pixman                                        \
                              --with-system-zlib
 
-             make synctex
-             -- At this point, the libsynctex.so libraries are located here:
-                     /home/adam/texlive-20200406-source/texk/web2c/.libs
+        make synctex
+         -- If the make finishes successfully, then libsynctex.so should be here:
 
-          7) Install library to /opt/texlive/2020/lib
-             cd ~/texlive-20200406-source/texk/web2c
-             sudo cp .libs/*   /opt/texlive/2020/lib
-             sudo cp .libs/synctex   /opt/texlive/2020/bin
+        ls -l .libs
+        -- You should see this:
+                    lrwxrwxrwx. 1 adam adam     16 Apr 26 19:28 libsynctex.la -> ../libsynctex.la
+                    -rw-rw-r--. 1 adam adam    940 Apr 26 19:28 libsynctex.lai
+                    lrwxrwxrwx. 1 adam adam     19 Apr 26 19:28 libsynctex.so -> libsynctex.so.2.0.0*
+                    lrwxrwxrwx. 1 adam adam     19 Apr 26 19:28 libsynctex.so.2 -> libsynctex.so.2.0.0*
+                    -rwxrwxr-x. 1 adam adam 430400 Apr 26 19:28 libsynctex.so.2.0.0*
+                    -rwxrwxr-x. 1 adam adam  65896 Apr 26 19:28 synctex*
 
 
-    b. Install dependent libraries (including python3)
-       unix> sudo yum install libxml2-devel libxslt-devel glib2-devel libIDL-devel \
-                                    dbus-devel dbus-glib-devel polkit-devel flex popt-devel \
-                                    bison bzip2-devel libgcrypt-devel libcanberra-devel gtk3-devel \
-                                    libart_lgpl-devel libglade2-devel libtasn1-tools libxklavier-devel libsoup-devel \
-                                    icon-naming-utils unique-devel libcanberra-gtk3 libcanberra-devel libwnck3-devel \
-                                    librsvg2-devel libSM-devel libXdamage-devel \
-                                    gobject-introspection-devel upower-devel intltool  \
-                                    libtasn1-devel libtool gamin-devel rarian-devel dconf-devel \
-                                    libsecret-devel libgnome-keyring-devel    \
-                                    iso-codes-devel gucharmap wireless-tools-devel xorg-x11-util-macros file-libs djvulibre libmount-devel libnotify-devel \
-                                    mesa-libGLES mesa-libGLES-devel xorg-x11-xtrans-devel enchant-devel gtksourceview3-devel  libpeas-devel \
-                                    python3  vte291-devel  libXScrnSaver-devel  libudisks2-devel  libgtop2-devel  gtkmm30-devel  \
-                                    texlive-kpathsea-lib-devel  poppler-glib-devel
+    g. Install the library and symlinks to /opt/texlive/2020/lib
+       cd /home/$USER/texlive-20200406-source/texk/web2c/.libs
+       sudo -s
+       cp synctex  /opt/texlive/2020/bin
+       cp  libsynctex.so.2.0.0    libsynctex.lai  /opt/texlive/2020/lib
+       cd /opt/texlive/2020/lib
+       ln -s libsynctex.so.2.0.0 libsynctex.so.2
+       ln -s libsynctex.so.2.0.0 libsynctex.so
+       ldconfig
+       exit
 
-     c. Compile and Install libxpresent-master
-        unix> cd ~/mate-build
-        unix> cd libxpresent-master
-        unix> mkdir m4
-        unix> ./autogen.sh
-        unix> make
-        unix> sudo make install
-        unix> cd ..
-        unix> cp -r libxpresent-master ../mate-installed
+    h. Verify that the /opt/texlive/2020/lib looks like this
+       unix> ls -l  /opt/texlive/2020/lib
+       -- You should see this:
+                 -rw-r--r--. 1 root root    940 Apr 26 19:34 libsynctex.lai
+                 lrwxrwxrwx. 1 root root     19 Apr 26 19:35 libsynctex.so -> libsynctex.so.2.0.0*
+                 lrwxrwxrwx. 1 root root     19 Apr 26 19:35 libsynctex.so.2 -> libsynctex.so.2.0.0*
+                 -rwxr-xr-x. 1 root root 430400 Apr 26 19:34 libsynctex.so.2.0.0*
 
-     c. Compile & Install libfakekey  (used to simulate X11 Keypress events)
-        unix> cd ~/mate-build
-        unix> cd libfakekey-0.3
-        unix> ./autogen.sh
-        unix> make
+    i. Verify that the synctex program can find its shared libraries
+       unix> ldd /opt/texlive/2020/bin/synctex
+       -- You should see this:
+                    linux-vdso.so.1 =>  (0x00007fffe572e000)
+                    libsynctex.so.2 => /opt/texlive/2020/lib/libsynctex.so.2 (0x00007f1c0e2bc000)
+                    libz.so.1 => /lib64/libz.so.1 (0x00007f1c0e0a6000)
+                    libm.so.6 => /lib64/libm.so.6 (0x00007f1c0dda4000)
+                    libc.so.6 => /lib64/libc.so.6 (0x00007f1c0d9d6000)
+                    /lib64/ld-linux-x86-64.so.2 (0x00007f1c0e4d7000)
 
-        NOTE:  If you get errors, you may have to run this command:
+
+
+ 6. Install dependent libraries (including python3) to compile MATE
+    unix> sudo yum install libxml2-devel libxslt-devel glib2-devel libIDL-devel \
+                            dbus-devel dbus-glib-devel polkit-devel flex popt-devel \
+                            bison bzip2-devel libgcrypt-devel libcanberra-devel gtk3-devel \
+                            libart_lgpl-devel libglade2-devel libtasn1-tools libxklavier-devel libsoup-devel \
+                            icon-naming-utils unique-devel libcanberra-gtk3 libcanberra-devel libwnck3-devel \
+                            librsvg2-devel libSM-devel libXdamage-devel \
+                            gobject-introspection-devel upower-devel intltool  \
+                            libtasn1-devel libtool gamin-devel rarian-devel dconf-devel \
+                            libsecret-devel libgnome-keyring-devel    \
+                            iso-codes-devel gucharmap wireless-tools-devel xorg-x11-util-macros file-libs djvulibre libmount-devel libnotify-devel \
+                            mesa-libGLES mesa-libGLES-devel xorg-x11-xtrans-devel enchant-devel gtksourceview3-devel  libpeas-devel \
+                            python3  vte291-devel  libXScrnSaver-devel  libudisks2-devel  libgtop2-devel  gtkmm30-devel  \
+                            texlive-kpathsea-lib-devel  poppler-glib-devel   libevent libevent-devel
+
+
+ 7. Compile dependent libraries
+    a. Compile & Install libxpresent-master
+       unix> cd ~/mate-build
+       unix> cd libxpresent-master
+       unix> mkdir m4
+       unix> ./autogen.sh
+       unix> make
+       unix> sudo make install
+       unix> cd ..
+       unix> cp -r libxpresent-master ../mate-installed
+
+    b. Compile & Install libfakekey  (used to simulate X11 Keypress events)
+       unix> cd ~/mate-build
+       unix> cd libfakekey-0.3
+       unix> ./autogen.sh
+       unix> make
+       NOTE:  If you get errors, you may have to run this command:
                 autoreconf --force --install
 
-        unix> sudo make install
-        unix> cd ..
-        unix> cp -r libfakekey-0.3 ../mate-installed
+       unix> sudo make install
+       unix> cd ..
+       unix> cp -r libfakekey-0.3 ../mate-installed
 
-     d. Compile and Install glib2 2.58.1   (required to compile caja)
-        unix> cd ~/mate-build
-        unix> cd glib-2.58.1
-        unix> ./autogen.sh
-        unix> make
-        unix> sudo make install
-
-
+    c. Compile and Install glib2 2.58.1   (required to compile caja)
+       unix> cd ~/mate-build
+       unix> cd glib-2.58.1
+       unix> ./autogen.sh
+       unix> make
+       unix> sudo make install
 
 
- 6. Compile MATE in this specific order
+
+
+ 8. Compile MATE in this specific order
+    Notes:
+     A) The -std=gnu99 fixes the NGROUP_MAX not defined problem
+
      a. Create this file:   /tmp/mate.packages.txt
+
         unix> vi /tmp/mate.packages.txt
 
             mate-common-1.24.1
             mate-desktop-1.24.0
             libmatekbd-1.24.0        --enable-oss
-            libmatemixer-1.24.0   --enable-locations-compression
+            libmatemixer-1.24.0      --enable-locations-compression
             libmateweather-1.24.0
             mate-menus-1.24.0
-            caja-1.24.0                  CFLAGS="-std=c99"
+            caja-1.24.0                  CFLAGS="-std=gnu99"
             marco-1.24.0
             mate-settings-daemon-1.24.0
             mate-session-manager-1.24.0
             mate-panel-1.24.0
-            mate-control-center-1.24.0   CFLAGS="-std=c99"   CPPFLAGS="-D__sun"
+            mate-control-center-1.24.0   CFLAGS="-std=gnu99"   CPPFLAGS="-D__sun"
             mate-polkit-1.24.0
             mate-notification-daemon-1.24.0
             mate-backgrounds-1.24.1    USE_AUTOGEN
@@ -295,7 +334,7 @@ Part 2: Build Mate from source code
             mate-utils-1.24.0
             mate-system-monitor-1.24.0
             eom-1.24.0
-            atril-1.24.0   --enable-pixbuf --enable-introspection  CFLAGS="-fPIC"
+            atril-1.24.0   --enable-pixbuf --enable-introspection
             mate-media-1.24.0
             mate-power-manager-1.24.1
             python-caja-1.24.0
@@ -310,8 +349,19 @@ Part 2: Build Mate from source code
             eengrampa-1.24.0  --enable-magic --enable-run-in-place
             mate-netbook-1.24.0
 
+
       b. Create a bash script that will compile and build all packages
-         unix> vi ~/compileAll.sh
+         unix> vi ~/mate-build/compileAll.sh
+
+              #!/bin/bash
+              ####################################################################
+              # Filename:  compileAll
+              #
+              # Purpose:   Compile & Install all of the 30+ Mate C programs
+              ####################################################################
+              readonly SCRIPT_NAME=`basename $0`
+
+              echo "${SCRIPT_NAME} started as of `date`"
 
               export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:/usr/local/lib/x86_64-pc-linux-gnu/pkgconfig"
               export PATH=${PATH}:/usr/local/bin                   # Add /usr/local/bin to the PATH to find mate-autogen
@@ -358,24 +408,24 @@ Part 2: Build Mate from source code
                      echo -e "Finished $d"
                done
 
-
+               echo "${SCRIPT_NAME} finished successfully as of `date`"
 
 
 
       c. Make the script executable
-         unix> chmod u+x ~/compileAll.sh
+         unix> chmod u+x ~/mate-build/compileAll.sh
 
       d. Execute the script
          a. Open a new terminal
          b. Run the script
             unix> cd
-            unix> sudo bash ./compileAll.sh | tee /tmp/compileAll.log
+            unix> sudo bash ~/mate-build/compileAll.sh | tee /tmp/compileAll.log
 
          c. Watch the log file
             unix> tail -10000f /tmp/compileAll.log | grep -i "Building this pkg"
 
 
- 7. Try out the MATE window manager
+ 9. Try out the MATE window manager
     unix> sudo systemctl set-default graphical.target
     unix> sudo systemctl enable gdm.service
     unix> sudo systemctl restart gdm.service
