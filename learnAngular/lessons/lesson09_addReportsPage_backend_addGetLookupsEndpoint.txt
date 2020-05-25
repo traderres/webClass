@@ -7,27 +7,120 @@ Solution: Create a REST endpoint that will get lookup values
 
 
 Approach
- 1) Initialize the postgres database
- 1) Setup database tables to hold lookup values
-    a) Create a database table with lookup categories
-    b) Create a database table with lookup values
-    c) Insert a database record for the lookup category: 'priority'
-    d) Insert database records for the lookup values: 'low', 'medium', 'high', 'critical'
-    e) Insert a database record for the lookup category: 'report_type'
-    f) Insert database records for the lookup values: 'hr report', 'sales report', 'executive report'
- 2) Create a Java LookupDTO class
- 3) Create a Java LookupService class (that queries the database)
- 4) Create a Java LookupController class
-
+ 1) Add flyway to the backend 
+    a) Add flyway dependencies
+    b) Add flyway maven plugin
+    c) Add flyway script 1.1  (that will create the lookup tables)
+ 2) Run flyway:migrate to update the local database with the information
+ 4) Create a Java LookupDTO class
+ 5) Create a Java LookupService class (that queries the database)
+ 6) Create a Java LookupController class
 
 
 Procedure
 ---------
- 1. Add backend/src/main/resources/db/migration
-    unix> cd ~/intellijProjects/angularApp1
-    unix> mkdir -p src/main/resources/db/migration
+ 1. Add flyway to the backend
+    a. Add the flyway dependencies to the backend/pom.xml
+            <dependency>
+               <groupId>org.flywaydb</groupId>
+               <artifactId>flyway-core</artifactId>
+               <version>5.2.4</version>
+            </dependency>
 
- 2. Initialize the postgres database
+    b. Add the flyway maven plugin to the backend/pom.xml      
+            <plugin>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-maven-plugin</artifactId>
+                <version>5.2.4</version>
+
+                <configuration>
+                    <!-- Set the postgres credentials when running mvn flyway:migrate from command-line -->
+                    <user>app1_user</user>
+                    <password>secret</password>
+                    <url>jdbc:postgresql://localhost:5432/app1_db</url>
+                    <schemas>app1_db</schemas>
+                </configuration>
+            </plugin>
+     
+    c. Add the flyway directories to the backend project
+       unix> cd ~/intellijProjects/angularApp1
+       unix> mkdir -p backend/src/main/resources/db/migration
+  
+    d. Add this file to the backend/src/main/resources/db/migration:   V1.1__lookup_tables.sql
+       1) Right-click on backend/src/main/resources/db/migration -> New File
+          Filename:  V1.1__lookup_tables.sql
+       2) Copy this to the newly-created file
+
+            --------------------------------------------------------------
+            -- Filename:  V1.4__lookup_tables.sql
+            --------------------------------------------------------------
+
+            -- Create this table:  LookupType
+            create table lookup_type
+            (
+                id            integer      not null,
+                version       integer      not null,
+                name          varchar(256) not null,
+                primary key (id),
+                constraint lookup_type_name_uniq UNIQUE(name) -- Each lookup type name must be unique
+            );
+            comment on table  lookup_type      is 'This lookup_type table holds all of the lookup type names.  Every lookup must have a type';
+            comment on column lookup_type.name is 'Lookup_type.name holds the name or category of this lookup -- e.g., priority.';
+
+            -- Create this table:  Lookup
+            create table lookup
+            (
+                id            integer      not null,
+                version       integer      not null,
+                lookup_type   integer      not null,
+                name          varchar(256) not null,
+                display_order integer      null,
+                primary key(id),
+                constraint lookup_name_uniq UNIQUE(lookup_type, name),                           -- Each lookup name and type must be unique
+                constraint lookup_type_fkey FOREIGN KEY(lookup_type) references lookup_type(id)  -- Each lookup type must exist in the lookup_type table
+            );
+            comment on table  lookup               is 'The lookup table holds all of the lookup values';
+            comment on column lookup.name          is 'Lookup.name holds the actual lookup name -- low, medium, high';
+            comment on column lookup.display_order is 'A possible order to display the lookups on the front-end';
+
+
+            -- Insert Starting Lookup Types
+            insert into lookup_type(id, version, name) values(100, 1, 'priority');
+            insert into lookup_type(id, version, name) values(101, 1, 'report_type');
+
+
+            -- Insert Starting Lookup Values for priority
+            insert into lookup(id, version, lookup_type, display_order, name)  values(1, 1,  100, 1, 'low');
+            insert into lookup(id, version, lookup_type, display_order, name)  values(2, 1,  100, 2, 'medium');
+            insert into lookup(id, version, lookup_type, display_order, name)  values(3, 1,  100, 3, 'high');
+            insert into lookup(id, version, lookup_type, display_order, name)  values(4, 1,  100, 4, 'critical');
+
+
+            -- Insert Starting Lookup Values for report_type
+            insert into lookup(id, version, lookup_type, name)  values(5, 1, 101, 'Marketing');
+            insert into lookup(id, version, lookup_type, name)  values(6, 1, 101, 'H&R');
+            insert into lookup(id, version, lookup_type, name)  values(7, 1, 101, 'CEO');
+
+ 2. Run flyway on your database
+    1) Compile everything
+       unix> cd ~/intellijProjects/angularApp1
+       unix> mvn clean install
+    
+    2) Run flyway to empty and migrate the database
+       unix> cd backend
+       unix> mvn flyway:clean
+       unix> mvn flyway:migrate
+    
+    3) Verify flyway ran 
+       unix> mvn flyway:info
+       -- You should see this:
+            +------------+---------+------------------------------+--------+---------------------+---------+
+            | Category   | Version | Description                  | Type   | Installed On        | State   |
+            +------------+---------+------------------------------+--------+---------------------+---------+
+            | Repeatable |         | << Flyway Schema Creation >> | SCHEMA | 2020-05-25 17:52:15 | Success |
+            | Versioned  | 1.1     | lookup tables                | SQL    | 2020-05-25 17:52:15 | Success |
+            +------------+---------+------------------------------+--------+---------------------+---------+
+
 
 
  1. Add a new flyway script with the tables for lookups
@@ -38,58 +131,6 @@ Procedure
 
 
     b. Copy this to your newly-created sql script
-
-         --------------------------------------------------------------
-         -- Filename:  V1.4__lookup_tables.sql
-         --------------------------------------------------------------
-
-         -- Create this table:  LookupType
-         create table lookup_type
-         (
-             id            integer      not null,
-             version       integer      not null,
-             name          varchar(256) not null,
-             primary key (id),
-             constraint lookup_type_name_uniq UNIQUE(name) -- Each lookup type name must be unique
-         );
-         comment on table  lookup_type      is 'This lookup_type table holds all of the lookup type names.  Every lookup must have a type';
-         comment on column lookup_type.name is 'Lookup_type.name holds the name or category of this lookup -- e.g., priority.';
-
-
-
-         -- Create this table:  Lookup
-         create table lookup
-         (
-             id            integer      not null,
-             version       integer      not null,
-             lookup_type   integer      not null,
-             name          varchar(256) not null,
-             display_order integer      null,
-             primary key(id),
-             constraint lookup_name_uniq UNIQUE(lookup_type, name),                           -- Each lookup name and type must be unique
-             constraint lookup_type_fkey FOREIGN KEY(lookup_type) references lookup_type(id)  -- Each lookup type must exist in the lookup_type table
-         );
-         comment on table  lookup               is 'The lookup table holds all of the lookup values';
-         comment on column lookup.name          is 'Lookup.name holds the actual lookup name -- low, medium, high';
-         comment on column lookup.display_order is 'A possible order to display the lookups on the front-end';
-
-
-         -- Insert Starting Lookup Types
-         insert into lookup_type(id, version, name) values(100, 1, 'priority');
-         insert into lookup_type(id, version, name) values(101, 1, 'report_type');
-
-
-         -- Insert Starting Lookup Values for priority
-         insert into lookup(id, version, lookup_type, display_order, name)  values(1, 1,  100, 1, 'low');
-         insert into lookup(id, version, lookup_type, display_order, name)  values(2, 1,  100, 2, 'medium');
-         insert into lookup(id, version, lookup_type, display_order, name)  values(3, 1,  100, 3, 'high');
-         insert into lookup(id, version, lookup_type, display_order, name)  values(4, 1,  100, 4, 'critical');
-
-
-         -- Insert Starting Lookup Values for report_type
-         insert into lookup(id, version, lookup_type, name)  values(5, 1, 101, 'Marketing');
-         insert into lookup(id, version, lookup_type, name)  values(6, 1, 101, 'H&R');
-         insert into lookup(id, version, lookup_type, name)  values(7, 1, 101, 'CEO');
 
 
     c. Run flyway:migrate to apply these changes to your local database
