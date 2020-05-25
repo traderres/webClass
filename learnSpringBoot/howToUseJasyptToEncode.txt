@@ -2,33 +2,21 @@ How to Use Jasypt to Encode/Decode properties in your Springboot App
 --------------------------------------------------------------------
 
 
-Procedure
----------
- 1) Download jasypt command line tools to your ~/Downloads/
+Part 1:  Approach 1 to Get the Encoded String  (using the jasypt JAR)
+---------------------------------------------------------------------
+ 1. Download jasypt command line tools to your ~/Downloads/
     https://sourceforge.net/projects/jasypt/files/latest/download
   
- 2) Unzip it to a directory
+ 2. Unzip it to a directory
     unix> cd ~/Downloads
     unix> unzip jasypt-1.9.2-dist.zip
-
- 3) Set the salt string in your application.yaml (to be used for encoding/decoding)
-		jasypt:
-		  encryptor:
-			algorithm: PBEWithMD5AndDES
-			password: 'ab5823423464j1k2#!!6298-+'
    
-    *or*
-    
-    jasypt.encryptor.algorithm: PBEWithMD5AndDES
-    jasypt.encryptor.password: 'ab5823423464j1k2#!!6298-+'
-   
-   
- 4) Use the encoding password generate an encoded password
+ 3. Use the encoding password generate an encoded password
     unix> cd jasypt-1.9.2/bin 
     unix> chmod ugo+x *.sh
     unix> export PLAINTEXT_PASSWORD='test'                        # Holds the plain-text password
     unix> export SALT_STRING='ab5823423464j1k2#!!6298-+'          # Holds the salt string
-    unix> ./encrypt.sh  input=$PLAINTEXT_PASSWORD  password=$SALT_STRING  algorithm=PBEWithMD5AndDES
+    unix> ./encrypt.sh  input=$PLAINTEXT_PASSWORD  password=$SALT_STRING  algorithm=PBEWITHHMACSHA512ANDAES_256
 
 		----OUTPUT----------------------
 		I2Oygc9mnQ6tMh4rBOe28Q==
@@ -40,13 +28,45 @@ Procedure
     dos> cd jasypt-1.9.2/bin 
     dos> set PLAINTEXT_PASSWORD=test
     dos> set SALT_STRING=ab5823423464j1k2#!!6298-+ 
-    dos> encrypt.bat input=%PLAINTEXT_PASSWORD%  password=%SALT_STRING%  algorithm=PBEWithMD5AndDES
+    dos> encrypt.bat input=%PLAINTEXT_PASSWORD%  password=%SALT_STRING%  algorithm=PBEWITHHMACSHA512ANDAES_256
     
     
- 5) Set the encrypted password in the application.yaml
+    
+
+Part 1:  Approach 2 to get the Encoded String  (using the jasypt-maven-plugin)
+------------------------------------------------------------------------------
+ 1. Add the jasypt maven plugin to your pom.xml
+             <plugin>
+                <groupId>com.github.ulisesbocchio</groupId>
+                <artifactId>jasypt-maven-plugin</artifactId>
+                <version>3.0.2</version>
+            </plugin>
+	
+ 2. Use the maven plugin to encrypt your string
+    unix> export PLAINTEXT_PASSWORD='test'                        # Holds the plain-text password
+    unix> export SALT_STRING='ab5823423464j1k2#!!6298-+'          # Holds the salt string
+    unix> mvn jasypt:encrypt-value -Djasypt.encryptor.password="${SALT_STRING}" -Djasypt.plugin.value="${PLAINTEXT_PASSWORD}" -Djasypt.encryptor.algorithm=PBEWITHHMACSHA512ANDAES_256
+
+    -- Copy the string that starts with ENC(...)
+    
+
+
+
+Part 2:  Set the Encoded String within your application.yaml
+------------------------------------------------------------
+WARNING:  It must have the same SALT_STRING
+ 1. Set the encrypted password in the application.yaml
     password: ENC(I2Oygc9mnQ6tMh4rBOe28Q==)
 
- 6) Make sure your springboot has the jasypt dependency
+
+ 2. Set the salt string in your application.yaml (to be used for encoding/decoding)
+		jasypt:
+		  encryptor:
+			algorithm: PBEWITHHMACSHA512ANDAES_256
+			password: 'ab5823423464j1k2#!!6298-+'
+   
+
+ 3. Make sure your springboot has the jasypt dependency
         <dependency>
             <groupId>com.github.ulisesbocchio</groupId>
             <artifactId>jasypt-spring-boot-starter</artifactId>
