@@ -1,0 +1,64 @@
+Lesson:  Add Babel to the Web App
+---------------------------------
+Babel is used to convert the javascript to an older form (so that it works with Internet Explorer)
+
+
+Procedure
+---------
+ 1. Modify your main app.html page
+    a. Add these tags *after* all of of the node_module dependencies
+       and *before* all of the custom javascript
+
+           <!-- BABEL_COMPILED_SCRIPT -->
+           <!-- BABEL_START -->
+
+   b. Add this tag after all of the custom javascript includes
+           <!-- BABEL_END -->
+
+ 2. Modify the webapp package.json so that npm build runs babel
+    Change the "scripts" section to this:
+
+      "scripts": {
+           ...
+          "build": "babel app.js config controllers directives factories filters modules features --out-file babel-compiled-script.js"
+        },
+
+ 3. Generate the babel-compiled-script.js
+    During the build process, run these commands to generate the babel-compiled-script.js file
+        cd webapp/src/main/resources/public/resources/;
+        nvm use v5.0.0;
+        npm install babel-cli@6.26.0 babel-plugin-transform-object-rest-spread@6.26.0 babel-preset-env@1.6.1;
+        npm run build;
+
+ 4. Use a sed command to delete everything between BABEL_START and BABEL_END   *AND*
+    Replace the BABEL_COMPILED_SCRIPT line with this:
+
+        sed -i -e '/BABEL_START/,/BABEL_END/d' -e 's:^.*BABEL_COMPILED_SCRIPT.*$:<script src="./resources/node_modules/babel-polyfill/dist/polyfill.min.js"></script>\n<script src="./resources/babel-compiled-script.js"></script>:' ../app.html ;
+
+
+
+Jenkins Configuration
+---------------------
+NOTE:  Make sure this happens before maven builds the entire webapp
+In Pre-Step #1, add this:
+
+	# Generate the babel-compiled-script.js and update app.html to use it
+	#  1) Remove everything in app.html between BABEL_START and BABEL_END
+	#  2) Replace BABEL_COMPILED_SCRIPT with the includes for the polyfill.min.js and babel-compiled-script.js
+	#     NOTE:  the polyfill.min.js must be included before the babel-compiled-script.js
+	cd $WORKSPACE/webapp/src/main/resources/public/resources; npm install; npm run build; sed -i -e '/BABEL_START/,/BABEL_END/d' -e 's:^.*BABEL_COMPILED_SCRIPT.*$:<script src="./resources/node_modules/babel-polyfill/dist/polyfill.min.js"></script>\n<script src="./resources/babel-compiled-script.js"></script>:' ../app.html ;
+
+In Pre-Step #2, add this:
+
+	# Reset the node_modules directory to only include production files
+	#  1) Delete the node_modules directory
+	#  2) Re-download only the production node_module files (as the previous step downloaded many NPM files that are not needed to run in production)
+	cd $WORKSPACE/webapp/src/main/resources/public/resources; rm -rf node_modules; npm install --production;
+
+
+ 4. In the "Build" section  (do the usual stuff)
+     Root POM:  pom.xml
+     Goals and options:  clean package -Pbundle  -Dbuild.number=${BUILD_NUMBER}  -Dbuild.name=${JOB_NAME} -U -Dmaven.test.skip
+
+
+
