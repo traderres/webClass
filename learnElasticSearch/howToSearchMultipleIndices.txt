@@ -1,0 +1,249 @@
+How to search multiple ES indices
+---------------------------------
+Problem:  I have a list of values that could be found in 1 or 2 (out of 2) ES indeces
+          I want to run a search that has ES tell me which ones they are found in
+
+
+Search one value to see if it's in either index
+-----------------------------------------------
+POST /csaac_bct_indicators20191011_160653,csaac_indicators20191022_162044/_search
+{
+   "size": 5,
+   "_source": ["value"],
+  "query": {
+    "bool": {
+      "should": [
+        {
+          "bool": {
+            "_name": "Found in csaac_indicators Only",
+            "must": [
+              {
+               "match": {
+                  "value": {
+                    "query": "value:96.1.1.3"
+                  }
+                }
+              }
+            ],
+            "filter": {
+              "term": {
+                "_index": "csaac_indicators20191022_162044"
+              }
+            }
+          }
+        },
+        {
+          "bool": {
+            "_name": "Found in csaac_bct_indicators Only",
+            "must": [
+              {
+                "match": {
+                  "value": {
+                    "query": "value:96.1.1.3 "
+                  }
+                }
+              }
+            ],
+            "filter": {
+              "term": {
+                "_index": "csaac_bct_indicators20191011_160653"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
+
+Response
+--------
+{
+   "took": 1,
+   "timed_out": false,
+   "_shards": {
+      "total": 10,
+      "successful": 10,
+      "failed": 0
+   },
+   "hits": {
+      "total": 1,
+      "max_score": 2.5902672,
+      "hits": [
+         {
+            "_index": "csaac_bct_indicators20191011_160653",
+            "_type": "record",
+            "_id": "96.1.1.3",
+            "_score": 2.5902672,
+            "_source": {
+               "value": "96.1.1.3"
+            },
+            "matched_queries": [
+               "Found in csaac_bct_indicators Only"
+            ]
+         }
+      ]
+   }
+}
+
+
+How to Compare *all* values
+---------------------------
+Notes:
+  1) You must sort by the field that is in both indexes.  If the item is found in both indexes then there are 2 matches for it
+  2) You will want to use the search_after trick to break-up the query if you comparison exceeds 
+POST /csaac_bct_indicators20191011_160653,csaac_indicators20191022_162044/_search
+{
+   "size": 25,
+   "sort": [
+    		{
+			  "value.sort": { "order": "asc" }
+			}],
+     "_source": ["value"],       
+   "query": {
+    "bool": {
+      "should": [
+        {
+          "bool": {
+            "_name": "Found in csaac_indicators",
+            "must": [
+              {
+                    "match_all": {}
+              }
+            ],
+            "filter": {
+              "term": {
+                "_index": "csaac_indicators20191022_162044"
+              }
+            }
+          }
+        },
+        {
+          "bool": {
+            "_name": "Found in csaac_bct_indicators",
+            "must": [
+              {
+                    "match_all": {}
+              }
+            ],
+            "filter": {
+              "term": {
+                "_index": "csaac_bct_indicators20191011_160653"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
+
+
+Another Approach
+----------------
+POST /csaac_bct_indicators20191011_160653,csaac_indicators20191022_162044/_search
+{
+   "size": 25,
+   "sort": [{"value.sort": { "order": "asc" } }],
+    "_source": [""],
+    "search_after": ["1.1.1.253"],
+   "query": {
+       
+       
+    "bool": {
+      "should": [
+        {
+          "bool": {
+            "_name": "Found in csaac_bct_indicators ONLY",
+            "must": [
+              {
+                     "term": { "record_type": "bct_indicator" }
+              }
+            ],
+            "must_not": [
+                {
+                     "term": {  "record_type": "indicator" }
+               }
+            ]
+          }
+        },
+    
+        {
+          "bool": {
+            "_name": "Found in csaac_indicators ONLY",
+            "must": [
+              {
+                     "term": {  "record_type": "indicator" }
+              }
+            ],
+            "must_not": [
+                {
+                     "term": { "record_type": "bct_indicator" }
+              }
+            ]
+          }
+        }
+     
+        
+      ]
+    }
+    
+    
+  }
+}
+
+
+
+-- Find records in both using aggs
+-- ASSUMPTION:  The values are not repeated in csaac_indicators
+POST /csaac_bct_indicators20191011_160653,csaac_indicators20191022_162044/_search
+{
+  "query": {
+       "match_all": {}
+   },
+  "size": 0,
+  "aggs": {
+    "group_by_value": {
+      "terms": {
+      "field": "value.raw",
+        "min_doc_count": 2
+      }
+    }
+  }
+}
+
+
+
+{
+   "took": 2,
+   "timed_out": false,
+   "_shards": {
+      "total": 10,
+      "successful": 10,
+      "failed": 0
+   },
+   "hits": {
+      "total": 322407,
+      "max_score": 0,
+      "hits": []
+   },
+   "aggregations": {
+      "group_by_value": {
+         "doc_count_error_upper_bound": 5,
+         "sum_other_doc_count": 322206,
+         "buckets": [
+            {
+               "key": "1.1.1.1",
+               "doc_count": 2
+            },
+            {
+               "key": "1.1.1.2",
+               "doc_count": 2
+            }
+         ]
+      }
+   }
+}
+
