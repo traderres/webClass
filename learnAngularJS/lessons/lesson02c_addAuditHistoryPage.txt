@@ -374,3 +374,476 @@ At this point, your app.html should look like this:
 </md-content>
 </body>
 </html>
+
+
+ 5. Add an Audit Factory (that will provide hard-coded data)
+    a. Right-click on webapp/src/main/resources/public/resources/factories -> New File
+       Filename:  audit.factory.js
+       
+    b. Copy this to the audit.factory.js
+
+            (function(){
+                angular.module('app1')
+                    .factory('AuditFactory', ['$http', Callback])
+
+                function Callback($http){
+                    let auditFactory = this;
+
+                    auditFactory.getAuditDetail = getAuditDetail;
+
+                    return auditFactory;
+
+
+
+                    function getAuditDetail(focus, id) {
+                        return [
+                            {
+                                "username": "Bogus_User",
+                                "timestamp": "2020-05-30T19:51:02.516+0000",
+                                "changes": [
+                                    {
+                                        "username": "Bogus_User",
+                                        "timestamp": "2020-05-30T19:51:02.516+0000",
+                                        "field": "priority_name",
+                                        "oldValue": null,
+                                        "newValue": "HIGH",
+                                        "entityId": 5025,
+                                        "revisionId": 5026,
+                                        "revType": 1,
+                                        "entityType": "Report"
+                                    }
+                                ],
+                                "entityId": 5025,
+                                "revisionId": 5026,
+                                "revType": 1,
+                                "entityType": "Report"
+                            },
+                            {
+                                "username": "Bogus_User",
+                                "timestamp": "2020-05-30T19:50:58.611+0000",
+                                "changes": [
+                                    {
+                                        "username": "Bogus_User",
+                                        "timestamp": "2020-05-30T19:50:58.611+0000",
+                                        "field": "start_activity_date",
+                                        "oldValue": null,
+                                        "newValue": "2020-02-29 15:50:50.614",
+                                        "entityId": 5025,
+                                        "revisionId": 5025,
+                                        "revType": 1,
+                                        "entityType": "Report"
+                                    },
+                                    {
+                                        "username": "Bogus_User",
+                                        "timestamp": "2020-05-30T19:50:58.611+0000",
+                                        "field": "reviewed",
+                                        "oldValue": "false",
+                                        "newValue": "true",
+                                        "entityId": 5025,
+                                        "revisionId": 5025,
+                                        "revType": 1,
+                                        "entityType": "Report"
+                                    }
+                                ],
+                                "entityId": 5025,
+                                "revisionId": 5025,
+                                "revType": 1,
+                                "entityType": "Report",
+                                "$$hashKey": "object:526"
+                            },
+                            {
+                                "username": "Bogus_User",
+                                "timestamp": "2020-05-30T19:50:16.944+0000",
+                                "changes": [
+                                    {
+                                        "username": "Bogus_User",
+                                        "timestamp": "2020-05-30T19:50:16.944+0000",
+                                        "field": "completed",
+                                        "oldValue": null,
+                                        "newValue": "false",
+                                        "entityId": 5025,
+                                        "revisionId": 5010,
+                                        "revType": 0,
+                                        "entityType": "Report"
+                                    },
+                                    {
+                                        "username": "Bogus_User",
+                                        "timestamp": "2020-05-30T19:50:16.944+0000",
+                                        "field": "display_name",
+                                        "oldValue": null,
+                                        "newValue": "bogus1_critical.txt",
+                                        "entityId": 5025,
+                                        "revisionId": 5010,
+                                        "revType": 0,
+                                        "entityType": "Report"
+                                    },
+                                    {
+                                        "username": "Bogus_User",
+                                        "timestamp": "2020-05-30T19:50:16.944+0000",
+                                        "field": "reserved",
+                                        "oldValue": null,
+                                        "newValue": "false",
+                                        "entityId": 5025,
+                                        "revisionId": 5010,
+                                        "revType": 0,
+                                        "entityType": "Report"
+                                    },
+                                    {
+                                        "username": "Bogus_User",
+                                        "timestamp": "2020-05-30T19:50:16.944+0000",
+                                        "field": "reviewed",
+                                        "oldValue": null,
+                                        "newValue": "false",
+                                        "entityId": 5025,
+                                        "revisionId": 5010,
+                                        "revType": 0,
+                                        "entityType": "Report"
+                                    }
+                                ],
+                                "entityId": 5025,
+                                "revisionId": 5010,
+                                "revType": 0,
+                                "entityType": "Report"
+                            }
+                        ]
+                    }
+                }
+
+            })()
+
+     c. Add the audit.factory.js to the app.html
+             <script src="./resources/factories/audit.factory.js"></script>
+      
+      
+  6. Update the routes so that the AuditReports page uses the AuditFactory to get data
+     a. Edit routes.js
+     
+     b. Change the getAuditHistoryState() method to this:
+     
+         function getAuditHistoryState() {
+            return {
+                url: URL_PAGE_PREFIX + '/reports/audit/:propName/:itemId',
+                templateUrl: './resources/features/reports/audit/index.html',
+                controller: 'auditReport',
+                controllerAs: 'auditReportVM',
+                resolve:{
+                    auditData: function(AuditFactory, $stateParams)  {
+                        // Call the AuditFactory to get audit data
+                        return AuditFactory.getAuditDetail($stateParams.propName, $stateParams.itemId)
+                    }
+                },
+                params: {
+                    propName: {value: '', squash: true},
+                    itemId: {value: '', squash: true}
+                }
+            }
+        }
+        
+   
+ 7. Pass-in the auditData into the auditReport main.controller.js
+    a. Edit the webapp/src/main/resources/public/resources/features/reports/audit/main.controller.js
+    
+    b. Replace it with this:
+
+        (function(){
+            angular.module('app.features')
+                .controller('auditReport', ['$timeout', '$stateParams', 'auditData', Callback])
+
+            function Callback($timeout, $stateParams, auditData) {
+                console.log('auditReport controller started.   auditData=', auditData);
+
+                let auditReportVM = this;
+
+                auditReportVM.timeLineData = auditData;
+                auditReportVM.type = { }
+
+                window.document.title = "Audit Report | APP1";
+
+                // public method declarations
+                auditReportVM.calculateCssClass = calculateCssClass;
+
+                function calculateCssClass(revType) {
+                    let cssClass = ''
+                    if (revType === 2) {
+                        cssClass = 'delete';
+                    }
+                    if (revType === 0) {
+                        cssClass = 'create';
+                    }
+                    if (revType === 1) {
+                        cssClass = 'edit';
+                    }
+                    return cssClass
+                }
+
+
+                auditReportVM.$onInit = function() {
+                    console.log('auditReportVM onInit() started.');
+                    console.log('auditReportVM onInit() finished.');
+                };
+
+                console.log('auditReportVM controller finished.');
+            }
+        })();
+
+  8. Update the AuditReport index.html
+     a. Edit the webapp/src/main/resources/public/resources/features/reports/audit/index.html
+     
+     b. Replace the index.html with this:
+ 
+         <div class="feature">
+
+            <header layout="row" layout-align="space-between center">
+                <!-- Page Title -->
+                <div class="md-headline"><i class="fas fa-history"></i> Audit History</div>
+            </header>
+
+            <!-- Progress bar -->
+            <div class="progressBarWrapper">
+                <md-progress-linear ng-show="auditReportVM.dataIsLoading" md-mode="indeterminate"></md-progress-linear>
+            </div>
+
+            <div layout-padding>
+                <div layout="row" layout-align="space-between center" ng-if="auditReportVM.timeLineData.length > 0">
+
+                    <span class="filterButtons">
+                        <md-button class="md-button" ng-click="auditReportVM.type = {}">All</md-button>
+                        <md-button class="md-button create" ng-click="auditReportVM.type.revType = 0">
+                            <i title="Creation" class="fas fa-plus-circle"></i> Creation
+                        </md-button>
+                        <md-button class="md-button edit" ng-click="auditReportVM.type.revType = 1">
+                            <i class="fas fa-edit"></i> Edit
+                        </md-button>
+                        <md-button class="md-button delete" ng-click="auditReportVM.type.revType = 2"><i
+                                class="fas fa-trash-alt"></i> Deletion</md-button>
+                    </span>
+
+                    <span layout="row">
+                        <md-input-container md-no-float="false">
+                            <label>Filter by User</label>
+                            <input placeholder="User" ng-model="auditReportVM.type.username">
+                        </md-input-container>
+                    </span>
+                </div>
+                <div layout-padding id="timelineEnd" ng-if="auditReportVM.timeLineData.length > 0">
+                    <div style="text-align: center; color: #999;">
+                        <small ng-if="auditReportVM.timeLineData.length > 9"><a href="#timelineStart">Jump to Creation</a></small>
+                        <br/>
+                        NOW<br/>
+                        <i class="fas fa-angle-double-down fa-2x"></i>
+                    </div>
+                    <ul class="timeline">
+                        <li ng-repeat="event in auditReportVM.timeLineData | filter:auditReportVM.type | orderBy:'+event.timestamp'"
+                            ng-class-even="'timeline-inverted'">
+                            <div class="timeline-badge" ng-class="auditReportVM.calculateCssClass(event.revType)"></div>
+                            <div class="timeline-panel" ng-class="auditReportVM.calculateCssClass(event.revType)">
+                                <md-subheader class="md-no-sticky">
+                                    <i ng-if="event.revType === 2" title="Deleted" class="fas fa-trash-alt fa-lg"></i>
+                                    <i ng-if="event.revType === 1 && !event.state && event.entityType !='countermeasure'"
+                                       title="Modification" class="far fa-edit fa-lg"></i>
+                                    <i ng-if="event.revType === 1 && event.entityType ==='countermeasure'" title="Modification"
+                                       class="fas fa-shield-alt fa-lg"></i>
+                                    <i ng-if="event.revType === 0" title="Creation" class="fas fa-plus-circle fa-lg"
+                                       style="color: #fff;"></i>
+                                    <span ng-if="event.revType === 2">{{event.entityType}} deleted by </span>
+                                    <span ng-if="event.revType === 1">{{event.entityType}} modified by </span>
+                                    <span ng-if="event.revType === 0">{{event.entityType}} created by </span>
+                                    <i class="far fa-user"></i> {{event.username}} at <i class="far fa-clock"></i>
+                                    {{event.timestamp | date:'yyyy-MM-dd HH:mm:ss':'UTC'}}Z
+                                </md-subheader>
+                                <div class="timeline-heading">
+                                    <h3 class="timeline-title">{{event.state}}</h3>
+                                </div>
+                                <div class="timeline-body">
+                                    <div class="changeList" ng-class="auditReportVM.calculateCssClass(event.revType)">
+
+                                        <!-- Loop through all of the changes for this one event -->
+                                        <p ng-repeat="change in event.changes">
+                                            <span class="newValue">{{auditReportVM.cleanFieldName(change.field)}}:</span>
+                                            <span class="oldValue" ng-if="change.revType != 0 || change.oldValue === null">{{change.oldValue}}</span>
+                                            <span>{{change.newValue}}</span>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </li>
+                    </ul>
+
+                    <div id="timelineStart" style="text-align: center; color: #999;"><i class="far fa-clock fa-2x"></i><br/>
+                        {{auditReportVM.timeLineData[0].timestamp | date:'yyyy-MM-dd HH:mm:ss':'UTC'}}Z<br/>
+                        <small ng-if="auditReportVM.timeLineData.length > 9"><a href="#timelineEnd">Jump to Now</a></small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+ 9. Add some additoinal styling to the index.css
+    a. Edit the webapp/src/main/resources/public/resources/css/index.tml
+    
+    b. Append this to the end
+    
+        .timeline {
+            list-style: none;
+            padding: 20px 0 20px;
+            position: relative; }
+        .timeline:before {
+            top: 0;
+            bottom: 0;
+            position: absolute;
+            content: " ";
+            width: 2px;
+            background-color: #cccccc;
+            left: 50%;
+            margin-left: -1.5px; }
+        .timeline .timeline-badge {
+            color: #fff;
+            width: 20px;
+            height: 20px;
+            text-align: center;
+            position: absolute;
+            top: 11px;
+            left: 50%;
+            margin-left: -10px;
+            background-color: #fff;
+            z-index: 2;
+            border-top-right-radius: 50%;
+            border-top-left-radius: 50%;
+            border-bottom-right-radius: 50%;
+            border-bottom-left-radius: 50%; }
+        .timeline .timeline-badge.edit {
+            border: 5px solid #8f67c9; }
+        .timeline .timeline-badge.create {
+            border: 5px solid #007e18; }
+        .timeline .timeline-badge.delete {
+            border: 5px solid #b42140; }
+        .timeline li div.changeList {
+            padding: 0 9px 9px 9px; }
+        .timeline li div.changeList p {
+            padding: 7px; }
+        .timeline li div.changeList.delete {
+            color: #b50000; }
+        .timeline li .timeline-panel.edit:after {
+            border-right: 0 solid #8f67c9;
+            border-left: 14px solid #8f67c9; }
+        .timeline li .timeline-panel.edit:before {
+            border-right: 0 solid #8f67c9; }
+        .timeline li .timeline-panel.edit div.md-subheader {
+            background-color: #8f67c9;
+            color: #fff; }
+        .timeline li .timeline-panel.create:after {
+            border-right: 0 solid #00a419;
+            border-left: 14px solid #00a419; }
+        .timeline li .timeline-panel.create:before {
+            border-right: 0 solid #00a419; }
+        .timeline li .timeline-panel.create div.md-subheader {
+            background-color: #00a419;
+            color: #fff; }
+        .timeline li .timeline-panel.delete:after {
+            border-right: 0 solid #d62140;
+            border-left: 14px solid #d62140; }
+        .timeline li .timeline-panel.delete:before {
+            border-right: 0 solid #d62140; }
+        .timeline li .timeline-panel.delete div.md-subheader {
+            background-color: #d62140;
+            color: #fff; }
+
+        .timeline > li {
+            margin-bottom: 20px;
+            position: relative; }
+
+        .timeline > li:before,
+        .timeline > li:after {
+            content: " ";
+            display: table; }
+
+        .timeline > li:after {
+            clear: both; }
+
+        .timeline > li:before,
+        .timeline > li:after {
+            content: " ";
+            display: table; }
+
+        .timeline > li:after {
+            clear: both; }
+
+        .timeline > li > .timeline-panel {
+            width: 50%;
+            float: left;
+            border: 1px solid #d4d4d4;
+            background-color: #ffffff;
+            padding: 0;
+            position: relative; }
+
+        .timeline > li.timeline-inverted + li:not(.timeline-inverted),
+        .timeline > li:not(.timeline-inverted) + li.timeline-inverted {
+            margin-top: -60px; }
+
+        .timeline > li:not(.timeline-inverted) {
+            padding-right: 90px; }
+
+        .timeline > li.timeline-inverted {
+            padding-left: 90px; }
+
+        .timeline > li > .timeline-panel:before {
+            position: absolute;
+            top: 8px;
+            right: -15px;
+            display: inline-block;
+            border-top: 15px solid transparent;
+            border-left: 15px solid #fff;
+            border-right: 0 solid #ccc;
+            border-bottom: 15px solid transparent;
+            content: " "; }
+
+        .timeline > li > .timeline-panel:after {
+            position: absolute;
+            top: 8px;
+            right: -14px;
+            display: inline-block;
+            border-top: 14px solid transparent;
+            border-left: 14px solid #ccc;
+            border-right: 0 solid #fff;
+            border-bottom: 14px solid transparent;
+            content: " "; }
+
+        .timeline > li.timeline-inverted > .timeline-panel {
+            float: right; }
+        .timeline > li.timeline-inverted > .timeline-panel:before {
+            border-left-width: 0;
+            border-right-width: 15px;
+            left: -15px;
+            right: auto; }
+        .timeline > li.timeline-inverted > .timeline-panel:after {
+            border-left-width: 0;
+            border-right-width: 14px;
+            left: -14px;
+            right: auto; }
+
+        .timeline-title {
+            margin-top: 5px;
+            color: inherit; }
+
+        .timeline-body > p,
+        .timeline-body > ul {
+            margin-bottom: 0; }
+
+        .timeline-body > p + p {
+            margin-top: 5px; }
+
+        .timeline-body span.newValue {
+            font-weight: bold; }
+        .timeline-body span.oldValue {
+            color: #adadad;
+            text-decoration: line-through; }
+
+
+10. Verify it works:
+    a. Activate your webapp with the debugger
+    b. Open a browser
+    c. Connect to http://localhost:8080/app1
+    d. Click on Reports -> Audit History
+       -- You should see the page
+ 
+     
