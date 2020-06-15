@@ -21,19 +21,54 @@ Procedure
        Filename:  add-report.form.control.ts
        
     b. Copy this to the newly-created file:
-        import {FormControl, FormGroup} from "@angular/forms";
+		import {FormControl, FormGroup} from "@angular/forms";
 
-        export class AddReportFormControl extends FormControl {
-          label: string;
-          modelProperty: string;
+		export class AddReportFormControl extends FormControl {
+		  label: string;
+		  modelProperty: string;
 
-          constructor(aLabel: string, aModelProperty: string, aValue: any, aValidator: any) {
-            super(aValue, aValidator);
+		  public constructor(aLabel: string, aModelProperty: string, aValue: any, aValidator: any) {
+			super(aValue, aValidator);
 
-            this.label = aLabel;
-            this.modelProperty = aModelProperty
-          }
-        }
+			this.label = aLabel;
+			this.modelProperty = aModelProperty
+		  }
+
+
+		  public getValidationMessages() {
+			let messages: string[] = [];
+
+			if (this.errors) {
+			  for (let errorName in this.errors) {
+				  switch(errorName) {
+					case "required":
+						messages.push(`The ${this.label} is required`);
+						break;
+
+					case "minlength":
+						messages.push(`The ${this.label} must be at least ${this.errors['minlength'].requiredLength} characters`);
+						break;
+
+					case "maxlength":
+						messages.push(`The ${this.label} must not exceed ${this.errors['maxlength'].requiredLength} characters`);
+						break;
+
+					case "pattern":
+						messages.push(`The ${this.label} contains illegal characters`);
+						break;
+
+				  } // end switch
+			  }
+			}
+
+			return messages;
+		  }
+
+
+		}
+
+
+
 
 
  2. Add the AddReportFormGroup typescrpit class
@@ -41,37 +76,125 @@ Procedure
        Filename:  add-report.form.group.ts
   
     b. Copy this to the newly-created file:
-        import {FormGroup, Validators} from "@angular/forms";
-        import {AddReportFormControl} from "./add-report.form.model";
+		import {FormGroup, Validators} from "@angular/forms";
+		import {AddReportFormControl} from "./add-report.form.control";
 
-        export class AddReportFormGroup extends FormGroup {
+		export class AddReportFormGroup extends FormGroup {
 
-          public constructor() {
-            super({
-                name: new AddReportFormControl("Report Name", "name", "",
-                          Validators.required,
-                          Validators.minLength(3),
-                          Validators.maxLength(25)
-                        ),
+		  public constructor() {
+			super({
+				name: new AddReportFormControl("Report Name", "name", null,
+					  Validators.compose([
+						  Validators.required,
+						  Validators.minLength(3),
+						  Validators.maxLength(25)
+					  ])),
 
-                priority: new AddReportFormControl( "Priority", "priority", "",
-                          Validators.required)
-            } )
-          }
+				priority: new AddReportFormControl( "Priority", "priority", null,
+						  Validators.required),
+
+				source:     new AddReportFormControl( "Source", "source", null, null),
+				authors:    new AddReportFormControl( "Authors", "authors", null, null),
+
+				start_date: new AddReportFormControl( "Start Date", "start_date", null, null),
+				end_date:   new AddReportFormControl( "End Date", "end_date", null, null),
+			} )
+		  }
 
 
-          public get formControls(): AddReportFormControl[] {
-            return Object.keys(this.controls)
-              .map(key => this.controls[key] as AddReportFormControl)
-          }
-        }
+		  public get formControls(): AddReportFormControl[] {
+			return Object.keys(this.controls)
+			  .map(key => this.controls[key] as AddReportFormControl)
+		  }
 
- 3. Add a new method called getValidationMessages() to the AddReportFormControl
+
+		  public getAllValidationMessages() : string[] {
+			let messages: string[] = [];
+
+			this.formControls.forEach(c => c.getValidationMessages()
+			  .forEach(m => messages.push(m))
+			);
+
+			return messages;
+		  }
+
+		}
+
  
+ 
+ 3. Adjust the add-report.component.ts
+    a. Remove these two methods:   getValidationMessages() and getAllValidationMessages() 
+	
+	b. Remove the public Report declaration
+	
+	c. Add a public AddReportFormGroup object:
+	     public form: AddReportFormGroup = new AddReportFormGroup();
+ 
+    d. Change the reset() method so that it uses the local form object
+		  public reset(): void {
+			this.formSubmitted = false;
+
+			// Reset the form back to pristine/untouched condition
+			this.form.reset();
+		  }	
     
+	e. Change the save() method to pull the values out of the form object
+		  public save(): void {
+			this.formSubmitted = true;
 
+			// Make all form fields as touched -- so that error validation displays
+			this.form.markAllAsTouched();
 
+			if (this.form.valid) {
 
+			  let report: Report = new Report();
+			  report.priority = this.form.controls.priority.value;
+			  report.name = this.form.controls.name.value;
+			  report.authors = this.form.controls.authors.value;
+			  report.start_date = this.form.controls.start_date.value;
+			  report.end_date = this.form.controls.end_date.value;
+
+			  // Invoke a service to save the record
+			  console.log("Save record.");
+
+			  // Reset the form
+			  this.form.reset();
+			  this.formSubmitted = false;
+			}
+		  }
+
+	    
+ 4. Adjust the add-report.component.htlm
+    a. Change the opening form tag so that it references the formGroup
+	     <form novalidate [formGroup]="form" class="add_report_form">
+		 
+	b. Remove all template reference variables (except for the #name)
+	   NOTE:  We need #name to set the focus on it
+	   
+	c. Remove all required tags   (this is now done in code)
+	
+	d. Remove the ngModel references  (this is now controlled by the formGroup
+    
+	e. Insert formControlName="..."
+	
+    
+	When done, the report textbox looks like this:
+	    <input matInput type="text" formControlName="name" #name />
+
+	When done, the source dropdown looks like this:
+	    <select matNativeControl name="report.source" formControlName="source" >
+	
+ 	When done, the priority mat-select dropdown looks like this:
+	    <mat-select formControlName="priority">
+    
+	When done, the authors multiple mat-select dropdown looks like this:
+	    <mat-select multiple formControlName="authors">
+
+	When done, the start date looks like this:
+		<input  matInput name="start.date" formControlName="start_date" [matDatepicker]="startDatePicker" >
+	
+	When done, the end date looks like thiS:
+		<input  matInput name="end.date" formControlName="end_date" [matDatepicker]="endDatePicker" >
     
 
 
