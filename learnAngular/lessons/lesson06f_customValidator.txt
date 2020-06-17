@@ -27,11 +27,154 @@ Procedure:  Add custom validator for model-based forms
 	   Filename:  date.validator.ts
 	   
 	b. Copy this to your newly-created file"
-    CreditCardValidator.validateCcNumbe
+import {AbstractControl, FormGroup, ValidationErrors, ValidatorFn} from "@angular/forms";
+
+		function treatAsUTC(date: Date): any {
+		  let result = new Date(date);
+		  result.setMinutes(result.getMinutes() - result.getTimezoneOffset());
+		  return result;
+		}
+
+		function  getDaysBetween(startDate: Date, endDate: Date) {
+		  let millisecondsPerDay = 24 * 60 * 60 * 1000;
+		  return (treatAsUTC(endDate) - treatAsUTC(startDate)) / millisecondsPerDay;
+		}
+
+
+		export function validateStartAndEndDate(aStartDateControlName: string,
+												aEndDateControlName: string,
+												aMaxDaysBetween: number): ValidatorFn {
+
+			// This technique is used to pass-in parameters with a custom validator.  The problem is simple:
+			//  a) Need to pass-in 3 parameters
+			//  b) Need to return a method that takes-in a a single AbstractControl and returns ValidationErrors | null
+			//
+			// The solution is to use a factory function and return a method
+			return (aControl: AbstractControl) : ValidationErrors | null  => {
+
+				// Get a references to the formGroup
+				let formGroup: FormGroup = <FormGroup>aControl.parent;
+				if (! formGroup) {
+				  return null;
+				}
+
+				// Get references to the start and end date controls
+				let startDateControl: AbstractControl | null = formGroup.get(aStartDateControlName);
+				let endDateControl: AbstractControl | null = formGroup.get(aEndDateControlName);
+
+				if ((startDateControl?.value == null) || (endDateControl?.value == null)) {
+				  // There is no start date or end date (so the form is probably initializing).  So, do nothing
+				  return null;
+				}
+
+				let startDate: Date = new Date(startDateControl?.value );
+				let endDate: Date = new Date(endDateControl?.value );
+
+				if (startDate >= endDate) {
+				  return {
+					'custom_error' : 'The Start Date must be BEFORE the End Date'
+				  };
+				}
+
+				// Calculate the number of days between the start and end date
+				let totalDaysBetween: number = getDaysBetween(startDate, endDate);
+
+				if (totalDaysBetween > aMaxDaysBetween) {
+				  return {
+					'custom_error' : `The End Date must be no more than ${aMaxDaysBetween} days after the Start Date`
+				  };
+				}
+
+				// If no error, then return null
+				return null;
+			};
+
+		}
+
+ 2. Change the AddReportFormGroup constructor to use the new custom validator
+    a. Edit add-report.form.group.ts
+	
+	b. Replace the constructor with this
+	
+		 public constructor() {
+			super({
+				name: new AddReportFormControl("Report Name", "name", null,
+				  Validators.compose([
+					Validators.required,
+					Validators.minLength(3),
+					Validators.maxLength(25)
+				  ])),
+
+				priority: new AddReportFormControl("Priority", "priority", null,
+				  Validators.required),
+
+				source: new AddReportFormControl("Source", "source", null, null),
+				authors: new AddReportFormControl("Authors", "authors", null, null),
+
+				start_date: new AddReportFormControl("Start Date", "start_date", null, Validators.required),
+
+				end_date: new AddReportFormControl("End Date", "end_date", null,
+							  Validators.compose( [
+								Validators.required,
+								validateStartAndEndDate('start_date', 'end_date', 7)
+							  ]))
+
+			  }
+			)
+
+		}
+
+
+ 3. Make sure we display the custom errors in the getValidationMessages()
+    a. Edit add-report.form.control.ts
+	
+	b. Add another case for custom_error:
+            case "custom_error":
+              // This is a custom error from a custom validator (so display the custom error message)
+              messages.push(this.errors.custom_error);
+              break;
+    
+	When completed, the method should look like this:
+	 public getValidationMessages() {
+		let messages: string[] = [];
+
+		if (this.errors) {
+		  for (let errorName in this.errors) {
+			  switch(errorName) {
+				case "required":
+					messages.push(`The ${this.label} is required`);
+					break;
+
+				case "minlength":
+					messages.push(`The ${this.label} must be at least ${this.errors['minlength'].requiredLength} characters`);
+					break;
+
+				case "maxlength":
+					messages.push(`The ${this.label} must not exceed ${this.errors['maxlength'].requiredLength} characters`);
+					break;
+
+				case "pattern":
+					messages.push(`The ${this.label} contains illegal characters`);
+					break;
+
+				case "custom_error":
+				  // This is a custom error from a custom validator (so display the custom error message)
+				  messages.push(this.errors.custom_error);
+				  break;
+
+			  } // end switch
+		  }
+		}
+
+		return messages;
+	  }	
+	
+
+ 4. Try it out
  
  
 
-Proceudre:  Add custom validator for template-based form
+Procedure:  Add custom validator for template-based form
 --------------------------------------------------------
 
 
