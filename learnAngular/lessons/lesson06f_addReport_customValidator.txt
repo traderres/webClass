@@ -244,15 +244,15 @@ Goal:  Create a WeekendDateValidator that returns an error if the entered date i
 
 Procedure:  Add a *Complex* custom validator for model-based forms (with parameters)
 ------------------------------------------------------------------------------------
-Goal: Add a DateValidator that takes in passed-in argument that will check
+Goal: Add a custom function called validateStartAndEndDate() that takes in passed-in argument that will check
        If the end date > start date *AND* the end date is N days after the start date
 	   
  1. Add a new class called DateValidator with a static method
-    a. Right-click on frontend/src/app -> New Typescript File
-	   Filename:  date.validator.ts
+    a. Right-click on frontend/src/app/validators -> New Typescript File
+	   Filename:  custom.date.validator.ts
 	   
 	b. Copy this to your newly-created file"
-import {AbstractControl, FormGroup, ValidationErrors, ValidatorFn} from "@angular/forms";
+		import {AbstractControl, FormGroup, ValidationErrors, ValidatorFn} from "@angular/forms";
 
 		function treatAsUTC(date: Date): any {
 		  let result = new Date(date);
@@ -319,8 +319,16 @@ import {AbstractControl, FormGroup, ValidationErrors, ValidatorFn} from "@angula
  2. Change the AddReportFormGroup constructor to use the new custom validator
     a. Edit add-report.form.group.ts
 	
-	b. Replace the constructor with this
+	b. Edit the constructor so that the custom validator is used by the end_date
+	        end_date: new AddReportFormControl("End Date", "end_date", null,
+                      Validators.compose( [
+                        Validators.required,
+                        SimpleDateValidator.validateNonWeekendValue,
+                        validateStartAndEndDate('start_date', 'end_date', 7)
+                      ]))
 	
+	
+	When completed, the constructor should look something like this:
 		 public constructor() {
 			super({
 				name: new AddReportFormControl("Report Name", "name", null,
@@ -336,11 +344,16 @@ import {AbstractControl, FormGroup, ValidationErrors, ValidatorFn} from "@angula
 				source: new AddReportFormControl("Source", "source", null, null),
 				authors: new AddReportFormControl("Authors", "authors", null, null),
 
-				start_date: new AddReportFormControl("Start Date", "start_date", null, Validators.required),
+				start_date: new AddReportFormControl("Start Date", "start_date", null,
+							  Validators.compose([
+								  Validators.required,
+								  SimpleDateValidator.validateNonWeekendValue,
+							])),
 
 				end_date: new AddReportFormControl("End Date", "end_date", null,
 							  Validators.compose( [
 								Validators.required,
+								SimpleDateValidator.validateNonWeekendValue,
 								validateStartAndEndDate('start_date', 'end_date', 7)
 							  ]))
 
@@ -359,44 +372,16 @@ import {AbstractControl, FormGroup, ValidationErrors, ValidatorFn} from "@angula
               messages.push(this.errors.custom_error);
               break;
     
-	When completed, the method should look like this:
-	 public getValidationMessages() {
-		let messages: string[] = [];
-
-		if (this.errors) {
-		  for (let errorName in this.errors) {
-			  switch(errorName) {
-				case "required":
-					messages.push(`The ${this.label} is required`);
-					break;
-
-				case "minlength":
-					messages.push(`The ${this.label} must be at least ${this.errors['minlength'].requiredLength} characters`);
-					break;
-
-				case "maxlength":
-					messages.push(`The ${this.label} must not exceed ${this.errors['maxlength'].requiredLength} characters`);
-					break;
-
-				case "pattern":
-					messages.push(`The ${this.label} contains illegal characters`);
-					break;
-
-				case "custom_error":
-				  // This is a custom error from a custom validator (so display the custom error message)
-				  messages.push(this.errors.custom_error);
-				  break;
-
-			  } // end switch
-		  }
-		}
-
-		return messages;
-	  }	
 	
+ 4. Activate the debugger
+    a. Pull Run -> Debug 'Full WebApp'
+    b. Click on "Add Report"
+	c. Enter a start_date and end_date within 7 days of each other (so it shows an error)
+	d. Click on "Save"
+       -- You should see the message at the top:  The Start Date cannot be on a week-end
+       -- You should see the date field in red
 
- 4. Try it out
- 
+
  
 
 Procedure:  Add custom validator for template-based form
