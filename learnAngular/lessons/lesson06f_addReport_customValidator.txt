@@ -21,18 +21,144 @@ https://blog.angulartraining.com/how-to-implement-custom-form-validators-with-an
 
 
 
-Procedure:  Add a *Simple* custom validator for model-based forms
------------------------------------------------------------------
-Goal:  Add a DateValidator that returns an error if the entered date is on a week-end
- 1. Add a n
- 
+Procedure:  Add a *Simple* custom validator for model-based forms (w/o parameters)
+----------------------------------------------------------------------------------
+Goal:  Create a WeekendDateValidator that returns an error if the entered date is on a week-end
+
+ 1. Create the simple.date.validator.ts
+    a. Right-click on frontend/src/ -> New Directory
+       Directory Name:  validators
+	   
+    b. Right-click on frontend/src/validators -> New Typescript file
+       File name:  simple.date.validator.ts
+	   
+    c. Copy this to your newly-created file:
+		import {FormControl, ValidationErrors} from "@angular/forms";
+
+		export class SimpleDateValidator {
+
+		  private static isWeekend(aDate: Date): boolean {
+			let day = aDate.getDay();
+			let isWeekend = (day === 6) || (day === 0);    // 6 = Saturday, 0 = Sunday
+			return isWeekend;
+		  }
+
+		  public static validateNonWeekendValue(aControl: FormControl): ValidationErrors | null {
+			if (aControl.value == null) {
+			  // There is no value -- so assume that everything is valid
+			  return null;
+			}
+
+			let enteredDate: Date = new Date(aControl.value);
+			if (! SimpleDateValidator.isWeekend(enteredDate)) {
+			  // User entered a date that is on a week-day.  The field is valid.
+			  return null;
+			} else {
+			  // User entered a date that is on a week-end.  The field is invalid.
+			  return {'custom_error': 'The entered date cannot be on a week-end'};
+			}
+		  }
+
+
+		}
 
 
 
+ 2. Use the static method
+    a. Go to the add-report-form.group.ts file
+	b. Change the constructor to call your SimpleDateValidator.validateNonWeekendValue() method
+	   
+		start_date: new AddReportFormControl("Start Date", "start_date", null,
+							Validators.compose([
+							  Validators.required,
+							  SimpleDateValidator.validateNonWeekendValue,
+							])),
 
 
-Procedure:  Add a *Complex* custom validator for model-based forms
-------------------------------------------------------------------
+		end_date: new AddReportFormControl("End Date", "end_date", null,
+						  Validators.compose( [
+							Validators.required,
+							SimpleDateValidator.validateNonWeekendValue,
+						  ]))
+
+	   
+		public constructor() {
+			super({
+				name: new AddReportFormControl("Report Name", "name", null,
+				  Validators.compose([
+					Validators.required,
+					Validators.minLength(3),
+					Validators.maxLength(25)
+				  ])),
+
+				priority: new AddReportFormControl("Priority", "priority", null,
+				  Validators.required),
+
+				source: new AddReportFormControl("Source", "source", null, null),
+				authors: new AddReportFormControl("Authors", "authors", null, null),
+
+				start_date: new AddReportFormControl("Start Date", "start_date", null,
+							  Validators.compose([
+								  Validators.required,
+								  SimpleDateValidator.validateNonWeekendValue,
+							])),
+
+				end_date: new AddReportFormControl("End Date", "end_date", null,
+							  Validators.compose( [
+								  Validators.required,
+								  SimpleDateValidator.validateNonWeekendValue,
+							  ]))
+
+			  }
+			)
+
+ 3. Change the getValidationMessages in add-report.form.control.ts to display the error
+    a. Edit getValidationMessages() and add this case:
+            case "custom_error":
+              // This is a custom error from a custom validator (so display the custom error message)
+              messages.push(this.errors.custom_error);
+              break;	
+
+     When completed, the getValidationMessages() should look like this:
+		 public getValidationMessages() {
+			let messages: string[] = [];
+
+			if (this.errors) {
+			  for (let errorName in this.errors) {
+				  switch(errorName) {
+					case "required":
+						messages.push(`The ${this.label} is required`);
+						break;
+
+					case "minlength":
+						messages.push(`The ${this.label} must be at least ${this.errors['minlength'].requiredLength} characters`);
+						break;
+
+					case "maxlength":
+						messages.push(`The ${this.label} must not exceed ${this.errors['maxlength'].requiredLength} characters`);
+						break;
+
+					case "pattern":
+						messages.push(`The ${this.label} contains illegal characters`);
+						break;
+
+					case "custom_error":
+					  // This is a custom error from a custom validator (so display the custom error message)
+					  messages.push(this.errors.custom_error);
+					  break;
+
+				  } // end switch
+			  }
+			}
+
+			return messages;
+		  }	 
+	 
+
+
+
+Procedure:  Add a *Complex* custom validator for model-based forms (with parameters)
+------------------------------------------------------------------------------------
 Goal: Add a DateValidator that takes in passed-in argument that will check
        If the end date > start date *AND* the end date is N days after the start date
 	   
