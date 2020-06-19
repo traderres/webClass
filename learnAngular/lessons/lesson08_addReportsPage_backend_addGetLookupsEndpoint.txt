@@ -7,51 +7,24 @@ Solution: Create a REST endpoint that will get lookup values
 
 
 Approach
- 1) Add flyway to the backend 
+ 1) Add flyway script to load lookup tables into the database (in the backend) 
  2) Run flyway:migrate from command-line
- 3) Verify flyway runs automatically every time the webapp starts-up
- 4) Add a Java LookupDTO class
- 5) Add a Java LookupService class (that queries the database)
- 6) Add a Java LookupController class
- 7) Verify the REST call works
+ 3) Add a Java LookupDTO class
+ 4) Add a Java LookupService class (that queries the database)
+ 5) Add a Java LookupController class
+ 6) Verify the REST call works
  
 
 Procedure
 ---------
- 1. Add flyway to the backend
-    a. Add the flyway dependencies to the backend/pom.xml
-            <dependency>
-               <groupId>org.flywaydb</groupId>
-               <artifactId>flyway-core</artifactId>
-               <version>5.2.4</version>
-            </dependency>
-
-    b. Add the flyway maven plugin to the backend/pom.xml      
-            <plugin>
-                <groupId>org.flywaydb</groupId>
-                <artifactId>flyway-maven-plugin</artifactId>
-                <version>5.2.4</version>
-
-                <configuration>
-                    <!-- Set the postgres credentials when running mvn flyway:migrate from command-line -->
-                    <user>app1_user</user>
-                    <password>secret</password>
-                    <url>jdbc:postgresql://localhost:5432/app1_db</url>
-                    <schemas>app1_db</schemas>
-                </configuration>
-            </plugin>
-     
-    c. Add the flyway directories to the backend project
-       unix> cd ~/intellijProjects/angularApp1
-       unix> mkdir -p backend/src/main/resources/db/migration
-  
-    d. Add this file to the backend/src/main/resources/db/migration:   V1.1__lookup_tables.sql
-       1) Right-click on backend/src/main/resources/db/migration -> New File
-          Filename:  V1.1__lookup_tables.sql
-       2) Copy this to the newly-created file
+ 1. Add this file to the backend/src/main/resources/db/migration:   V1.1__lookup_tables.sql
+    a. Right-click on backend/src/main/resources/db/migration -> New File
+       Filename:  V1.2__lookup_tables.sql
+    
+	b. Copy this to the newly-created file
 
             --------------------------------------------------------------
-            -- Filename:  V1.4__lookup_tables.sql
+            -- Filename:  V1.2__lookup_tables.sql
             --------------------------------------------------------------
 
             -- Create this table:  LookupType
@@ -113,55 +86,21 @@ Procedure
     c. Verify flyway ran 
        unix> mvn flyway:info
        -- You should see this:
-            +------------+---------+------------------------------+--------+---------------------+---------+
-            | Category   | Version | Description                  | Type   | Installed On        | State   |
-            +------------+---------+------------------------------+--------+---------------------+---------+
-            | Repeatable |         | << Flyway Schema Creation >> | SCHEMA | 2020-05-25 17:52:15 | Success |
-            | Versioned  | 1.1     | lookup tables                | SQL    | 2020-05-25 17:52:15 | Success |
-            +------------+---------+------------------------------+--------+---------------------+---------+
+		+-----------+---------+------------------------------+--------+---------------------+---------+
+		| Category  | Version | Description                  | Type   | Installed On        | State   |
+		+-----------+---------+------------------------------+--------+---------------------+---------+
+		|           |         | << Flyway Schema Creation >> | SCHEMA | 2020-06-19 16:36:22 | Success |
+		| Versioned | 1.1     | baseline                     | SQL    | 2020-06-19 16:36:22 | Success |
+		| Versioned | 1.2     | lookup tables                | SQL    | 2020-06-19 16:36:22 | Success |
+		+-----------+---------+------------------------------+--------+---------------------+---------+
 
 
- 3. Configure the backend so that it runs flyway automatically every time the webapp starts
-    a. Edit the backend/src/main/resources/application.yaml
-       Add these lines:
-       
-          # Have spring run flyway:migrate on startup
-          spring.flyway.enabled: true
-          spring.flyway.schemas: app1_db
 
-    
-    b. Verify that the backend runs flyway everytime on startup
-       1) Empty your database using mvn flyway:clean
-          unix> cd ~/intellijProjects/angularApp1/backend
-          unix> mvn flyway:clean
-      
-       2) Start-up the backend (Spring should automatically run flyway:migrate)
-          In IntelliJ, Select Backend -> Run
-       
-       3) Connect to your database and verify that the tables exist
-          unix> psql -U app1_user -d app1_db -h localhost
-          password: secret
-          
-          \dt
-          
-          -- You should see this:
-                                     List of relations
-          Schema  |         Name          | Type  |   Owner   
-         ---------+-----------------------+-------+-----------
-          app1_db | flyway_schema_history | table | app1_user
-          app1_db | lookup                | table | app1_user
-          app1_db | lookup_type           | table | app1_user
-
-
-          \q
-          
-          
-
- 4. Add this class:  LookupDTO
+ 3. Add this class:  LookupDTO
     a. Right-click on backend/src/main/java/com/lessons -> New Package
-       Package Name: models
+       Package Name: com.lessons.models
        
-    a. Right-click on backend/src/main/java/com/lessons/backend -> New Java Class
+    a. Right-click on backend/src/main/java/com/lessons/models -> New Java Class
        Class Name:  LookupDTO
 
     b. Copy this to your newly-created class
@@ -190,9 +129,20 @@ Procedure
             }
 
 
+ 4. Add the Apache Commons-lang3 dependency to the back-end
+  	a. Edit the backend/pom.xml
+	b. Add this dependency:
+         <dependency>
+            <!-- StringUtils Dependency -->
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.5</version>
+        </dependency>
+
+
  5. Add this class:  LookupService
     a. Right-click on backend/src/main/java/com/lessons -> New Package
-       Package Name:  services
+       Package Name:  com.lessons.services
        
     b. Right-click on backend/src/main/java/com/lessons/services -> New Java Class
        Class Name:  LookupService
@@ -264,15 +214,8 @@ Procedure
                 }
             }
 
- 6. Add the common-lang StringUtils to the backend/pom.xml
-         <dependency>
-            <!-- StringUtils Dependency -->
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
-            <version>3.5</version>
-        </dependency>    
 
- 7. Add this class:  LookupController
+ 6. Add this class:  LookupController
     a. Right-click on backend/src/main/java/com/lessons/controllers -> New Java Class
        Class Name:  LookupController
 
@@ -335,8 +278,6 @@ Procedure
 
  8. Verify the REST call works
     a. Pull Run -> Debug 'backend'
-       -- This will open a browser connected to http://localhost:4200
-       
     b. Use Postman to verify that the REST call works
        1) Make a GET call to http://localhost:8080/app1/api/lookups/priority
           Headers:  
