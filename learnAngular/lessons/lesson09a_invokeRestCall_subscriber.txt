@@ -1,0 +1,124 @@
+Lesson:  Invoke a REST call using subscribe()
+---------------------------------------------
+Problem:  The page view needs to use a service to invoke a REST call to get information to display.
+          This service will return an Observable
+          
+Solution: Subscribe to the Observable within ngOnInit()
+          Store the information in a component instance variable
+          Unsubscribe within ngOnDestroy()
+          
+
+Procedure
+---------
+ 1. Add the HttpClientModule to app.module.ts
+        imports: [ ...
+                    HttpClientModule,
+                    ...
+                 ]
+                 
+                 
+ 2. Change the LookupService so that it injects the httpClient and calls the REST service
+    a. Edit the lookup.service.ts
+    b. Change the lookup.service.ts to this:
+        import { Injectable } from '@angular/core';
+        import {LookupDTO} from "../models/lookup.DTO";
+        import {HttpClient} from "@angular/common/http";
+        import {environment} from "../../environments/environment";
+        import {Observable} from "rxjs";
+
+        @Injectable({
+          providedIn: 'root'
+        })
+        export class LookupService {
+
+          constructor(private httpClient: HttpClient) { }
+
+          /*
+           * Return a list of LookupDTO objects that correspond to the passed-in type name -- e.g, 'priority'
+           */
+          public getLookupWithType(aType: string): Observable<LookupDTO[]>  {
+
+            const restUrl = environment.baseUrl + '/api/lookups/' + aType;
+
+            return this.httpClient.get <LookupDTO[]>(restUrl);
+          }
+        }
+
+
+ 3. Adjust the add-report.component.ts so that 
+    + The ngOnInit() will subscribe to the lookupService.getLookupWithType()
+    + The ngOnDestroy() will unsubscribe
+    
+    a. Make sure the AddReportComponent implements OnInit and OnDestroy
+        class AddReportComponent implements OnInit, AfterViewInit, OnDestroy {
+
+    b. Make sure the LooupService is injected 
+        constructor(private lookupService: LookupService)
+        { }
+    
+    c. Add a private array of subscriptions
+        private subscriptions: Subscription[] = [];
+
+    d. Add an ngOnDestroy() method that will unsubscribe from subscriptions
+        ngOnDestroy(): void {
+            // Unsubscribe all subscriptions (so we don't have any memory leaks)
+            this.subscriptions.forEach(subscription => subscription.unsubscribe());
+        }
+  
+    e. Change the ngOnInit() so that it subscribes to the lookupService.getLookupWithType()
+        ngOnInit(): void {
+            // Get the lookup values from the LookupService
+            this.subscriptions.push(
+                this.lookupService.getLookupWithType("priority").subscribe(data => {
+                  this.priorities = data;
+               })
+            );
+        }
+  
+  
+ 4. Verify that the REST call works when using the debugger
+    a. Set a breakpoint in ngOnInit()
+    b. Set a breakpoint in ngOnDestroy()
+    c. Pull Run -> Debug 'Full WebApp'
+    d. Click on "Add Report"
+       -- You should hit the breakpoint in ngOnInit() to call the LookupService to get the priorities
+       -- You should see the priorities listed in the dropdown
+    e. Click on "View reports"
+       -- You should hit the breakpoint in ngOnDestroy() to unsubscribe
+       
+ 
+ 5. Add another method to the Angular lookup.service.ts to get the lookups by type *and* sort
+    a. Edit lookup.service.ts
+    b. Add this method:  getLookupWithTypeAndOrder()
+          /*
+           * Return a sorted list of LookupDTO objects that correspond to the passed-in type name -- e.g, 'priority'
+           */
+          public getLookupWithTypeAndOrder(aType: string, aOrderBy: string): Observable<LookupDTO[]>  {
+
+            const restUrl = environment.baseUrl + '/api/lookups/' + aType + '/' + aOrderBy;
+
+            return this.httpClient.get <LookupDTO[]>(restUrl);
+          }
+  
+  
+ 6. Change the add-report.component.ts to call this new method:
+    a. Edit add-report.component.ts
+    b. Change the ngOnInit() to this:
+          ngOnInit(): void {
+            // Get the lookup values from the LookupService
+            this.subscriptions.push(
+                this.lookupService.getLookupWithTypeAndOrder("priority", "display_order").subscribe(data => {
+                  this.priorities = data;
+               })
+            );
+          }
+  
+  
+ 7. Verify that the REST call works when using the debugger
+    a. Pull Run -> Debug 'Full WebApp'
+    b. Click on "Add Report"
+    c. Look at the priorities dropdown
+       -- You should see the dropdown entries listed by their display_order column
+       
+ 
+ 
