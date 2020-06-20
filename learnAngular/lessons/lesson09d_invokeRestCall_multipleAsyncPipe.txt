@@ -1,0 +1,75 @@
+Lesson:  Multiple Async Pipes
+-----------------------------
+Problem:  My Add Report form should wait for multiple dropdowns
+Solution: Create multiple observables and the template waits for all of them
+
+
+Procedure
+---------
+ 1. Add additional observables to the add-report.component.ts
+    a. Define the additional instance variables:
+            public prioritiesObs: Observable<LookupDTO[]>;
+            public authorsObs: Observable<LookupDTO[]>;
+            public reportSourceObs: Observable<LookupDTO[]>;
+
+    b. Initialize the variables in ngOnInit()
+            ngOnInit(): void {
+                // Get an observable to the priorities
+                // NOTE:  The AsyncPipe will subscribe and unsubscribe from this observable
+                this.prioritiesObs = this.lookupService.getLookupWithTypeAndOrder("priority", "display_order");
+                this.authorsObs = this.lookupService.getLookupWithTypeAndOrder("author", "name")
+                this.reportSourceObs = this.lookupService.getLookupWithTypeAndOrder("report_source", "name")
+            }
+            
+
+ 2. Edit the add-report.component.html to use these observables
+    a. Change the authors section to this:
+        <ng-container *ngIf="(authorsObs | async) as authors; else loadingAuthors">
+            <!-- Authors are loaded -->
+            <mat-form-field style="margin-top: 20px">
+                <mat-label>Choose Authors</mat-label>
+
+                <mat-select multiple formControlName="authors">
+                    <mat-option *ngFor="let author of authors"  value="{{author.id}}">{{author.name}}</mat-option>
+                </mat-select>
+            </mat-form-field>
+        </ng-container>
+        
+        <ng-template #loadingAuthors>
+            <!-- Authors are loading message -->
+            <p style="margin-top: 20px"><i class="fa fa-spin fa-spinner"></i> Loading Authors...</p>
+        </ng-template>
+
+      
+    
+    b. Change the report source dropdown to this
+        <ng-container *ngIf="(reportSourceObs | async) as report_sources; else loadingReportSources">
+            <!-- Report Sources are loaded -->
+            <mat-form-field style="margin-top: 20px">
+                <mat-label>Choose Source</mat-label>
+
+                <!-- Use the matNativeControl for select and input fields inside <mat-form-field>...</mat-form-field> tag -->
+                <select matNativeControl formControlName="source">
+                    <option [value]=null>-Select Source-</option>
+                    <option *ngFor="let source of report_sources"  value="{{source.id}}">{{source.name}}</option>
+                </select>
+            </mat-form-field>
+        </ng-container>
+        
+        <ng-template #loadingReportSources>
+          <!-- Report Sources are loading message -->
+          <p style="margin-top: 20px"><i class="fa fa-spin fa-spinner"></i> Loading Report Sources...</p>
+        </ng-template>
+
+
+
+ 3. Verify that all dropdowns load after 5 seconds
+    a. Pull Run -> Debug 'Full WebApp'
+    b. Click on "Add Report"
+    c. Look at the priorities dropdown
+       -- You should see 3 spinners
+       -- But, all 3 spinners should finish after 5 seconds
+          because the loading is asynchronous
+
+    
+ 
