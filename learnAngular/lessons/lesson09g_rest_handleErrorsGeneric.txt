@@ -1,3 +1,111 @@
 Lesson:  Setup a Generic Way to Handle Errors with Observables
 --------------------------------------------------------------
+Problem:  We don't want to have a catchError() on every subscriber call
+Solution: Setup a LoadingWrapper class that will handle the catchError() for us
 
+
+Procedure
+---------
+ 1. Add a new type script file:  loading.wrapper.ts
+    a. Right-click on frontend/src/app/services -> New -> TypeScript File
+	   Filename:  loading.wrapper.ts
+	
+	b. Copy this to the newly-created file:
+		import {Observable, of, Subject} from "rxjs";
+		import {catchError, shareReplay} from "rxjs/operators";
+
+		export class LoadingWrapper<T> {
+			private readonly _errorLoadingObs = new Subject<boolean>();
+
+			public readonly errorLoadingObs: Observable<boolean> = this._errorLoadingObs.pipe(
+			  shareReplay(1)
+			);
+
+			readonly dataObs: Observable<T | null>;
+
+			public constructor(aData: Observable<T>) {
+				this.dataObs = aData.pipe(
+					shareReplay(1),
+					catchError(error => {
+						// Log an error in the console here  (otherwise you will NOT see an error in the console)
+						console.log(error);
+
+						// Emit a "truthy" value for errorLoadingObs
+						this._errorLoadingObs.next(true);
+
+						// Recover the observable and give it a "falsy" value of null
+						return of(null);
+					})
+				);
+			}
+
+		}
+
+
+ 2. Use the LoadingWrapper in the add-report.component.ts
+    a. Remove loadingPriorityErrorObs 
+	
+	b. Change the prioritiesObs type to be of LoadingWrapper<LookupDTO[]>
+	   Change this:
+			public prioritiesObs: Observable<LookupDTO[]>;
+	   To this:
+			public prioritiesObs: LoadingWrapper<LookupDTO[]>;
+		   
+
+	c. Change this line in ngOnInit() from this:
+		this.prioritiesObs = this.lookupService.getLookupWithTypeAndOrder("priority", "display_order").pipe(
+              catchError((error) => {
+                // Log an error in the console here  (otherwise you will NOT see an error in the console)
+                console.error('error loading the list of priorities: ', error);
+
+                this.loadingErrorObs.next(true);
+
+                // Recover the observable and give it a "falsy" value of null
+                return of(null);
+              });
+	    
+		To this:
+			this.prioritiesObs = new LoadingWrapper(
+				  this.lookupService.getLookupWithTypeAndOrder("priority", "display_order")
+			);			
+			
+
+ 3. Change the add-report.component.html
+    The prioritiesObs object has 2 properties:
+	   prioritiesObs.dataObs         holds the observable to the data
+	   prioritiesObs.errorLoadingObs holds TRUE when an error occurrs
+		
+	a. Change this:
+	   		<ng-container *ngIf="(prioritiesObs | async) as priorities; else loadingPrioritiesOrError">
+		
+ 	   To this:
+	   		<ng-container *ngIf="(prioritiesObs.dataObs | async) as priorities; else loadingPrioritiesOrError">
+		
+
+    b. Change this:   
+			<div *ngIf="loadingPriorityErrorObs | async; else loadingPriorities">
+
+	   To this:
+			<div *ngIf="prioritiesObs.errorLoadingObs | async; else loadingPriorities">
+	   
+	   
+  4. Simulate an error
+     a. Edit the add-report.component.ts
+     b. Change this line within the ngOnInit()
+            this.lookupService.getLookupWithTypeAndOrder("priority", "display_order")
+        
+        To this:
+            this.lookupService.getLookupWithTypeAndOrder("INVALID_LOOKUP_TYPE", "display_order")
+  
+  
+ 5. Verify that the error message appears
+    a. Pull Run -> Debug 'Full WebApp'
+    b. Click on "Add Report"
+    c. Look at the priorities dropdown
+	   -- You should see an error message that the priorities failed to load
+ 
+    d. In the ngOnInit(), change the "INVALID_LOOKUP_TYPE" to "priority"
+    e. Look at the priorities dropdown
+       -- You should see the loading message (for 5 seconds)
+       -- Then, you should see the dropdown values
+	   
