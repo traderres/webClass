@@ -59,35 +59,81 @@ Procedure
     c. Add a private array of subscriptions
         private subscriptions: Subscription[] = [];
 
-    d. Add an ngOnDestroy() method that will unsubscribe from subscriptions
+    d. Add a public prioritiesAreLoading flag
+	    public prioritiesAreLoading: boolean;
+		
+    e. Add an ngOnDestroy() method that will unsubscribe from subscriptions
         ngOnDestroy(): void {
             // Unsubscribe all subscriptions (so we don't have any memory leaks)
             this.subscriptions.forEach(subscription => subscription.unsubscribe());
         }
   
-    e. Change the ngOnInit() so that it subscribes to the lookupService.getLookupWithType()
-        ngOnInit(): void {
-            // Get the lookup values from the LookupService
-            this.subscriptions.push(
-                this.lookupService.getLookupWithType("priority").subscribe(data => {
-                  this.priorities = data;
-               })
-            );
-        }
+    f. Change the ngOnInit() so that it subscribes to the lookupService.getLookupWithType()
+		  ngOnInit(): void {
+		  	// Set the loading flag to true (so we see the spinner)
+			this.prioritiesAreLoading = true;
+
+			// Get the lookup values from the LookupService
+			this.subscriptions.push(
+				this.lookupService.getLookupWithType("priority").subscribe(data => {
+					// The REST call came back with some results
+					this.priorities = data;
+				}).add(() => {
+					// Teardown
+					
+					// Unset the flag so that the dropdown appears
+					this.prioritiesAreLoading = false;
+				})
+			);
+		  }
+
   
-  
- 4. Verify that the REST call works when using the debugger
+ 4. Change the template so that it uses the prioritiesAreLoading flag (to show a spinner)
+    a. Edit the add-report.component.html
+	b. Change the priorites dropdown section to this:
+
+		  <ng-container *ngIf="!prioritiesAreLoading">
+			  <!-- Priorities are fully loaded -->
+			  <mat-form-field style="margin-top: 20px">
+				<mat-label>Choose Priority</mat-label>
+
+				  <!-- Priorities Drop Down -->
+				  <mat-select formControlName="priority">
+					<mat-option [value]=null>-Select Priority-</mat-option>
+					<mat-option *ngFor="let priority of priorities"  value="{{priority.id}}">{{priority.name}}</mat-option>
+				  </mat-select>
+
+			  </mat-form-field>
+		  </ng-container>
+
+		  <ng-container *ngIf="prioritiesAreLoading">
+			<!-- Priorities are loading message -->
+			<div style="margin-top: 20px"><i class="fa fa-spin fa-spinner"></i> Loading Priorities...</div>
+		  </ng-container>
+
+
+ 5. Add a 5-second delay to the lookup REST call
+    a. Edit the backend/src/main/java/com/lessons/controllers/LookupController.java
+	b. Add this call before the list is returned
+			try {
+				// Sleep for 5 seconds
+				Thread.sleep(5000);
+			}
+			catch(Exception e) {
+				// Do nothing
+			}
+ 
+ 
+ 6. Verify that the REST call works when using the debugger
     a. Set a breakpoint in ngOnInit()
     b. Set a breakpoint in ngOnDestroy()
     c. Pull Run -> Debug 'Full WebApp'
     d. Click on "Add Report"
-       -- You should hit the breakpoint in ngOnInit() to call the LookupService to get the priorities
-       -- You should see the priorities listed in the dropdown
-    e. Click on "View reports"
-       -- You should hit the breakpoint in ngOnDestroy() to unsubscribe
+       -- You should see the spinner for 5 seconds
+	   -- After 5 seconds, you should see the priorities loaded into the dropdown
        
  
- 5. Add another method to the Angular lookup.service.ts to get the lookups by type *and* sort
+ 7. Add another method to the Angular lookup.service.ts to get the lookups by type *and* sort
     a. Edit lookup.service.ts
     b. Add this method:  getLookupWithTypeAndOrder()
           /*
@@ -101,24 +147,31 @@ Procedure
           }
   
   
- 6. Change the add-report.component.ts to call this new method:
+ 8. Change the add-report.component.ts to call this new method:
     a. Edit add-report.component.ts
     b. Change the ngOnInit() to this:
-          ngOnInit(): void {
-            // Get the lookup values from the LookupService
-            this.subscriptions.push(
-                this.lookupService.getLookupWithTypeAndOrder("priority", "display_order").subscribe(data => {
-                  this.priorities = data;
-               })
-            );
-          }
+		  ngOnInit(): void {
+			this.prioritiesAreLoading = true;
+
+			// Get the lookup values from the LookupService
+			this.subscriptions.push(
+				this.lookupService.getLookupWithTypeAndOrder("priority", "display_order").subscribe(data => {
+					// The REST call came back with some results
+					this.priorities = data;
+				}).add(() => {
+					// Teardown
+					this.prioritiesAreLoading = false;
+				})
+			);
+		  }
   
   
- 7. Verify that the REST call works when using the debugger
+ 9. Verify that the REST call works when using the debugger
     a. Pull Run -> Debug 'Full WebApp'
     b. Click on "Add Report"
     c. Look at the priorities dropdown
-       -- You should see the dropdown entries listed by their display_order column
+	   -- You should see a spinner for 5 seconds
+       -- Then, you should see the dropdown entries listed by their display_order column
        
  
- 
+
