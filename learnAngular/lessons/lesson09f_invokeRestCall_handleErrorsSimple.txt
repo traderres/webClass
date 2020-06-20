@@ -1,0 +1,163 @@
+Lesson:  How to Handle Errors w/Async Pipe
+------------------------------------------
+Problem:  What happens when an error happens?  How do we alert the user?
+Solution: When an error occurrs, have the loadingPriorityErrorObs emit a value of true
+          Change the template to look for "truthyness" in loadingPriorityErrorObs
+                <div *ngIf="loadingPriorityErrorObs | async; else loadingPriorities">
+                    Error loading the list of priorities.  Please try again later.
+                </div>
+
+
+
+References
+----------
+https://sebastian-holstein.de/post/error-handling-angular-async-pipe/
+
+
+Explanation
+-----------
+Consider this block of code:
+ 
+       <ng-container *ngIf="(prioritiesObs | async) as priorities; else loadingPriorities">
+            <!-- Priorities are fully loaded -->
+            <mat-form-field style="margin-top: 20px">
+                <mat-label>Choose Priority</mat-label>
+
+                <!-- Priorities Drop Down -->
+                <mat-select formControlName="priority">
+                    <mat-option [value]=null>-Select Priority-</mat-option>
+                    <mat-option *ngFor="let priority of priorities"  value="{{priority.id}}">{{priority.name}}</mat-option>
+                </mat-select>
+
+            </mat-form-field>
+      </ng-container>
+
+      <ng-template #loadingPriorities>
+            <!-- Priorities are loading message -->
+            <p style="margin-top: 20px"><i class="fa fa-spin fa-spinner"></i> Loading Priorities...</p>
+      </ng-template>
+      
+  
+Order of options
+----------------
+ A. The async pipe subscribes to the prioritiesObs
+ B. The first state is the "loading" state because the Observable hasn't emitted a value yet
+       -- So, the else case in our *ngIf is active.
+       -- loadingPriorities is set
+       
+ C. The HTTP request returns a response
+    If the HTTP request responds with an 2xx status code, the user will see the list of priorities.
+    If the HTTP request responds with an error, the user sees no error message.  The user sees loading.
+    
+    
+ 
+Simple Approach:  Add a catchError() to the subscribe
+-----------------------------------------------------
+ 1. Edit the add-report.component.ts
+    a. Change the prioritiesObs so it can be an observable of null
+            public prioritiesObs: Observable<LookupDTO[] | null>;
+    
+    b. Add subject called loadingErrorsObs
+            public loadingErrorObs = new Subject<boolean>();
+
+    c. Setup a catchError on the priorities observable
+       Change the one line in ngOnInit()
+     
+        From this:
+            this.prioritiesObs = this.lookupService.getLookupWithTypeAndOrder("priority", "display_order");
+
+        To this:
+            this.prioritiesObs = this.lookupService.getLookupWithTypeAndOrder("priority", "display_order").pipe(
+              catchError((error) => {
+                // Log an error in the console here  (otherwise you will NOT see an error in the console)
+                console.error('error loading the list of priorities: ', error);
+
+                this.loadingErrorObs.next(true);
+
+                // Recover the observable and give it a "falsy" value of null
+                return of(null);
+              });
+    
+   
+  
+ 2. Display the error
+    NOTES:
+     -- The else flag handles either loading *or* errors
+     -- There is another async pipe that listens for errors
+       
+    a. Edit the add-report.component.html  priorities section
+       
+    b. Change this:
+          <ng-container *ngIf="(prioritiesObs | async) as priorities; else loadingPriorities">
+                <!-- Priorities are fully loaded -->
+                <mat-form-field style="margin-top: 20px">
+                    <mat-label>Choose Priority</mat-label>
+
+                    <!-- Priorities Drop Down -->
+                    <mat-select formControlName="priority">
+                        <mat-option [value]=null>-Select Priority-</mat-option>
+                        <mat-option *ngFor="let priority of priorities"  value="{{priority.id}}">{{priority.name}}</mat-option>
+                    </mat-select>
+
+                </mat-form-field>
+          </ng-container>
+
+          <ng-template #loadingPriorities>
+            <!-- Priorities are loading message -->
+            <p style="margin-top: 20px"><i class="fa fa-spin fa-spinner"></i> Loading Priorities...</p>
+          </ng-template>
+
+
+    
+       To this:
+         <ng-container *ngIf="(prioritiesObs | async) as priorities; else loadingPrioritiesOrError">
+            <!-- Priorities are fully loaded -->
+            <mat-form-field style="margin-top: 20px">
+                <mat-label>Choose Priority</mat-label>
+
+                <!-- Priorities Drop Down -->
+                <mat-select formControlName="priority">
+                    <mat-option [value]=null>-Select Priority-</mat-option>
+                    <mat-option *ngFor="let priority of priorities"  value="{{priority.id}}">{{priority.name}}</mat-option>
+                </mat-select>
+
+            </mat-form-field>
+         </ng-container>
+
+        <ng-template #loadingPrioritiesOrError>
+            <div *ngIf="loadingPriorityErrorObs | async; else loadingPriorities">
+                <!-- Proprities Falied to load message -->
+                Error loading the list of priorities.  Please try again later.
+            </div>
+
+            <ng-template #loadingPriorities>
+                <!-- Priorities are loading message -->
+                <p style="margin-top: 20px"><i class="fa fa-spin fa-spinner"></i> Loading Priorities...</p>
+            </ng-template>
+        </ng-template>  
+       
+     
+  3. Simulate an error
+     a. Edit the add-report.component.ts
+     b. Change this line:
+            this.prioritiesObs = this.lookupService.getLookupWithTypeAndOrder("priority", "display_order").pipe(
+        
+        To this:
+            this.prioritiesObs = this.lookupService.getLookupWithTypeAndOrder("INVALID_LOOKUP_TYPE", "display_order").pipe(
+  
+  
+ 4. Verify that the error message appears
+    a. Pull Run -> Debug 'Full WebApp'
+    b. Click on "Add Report"
+    c. Look at the priorities dropdown
+	   -- You should see an error message that the priorities failed to load
+ 
+    d. In the ngOnInit(), change the "INVALID_LOOKUP_TYPE" to "priority"
+    e. Look at the priorities dropdown
+       -- You should see the loading message (for 5 seconds)
+       -- Then, you should see the dropdown values
+       
+       
+  
+  
+  
