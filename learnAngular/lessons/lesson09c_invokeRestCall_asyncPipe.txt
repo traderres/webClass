@@ -8,4 +8,68 @@ Solution: Use the Async Pipe
 
 Procedure
 ---------
+ 1. Edit the add-report.component.ts
+    a. Change the public priorities instance variable to be an observable
+	   NOTE:  I rename it to prioritiesObs (because it's an observable)
+	     public prioritiesObs: Observable<LookupDTO[]>;
+		 
+	b. Remove the ngOnDestroy() method
+	  
+	c. Change the class so that it does *NOT* implement OnDestroy
+	    export class AddReportComponent implements OnInit, AfterViewInit {
 
+    d. Remove the private subscriptions variable
+	
+    e. Change the ngOnInit() so that it returns the observable
+		ngOnInit(): void {
+			// Get an observable to the priorities
+			// NOTE:  The AsyncPipe will subscribe and unsubscribe from this observable
+			this.priorities = this.lookupService.getLookupWithTypeAndOrder("priority", "display_order");
+		}
+
+
+ 2. Edit the add-report.component.html to use the priorities observable
+    Change the priorities <mat-form-field>...</mat-form-field> to this:
+	
+		  <ng-container *ngIf="prioritiesObs | async as priorities; else loadingPriorities">
+			  <!-- Priorities are fully loaded -->
+			  <mat-form-field style="margin-top: 20px">
+				<mat-label>Choose Priority</mat-label>
+
+				  <!-- Priorities Drop Down -->
+				  <mat-select formControlName="priority">
+					<mat-option [value]=null>-Select Priority-</mat-option>
+					<mat-option *ngFor="let priority of priorities"  value="{{priority.id}}">{{priority.name}}</mat-option>
+				  </mat-select>
+
+			  </mat-form-field>
+		  </ng-container>
+
+		  <ng-template #loadingPriorities>
+			<!-- Priorities are loading message -->
+			<p><i class="fa fa-spinner fa-spin"></i> Loading Priorities...</p>
+		  </ng-template>
+		  <br/>
+	  
+
+ 3. Add a 5-second delay to the lookup REST call
+    a. Edit the backend/src/main/java/com/lessons/controllers/LookupController.java
+	b. Add this call before the list is returned
+			try {
+				// Sleep for 5 seconds
+				Thread.sleep(5000);
+			}
+			catch(Exception e) {
+				// Do nothing
+			}
+
+
+ 4. Verify that the priorities loading message appears
+    a. Pull Run -> Debug 'Full WebApp'
+    b. Click on "Add Report"
+    c. Look at the priorities dropdown
+       -- You should see a spinner and a message for 5 seconds
+	   -- When the 5 seconds are up, you should see your dropdown
+	   
+	   
+     
