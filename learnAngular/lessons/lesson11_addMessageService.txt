@@ -1,0 +1,187 @@
+Lesson:  Create a MessageService that displays messages/errors
+--------------------------------------------------------------
+Problem:  We want all success/error messages to be displayed in a central place
+          So, when a user saves a new report, the message shows in the console and then disappears
+		  
+          
+
+Approach
+ A) Create a message.service.ts that allows other components to send a message
+    -- The messageService has a send() method that adds a message
+    -- It sends the message by calling subject.next()
+    -- The messageService has a getMessage() that listens on an observable
+ B) Create a message.component.ts that subscribes (or listens) to the message service
+    -- It dispays the last message
+    -- It keeps a history of messages (so users can scroll back to see previous messages)
+ C) The message itself should hold a few fields:
+       time: Date
+	   text: string
+	   type: string -- e.g., Success/Error
+	   
+	   
+References
+----------
+https://stackoverflow.com/questions/50371582/angular-6-passing-messages-via-service-to-from-component-to-message-component
+https://github.com/govorov/ng-radio/blob/master/src/ng_radio.ts
+
+
+Procedure
+---------
+ 1. Create the message service
+    unix> cd ~/intellijProjects/angularApp1/frontend
+	unix> ng generate service services/message
+
+
+ 2. Setup the MessageService class to use a subject to act as a message bus
+    a. Edit the frontend/services/message.service.ts
+    b. Replace the contents of message.service.ts with this:
+
+		import { Injectable } from '@angular/core';
+		import {Observable, Subject} from "rxjs";
+
+		@Injectable({
+		  providedIn: 'root'
+		})
+		export class MessageService {
+
+		  private subject = new Subject<any>();
+
+		  public constructor() { }
+
+		  public sendMessage(message: string) {
+			this.subject.next({ text: message });
+		  }
+
+		  public clearMessage() {
+			this.subject.next();
+		  }
+
+		  public getMessage(): Observable<any> {
+			return this.subject.asObservable();
+		  }
+
+		}
+ 
+ 2. Create a console-component that subscribes to the MessageService and displays each message
+    a. Create the console component
+	   unix> cd ~/intellijProjects/angularApp1/frontend
+	   unix> ng generate component console
+	   
+    b. Replace the console.component.ts with this:
+
+		import {Component, OnDestroy, OnInit} from '@angular/core';
+		import {MessageService} from "../services/message.service";
+		import {Subscription} from "rxjs";
+
+		@Component({
+		  selector: 'app-console',
+		  templateUrl: './console.component.html',
+		  styleUrls: ['./console.component.css']
+		})
+		export class ConsoleComponent implements OnInit, OnDestroy {
+		  public message: any = {};
+		  private subscription: Subscription;
+
+		  public constructor(private messageService: MessageService)
+		  {
+			// Subscribe to the message service
+			this.subscription = this.messageService.getMessage().subscribe(newMessage => {
+			  // Display the new incoming message
+			  this.message = newMessage;
+
+			  // Clear the message after 4 seconds
+			  setTimeout(() => {
+				this.message = "";
+			  }, 4000)
+			})
+		  }
+
+		  ngOnInit(): void {
+		  }
+
+		  ngOnDestroy() {
+			this.subscription.unsubscribe();
+		  }
+
+		}
+    
+	c. Change the console.component.html so that it looks like this:
+		<p style="margin-top: 20px">
+		  <!-- Console Message -->
+		  {{message?.text}}
+		</p>
+	
+	
+ 3. Modify the add-report.component.ts to inject the MessageService and send a message upon save()
+    a. Edit the add-report.component.ts
+	b. Inject the MessageService by changing the constructor to this:
+			constructor(private lookupService: LookupService,
+					   private messageService: MessageService)
+			{ }
+  
+	
+    c. Change the save() method so that it uses the messageService.sendMessage() method
+       Add this to the save() method:
+			// Send a message to the console
+			this.messageService.sendMessage("Successfully saved this report");
+
+     
+	   When finished, the save() method should look like this:
+
+		  public save(): void {
+			this.formSubmitted = true;
+
+			// Make all form fields as touched -- so that error validation displays
+			this.form.markAllAsTouched();
+
+			if (this.form.valid) {
+
+			  let report: Report = new Report();
+			  report.priority = this.form.controls.priority.value;
+			  report.name = this.form.controls.name.value;
+			  report.authors = this.form.controls.authors.value;
+			  report.start_date = this.form.controls.start_date.value;
+			  report.end_date = this.form.controls.end_date.value;
+
+			  // Invoke a service to save the record
+			  console.log("Save record.");
+
+			  // Send a message to the console
+			  this.messageService.sendMessage("Successfully saved this report");
+
+			  // Reset the form
+			  this.form.reset();
+			  this.formSubmitted = false;
+			}
+		  }
+
+ 4. Add the console.component so it is beneat the main viewing area
+    a. Edit the app.component.html
+	b. Change this section:
+			<mat-sidenav-content>
+				<div style="height: 88vh">
+					<!-- M A I N    V I E W I N G    A R E A -->
+					<router-outlet></router-outlet>
+				</div>
+			</mat-sidenav-content>
+			
+	   To this:
+			<mat-sidenav-content>
+				<div style="height: 88vh">
+					<!-- M A I N    V I E W I N G    A R E A -->
+					<router-outlet></router-outlet>
+
+					<!-- Console -->
+					<app-console></app-console>
+				</div>
+			</mat-sidenav-content>	
+			
+			
+ 5. Verify that the console shows a message when you save a new report
+    a. Pull Run -> Debug 'Full WebApp'
+    b. Click on "Add Report"
+	   -- You should wait 5 seconds for the dropdowns to load
+	c. Fill-in the required fields
+	d. Press "Save"
+	   -- You should see a message in the console
+	   -- After 4 seconds, the console message should disappear
