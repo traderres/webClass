@@ -213,12 +213,145 @@ Procedure:  Implement Holy Grail Layout with Flex Layout
 		  </div>
 		</div>
 
-
- 7. Add a button to the header that will hide/show the left navbar
-    a. Add a header-service
-	   unix> cd intellijProjects/angularApp1/frontend/
-	   unix> ng generate service services/header
+ 7. Verify that the navbar appears on the left side
+    a. Pull Run -> Debug 'Full WebApp'
+       -- You should see the left-side navbar
+	   -- The header and footer should be fixed
+	   -- The left navbar and right-body can vary in height
 	   
-	b. Replace the header.service.ts with this:
+	
+ 8. Add a button to the header that will hide/show the left navbar
+    a. Create a navbar.service.ts
+	   unix> cd intellijProjects/angularApp1/frontend/
+	   unix> ng generate service services/navbar
+	   
+	b. Replace the navbar.service.ts with this:
+			import { Injectable } from '@angular/core';
+			import {Observable, Subject} from "rxjs";
+
+			@Injectable({
+			  providedIn: 'root'
+			})
+			export class NavbarService {
+
+			  public isNavbarDisplayed = true;
+			  private showSideNavSubject = new Subject<boolean>();
+
+			  public constructor() { }
+
+			  public toggleNavbar(): void {
+				this.isNavbarDisplayed = !this.isNavbarDisplayed;
+
+				// Send a message to the navbar (to tell the navbar to show or hide)
+				this.showSideNavSubject.next(this.isNavbarDisplayed);
+			  }
+
+			  public get(): Observable<boolean> {
+				return this.showSideNavSubject.asObservable();
+			  }
+			}
+
+
+	c. Add a button to the header.component.html
+	  	<button type="button" (click)="toggle()">Show/Hide</button>
+	  
+	  
+    d. Adjust the header.component.ts so that it injects the navbarService and has a toggle() function
+		import { Component, OnInit } from '@angular/core';
+		import {NavbarService} from "../services/navbar.service";
+
+		@Component({
+		  selector: 'app-header',
+		  templateUrl: './header.component.html',
+		  styleUrls: ['./header.component.css']
+		})
+		export class HeaderComponent implements OnInit {
+
+		  constructor(private navbarService: NavbarService)
+		  {}
+
+		  ngOnInit(): void {
+		  }
+
+
+		  public toggle(): void {
+			this.navbarService.toggleNavbar();
+		  }
+		}
 	
 
+    e. Add an *ngIf to the app.component.html (to show/hide the navbar div)
+	   1) Edit app.component.html
+	   2) Change the div that surrounds the app-navbar so it looks like this:
+			<div fxFlex="225px" style="border: 1px solid blue; padding: 0" *ngIf="this.isSideNavVisible">
+				<!-- Left Side Navigation -->
+				<app-navbar></app-navbar>
+			</div>
+
+          When finished the app.component.html looks like this:
+			<div fxFlexFill fxLayout="column">
+
+			  <div fxFlex="100px" style="border: 2px solid black;">
+				<!-- Header -->
+				<app-header></app-header>
+			  </div>
+
+
+			  <div fxFlex fxLayout="row" fxLayoutGap="10px">
+				<div fxFlex="225px" style="border: 1px solid blue; padding: 0" *ngIf="this.isSideNavVisible">
+				  <!-- Left Side Navigation -->
+				  <app-navbar></app-navbar>
+				</div>
+
+				<div fxFlex style="border: 1px solid blue; padding: 0">
+				  <!-- Main Viewing Area -->
+				  <router-outlet></router-outlet>
+				</div>
+			  </div>
+
+
+			  <div fxFlex="50px" style="border:2px solid black;">
+				<!-- Footer -->
+				<app-footer></app-footer>
+			  </div>
+			</div>
+			
+    f. Change the app.component.ts to listen on the navbarService
+	   1) Inject the navbarService
+			constructor(private navbarService: NavbarService)
+			{ }
+  
+	   2) Add these instance variables:
+			public isSideNavVisible = true;    // The left nav starts out as visible
+			private showSideNavSubscription: Subscription;
+  
+	   3) Change the ngOnInit() so that it subscribes to the navbarService.get() subscription:
+	      and listens for messages
+			  public ngOnInit(): void {
+
+				// This app-component will listen for messages from the navbarService
+				this.showSideNavSubscription = this.navbarService.get().subscribe(sideNav => {
+				  // We received a message from the navbarService
+				  // -- Someone has toggled the navbar.
+
+				  // Switch the flag (which causes the navbar to show/hide
+				  this.isSideNavVisible = sideNav
+				});
+			  }
+
+	   4) Add an ngOnDestroy() that unsubscribes
+			public ngOnDestroy() {
+				this.showSideNavSubscription.unsubscribe();
+			}
+			  
+
+	   5) Change the class export statement so that it implements OnInit and OnDestroy
+			export class AppComponent implements OnInit, OnDestroy {  
+
+
+ 9. Verify that pressing the show/hide button (in the header) makes the navbar show/hide
+    a. Pull Run -> Debug 'Full WebApp'
+	b. Click on the show/hide button in the header
+       -- You should see the left-side navbar appear and disappear
+
+	   
