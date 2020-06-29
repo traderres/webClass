@@ -7,11 +7,48 @@ Problem:  If a user opens a route from a bookmark, then the navgroups are not op
             -- should show the "Add Report" item as active
             
 Approach:
- A) Add a method the NavbarService called routeChanged(newRoute)
- B) Update the NavbarComponent to listen for route changes 
-    1. Inject the NavbarService into the NavbarComponent
-    2. Have the NavbarComponent subscribe or listen for events
-       If an event happens, then the Navbarcomponent updates the flags (to show the correct menubar)
-       
+ A) Inject the Router into the navbar.component.ts
+ B) Listen (or subscribe) to router events
+ C) If a NavigationEnd event is detected then
+    -- Look at the event url
+	-- If the event url is for a report page, 
+	      then open the Reports navbar group and close the others
+		  
+	-- If the event url is for an analytics page, 
+	      then open the Analytics navbar group and close the others
+
+
 Procedure       
 ---------
+ 1. Modify the navbar.component.ts
+ 
+ 2. Add a private variable with the routeSubscription:
+		private routeSubscription: Subscription;
+	   
+ 3. In the ngOnDestroy() method, make sure you unsubscribe
+		public ngOnDestroy(): void {
+			this.routeSubscription.unsubscribe();
+		} 
+		
+ 4. In the constructr(), inject the Router and listen for events
+	   constructor(private router: Router) {
+			this.routeSubscription =  router.events.pipe(
+			  	filter(event => event instanceof NavigationEnd)
+			).subscribe((event: NavigationEnd) => {
+				  // The user has navigated to a different page (or opened a new browser to that page)
+
+				  if ((event.url == '/page/addReports') || (event.url == '/page/viewReports') ) {
+					// User is going to one of the Report navbar pages
+					this.analyticsGroupClosed = true;
+					this.reportsNavGroupClosed = false;
+				  }
+				  else if ((event.url == '/page/chart1') || (event.url == '/page/chart2') ) {
+					// User is going to one of the Analytics navbar pages
+					this.analyticsGroupClosed = false;
+					this.reportsNavGroupClosed = true;
+				  }
+			});
+	  }
+ 
+
+ 
