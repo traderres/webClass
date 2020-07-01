@@ -243,82 +243,149 @@ Procedure
 		  border-color: #f9f9f9;
 		}
 
-	
- 3. Change the navbarService so that it has 2 booleans and 2 subjects
-    -- One is for the app-navbar
-	-- One is for the user-navbar
-	
-	a. Edit header.component.ts
+
+ 3. Change the header.component.html and header.component.ts to call toggleAppNavBar() and toggleUserNavbar()
+    a. Edit header.component.ts
 	   Change toggle() to toggleAppNavbar()
 			public toggleAppNavbar(): void {
 				this.navbarService.toggleAppNavbar();
 			}
 			
-    c. Edit header.component.html
+    b. Edit header.component.html
 	   Change the (click)="toggle()" to (click)="toggleAppNavbar()"
    
-    d. Create a new method in the header.component.ts
+    c. Create a new method in the header.component.ts
 		public toggleUserNavbar(): void {
 			this.navbarService.toggleUserNavbar();
 		}
+		
+ 4. Change the navbarService so that it holds 2 boolean properties
+    -- One is for the app-navbar
+	-- One is for the user-navbar
 	
-	e. Change the navbar.service.ts to this:
+	a. Add this interface to the top:
+		interface NavbarState {
+		  isAppNavbarDisplayed: boolean;
+		  isUserNavbarDisplayed: boolean;
+		}
+
+	
+	b. Change the navbar.service.ts to this:
 		import {Injectable} from '@angular/core';
 		import {Observable, Subject} from "rxjs";
+
+		interface NavbarState {
+		  isAppNavbarDisplayed: boolean;
+		  isUserNavbarDisplayed: boolean;
+		}
 
 		@Injectable({
 		  providedIn: 'root'
 		})
 		export class NavbarService  {
 
-		  public isNavbarDisplayed = true;
-		  public isUserNavbarDisplayed = false;
+		  private navbarStateSubject = new Subject<NavbarState>();
+		  private navbarState: NavbarState = new class implements NavbarState {
+			isAppNavbarDisplayed: true;
+			isUserNavbarDisplayed: false;
+		  };
 
-		  private showAppNavSubject = new Subject<boolean>();
-		  private showUserNavSubject = new Subject<boolean>();
-
-
-		  public getAppNavAsObservable(): Observable<boolean> {
-			return this.showAppNavSubject.asObservable();
+		  public constructor() {
 		  }
 
-		  public getUserNavAsObservable(): Observable<boolean> {
-			return this.showUserNavSubject.asObservable();
+		  public getNavbarStateAsObservable(): Observable<NavbarState> {
+			return this.navbarStateSubject.asObservable();
 		  }
 
 		 public toggleUserNavbar(): void {
-		   this.isUserNavbarDisplayed = !this.isUserNavbarDisplayed;
-
-		   // Send a message to the user-navbar (to tell the navbar to show or hide)
-		   this.showUserNavSubject.next(this.isUserNavbarDisplayed);
+			this.navbarState.isUserNavbarDisplayed = !this.navbarState.isUserNavbarDisplayed;
+			
+			// Send a message to the user-navbar (to tell the navbar to show or hide)
+			this.navbarStateSubject.next(this.navbarState);
 		  }
 
 		  public toggleAppNavbar(): void {
-			this.isNavbarDisplayed = !this.isNavbarDisplayed;
+			this.navbarState.isAppNavbarDisplayed = !this.navbarState.isAppNavbarDisplayed;
 
-			// Send a message to the app navbar (to tell the navbar to show or hide)
-			this.showAppNavSubject.next(this.isNavbarDisplayed);
+			// Send a message to the user-navbar (to tell the navbar to show or hide)
+			this.navbarStateSubject.next(this.navbarState);
 		  }
 		}
 
 
 
- 4. Change the app.component.ts to use the new properties
- 	a. Change the app.component.ts
-	   1) Rename isSideNavVisible        to isAppNavVisible 
-	   2) Rename showSideNavSubscription to showAppNavSubscription
-	   2) Add a 2nd public boolean:
-  			public isUserNavVisible = false;    // The right nav starts out as not visible
+
+ 5. Add the User Navbar (for the right side)
+    a. Create the userNavbar component
+	   unix> cd ~/intellijProjects/angularApp1/frontend
+	   unix> ng generate component userNavbar
+	   
+    b. Make the user navbar look pretty:
+	
+
+ 6. Change the app.component.ts to listen for the navbar properties
+ 	a. Edit the app.component.ts
+	b. Rename isSideNavVisible        to isAppNavVisible 
+	c. Rename showSideNavSubscription to showAppNavSubscription
+	d. Add a 2nd public boolean:
+	     public isUserNavVisible = false;    // The right nav starts out as not visible
+		
+    e. Change the ngOnInit() so that it subscribes to the observable and returns a NavbarState object
+	   NOTE:  This NavbarState object holds 2 booleans
+	   
+	   
+      When finished, app.component.ts should look like this:
+		import {Component, OnDestroy, OnInit} from '@angular/core';
+		import {Subscription} from "rxjs";
+		import {NavbarService} from "./services/navbar.service";
+
+		@Component({
+		  selector: 'app-root',
+		  templateUrl: './app.component.html',
+		  styleUrls: ['./app.component.css']
+		})
+		export class AppComponent implements OnInit, OnDestroy {
+		  title = 'AngularApp1';
+
+		  public isAppNavVisible = true;    // The left nav starts out as visible
+		  public isUserNavVisible = false;    // The right nav starts out as not visible
+
+		  private showNavSubscription: Subscription;
+
+		  constructor(private navbarService: NavbarService)
+		  { }
 
 
-   	        
-	b. Edit the app.component.html by adding a right-side navigation
+		  public ngOnInit(): void {
+
+			// This app-component will listen for messages from the navbarService
+			this.showNavSubscription = this.navbarService.getNavbarStateAsObservable().subscribe((navbarState) => {
+			  // We received a message from the navbarService
+			  // -- Someone has toggled the one of the navbars
+
+			  // Set the public properties based on the navbarState properties returned
+			  this.isAppNavVisible = navbarState.isAppNavbarDisplayed;
+			  this.isUserNavVisible = navbarState.isUserNavbarDisplayed;
+			});
+		  }
+
+		  public ngOnDestroy() {
+			this.showNavSubscription.unsubscribe();
+		  }
+
+		}
+
+
+ 7. Edit the app.component.html to listen for the new properties 
+    a. Edit the app.component.html
+	b. Add the right-side navigation
 	    <div fxFlex="200px" style="padding: 0" *ngIf="this.isUserNavVisible">
       		<!-- Right Side Navigation -->
       	<app-user-navbar></app-user-navbar>
     
-	   When finished, app.component.html looks like this:
-			<div fxFlexFill fxLayout="column">
+	
+	 When finished, app.component.html looks like this:
+		<div fxFlexFill fxLayout="column">
 
 			  <div fxFlex="60px">
 				<!-- Header is 60 pixels high -->
@@ -343,21 +410,41 @@ Procedure
 				</div>
 			  </div>
 
-			</div>
-
-
- 3. Add the User Navbar (for the right side)
-    a. Create the userNavbar component
-	   unix> cd ~/intellijProjects/angularApp1/frontend
-	   unix> ng generate component userNavbar
-	   
-	b. Edit the user-navbar.component.html
-	
-	
+		</div>
 
 
 
+ 8. Chang the navbar.service.ts so that only *one* navbar appears at a time
+    a. Edit navbar.service.ts
+	b. Change the toggleAppNavbar() method by adding this if statement
+		 public toggleAppNavbar(): void {
+			this.navbarState.isAppNavbarDisplayed = !this.navbarState.isAppNavbarDisplayed;
 
+			if ((this.navbarState.isUserNavbarDisplayed) && (this.navbarState.isAppNavbarDisplayed)) {
+			  // The user is showing the App Navbar and the User Navbar is presently visible
+
+			  // So, hide the User Navbar (so that only *ONE* navbar is visible at a time)
+			  this.navbarState.isUserNavbarDisplayed = false;
+			}
+
+			// Send a message to the user-navbar (to tell the navbar to show or hide)
+			this.navbarStateSubject.next(this.navbarState);
+		  }
+
+ 	c. Change the toggleUserNavbar() method by adding this if statement
+		  public toggleUserNavbar(): void {
+			this.navbarState.isUserNavbarDisplayed = !this.navbarState.isUserNavbarDisplayed;
+
+			if ((this.navbarState.isUserNavbarDisplayed) && (this.navbarState.isAppNavbarDisplayed)) {
+			  // The user is showing the User Navbar and the App Navbar is presently visible
+
+			  // So, hide the App Navbar (so that only *ONE* navbar is visible at a time)
+			  this.navbarState.isAppNavbarDisplayed = false;
+			}
+
+			// Send a message to the user-navbar (to tell the navbar to show or hide)
+			this.navbarStateSubject.next(this.navbarState);
+		  }
 
 
 
