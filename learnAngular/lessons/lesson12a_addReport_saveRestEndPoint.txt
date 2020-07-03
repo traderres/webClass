@@ -1,4 +1,268 @@
 Lesson:  Create a REST endpoint to save the new report data
 -----------------------------------------------------------
 
+Approach
+ A) Add a reports table to the database
+ B) Add a ReportController
+ C) Add a ReportService    
+ D) Add a DatabaseService  (helper service)
+ E) Add a AddReportDTO  (model)
+
+
+Procedure
+---------
+ 1. Add a Reports table to the database by adding this file:  V1.3__reports.sql
+    a. Right-click on backend/src/main/resources/db/migration -> New File
+	   Filename:  V1.3__reports.sql
+	   
+	b. Copy this to your newly-created SQL script
+			--------------------------------------------------------------
+			-- Filename:  V1.3__reports.sql
+			--------------------------------------------------------------
+
+			-- Create this table:  reports
+			drop table if exists reports;
+			create table reports
+			(
+				id            integer      not null,
+				version       integer      not null,
+				name          varchar(256) not null,
+				priority      integer      null,
+				start_date    timestamp    null,
+				end_date      timestamp    null,
+				primary key (id),
+				constraint lookup_priority foreign key(priority) references  lookup(id)
+			);
+			comment on table reports      is 'This table holds all of the report meta data.';
+			comment on column reports.id   is 'Uniquely identifies this report';
+
+
+    c. Migrate the database to version 1.3
+	   unix> cd ~/intellijProjects/angularApp1/backend
+	   unix> mvn flyway:migrate --offline
+	   
+	   
+ 2. Add this class:  AddReportDTO
+    a. Right-click on backend/src/main/java/com/lessons/models -> New Java Class
+       Class Name:  AddReportDTO
+       
+    b. Copy this to your newly-created class
+            package com.lessons.models;
+
+            import com.fasterxml.jackson.annotation.JsonProperty;
+			import java.sql.Timestamp;
+			import java.util.List;
+
+            public class AddReportDTO {
+				private String name;
+				private Integer priority;
+				private List<Integer> authors;
+
+				@JsonProperty("start_date")
+				private Timestamp startDate;
+
+				@JsonProperty("end_date")
+				private Timestamp endDate;
+            }
+
+    d. Generate your getters and setters (for the AddReportDTO class)
+   
+    When finished, your AddReportDTO class should look like this:
+		package com.lessons.models;
+
+		import com.fasterxml.jackson.annotation.JsonProperty;
+		import java.sql.Timestamp;
+		import java.util.List;
+
+		public class AddReportDTO {
+			private String name;
+			private Integer priority;
+			private List<Integer> authors;
+
+			@JsonProperty("start_date")
+			private Timestamp startDate;
+
+			@JsonProperty("end_date")
+			private Timestamp endDate;
+
+			public String getName() {
+				return name;
+			}
+
+			public void setName(String name) {
+				this.name = name;
+			}
+
+			public Integer getPriority() {
+				return priority;
+			}
+
+			public void setPriority(Integer priority) {
+				this.priority = priority;
+			}
+
+			public List<Integer> getAuthors() {
+				return authors;
+			}
+
+			public void setAuthors(List<Integer> authors) {
+				this.authors = authors;
+			}
+
+			public Timestamp getStartDate() {
+				return startDate;
+			}
+
+			public void setStartDate(Timestamp startDate) {
+				this.startDate = startDate;
+			}
+
+			public Timestamp getEndDate() {
+				return endDate;
+			}
+
+			public void setEndDate(Timestamp endDate) {
+				this.endDate = endDate;
+			}
+		}
+		
+		
+ 3. Add this class:  DatabaseService.java
+    a. right-click on DatabaseService/src/main/java/com/lessons/services -> New Java Class
+	   class name:  DatabaseService
+	   
+	b. Copy this to your newly-created class 
+			package com.lessons.services;
+
+			import org.springframework.jdbc.core.JdbcTemplate;
+			import org.springframework.stereotype.Service;
+			import javax.annotation.Resource;
+			import javax.sql.DataSource;
+
+			@Service("com.lessons.services.DatabaseService")
+			public class DatabaseService {
+
+				@Resource
+				private DataSource dataSource;
+
+				public Integer getNextId() {
+					String sql = "select nextval('seq_table_ids')";
+					JdbcTemplate jt = new JdbcTemplate(this.dataSource);
+					Integer nextId = jt.queryForObject(sql, Integer.class);
+					return nextId;
+				}
+
+
+				public Integer getStartingVersionValue() {
+					return 1;
+				}
+			}
+
+ 
+ 4. Add this class:  ReportService.java
+    a. right-click on backedn/src/main/java/com/lessons/services -> New Java Class
+	   class name:  ReportService
+	   
+	b. Copy this to your newly-created class
+			package com.lessons.services;
+
+			import com.lessons.models.AddReportDTO;
+			import org.slf4j.Logger;
+			import org.slf4j.LoggerFactory;
+			import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+			import org.springframework.stereotype.Service;
+
+			import javax.annotation.Resource;
+			import javax.sql.DataSource;
+			import java.util.HashMap;
+			import java.util.Map;
+
+			@Service("com.lessons.services.ReportService")
+			public class ReportService {
+
+				private static final Logger logger = LoggerFactory.getLogger(ReportService.class);
+
+				@Resource
+				private DataSource dataSource;
+
+				@Resource
+				private DatabaseService databaseService;
+
+
+				/**
+				 * @param addReportDTO
+				 * @throws Exception
+				 */
+				public void addReport(AddReportDTO addReportDTO) throws Exception {
+					logger.debug("addReport() started.");
+
+					String sql = "insert into reports(id, version, name, priority, start_date, end_date " +
+								 "values(:id, :version, :name, :priority, :start_date, :end_date";
+
+					Map<String, Object> paramMap = new HashMap<>();
+					paramMap.put("id", databaseService.getNextId() );
+					paramMap.put("version", databaseService.getStartingVersionValue());
+					paramMap.put("name", addReportDTO.getName());
+					paramMap.put("priority", addReportDTO.getPriority());
+					paramMap.put("start_date", addReportDTO.getStartDate());
+					paramMap.put("end_date", addReportDTO.getEndDate());
+
+					NamedParameterJdbcTemplate np = new NamedParameterJdbcTemplate(this.dataSource);
+
+					// Execute the SQL
+					np.update(sql, paramMap);
+
+					logger.debug("addReport() finished.");
+				}
+			}
+
+ 
+ 5. Add this class:  ReportController.java
+    a. right-click on backedn/src/main/java/com/lessons/controllers -> New Java Class
+	   class name:  ReportController
+	   
+	b. Copy this to your newly-created class
+	
+			package com.lessons.controllers;
+
+			import com.lessons.models.AddReportDTO;
+			import com.lessons.services.ReportService;
+			import org.slf4j.Logger;
+			import org.slf4j.LoggerFactory;
+			import org.springframework.http.HttpStatus;
+			import org.springframework.http.ResponseEntity;
+			import org.springframework.stereotype.Controller;
+			import org.springframework.web.bind.annotation.RequestBody;
+			import org.springframework.web.bind.annotation.RequestMapping;
+			import org.springframework.web.bind.annotation.RequestMethod;
+
+			import javax.annotation.Resource;
+
+			@Controller("com.lessons.controllers.ReportController")
+			public class ReportController {
+				private static final Logger logger = LoggerFactory.getLogger(ReportController.class);
+
+				@Resource
+				private ReportService reportService;
+
+
+				/*************************************************************************
+				 * REST endpoint /api/reports/add
+				 *
+				 * @return nothing
+				 *************************************************************************/
+				@RequestMapping(value = "/api/reports/add", method = RequestMethod.POST, produces = "application/json")
+				public ResponseEntity<?> addReport(@RequestBody AddReportDTO aAddReportDTO) {
+					logger.debug("addReport() started.");
+
+					// Simulate adding a report to the system
+					reportService.addReport(aAddReportDTO);
+
+					return ResponseEntity
+							.status(HttpStatus.OK)
+							.body("");
+				}
+
+
+			}
 
