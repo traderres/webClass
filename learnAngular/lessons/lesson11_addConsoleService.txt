@@ -1,13 +1,13 @@
-Lesson:  Create a ConsoleService that displays messages/errors
+Lesson:  Create a MessageService that displays messages/errors
 --------------------------------------------------------------
 Problem:  We want all success/error messages to be displayed in a central place (console component)
           So, when a user saves a new report, the message shows in the console and then disappears
-		  
-          
+
+
 
 Approach
- A) Create a console.service.ts that allows other components to send a message
-    -- The consoleService has a send() method that adds a message
+ A) Create a message.service.ts that allows other components to send a message
+    -- The messageService has a send() method that adds a message
     -- It sends the message by calling subject.next()
     -- The messageService has a getMessage() that listens on an observable
  B) Create a message.component.ts that subscribes (or listens) to the message service
@@ -17,8 +17,8 @@ Approach
        time: Date
 	   text: string
 	   type: string -- e.g., Success/Error
-	   
-	   
+
+
 References
 ----------
 https://stackoverflow.com/questions/50371582/angular-6-passing-messages-via-service-to-from-component-to-message-component
@@ -27,14 +27,14 @@ https://github.com/govorov/ng-radio/blob/master/src/ng_radio.ts
 
 Procedure
 ---------
- 1. Create the console service
+ 1. Create the message service
     unix> cd ~/intellijProjects/angularApp1/frontend
-	unix> ng generate service services/console
+	unix> ng generate service services/message
 
 
- 2. Setup the ConsoleService class to use a subject to act as a message bus
-    a. Edit the frontend/services/console.service.ts
-    b. Replace the contents of console.service.ts with this:
+ 2. Setup the MessageService class to use a subject to act as a message bus
+    a. Edit the frontend/services/message.service.ts
+    b. Replace the contents of message.service.ts with this:
 
 		import { Injectable } from '@angular/core';
 		import {Observable, Subject} from "rxjs";
@@ -42,7 +42,7 @@ Procedure
 		@Injectable({
 		  providedIn: 'root'
 		})
-		export class ConsoleService {
+		export class MessageService {
 
 		  private subject = new Subject<any>();
 
@@ -61,12 +61,12 @@ Procedure
 		  }
 
 		}
- 
- 2. Create a console-component that subscribes to the ConsoleService and displays each message
+
+ 2. Create a console-component that subscribes to the MessageService and displays each message
     a. Create the console component
 	   unix> cd ~/intellijProjects/angularApp1/frontend
 	   unix> ng generate component console
-	   
+
     b. Replace the console.component.ts with this:
 
 		import {Component, OnDestroy, OnInit} from '@angular/core';
@@ -82,10 +82,10 @@ Procedure
 		  public message: any = {};
 		  private subscription: Subscription;
 
-		  public constructor(private consoleService: ConsoleService)
+		  public constructor(private messageService: MessageService)
 		  {
-			// Subscribe (or listen) to the console service
-			this.subscription = this.consoleService.getMessage().subscribe(newMessage => {
+			// Subscribe to the message service
+			this.subscription = this.messageService.getMessage().subscribe(newMessage => {
 			  // Display the new incoming message
 			  this.message = newMessage;
 
@@ -104,28 +104,28 @@ Procedure
 		  }
 
 		}
-    
+
 	c. Change the console.component.html so that it looks like this:
 		<p style="margin-top: 20px">
 		  <!-- Console Message -->
 		  {{message?.text}}
 		</p>
 
-	
- 3. Modify the add-report.component.ts to inject the ConsoleService and send a message upon save()
+
+ 3. Modify the add-report.component.ts to inject the MessageService and send a message upon save()
     a. Edit the add-report.component.ts
 	b. Inject the MessageService by changing the constructor to this:
 			constructor(private lookupService: LookupService,
-					    private consoleService: ConsoleService)
+					    private messageService: MessageService)
 			{ }
-  
-	
+
+
     c. Change the save() method so that it uses the messageService.sendMessage() method
        Add this to the save() method:
 			// Send a message to the console
-			this.consoleService.sendMessage("Successfully saved this report");
+			this.messageService.sendMessage("Successfully saved this report");
 
-     
+
 	   When finished, the save() method should look like this:
 
 		  public save(): void {
@@ -147,7 +147,7 @@ Procedure
 			  console.log("Save record.");
 
 			  // Send a message to the console
-			  this.consoleService.sendMessage("Successfully saved this report");
+			  this.messageService.sendMessage("Successfully saved this report");
 
 			  // Reset the form
 			  this.form.reset();
@@ -156,28 +156,28 @@ Procedure
 		  }
 
  4. Add the console.component to the header
- 
-    a. Edit the app.component.html
+    a. Edit header.component.html
 	b. Change this section:
-			<mat-sidenav-content>
-				<div style="height: 88vh">
-					<!-- M A I N    V I E W I N G    A R E A -->
-					<router-outlet></router-outlet>
-				</div>
-			</mat-sidenav-content>
-			
-	   To this:
-			<mat-sidenav-content>
-				<div style="height: 88vh">
-					<!-- M A I N    V I E W I N G    A R E A -->
-					<router-outlet></router-outlet>
+		  <!-- Center Part of the Header -->
+		  <div fxFlex  fxLayoutAlign="center center">
+			<!-- fxLayoutAlign="center center" is center-aligned horizontally and centered vertically   -->
 
-					<!-- Console -->
-					<app-console></app-console>
-				</div>
-			</mat-sidenav-content>	
-			
-			
+			<!-- Application Title -->
+		   <h1 class="app1Logo clickable" [routerLink]="'/'">Angular App1</h1>
+		  </div>
+
+	   To this:
+		  <!-- Center Part of the Header -->
+		  <div fxFlex  fxLayoutAlign="center center">
+			<!-- fxLayoutAlign="center center" is center-aligned horizontally and centered vertically   -->
+
+			<!-- Application Title -->
+		   <h1 class="app1Logo clickable" [routerLink]="'/'">Angular App1</h1>
+
+			<!-- Console Messages -->
+			<app-console></app-console>
+		  </div>
+
  5. Verify that the console shows a message when you save a new report
     a. Pull Run -> Debug 'Full WebApp'
     b. Click on "Add Report"
@@ -188,12 +188,4 @@ Procedure
 	   -- After 5 seconds, the console message should disappear
 
 
-INCOMPLETE
- 
- 6. Improve the Message Console by have a model class for each message
-    Each massage should have
-	 a) Time  (current time)
-	 b) Type  (success, warning, or failure)
-	 c) text  (actual message text)
 
- 
