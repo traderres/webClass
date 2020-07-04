@@ -222,25 +222,108 @@ Procedure
 
 
 
- 6. Verify that the REST call works when using the debugger
+ 6. Verify that the front-end invokes the REST call and saves the database record
     a. Pull Run -> Debug 'Full WebApp'
     b. Click on "Add Report"
     c. Press F12 to see the console
     d. Press the "Save" button
+    e. Go to the database console
+	   -- You should see your newly-added report record
+	   
        -- You should see the time in the console
 
 
- 7. Verify that the REST call works when building the uber JAR
-    a. Build the uber jar
-       unix> cd ~/intellijProjects/angularApp1
-       unix> mvn clean package -Pprod
+ 7. Add a spinner (while the save operation is running)
+    a. Add a 5 second timeout to the ReportController.addReport() method
+	          Thread.sleep(5000);
+			
+       So, the ReportController.addReport() method looks like this:
 
-    b. Run the uber jar
-       unix> java -jar ./backend/target/backend-1.0-SNAPSHOT-exec.jar
+		/*************************************************************************
+		 * REST endpoint /api/reports/add
+		 *
+		 * @return nothing
+		 *************************************************************************/
+		@RequestMapping(value = "/api/reports/add", method = RequestMethod.POST, produces = "application/json")
+		public ResponseEntity<?> addReport(@RequestBody AddReportDTO aAddReportDTO) throws Exception {
+			logger.debug("addReport() started.");
 
-    c. Connect to http://localhost:8080/app1
-    d. Click on "Add Report"
-    e. Press F12 to see the console
-    f. Press the "Save" button
-       -- You should see the time in the console
+			// Have this REST call wait for 5 seconds 
+			Thread.sleep(5000);
 
+			// Add a record to the database
+			reportService.addReport(aAddReportDTO);
+
+			return ResponseEntity
+					.status(HttpStatus.OK)
+					.body("");
+		}
+		
+		
+    b. Add a public variable called showSpinner to the add-report.component.ts
+	 	public showSpinner: boolean;
+				
+    c. Change the save() method to set showSpinner=true when starting and showSpinner=false when finished
+       NOTE:  Use the subscriber().add() method for the finally() method
+	   
+		  public save(): void {
+			this.formSubmitted = true;
+
+			// Make all form fields as touched -- so that error validation displays
+			this.form.markAllAsTouched();
+
+			if (!this.form.valid) {
+			  // The form is not valid -- so stop here
+			  return;
+			}
+
+			let report: Report = new Report();
+			report.priority = this.form.controls.priority.value;
+			report.name = this.form.controls.name.value;
+			report.authors = this.form.controls.authors.value;
+			report.start_date = this.form.controls.start_date.value;
+			report.end_date = this.form.controls.end_date.value;
+
+			// Show the spinner
+			this.showSpinner = true;
+
+			// Invoke a service to add a report record
+			this.reportService.add(report).subscribe(response => {
+				// REST call succeeded
+				this.messageService.sendMessage("Successfully added a new report.");
+
+				// Reset the form
+				this.form.reset();
+				this.formSubmitted = false;
+			  },
+			  response => {
+				// REST call failed
+				console.error('Failed to create a new report.  Error is ', response?.error);
+				this.messageService.sendMessage(`Failed to create a new report.  Error is ${response?.error}`);
+			  }).add(() =>
+			  {
+				// REST call has finished (either with failure or success)
+
+				// Hide the spinner
+				this.showSpinner = false;
+			  });
+
+			}	
+			
+    d. Place a spinner on the save button by adjusting add-report.component.html
+	   Change the Save button to this:
+	      
+		  <!-- Save Button -->
+		  <button type="button" (click)="save()" mat-raised-button color="primary" [disabled]="(formSubmitted && form.invalid) || this.showSpinner">
+			<i class="fa fa-plus" *ngIf="!this.showSpinner"></i>
+			<i class="fa fa-spin fa-spinner" *ngIf="this.showSpinner"></i>
+			Save
+		  </button>
+	  
+	  Changes to behavior:
+	   A) Show a spinning icon when showSpinner==TRUE
+	   B) Disable the button when showSpinner==TRUE
+	   C) Hide the Plus icon when showSpinner==FALSE
+	   
+	  
+	  
