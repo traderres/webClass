@@ -190,14 +190,15 @@ Procedure
 
 
 				/**
-				 * @param addReportDTO
-				 * @throws Exception
+				 * Attempt to add a report record to the database
+				 *
+				 * @param addReportDTO  Pass-in model object that holds all of the report fields
 				 */
-				public void addReport(AddReportDTO addReportDTO) throws Exception {
+				public void addReport(AddReportDTO addReportDTO) {
 					logger.debug("addReport() started.");
 
-					String sql = "insert into reports(id, version, name, priority, start_date, end_date " +
-								 "values(:id, :version, :name, :priority, :start_date, :end_date";
+					String sql = "insert into reports(id, version, name, priority, start_date, end_date) " +
+								 "values(:id, :version, :name, :priority, :start_date, :end_date)";
 
 					Map<String, Object> paramMap = new HashMap<>();
 					paramMap.put("id", databaseService.getNextId() );
@@ -210,7 +211,11 @@ Procedure
 					NamedParameterJdbcTemplate np = new NamedParameterJdbcTemplate(this.dataSource);
 
 					// Execute the SQL
-					np.update(sql, paramMap);
+					int rowsCreated = np.update(sql, paramMap);
+
+					if (rowsCreated != 1) {
+						throw new RuntimeException("Critical error in addReport():  I expected to create one database record, but did not.");
+					}
 
 					logger.debug("addReport() finished.");
 				}
@@ -222,7 +227,6 @@ Procedure
 	   class name:  ReportController
 	   
 	b. Copy this to your newly-created class
-	
 			package com.lessons.controllers;
 
 			import com.lessons.models.AddReportDTO;
@@ -252,7 +256,7 @@ Procedure
 				 * @return nothing
 				 *************************************************************************/
 				@RequestMapping(value = "/api/reports/add", method = RequestMethod.POST, produces = "application/json")
-				public ResponseEntity<?> addReport(@RequestBody AddReportDTO aAddReportDTO) {
+				public ResponseEntity<?> addReport(@RequestBody AddReportDTO aAddReportDTO) throws Exception {
 					logger.debug("addReport() started.");
 
 					// Simulate adding a report to the system
@@ -265,4 +269,5 @@ Procedure
 
 
 			}
+
 
