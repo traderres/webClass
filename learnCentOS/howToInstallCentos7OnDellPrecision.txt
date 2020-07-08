@@ -3,9 +3,14 @@ How to Install Centos 7 on Dell Precision
 I had a number of problems installing CentOS 7 on my Dell Precision 3530 laptop
 
 Fixes to get the graphical centos 7 installer to work:
- A) Set the hard drive had to be set to AHCI (in the bios)
- B) add module_blacklist settings to the installer (so it works with the Intel graphics card)
- C) Secure boot does not matter.  Centos 7 works either way
+ A) Set the hard drive had to be set to AHCI in the bios (so the installer can find the hard-drive)
+ B) Add module_blacklist settings to the installer startup options (so the graphical installer works correctly)
+ C) Compile the e1000e kernel module (so that centos7 can use your ethernet card)
+    -- Download the e1000e src code
+    -- Download the kernel-devel RPM
+ D) Load the e1000e kernel driver
+    Option 1:  Disable "Secure Boot" so that you can load an unsigned kernel module (e1000e)
+    Option 2:  Enable "Secure Boot" and sign the compiled e1000e kernel module
 
 
 
@@ -27,6 +32,7 @@ Procedure
 			Click on System Configuration
 			Click on Sata Operation
 			-- Set it to AHCI
+    c. Disable "Secure Boot"
 
  3. Boot from the flash drive (containing the Centos 7 installation)
     Press FN-F12 repeatedly on startup to boot from USB drive
@@ -76,22 +82,19 @@ Procedure
 
 
 
-  7. Proceed with the usual Centos 7 Install
-
-
-
-
-  8. Wrapup Centos 7 Install
+  7. On the final Centos 7 Install Page
      a. Click on Licensing / License Information
         -- Click "I accept the license agreement"
         -- Press Done
      b. Click "Finish Configuration"
 
-  9. You should see the login screen
+
+  8. You should see the login screen
      a. Click on your username
      b. Enter your password
 
- 10. Adjust Grub so that it hads those settings every time you startup Centos 7
+
+  9. Adjust Grub so that grub applies those special boot times *every* time you startup Centos 7
      a. unix> su -
         unix> vi /etc/default/grub
 
@@ -117,5 +120,59 @@ Procedure
         unix> reboot
 
 
-11. On startup, let Centos 7 startup automatically
+10. On startup, let Centos 7 startup automatically
     -- You should see the Login screen
+
+
+11. Connect your Centos 7 machine to the Internet using RJ45
+    -- If the Intel Ethernet card does not work, then you need to download the drivers
+       NOTE:  I had an Intel e1000e driver (for Ethernet I219-LM)
+
+    a. Identify your ethernet card (as an I219-LM driver)
+       unix> sudo lspci | grep -i ethernet
+       00:1f.6 Ethernet controller: Intel Corporation Ethernet Connection (10) I219-LM
+
+
+    b. Download the driver source code intel.com (e1000e-3.8.4.tar.gz)
+       a. Go to https://downloadcenter.intel.com/download/15817/Intel-Network-Adapter-Driver-for-PCIe-Intel-Gigabit-Ethernet-Network-Connections-Under-Linux-
+       b. Press "Download"
+       c. Press "I accept the terms in the license agreement"
+       d. Save e1000e-3.8.4.tar.gz to your Downloads directory
+
+    c. Download the kernel-devel RPM for your version of kernel
+       a. Identify your kernel on your Dell Precision Laptop
+          unix> uname -r
+          3.10.0-1127.el7.x86_64
+
+       b. Download the kernel-dev package for this version of the kernel
+          Go to https://pkgs.org/download/kernel-devel(x86-64)
+          -- Look for your kernel-devel rpm package
+          -- Download
+          **OR**
+          -- Go to http://mirror.centos.org/centos/7/os/x86_64/Packages/
+          -- Look for kernel-dev
+          -- Download it here:  http://mirror.centos.org/centos/7/os/x86_64/Packages/kernel-devel-3.10.0-1127.el7.x86_64.rpm
+
+    d. Transfer the 2 files to your Dell Precision Laptop ~/Downloads directory
+       -- Transfer e1000e-3.8.4.tar.gz
+       -- Transfer kernel-devel-3.10.0-1127.el7.x86_64.rpm
+
+    e. On the Dell precision laptop, install the kernel-devel rpm package
+       unix> cd ~/Downloads
+       unix> sudo rpm -ivh kernel-devel-3.10.0-1127.el7.x86_64.rpm
+
+    f. On the Dell Precision laptop, compile and install the ethernet drivers
+       unix> cd ~/Downloads
+       unix> tar zxvf e1000e-3.8.4.tar.gz
+       unix> cd e1000e-3.8.4/src
+       unix> sudo make install
+
+    e. Reboot
+       unix> sudo reboot
+
+       NOTE:  You will need to have "Secure Boot" disabled to load this e1000e kernel module
+
+
+       -- Now, you should be able to connect to the Internet
+
+
