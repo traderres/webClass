@@ -1,0 +1,420 @@
+How to Install Centos 8 on Dell Precision
+-----------------------------------------
+I had a number of problems installing CentOS 8 on my Dell Precision 3530 laptop
+
+Fixes to get the graphical centos 7 installer to work:
+ A) Set the hard drive had to be set to AHCI in the bios (so the installer can find the hard-drive)
+ B) Add module_blacklist settings to the installer startup options (so the graphical installer works correctly)
+
+
+
+
+References
+----------
+https://docs.centos.org/en-US/centos/install-guide/Trouble-x86/#sect-trouble-beginning-installation-x86
+
+
+
+Procedure
+---------
+ 1. Create a USB drive with the centos 7 distribution
+    a. Download an ISO
+    b. Burn the iso to a USB drive
+
+ 2. Change the BIOS settings so that the hard drive is in AHCI mode and secure boot is disabled
+    a. Enter the BIOS settings by pressing FN-F2 repeatedly
+    b. Change System configuration to use AHCI
+			Click on System Configuration
+			Click on Sata Operation
+			-- Set it to AHCI
+
+
+ 3. Boot from the flash drive (containing the Centos 7 installation)
+    Press FN-F12 repeatedly on startup to boot from USB drive
+    Select the UEFI: Flash Drive
+
+ 4. On the Install Centos 8 menu, add some custom installation settings
+    a. Use the up/down arrows to stop the 3-second timer
+    b. Highlight "Install CentOS 8" and press e
+
+       You should see:
+          setparams 'Install CentOS 8'
+
+          linuxefi /images/pxeboot/vmlinuz inst.image2=hd:LABEL=CentOS\x207\x20x86_64 quiet
+          initrdefi /images/pgxeboot/initrd.img
+
+       Change this line:
+           linuxefi /images/pxeboot/vmlinuz inst.image2=hd:LABEL=CentOS\x207\x20x86_64 quiet
+
+       To this:
+            linuxefi /images/pxeboot/vmlinuz inst.image2=hd:LABEL=CentOS\x207\x20x86_64 quiet module_blacklist=nouveau,amdgpu,radeon i915.alpha_support=1
+
+    c. Press Ctrl-X to start
+     -- Now, you should see the graphics installer
+
+
+ 5. Proceed with the usual installation
+    a. In the "Device Selection" screen, you will probably see the disks for your computer hard-drive
+       1) If you have only one hard drive on your computer, then your disk is selected
+          If you have multiple hard drives, then select the hard-drive
+
+       2) Click on "custom" partitionts
+       3) Click "Encrypt my data..."
+          NOTE:  Encrypting the hard-drive is **OPTIONAL** but highly recommended
+       4) Click "Done"
+
+
+    b. In the "Manual Partitioning" page,
+       It probably says "You haven't created any mount points for your CentOS Linjx 7 installation yet"
+       Or, if you see partitions, I would delete them all and start with nothing.
+
+       Create the following 3 mount points
+          /boot       1 GIB   # Holds the grub boot loader
+          /boot/efi   1 GIB
+          swap       24 GiB   # Holds your swap file.    If 16 GB of RAM, set for somewhere between 16 and 32 GIB
+          /         136 GiB   # Remaining space on your centos operating system
+
+
+       1) Press the "+" to create a mount point
+             Mount Point:  /boot
+             Capacity:     1 GiB         # NOTE:  1 GB=1000 MB  and  1 GIB=1024 MB
+             Press "Add mount point"
+
+       2) Press the "+" to create a mount point
+             Mount Point:  /boot/efi
+             Capacity:     1 GiB         # NOTE:  1 GB=1000 MB  and  1 GIB=1024 MB
+             Press "Add mount point"
+
+       3) Press the "+" to create a mount point
+             Mount Point:  swap
+             Capacity:     24 GiB       (assumes laptop has 16 GB of RAM)
+             Press "Add mount point"
+
+       4) Press the "+" to create a mount point
+             Mount Point:  /
+             Capacity:     (leave blank to use the remaining space)
+             Press "Add mount point"
+
+       5) Press "Done"
+
+       6) If you selected to encrypt your disk, you will be prompted to enter your disk ecnryption passphrase
+          -- You will be prompted for this password every time you startup your centos operating system
+          -- Enter the pass phrase twice and press "Save Passphrase"
+
+    i. You will be prompted with a summary of changes
+         Press "Accept Changes"
+
+    j. Back In the Installation Summary, select "Software Selection"
+       1) Select "Workstation" [on the left]
+       2) Under the "Add-ons for Selected Environment", select the following:
+       		GNOME Applications
+       		Office Suite and Productivity
+       		Graphical Administration Tools
+       		Smart Card Support
+       		Scientific Support
+       		Security Tools
+       		System Tools
+       		RPM Development Tools
+       3) Press Done
+
+
+
+ 6. After Reboot, you will see the CentOS Linux menu
+    a. Press the up/down arrow (to stop the timer)
+    b. Press the up/down arrow so that you highlight the 1st entry
+    c. Press e
+
+    d. Adjust the line with some additional settings
+
+       You should see a long line that looks like this:
+         linux ($root)/vmliuz-4.18.0-193...... rhgb quiet
+
+     At the end of this line, add this to it:
+          linux ($root)/vmliuz-4.18.0-193...... rhgb quiet  module_blacklist=nouveau,amdgpu,radeon i915.alpha_support=1
+
+
+    e. Press Ctrl-x  (to start)
+
+
+
+
+  7. On the final Centos 8 Install Page
+     a. Click on Licensing / License Information
+        -- Click "I accept the license agreement"
+        -- Press Done
+     b. Click "Finish Configuration"
+
+
+  8. You should see the login screen
+     a. Click on your username
+     b. Enter your password
+
+
+  9. Adjust Grub so that grub applies those special boot times *every* time you startup Centos 8
+     a. unix> su -
+        unix> vi /etc/default/grub
+
+             # If you see GRUB_CMDLINE_LINUX_DEFAULT, then add this to the end of the line
+             # If you do not see GRUB_CMDLINE_LINUX_DEFAULT, then add this entry
+             GRUB_CMDLINE_LINUX_DEFAULT=" module_blacklist=nouveau,amdgpu,radeon i915.alpha_support=1 "
+
+
+     b. Rebuild the grub boot loader
+        1. Find your grub.cfg
+           unix> find / -type f -name "grub.cfg"
+
+        2. Rebuild the grub boot loader
+           unix> grub2-mkconfig -o  <path of above >
+
+           Possible examples:
+             unix> grub2-mkconfig -o /boot/grub2/grub.cfg
+             *OR*
+             unix> grub2-mkconfig -o /boot/efi/EFI/centos/grub.cfg
+
+
+     c. Reboot your operating system (with the additional settings applied)
+        unix> reboot
+
+
+10. On startup, let Centos 8 startup automatically
+    -- You should see the Login screen
+
+
+
+
+Part 2: Customize your unix user account
+-----------------------------------------
+ 1. Give your unix account sudo access by adding it to the "sudoers" list
+    a. Right-click on the desktop -> Open in Terminal
+    b. unix> su -
+          <Enter the root password>
+
+    c. Run the visudo command as root
+       unix> visudo
+
+          # Add this line to the end:
+          <your unix username> ALL=(ALL) ALL
+
+    unix> exit       # exit root and become your regular unix account
+    unix> sudo -l    # Run this command as your own regular unix account (not as root)
+
+    Now, your personal unix account can run "sudo -s" to become root
+
+
+ 2. Customize your bash shell with a few aliases
+    unix> vi ~/.bashrc
+
+      # User specific aliases and functions
+      alias c=clear
+      alias r='fc -e -'
+      alias ls='ls -F'
+      alias rls='while [ 1 ]; do clear; date; ls -ltr; sleep 3; done'
+      alias x=exit
+
+      # **OPTIONAL** Set bash prompt editing using vi-style
+      set -o vi
+
+      # Setup the prompt to show the username, hostname, and working directory
+      export PS1='\u@\h $PWD > '
+
+
+  3. Setup vi defaults
+     NOTE:  Add the :syntax off line to your .vimrc
+
+     unix> vi ~/.vimrc
+       # Add this to the file
+       :syntax off
+
+
+ 4. Setup a shortcut (Control-T) to open a terminal
+    Pull Activities -> Settings
+    Search for keyboard
+    In the Keyboard Shortcuts
+      Scroll to the bottom and click +
+
+    In the "Add Custom Shortcut"
+      Name:    Terminal
+      Command:  gnome-terminal
+      Shortcut: Press Ctrl-T
+      Press "Add"
+
+
+ 5. Increase the maximum number of open files from 1024 to 65535
+    Increase the number of inotify user watches from 8192 to 524288
+    a. Show max open files
+       unix> sudo -s
+       unix> ulimit -a | grep 'open file'
+             open files      (-n) 1024
+
+    b. Increase the max number of open files to 65536
+       unix> vi /etc/sysctl.conf
+
+         # Increase max number of open files
+         fs.file-max = 65536
+
+
+       unix> vi /etc/security/limits.conf
+
+         # Increase max number of open files
+         *          soft     nproc          65535
+         *          hard     nproc          65535
+         *          soft     nofile         65535
+         *          hard     nofile         65535
+
+   c. Increase the number of user watches by editing this file:
+      unix> vi /etc/sysctl.conf
+
+         # Increase the number of user watches
+         fs.inotify.max_user_watches=524288
+
+   d. Save the changes
+      unix> sysctl --system
+      unix> sysctl -p
+
+   e. Reboot the operating system
+      unix> reboot
+
+   f. Verify the limit is greater by running ulimit again
+      unix> sudo -s
+      unix> ulimit -a | grep 'open file'
+      -- You should see 65535
+
+   g. Verify the number of user watches increased
+      unix> cat /proc/sys/fs/inotify/max_user_watches
+      -- You should see 524288
+
+
+ 8. Install and use gnome tweaks to adjust the Desktop
+    a. Install gnome tweaks
+       unix> sudo dnf install gnome-tweaks
+
+    b. Configure the desktop
+       unix> gnome-tweaks
+       Click on Extensions
+       Application Menus:  On     (So We have an Applications menu on the top)
+       Desktop Icons:      On
+       Windows list:       On     (So we have a windows list on the bottom)
+
+
+
+ 8. Install ElasticSearch 5.4.0
+    [see learnElasticSearch / howToInstallElasticSearch5.4.0OnCentosUsingRpm.txt]
+
+ 9. Install Kibana 5.4.0
+    [see learnElasticSearch / howToInstallKibana5.4.0OnCentos7.txt]
+
+10. Update Everything
+    a. Run Yum Update
+       unix> sudo yum update
+             Press Y <Enter>
+
+          W A I T     1 0     M I N U T E S
+
+    b. Reboot
+       unix> sudo reboot
+
+
+    NOTE:  If the systemd-udev-settle service takes 2 minutes (or lonager) on startup, then run these commands to fix it:
+           unix> sudo systemctl mask systemd-udev-settle
+           unix> sudo reboot
+
+
+    c. **IMPORTANT** Add an entry to your /etc/hosts
+     NOTE:  This is important to run Accumulo or HDFS locally
+
+     For example:  If your hostname is "myCentos", then add this entry to your /etc/hosts
+     unix> sudo vi /etc/hosts
+             127.0.0.1    myCentos
+
+
+
+11. Install Chrome
+    [see learnCentOS / howToInstallChromeOnCentos7.txt]
+
+12. **OPTIONAL**  Install a local HDFS and Accumulo (using the Accumulo Quick-Install)
+    [see learnAccumulo / howToSetupAccumuloQuickInstall.txt]
+
+13. Install Postgres 9.6 Database
+    [see learnPostgreSQL / howToInstallPostgresOnCentos7.txt]
+
+15. Install a more recent version of Firefox that automatically updates
+    [see learnCentOS / howToInstallFirefoxAutoUpdate.txt]
+
+16. Change the Firefox scrolling speed
+    [see learnFirefox / howToChangeScrollingSpeed.txt]
+
+17. Install my favorite calculator app
+    [see learnCentOS / howToInstallGalculator.txt]
+
+18. **OPTIONAL**  Install flash player for Firefox
+    [see learnCentOS / howToInstallFlashPlayer.txt]
+
+19. **OPTIONAL**  Install Firefox multi-media libraries (so you can play MP4 videos in firefox)
+    [see learnCentOS / howToInstallMp4DecoderForFirefox.txt]
+
+20. Hide user info from the login screen
+    [see learnCentOS / howToHideUsersFromLoginScreen.txt]
+
+21. Install an Antivirus Package
+    (a) Install Sophos  (free)          [see learnCentOS / howToInstallAntiVirus_Sophos.txt]
+    (b) Install ESet    (costs money)   [see learnCentOS / howToInstallAntiVirus_ESet.txt]
+    (c) Install Macafee (costs money)   [see learnCentOS / howToInstallAntiVirus_Macafee.txt]
+
+22. Install Print-to-PDF capability
+    [see learnCentOS / howToPrintToPDF.txt]
+
+23. Update LibreOffice to the latest version
+    [see learnCentOS / howToInstallLibreOffice.txt
+
+24. Install Card Reader driver
+    [see learnCentOS / howToSetupCardReader_IOGear_gsr202.txt]
+
+25. Install Cisco VPN Client
+    [see learnCentOS / howToInstallCiscoVpnClient.txt]
+
+26. Disable unneeded services
+    a. Disable the ModemManager service
+       unix> sudo systemctl  | grep -i modem            # Check to see if it's running
+       unix> sudo systemctl stop ModemManager      # Stop the service
+       unix> sudo systemctl disable ModemManager   # Disable the service
+
+    b. Disable postfix
+       unix> sudo systemctl  | grep -i postfix          # Check to see if it's running
+       unix> sudo systemctl stop postfix           # Stop the service
+       unix> sudo systemctl disable postfix        # Disable the service
+
+27. Install Node & NPM
+    [see learnNode / howToInstallNodeOnCentos7.txt
+
+28. Install Printer Driver
+    [see learnCentOS / howToSetupPrintingToKonicaMinolta.txt]
+    NOTE:  These procedures will work with most printers
+
+29. Install Acrobat Reader 9   **OPTIONAL**  The Atril Document viewer can do it all
+    [see learnCentOS / howToInstallAcrobatReaderOnCentos7]
+
+30. If using an SSD, startup the fstrim.timer service
+    unix> sudo systemctl enable fstrim.timer   # Enable the service so it turns on when booting up
+    unix> sudo systemctl start fstrim.timer    # Start the service
+
+31. Install OpenJDK 1.8
+    [see learnJava / howToInstallOpenJdkOnCentos7.txt]
+
+32. Install ElasticSearch 5.4.0 using the RPM
+    [see learnElasticSearch / howToInstallElasticSearch5.4.0OnCentosUsingRpm.txt]
+
+33. Install node version manager
+    [see learnNode / howToInstallNodeVersionManager.txt]
+
+34. Configure firefox to use my Card Reader driver
+    [see learnFirefox / howToEnableCacCardReader.txt]
+
+35. Update my dod cacerts
+    unix> sudo yum install pki-usgov-dod-cacerts
+
+36. Configure Firefox or Chrome to use WebEx
+    [see learnCentOS / howToUseWebExOnCentos7.txt]
+
+37. Add 7zip and right-click menu options
+    [see learnCentOS / howToAdd7zip.txt]
+
