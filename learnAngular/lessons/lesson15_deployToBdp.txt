@@ -78,7 +78,68 @@ Procedure
           maxPoolSize: 10
 
 
- 4. Create the assembly.xml file  (which tells maven how to assemble the zip file)
+ 4. Create this file:  initial.config
+    a. Right-click on bdp-install/src/main/assembly -> New File
+	   Filename:  initial.config
+	   
+	b. Copy this to the newly-created file:
+		[
+			{
+				"type":  "web-service",
+				"name":  "app1",
+				"config": {
+					"container": {
+						"instances": 1,
+						"cores":     1,
+						"memory":    8192
+					},
+					"app": {
+						"command": "java -Xmx1024m -Xmx8192m -jar webapp/my-uber-exec.jar --server.port=${HTTPS_PORT}"
+					}
+				}
+			}
+		]	
+	
+	
+ 5. Create this file:  rda.manifest
+    a. Right-click on bdp-install/src/main/assembly -> New File
+	   Filename:  rda.manifest
+	   
+	b. Copy this to the newly-created file:
+		{
+			"name":        "App1",
+			"description": "A web application containing....",
+			"appKey":      "bogus.app",
+			"version":     "1.0.0-SNAPSHOT",
+			"components:": [
+				{
+					"type": "web-service",
+					"name": "My Webapp",
+					"description": "Some webapp that does something",
+					"properties": {
+						"public": {
+							"my.webservice.location": "{{{ bdp:proxy.url }}}/app1"
+						}
+					},
+					"config": {
+						"context":  "/app1",
+						"files": [
+							{
+								"src": "webapp"
+							},
+							{
+								"src": "config/application.yaml",
+								"template": true
+							}
+						]
+					}
+
+				}
+			]
+		}	
+ 
+ 
+ 6. Create the assembly.xml file  (which tells maven how to assemble the zip file)
     a. Right-click on bdp-install/src/main/assembly -> New File
        Filename:  assembly.xml
     
@@ -115,7 +176,7 @@ Procedure
     
     
 
- 5. Adjust the bdp-install/pom.xml so that 
+ 7. Adjust the bdp-install/pom.xml so that 
     -- It's dependent on the backend jar (so the uber jar is built *first*)
     -- It packages it and inserts it into a zip file (*second*)
     
@@ -167,12 +228,12 @@ Procedure
         </project>
 
 
- 6. Try it out:
+ 8. Try it out:
     unix> cd ~/intellijProjects/angularApp1
     unix> mvn clean package -PbuildRda -Pprod   # Apply the buildRda and prod profiles
  
  
- 7. Verify that your zip file has the correct contents
+ 9. Verify that your zip file has the correct contents
     unix> unzip -l bdp-install/target/file.zip
     
     -- You should see this:
