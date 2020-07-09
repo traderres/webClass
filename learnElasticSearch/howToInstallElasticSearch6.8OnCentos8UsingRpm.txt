@@ -1,0 +1,182 @@
+How to Install Elastic Search 6.8.0 on CentOS (using the RPM)
+-------------------------------------------------------------
+NOTE:  ElasticSearch 6.7 and earlier will not install on Centos8 using RPM
+       The 6.8.0 RPMs and later *will* install on Centos8
+
+Advantages of using the rpm package to install ElasticSearch
+ 1) It will create an elasticsearch group
+ 2) It will create an elasticsearch user 
+ 3) it will create an elasticsearch service
+
+
+Disadvantages of using the rpm package to install ElasticSearch
+ 1) it installs the files to
+      /usr/share/elasticsearch
+ 2) The config files are located here:
+      /etc/elasticsearch/logging.yml
+      /etc/elasticsearch/elasticsearch.yml
+      /etc/sysconfig/elasticsearch
+ 3) logging is stored here:
+     /var/log/elasticsearch
+ 4) data directory is here:
+     /var/lib/elasticsearch
+     
+NOTES:
+ A) Default directory values (for the elasticsearch service) are in this file:          
+      /etc/rc.d/init.d/elasticsearch has default directories
+ B) You can override these values by modifying this file:  
+      /etc/sysconfig/elasticsearch     
+
+
+
+
+Assumptions
+ A) You have a Java JDK installed and in your PATH
+ 
+ 
+
+Procedures
+----------
+ 1. Download the Elastic Search 6.8.0 rpm package to your unix box
+    unix> cd /tmp
+    unix> wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.8.0.rpm
+     
+       
+ 
+ 2. Install Elastic Search 6.8.0 (using the rpm)
+    unix> cd /tmp
+    unix> sudo rpm -ivh elasticsearch-6.8.0.rpm
+    unix> rm elasticsearch-6.8.0.rpm
+    
+    unix> sudo systemctl daemon-reload          # To tell unix to reload the services
+    unix> sudo systemctl enable elasticsearch   # To startup elasticsearch upon reboot
+      
+      
+
+ 3. Verify that we have an elasticsearch user and group
+    unix> grep elasticsearch /etc/passwd
+    elasticsearch:x:494:491:elasticsearch user:/home/elasticsearch:/sbin/nologin
+       
+    unix> grep elasticsearch /etc/group
+    elasticsearch:x:491:
+      
+      
+ 
+ 4. Configure ElasticSearch service so that it knows where the JAVA_HOME is
+    unix> sudo vi /etc/sysconfig/elasticsearch
+    
+        # Tell ElasticSearch where your JAVA_HOME is
+        JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
+        
+        NOTE:  The JAVA_HOME line should not have a # in front of it
+        
+ 
+ 5. Configure ElasticSearch to bind to a localhost *and* public-facing IP address and to listen on port 9201
+    unix> sudo vi /etc/elasticsearch/elasticsearch.yml
+    
+       network.bind_host: "0.0.0.0"
+       network.host: 0.0.0.0
+       http.port: 9201
+
+       NOTE:  You must have a space after the colon
+        
+ 
+ 6. Setup your elasticsearch user so that its open file limit is 65536 or more
+    NOTE:  If this is not set, 
+            then you will get an error in /var/log/elasticsearch.log
+                bootstrap checks failed
+                max file descriptors [1024] for elasticsearch process is too low, increase to at least [65536]
+
+      unix> sudo -s
+      unix> vi /etc/security/limits.conf
+           
+             # Setup the elasticsearch user so that it can have 65536 open files
+             elasticsearch -     nofile 65536
+      
+      
+      
+ 7. Setup your elasticsearch user so that its max thread limit is 2048 or more
+    NOTE:  If this is not set, 
+            then you will get an error in /var/log/elasticsearch.log
+                bootstrap checks failed
+                max number of threads [1024] for user [elasticsearch] is too low, increase to at least [2048]
+
+      unix> sudo -s
+      unix> vi /etc/security/limits.conf
+           
+             # Setup the elasticsearch user so that it can have up to 2048 threads
+             elasticsearch -     nproc 2048
+      
+
+
+ 8. **OPTIONAL** Setup the elasticsearch service to automatically startup on boot
+     unix> sudo systemctl enable elasticsearch
+
+
+    
+ 9. Attempt to start the elasticsearch service
+    unix> sudo systemctl start elasticsearch
+    Starting elasticsearch:                                    [  OK  ]
+    
+
+10. Look at the log files to see what's happening
+    unix> sudo tail -2000f /var/log/elasticsearch/elasticsearch.log 
+
+    *OR*
+
+    unix> sudo journalctl -fu elasticsearch
+
+    [2016-11-20T16:47:01,716][INFO ][o.e.n.Node               ] [] initializing ...
+    [2016-11-20T16:47:01,798][INFO ][o.e.e.NodeEnvironment    ] [q6kqqlh] using [1] data paths, mounts [[/ (/dev/mapper/vg_centosvm-lv_root)]], net usable_space [14.9gb], net total_space [34.9gb], spins? [possibly], types [ext4]
+    [2016-11-20T16:47:01,798][INFO ][o.e.e.NodeEnvironment    ] [q6kqqlh] heap size [1.9gb], compressed ordinary object pointers [true]
+    [2016-11-20T16:47:01,799][INFO ][o.e.n.Node               ] [q6kqqlh] node name [q6kqqlh] derived from node ID; set [node.name] to override
+    [2016-11-20T16:47:01,800][INFO ][o.e.n.Node               ] [q6kqqlh] version[5.4.0], pid[7737], build[080bb47/2016-11-11T22:08:49.812Z], OS[Linux/2.6.32-573.18.1.el6.x86_64/amd64], JVM[Oracle Corporation/Java HotSpot(TM) 64-Bit Server VM/1.8.0_74/25.74-b02]
+    [2016-11-20T16:47:02,458][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [aggs-matrix-stats]
+    [2016-11-20T16:47:02,458][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [ingest-common]
+    [2016-11-20T16:47:02,458][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [lang-expression]
+    [2016-11-20T16:47:02,458][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [lang-groovy]
+    [2016-11-20T16:47:02,458][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [lang-mustache]
+    [2016-11-20T16:47:02,458][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [lang-painless]
+    [2016-11-20T16:47:02,458][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [percolator]
+    [2016-11-20T16:47:02,459][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [reindex]
+    [2016-11-20T16:47:02,459][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [transport-netty3]
+    [2016-11-20T16:47:02,459][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [transport-netty4]
+    [2016-11-20T16:47:02,459][INFO ][o.e.p.PluginsService     ] [q6kqqlh] no plugins loaded
+    [2016-11-20T16:47:04,446][INFO ][o.e.n.Node               ] [q6kqqlh] initialized
+    [2016-11-20T16:47:04,446][INFO ][o.e.n.Node               ] [q6kqqlh] starting ...
+    [2016-11-20T16:47:04,600][INFO ][o.e.t.TransportService   ] [q6kqqlh] publish_address {127.0.0.1:9300}, bound_addresses {[::]:9300}
+    [2016-11-20T16:47:04,604][INFO ][o.e.b.BootstrapCheck     ] [q6kqqlh] bound or publishing to a non-loopback or non-link-local address, enforcing bootstrap checks
+      
+          
+       
+11. Verify ElasticSearch is up
+    a. Open a browser
+    b. Go to http://localhost:9201/
+    
+        {
+          "name" : "lUk7_fm",
+          "cluster_name" : "elasticsearch",
+          "cluster_uuid" : "mw_ZnAKfQm-jLDQ45-TGRw",
+          "version" : {
+            "number" : "6.8.0",
+            "build_flavor" : "default",
+            "build_type" : "rpm",
+            "build_hash" : "65b6179",
+            "build_date" : "2019-05-15T20:06:13.172855Z",
+            "build_snapshot" : false,
+            "lucene_version" : "7.7.0",
+            "minimum_wire_compatibility_version" : "5.6.0",
+            "minimum_index_compatibility_version" : "5.0.0"
+          },
+          "tagline" : "You Know, for Search"
+        }
+
+
+
+
+How to Uninstall this RPM
+--------------------------
+unix> sudo rpm -e elasticsearch
+
+
+    
