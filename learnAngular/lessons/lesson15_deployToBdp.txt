@@ -144,36 +144,48 @@ Procedure
        Filename:  assembly.xml
     
     b. Copy this to the newly-created file:
-            <assembly xmlns="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                      xsi:schemaLocation="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.2 http://maven.apache.org/xsd/assembly-1.1.2.xsd">
-            <id>buildRdaZipFile</id>
-                <includeBaseDirectory>false</includeBaseDirectory>
-                <formats>
-                    <format>zip</format>
-                </formats>
-                <dependencySets>
-                    <dependencySet>
-                        <useProjectArtifact>false</useProjectArtifact>
-                        <includes>
-                            <include>org.springframework:spring-jdbc:jar</include>
-                        </includes>
-                        <useTransitiveFiltering>true</useTransitiveFiltering>
-                        <outputDirectory>/</outputDirectory>
-                    </dependencySet>
-                </dependencySets>
-                <fileSets>
-                    <fileSet>
-                        <directory>./config/</directory>
-                        <useDefaultExcludes>true</useDefaultExcludes>
-                        <outputDirectory>./</outputDirectory>
-                        <includes>
-                            <include>*.ksh</include>
-                            <include>*.properties</include>
-                        </includes>
-                    </fileSet>
-                </fileSets>
-            </assembly>
-    
+		<assembly xmlns="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+				  xsi:schemaLocation="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.2 http://maven.apache.org/xsd/assembly-1.1.2.xsd">
+			<id>buildRdaZipFile</id>
+
+			<includeBaseDirectory>false</includeBaseDirectory>
+
+			<formats>
+				<format>zip</format>
+			</formats>
+
+			<fileSets>
+				<fileSet>
+					<!-- Add to the zip file:  initial.config and rda.manifest -->
+					<directory>src/main/assembly</directory>
+					<outputDirectory>./</outputDirectory>
+					<includes>
+						<include>initial.config</include>
+						<include>rda.manifest</include>
+					</includes>
+				</fileSet>
+
+				<fileSet>
+					<!-- Add to the zip file:  config/application.yaml -->
+					<directory>src/main/assembly/config</directory>
+					<outputDirectory>./config</outputDirectory>
+					<includes>
+						<include>application.yaml</include>
+					</includes>
+				</fileSet>
+			</fileSets>
+
+			<files>
+				<file>
+					<!-- Add to the zip file:  webapp/backend-exec.jar -->
+					<!-- NOTE:  We need this section to include *AND* rename the file to backend-exec.jar -->
+					<source>../backend/target/backend-${project.version}-exec.jar</source>
+					<outputDirectory>./webapp</outputDirectory>
+					<destName>backend-exec.jar</destName>
+				</file>
+			</files>
+		</assembly>
+
     
 
  7. Adjust the bdp-install/pom.xml so that 
@@ -182,65 +194,220 @@ Procedure
     
     a. Edit the bdp-install/pom.xml
     b. Replace its contents with this:
-        <?xml version="1.0" encoding="UTF-8"?>
+		<?xml version="1.0" encoding="UTF-8"?>
 
-        <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-            <parent>
-                <artifactId>angularApp1</artifactId>
-                <groupId>com.lessons</groupId>
-                <version>1.0-SNAPSHOT</version>
-            </parent>
-            <modelVersion>4.0.0</modelVersion>
+		<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+				 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+			<parent>
+				<artifactId>angularApp1</artifactId>
+				<groupId>com.lessons</groupId>
+				<version>1.0-SNAPSHOT</version>
+			</parent>
+			<modelVersion>4.0.0</modelVersion>
+			<artifactId>bdp-install</artifactId>
 
-            <artifactId>bdp-install</artifactId>
-
-            <name>bdp-install</name>
-
-            <properties>
-                <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-            </properties>
-
-            <build>
-                <plugins>
-                    <plugin>
-                        <artifactId>maven-assembly-plugin</artifactId>
-                        <version>2.5.2</version>
-                        <configuration>
-                            <appendAssemblyId>false</appendAssemblyId>
-                            <finalName>CleanupScripts</finalName>
-                            <descriptors>
-                                <descriptor>${basedir}/src/main/assembly/assembly.xml</descriptor>
-                            </descriptors>
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <id>create-archive</id>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>single</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </project>
+			<!-- There is no java code so tell maven to not compile anything -->
+			<packaging>pom</packaging>
 
 
- 8. Try it out:
+			<name>bdp-install</name>
+
+			<dependencies>
+				<dependency>
+					<!-- Build the backend *before* doing this -->
+					<groupId>${project.groupId}</groupId>
+					<artifactId>backend</artifactId>
+					<version>${project.version}</version>
+				</dependency>
+			</dependencies>
+
+			<profiles>
+				<profile>
+					<id>buildRda</id>
+					<activation>
+						<activeByDefault>false</activeByDefault>
+					</activation>
+					<build>
+						<plugins>
+							<plugin>
+								<artifactId>maven-assembly-plugin</artifactId>
+								<version>2.5.2</version>
+								<executions>
+									<execution>
+										<id>create-rda</id>
+										<phase>package</phase>
+										<goals>
+											<goal>single</goal>
+										</goals>
+									</execution>
+								</executions>
+								<configuration>
+									<appendAssemblyId>false</appendAssemblyId>
+
+									<!-- The final name of the zip file will be webapp.rda.zip -->
+									<finalName>webapp.rda</finalName>
+
+									<descriptors>
+										<descriptor>src/main/assembly/assembly.xml</descriptor>
+									</descriptors>
+								</configuration>
+							</plugin>
+						</plugins>
+					</build>
+				</profile>
+			</profiles>
+
+		</project>
+
+ 8. Change the parent pom.xml so that it only runs the bdp-install module when using the -PbuildRda
+    a. Edit the angularApp1/pom.xml
+	b. Add this section before the closing </project> tag
+		 <profiles>
+			<profile>
+			  <!-- When running the buildRda profile, use all 3 modules -->
+			  <id>buildRda</id>
+
+			  <modules>
+				<module>backend</module>
+				<module>frontend</module>
+				<module>bdp-install</module>
+			  </modules>
+			</profile>
+
+			<profile>
+			  <!-- By default, look only at backend and frontend modules -->
+			  <!-- Most of the time, developers do not need to run the bdp-install module so disable it with the default profile -->
+			  <id>default</id>
+			  <activation>
+				<activeByDefault>true</activeByDefault>
+			  </activation>
+			  <modules>
+				<module>backend</module>
+				<module>frontend</module>
+			  </modules>
+			</profile>
+		  </profiles>
+
+    When finished, the angularApp1.pom should look like this:
+		<?xml version="1.0" encoding="UTF-8"?>
+
+		<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+				 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+		  <modelVersion>4.0.0</modelVersion>
+
+		  <groupId>com.lessons</groupId>
+		  <artifactId>angularApp1</artifactId>
+		  <packaging>pom</packaging>
+		  <version>1.0-SNAPSHOT</version>
+		  <modules>
+			<module>backend</module>
+			<module>frontend</module>
+		  </modules>
+
+		  <name>angularApp1</name>
+
+		  <properties>
+			<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+			<maven.compiler.source>1.8</maven.compiler.source>
+			<maven.compiler.target>1.8</maven.compiler.target>
+		  </properties>
+
+
+		  <build>
+			<pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
+			  <plugins>
+				<!-- clean lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#clean_Lifecycle -->
+				<plugin>
+				  <artifactId>maven-clean-plugin</artifactId>
+				  <version>3.1.0</version>
+				</plugin>
+				<!-- default lifecycle, jar packaging: see https://maven.apache.org/ref/current/maven-core/default-bindings.html#Plugin_bindings_for_jar_packaging -->
+				<plugin>
+				  <artifactId>maven-resources-plugin</artifactId>
+				  <version>3.0.2</version>
+				</plugin>
+				<plugin>
+				  <artifactId>maven-compiler-plugin</artifactId>
+				  <version>3.8.0</version>
+				</plugin>
+				<plugin>
+				  <artifactId>maven-surefire-plugin</artifactId>
+				  <version>2.22.1</version>
+				</plugin>
+				<plugin>
+				  <artifactId>maven-jar-plugin</artifactId>
+				  <version>3.0.2</version>
+				</plugin>
+				<plugin>
+				  <artifactId>maven-install-plugin</artifactId>
+				  <version>2.5.2</version>
+				</plugin>
+				<plugin>
+				  <artifactId>maven-deploy-plugin</artifactId>
+				  <version>2.8.2</version>
+				</plugin>
+				<!-- site lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#site_Lifecycle -->
+				<plugin>
+				  <artifactId>maven-site-plugin</artifactId>
+				  <version>3.7.1</version>
+				</plugin>
+				<plugin>
+				  <artifactId>maven-project-info-reports-plugin</artifactId>
+				  <version>3.0.0</version>
+				</plugin>
+			  </plugins>
+			</pluginManagement>
+		  </build>
+
+		  <profiles>
+			<profile>
+			  <!-- When running the buildRda profile, use all 3 modules -->
+			  <id>buildRda</id>
+
+			  <modules>
+				<module>backend</module>
+				<module>frontend</module>
+				<module>bdp-install</module>
+			  </modules>
+			</profile>
+
+			<profile>
+			  <!-- By default, look only at backend and frontend modules -->
+			  <!-- Most of the time, developers do not need to run the bdp-install module so disable it with the default profile -->
+			  <id>default</id>
+			  <activation>
+				<activeByDefault>true</activeByDefault>
+			  </activation>
+			  <modules>
+				<module>backend</module>
+				<module>frontend</module>
+			  </modules>
+			</profile>
+		  </profiles>
+		</project>
+
+	
+ 9. Build the RDA package
     unix> cd ~/intellijProjects/angularApp1
-    unix> mvn clean package -PbuildRda -Pprod   # Apply the buildRda and prod profiles
+    unix> mvn clean package -PbuildRda -Pprod   # Apply both the buildRda and prod profiles
+    -- This should create a file:  bdp-install/target/webapp.rda.zip
+	
  
- 
- 9. Verify that your zip file has the correct contents
-    unix> unzip -l bdp-install/target/file.zip
+10. Verify that your zip file has the correct contents
+    unix> unzip -l bdp-install/target/webapp.rda.zip
     
-    -- You should see this:
-         rda.manifest
-         initial.config
-         config/application.yaml
-         webapp/my-uber-exec.jar
+	Archive:  bdp-install/target/webapp.rda.zip
+	  Length      Date    Time    Name
+	---------  ---------- -----   ----
+			0  07-08-2020 21:22   webapp/
+	 30160957  07-08-2020 21:22   webapp/backend-exec.jar
+		  389  07-08-2020 18:55   initial.config
+		  845  07-08-2020 18:52   rda.manifest
+			0  07-08-2020 21:22   config/
+		 1158  07-08-2020 18:30   config/application.yaml
+	---------                     -------
+	 30163349                     6 files
+
      
        
     
