@@ -10,18 +10,17 @@ https://serverfault.com/questions/1007700/clamav-on-centos-8-installation
 
 Procedure
 ---------
+NOTE:  All commands run as root
+
  1. Install the epel-release package
-    unix> sudo dnf install epel-release
+    unix> sudo -s
+    unix> dnf install epel-release
  
  2. Install ClamAV and its useful tools
-    unix> sudo dnf install clamav-server clamav-data clamav-update clamav-filesystem clamav clamav-scanner-systemd clamav-devel clamav-lib clamav-server-systemd
+    unix> dnf install clamav-server clamav-data clamav-update clamav-filesystem clamav clamav-scanner-systemd clamav-devel clamav-lib clamav-server-systemd
  
  3. Configure clamAV
-    unix> sudo vi /etc/clamd.d/scan.conf
-	
-	# Enable logging
-	LogFile /var/log/clamd.scan
-
+    unix> vi /etc/clamd.d/scan.conf
 
     LocalSocket /run/clamd.scan/clamd.sock
 
@@ -31,10 +30,9 @@ Procedure
 	User root
     LocalSocket /var/run/clamd.<SERVICE>/clamd.sock
 
-5. unix> sudo cp /etc/freshclam.conf /etc/freshclam.conf.bak
+5. unix> cp /etc/freshclam.conf /etc/freshclam.conf.bak
 
 6. Run freshclam (to update the virus definition)
-   unix> sudo -s
    unix> freshclam
    
 		-- You should see this:
@@ -165,6 +163,85 @@ Procedure
 
 
  7. Create a service ot run freshclam frequently
- 
+	unix> vi /usr/lib/systemd/system/clam-freshclam.service
+		[Unit]
+		Description = freshclam scanner
+		After = network.target
 
+		[Service]
+		Type = forking
+		ExecStart = /usr/bin/freshclam -d -c 4
+		Restart = on-failure
+		PrivateTmp = true
+		RestartSec = 20sec
+
+		[Install]
+		WantedBy=multi-user.target
+		
+ 8. Refresh the system daemon changes
+    unix> systemctl daemon-reload
+	
+ 9. Startup the clam-freshclam service
+    unix> systemctl start clam-freshclam
+
+10. Verify the service started
+    unix> systemctl status -l clam-freshclam
+	
+	You should see this:
+		clam-freshclam.service - freshclam scanner
+		   Loaded: loaded (/usr/lib/systemd/system/clam-freshclam.service; disabled; vendor preset: disabled)
+		   Active: active (running) since Fri 2020-07-10 17:46:23 EDT; 28s ago
+		  Process: 6215 ExecStart=/usr/bin/freshclam -d -c 4 (code=exited, status=0/SUCCESS)
+		 Main PID: 6216 (freshclam)
+			Tasks: 1 (limit: 201365)
+		   Memory: 2.0M
+		   CGroup: /system.slice/clam-freshclam.service
+				   └─6216 /usr/bin/freshclam -d -c 4
+
+		Jul 10 17:46:23 mycentos8 systemd[1]: Starting freshclam scanner...
+		Jul 10 17:46:23 mycentos8 systemd[1]: Started freshclam scanner.
+
+11. Make sure the freshclam service starts-up on bootup
+    unix> systemctl enable clam-freshclam.service
+    Created symlink /etc/systemd/system/multi-user.target.wants/clam-freshclam.service → /usr/lib/systemd/system/clam-freshclam.service.
+
+12. Change the service name to something understandable. Then, we need to make some minor modifications to it:
+    unix> mv /usr/lib/systemd/system/clamd@.service /usr/lib/systemd/system/clamd.service
+
+13. Since we have changed the name, we need to change it at the file that uses this service as well:
+    unix> vi /usr/lib/systemd/system/clamd@scan.service
+      .include /lib/systemd/system/clamd.service
+	  
+14. change the Clamd service file:
+    unix> vi /usr/lib/systemd/system/clamd.service
+	
+	a. Add these lines to the end (if they are not already there)
+	
+	   [Install]
+       WantedBy=multi-user.target
+ 
+   b. Remove %i from both the Description and ExecStart options
+      So, Description and ExecStart look like this:
+	  
+	  Description = clamd scanner daemon
+      ExecStart = /usr/sbin/clamd -c /etc/clamd.d/scan.conf
+
+15. Refresh the daemons
+    unix> systemctl daemon-reload
+	
+15. Start the clamv service
+    unix> systemctl start clamd.service
+	
+	Look at the logs
+	unix> journal -fu clamd
+
+
+16. Enable the clamd service (so it starts every time)
+    unix> systemctl enable clamd.service
+	Created symlink /etc/systemd/system/multi-user.target.wants/clamd.service → /usr/lib/systemd/system/clamd.service.
+
+
+
+To scan the entire box (everything under /) run this command:
+unix> sudo clamscan --infected --remove --recursive / > /tmp/clam.log 2>&1 &
 
