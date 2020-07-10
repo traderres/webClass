@@ -1,0 +1,153 @@
+How to Install PostgreSQL on Centos 8
+-------------------------------------
+Although CentOS contains postgres packages within its default repositories,
+we will use the packages available from the postgres project itself.
+This ensures that we have access to the latest version of the software without having to install from source.
+
+
+References
+----------
+https://linuxize.com/post/how-to-install-postgresql-on-centos-8/
+https://yum.postgresql.org/repopackages/
+
+
+Procedure
+---------
+ 1. List the available dnf *modules* with the name of postgres
+       unix> sudo dnf module list postgresql
+
+        You should see something like this:
+        CentOS-8 - AppStream
+        Name                      Stream               Profiles                         Summary                                          
+        postgresql                9.6                  client, server [d]               PostgreSQL server and client module              
+        postgresql                10 [d]               client, server [d]               PostgreSQL server and client module              
+        postgresql                12                   client, server [d]               PostgreSQL server and client module    
+
+
+ 2. Install the Postgres 9.6 module
+    unix> sudo dnf install @postgresql:9.6 
+
+
+ 3. Install the Postgres contrib package that provides additional utilities
+    unix> sudo dnf install postgresql-contrib
+
+
+ 4. Initialize the Database
+    unix> sudo postgresql-setup initdb
+
+   * Initializing database in '/var/lib/pgsql/data'
+   * Initialized, logs are in /var/lib/pgsql/initdb_postgresql.log
+
+    NOTE:  If you get the error "Data directory is not empty" then
+           Then, run these commands to empty the data directory
+               unix> sudo rm -rf /var/lig/pgsql/*
+
+
+ 5. Start the Postgres database service
+    unix> sudo systemctl start postgresql
+
+
+ 6. Set the postgres user's password
+    unix> sudo su - postgres
+    unix> psql
+
+      postgres-# ALTER USER postgres WITH PASSWORD 'secret';
+      postgres-# \q
+
+      unix> exit   # exit out of postgres user
+
+
+ 7. Setup the postgresql-9.6 service to startup on boot
+    unix> sudo systemctl enable --now postgresql
+
+
+ 8. Enable localhost + remote access to the Postgres Database
+    NOTE:  When done, users can use either localhost *OR* the IP address to connect to the database
+    a. Check to see if remote access is allowed   [it should be disabled by default]
+       unix> psql -U postgres -h localhost
+
+         If you get an error, proceed with step 9b
+
+
+    b. Modify pg_hba.conf so that everyone requires a password from localhost *AND* remote boxes
+       unix> sudo cp /var/lib/pgsql/data/pg_hba.conf  /var/lib/pgsql/data/pg_hba.conf.OLD
+       unix> sudo vi /var/lib/pgsql/data/pg_hba.conf
+
+        1) Remove *EVERYTHING* in the original file
+
+        2) Add this to the file
+
+            # "local" is for Unix domain socket connections only.
+            #  So, the system admins can login without password using this:
+            #    unix> sudo su - postgres
+            #    unix> psql
+            local   all             postgres                                peer
+
+            # IPv4 local connections require password
+            host    all             all             127.0.0.1/32            md5
+
+            # IPv6 local connections require password
+            host    all             all             ::1/128                 md5
+
+            # all remote connections require password
+            host    all             all             0.0.0.0/0               md5
+
+
+    c. Tell postgres to listen on all IP addresses (and not just localhost)
+       unix> sudo vi /var/lib/pgsql/data/postgresql.conf
+
+            # Add this line to that postgres listens on all IP addresses
+            listen_addresses='*'
+
+
+    d. Delete your .pgpass file (if it exists).  This file might have a passwords in it
+       unix> rm -f ~/.pgpass
+
+    e. Restart postgres
+       unix> sudo systemctl restart postgresql
+
+    f. Verify you can connect to Postgres using an IP address
+       1) Get your IP address
+          unix> sudo ifconfig -a | grep inet
+
+       2) Connect to the database using the IP address
+          unix> psql -U postgres -h 192.168.1.162   # Use the IP address from above
+          Password for user postgres:    secret <enter>
+
+          If it works, you should see the postgres prompt.  Use \q to exit out.
+          postgres-# \q
+
+    g. Verify you can connect to Postgres using localhost
+       unix> psql -U postgres -h localhost
+       Password for user postgres:    secret <enter>
+
+       If it works, you should see the postgres prompt.  Use \q to exit out.
+       postgres-# \q
+
+
+
+
+How to Log Into the Postgres Database (using postgres unix account)
+-------------------------------------------------------------------
+unix> sudo su - postgres
+unix> psql
+
+postgres-# \q
+
+unix> exit
+
+
+
+How to Log Into the Postgres Database (using user/password)
+------------------------------------------------------------
+unix> psql -U postgres -h 192.168.1.162
+      Password for user postgres:    secret <enter>
+      \q
+
+unix> psql -U postgres -h localhost
+      Password for user postgres:    secret <enter>
+      \q
+
+
+
+
