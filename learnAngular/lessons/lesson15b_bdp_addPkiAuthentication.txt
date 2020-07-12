@@ -17,89 +17,59 @@ Procedure
 ---------
  1. Import your client p12 certificate into your firefox browser
  
- 
- 
- 
+ 2. Open your angularApp1 project in Intellij
 
- 1. Open your angularApp1 project in Intellij
-
- 2. Add this directory to your webapp:  src/main/resources/dev_resources
-
- 3. Copy the myKeystore.jks and myTrustStore.jks to your new dev_resources directory
-    Copy the /tmp/server_cert/myKeystore.jks   to your webapp/src/main/resources/dev_resources/ directory
-    Copy the /tmp/server_cert/myTruststore.jks to your webapp/src/main/resources/dev_resources/ directory
-
+ 3. Setup a directory to hold dev keystores
+    a. Create this directory:  backend/src/main/resources/dev_resources
+	
+    b. Copy the myKeystore.jks and myTrustStore.jks to your new dev_resources directory
+       unix> cp /tmp/server_cert/myKeystore.jks ~/intellijProjects/angularApp1/backend/src/main/dev_resources/
+       unix> cp /tmp/server_cert/myTruststore.jks ~/intellijProjects/angularApp1/backend/src/main/dev_resources/
+       -- Now, the dev_resources/ directory holds the two JKS files
+  
 
  4. Update your application.yaml so that *incoming* calls require PKI authentication
     and use your recently generated myKeystore.jks and myTruststore.jks files
 
-    a. Edit your webapp/src/main/resources/application.yaml
+    a. Edit your backend/src/main/resources/application.yaml
 
-    b. Adjust your application.yaml so it looks something like this:
+    b. Add a "prod" spring profile that listens on https://localhost:8443/app1 
+	    
+	   Add the prod profile section to your application.yaml 
 
-          ##########################################################
-          # application.yaml   (used for development purposes)
-          ##########################################################
-          name: app1
-          server.servlet.context-path: /app1
+         
+		---
+		#######################################
+		# P R O D        P R O F I L E
+		#######################################
+		spring.profiles: prod
 
-          # Active profile is dev
-          spring.profiles.active: dev
+		# We are running "prod mode" locally, get the CN info from the PKI cert
+		# On the BDP, we run "prod mode" to get CN info from the header
+		ssl.security.mode: pki
 
+		server:
+		  port: 8443
+		  ssl:
+			key-store: backend/src/main/dev_resources/myKeystore.jks
+			key-store-password: changeit
+			key-store-type: JKS
+			client-auth: need
+			trust-store: backend/src/main/dev_resources/myTruststore.jks
+			trust-store-password: changeit
+			trust-store-type: JKS
 
-          ###########################################################
-          # Database Settings
-          ##########################################################
-          app.datasource:
-            driver-class-name: org.postgresql.Driver
-            url: jdbc:postgresql://localhost:5432/app1_db
-            username: app1_user
-            password: secret
-            maxPoolSize: 10
-
-
-
-          ---
-          #######################################
-          # D E V           P R O F I L E
-          #######################################
-          spring.profiles: dev
-
-          server.port: 8080
-          development.mode: true
-          security.mode: whatever
-
-
-          ---
-          #######################################
-          # P R O D        P R O F I L E
-          #######################################
-          spring.profiles: prod
-
-          development.mode: false
-          security.mode: pki
-
-          server:
-            port: 8443
-            ssl:
-              key-store: webapp/src/main/dev_resources/myKeystore.jks
-              key-store-password: changeit
-              key-store-type: JKS
-              client-auth: need
-              trust-store: webapp/src/main/dev_resources/myTruststore.jks
-              trust-store-password: changeit
-              trust-store-type: JKS
-
-          # Secure the cookies
-          server.servlet.session.cookie.secure: true
-          server.servlet.session.cookie.http-only: true
+		# Secure the cookies
+		server.servlet.session.cookie.secure: true
+		server.servlet.session.cookie.http-only: true
 
 
 
 
 
- 5. Add the Spring Security dependencies to your web app's pom.xml file
-
+ 5. Add the Spring Security dependencies to your backend/pom.xml file
+    NOTE:  Make sure the version used here matches your other spring versions
+	
         <!-- Add the dependencies for Spring-Security -->
         <dependency>
             <groupId>org.springframework.security</groupId>
@@ -124,8 +94,8 @@ Procedure
 
 
  6. Add this package:  security
-    a. In Intellij, webapp/src/main/java/com/lessons/ -> New Package
-       Package Name:  security
+    a. In Intellij, backend/src/main/java/com/lessons/ -> New Package
+       Package Name:  com.lessons.security
 
 
  7. Add this java class:  MyAuthenticationManager
@@ -288,69 +258,78 @@ Procedure
 
     b Copy this to your new class
 
-           package com.lessons.security;
+		package com.lessons.security;
 
-           import org.slf4j.Logger;
-           import org.slf4j.LoggerFactory;
-           import org.springframework.beans.factory.annotation.Value;
-           import org.springframework.security.web.authentication.preauth.RequestHeaderAuthenticationFilter;
-           import org.springframework.stereotype.Component;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import org.springframework.beans.factory.annotation.Value;
+		import org.springframework.security.web.authentication.preauth.RequestHeaderAuthenticationFilter;
+		import org.springframework.stereotype.Component;
 
-           import javax.annotation.PostConstruct;
-           import javax.annotation.Resource;
-           import javax.servlet.http.HttpServletRequest;
-
-
-           @Component("com.lessons.security.RequestHeaderAuthFilter")
-           public class MyRequestHeaderAuthFilter extends RequestHeaderAuthenticationFilter
-           {
-               @Resource
-               private MyAuthenticationManager myAuthenticationManager;
-
-               @Value("${security.authenticate.header.dn:SSL_CLIENT_S_DN}")
-               private String nameOfHeaderHoldingDN;
-
-               @Value("${development.mode}")
-               private boolean developmentMode;
-
-               private static final Logger logger = LoggerFactory.getLogger(MyRequestHeaderAuthFilter.class);
-
-               @PostConstruct
-               public void init() {
-                   this.setAuthenticationManager(myAuthenticationManager);
-                   logger.debug("RequestHeaderAuthFilter()  sNameOfHeaderHoldingDN={}", nameOfHeaderHoldingDN);
-               }
+		import javax.annotation.PostConstruct;
+		import javax.annotation.Resource;
+		import javax.servlet.http.HttpServletRequest;
 
 
-               /**************************************************************
-                * getPreAuthenticatedPrincipal()
-                *
-                * This is called when a request is made, the returned object identifies the
-                * user and will either be {@literal null} or a String.
-                *
-                * This method will throw an exception if
-                * exceptionIfHeaderMissing is set to true (default) and the required header is missing.
-                **************************************************************/
-               @Override
-               protected Object getPreAuthenticatedPrincipal(HttpServletRequest request)
-               {
-                   logger.debug("getPreAuthenticatedPrincipal() called");
+		@Component("com.lessons.security.RequestHeaderAuthFilter")
+		public class MyRequestHeaderAuthFilter extends RequestHeaderAuthenticationFilter
+		{
+			@Resource
+			private MyAuthenticationManager myAuthenticationManager;
 
-                   // Get the principal from the header
-                   String userDnFromHeader = (String) request.getHeader(this.nameOfHeaderHoldingDN);
-                   if (developmentMode) {
-                       //Since the dev profile is the only one that does not have info in the header
-                       // The name has to be "hacked here" so the the CEDAuthenticationManager is called.
-                       // We are assuming a preApprovedAuthentication so something must be in the header.
-                       userDnFromHeader = "Bogus_user";
-                   }
+			@Value("${security.authenticate.header.dn:SSL_CLIENT_S_DN}")
+			private String nameOfHeaderHoldingDN;
 
-                   // If this method returns null, then the user will see a 403 Forbidden Message
-                   return userDnFromHeader;
-               }
+			/**
+			 * The authorization mode being
+			 * Possible values:  pki    (if user is sending PKI certificate directly to the spring boot webapp)
+			 *                   header (if a proxy is sending the PKI certificate info as headers to the spring boot webapp)
+			 *                   null   (if not using ssl)
+			 */
+			@Value("${ssl.security.mode:}")
+			private String sslSecurityMode;
+
+			private static final Logger logger = LoggerFactory.getLogger(MyRequestHeaderAuthFilter.class);
+
+			@PostConstruct
+			public void init() {
+				this.setAuthenticationManager(myAuthenticationManager);
+				logger.debug("RequestHeaderAuthFilter()  sNameOfHeaderHoldingDN={}", nameOfHeaderHoldingDN);
+			}
 
 
-           }
+			/**************************************************************
+			 * getPreAuthenticatedPrincipal()
+			 *
+			 * This is called when a request is made, the returned object identifies the
+			 * user and will either be {@literal null} or a String.
+			 *
+			 * This method will throw an exception if
+			 * exceptionIfHeaderMissing is set to true (default) and the required header is missing.
+			 **************************************************************/
+			@Override
+			protected Object getPreAuthenticatedPrincipal(HttpServletRequest request)
+			{
+				logger.debug("getPreAuthenticatedPrincipal() called");
+
+				// Get the principal from the header
+				String userDnFromHeader = request.getHeader(this.nameOfHeaderHoldingDN);
+
+				if ((userDnFromHeader == null) && (sslSecurityMode.equalsIgnoreCase("pki"))) {
+					// No header was found, but I am in pki mode.  So set a hard-coded user name
+
+					// The name has to be "hacked here" so the the CEDAuthenticationManager is called.
+					// We are assuming a preApprovedAuthentication so something must be in the header.
+					userDnFromHeader = "Bogus_user";
+				}
+
+				// If this method returns null, then the user will see a 403 Forbidden Message
+				return userDnFromHeader;
+			}
+
+
+		}
+
 
 
 
@@ -659,13 +638,15 @@ Procedure
               @Value("${spring.profiles.active}")
               private String activeProfileName;
 
+
               /**
-               * The authorization mode being
-               * Possible values:  pki    (if user is sending PKI certificate directly to the spring boot webapp)
-               *                   header (if a proxy is sending the PKI certificate info as headers to the spring boot webapp)
-               */
-              @Value("${security.mode}")
-              private String securityMode;
+              * The authorization mode being
+              * Possible values:  pki    (if user is sending PKI certificate directly to the spring boot webapp)
+              *                   header (if a proxy is sending the PKI certificate info as headers to the spring boot webapp)
+              *                   null   (if not using ssl)
+              */
+              @Value("${ssl.security.mode:}")
+              private String sslSecurityMode;
 
               @Resource
               private MyAuthenticationManager myAuthenticationManager;
@@ -757,93 +738,78 @@ Procedure
           }
 
 
-13. Update a REST call so that it has the @PreAuthorization annotation
-    a. Modify your DashboardController
+13. Update the HomeController.getDateTime() REST call so that it has the @PreAuthorization annotation
+    a. Add this to the getDate() method:
+			@PreAuthorize("hasRole('ROLE_SUPERUSER')")
+		   
+	   When finished, your HomeController.getDateTime() looks like this:
+			@RequestMapping(value = "/api/time", method=RequestMethod.GET)
+			@PreAuthorize("hasRole('ROLE_SUPERUSER')")
+			public ResponseEntity<?> getDateTime() {
+				logger.debug("getDateTime() started.");
 
-            package com.lessons.controllers;
+				DateFormat dateFormat = new SimpleDateFormat("yyyy/mm/dd HH:mm:ss");
+				Date date = new Date();
+				String formattedDateTime = dateFormat.format(date);
 
-
-            import com.lessons.security.UserInfo;
-            import com.lessons.services.DashboardService;
-            import org.slf4j.Logger;
-            import org.slf4j.LoggerFactory;
-            import org.springframework.http.HttpStatus;
-            import org.springframework.http.MediaType;
-            import org.springframework.http.ResponseEntity;
-            import org.springframework.security.access.prepost.PreAuthorize;
-            import org.springframework.security.core.context.SecurityContextHolder;
-            import org.springframework.stereotype.Controller;
-            import org.springframework.web.bind.annotation.RequestMapping;
-            import org.springframework.web.bind.annotation.RequestMethod;
-
-            import javax.annotation.Resource;
-
-            @Controller("com.lessons.controllers.DashboardController")
-            public class DashboardController {
-                private static final Logger logger = LoggerFactory.getLogger(DashboardController.class);
-
-                @Resource
-                private DashboardService dashboardService;
+				// Return the date/time string as plain text
+				return ResponseEntity
+							.status(HttpStatus.OK)
+							.contentType(MediaType.TEXT_PLAIN)
+							.body(formattedDateTime);
+			}	   
+	   
 
 
-                /*************************************************************************
-                 * REST endpoint /api/dashboard/time
-                 *
-                 * @return a plain-old string with the database time (not JSON)
-                 *************************************************************************/
-                @RequestMapping(value = "/api/dashboard/time", method = RequestMethod.GET, produces = "application/json")
-                @PreAuthorize("hasRole('ROLE_SUPERUSER')")
-                public ResponseEntity<?> getDateTime() {
-                    logger.debug("getDashboardDetails() started.");
+14. Create a backend (prod) mode
 
-                    UserInfo userInfo = (UserInfo) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-                    logger.debug("Logged-in as {}", userInfo.getUsername());
-
-                    // Get the date/time from the database
-                    String sDateTime = dashboardService.getDatabaseTime();
-
-                    // Return the date/time string as plain-text
-                    return ResponseEntity
-                            .status(HttpStatus.OK)
-                            .contentType(MediaType.TEXT_PLAIN)
-                            .body(sDateTime);
-                }
-
-
-            }
-
-
-
-
-14. Run your webapp in "prod" profile mode
+14. Run your backend in "prod" profile mode
     a. Pull Run / Edit Configurations
-    b. Select your webapp
+    b. Select Application -> Backend
     c. In the VM Options, add this:
            -Dspring.profiles.active=prod
     d. Start the debugger
 
 
 15. Connect to an *authorized* REST endpoint using PKI authentication
-    a. Open a browser
-    b. Go to https://localhost:8443/app1/api/dashboard/time
+    a. Open a browser (that you have imported your client cert into)
+    b. Go to https://localhost:8443/app1/api/time
        -- Your authorizations should let you see this
 
 
 16. Connect to an *unauthorized* REST endpoint using PKI authentication
-     a. Open a browser
-     b. Go to https://localhost:8443/app1/api/dashboard/time25
+    a. Open a browser (that you have imported your client cert into)
+    b. Go to  https://localhost:8443/app1/api/time2
         -- You should get the 403 forbidden error
 
 
-17. Setup your webapp with a spring profile called "dev"
-    a. Pull Run / Edit Configurations
-    b. Select your webapp
-    c. In the VM Options, add this:
-           -Dspring.profiles.active=dev
-    d. Start the debugger
+17. Connect to your webapp using PKI authentication
+    a. Open a browser (that you have imported your client cert into) 
+    b. Go to https://localhost:8443/app1
+	
 
 
-18. Connect to your webapp using PKI authentication
-    a. Open a browser
-    b. Go to http://localhost:8080/app1
-       -- You should be able to connect to *ANY* rest endpoint as there is no security applied in "dev" mode
+How to Debug in local prod mode (approach 1: dev compile)
+---------------------------------------------------------
+  1. Change the environment.ts so that baseurl: '.'
+  
+  2. Compile front-end jar
+     unix> cd ~/intellijProjects/angularApp1/frontend
+	 unix> mvn clean install
+	 
+  3. Run the backend (prod)
+  
+  4. Connect to https://localhost:8443/app1
+
+
+
+How to Debug in local prod mode (approach 2: prod compile)
+-------------------------------------------0--------------
+  1. Compile front-end jar in prod mode
+     unix> cd ~/intellijProjects/angularApp1/frontend
+	 unix> mvn clean install -Pprod
+	 
+  2. Run the backend (prod)
+  
+  3. Connect to https://localhost:8443/app1
+ 
