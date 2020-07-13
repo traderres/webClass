@@ -391,7 +391,6 @@ Procedure
 		import org.springframework.beans.factory.annotation.Value;
 		import org.springframework.security.web.authentication.preauth.RequestHeaderAuthenticationFilter;
 		import org.springframework.stereotype.Component;
-
 		import javax.annotation.PostConstruct;
 		import javax.annotation.Resource;
 		import javax.servlet.http.HttpServletRequest;
@@ -417,6 +416,8 @@ Procedure
 			@Value("${ssl.security.mode:}")
 			private String sslSecurityMode;
 
+			@Value("${spring.profiles.active}")
+			private String activeProfileName;
 
 			@PostConstruct
 			public void init() {
@@ -443,12 +444,13 @@ Procedure
 				String userDnFromHeader = request.getHeader(this.nameOfHeaderHoldingDN);
 				logger.debug("userDnFromHeader from header -->{}<---", userDnFromHeader);
 
-				if ((userDnFromHeader == null) && (sslSecurityMode.equalsIgnoreCase("pki"))) {
-					// No header was found, but I am in pki mode.  So set a hard-coded user name
-					logger.debug("No header was found, so husing hard-dcoded header 'Bogus_user'");
-					// The name has to be "hacked here" so the the CEDAuthenticationManager is called.
-					// We are assuming a preApprovedAuthentication so something must be in the header.
-					userDnFromHeader = "Bogus_user";
+				if (userDnFromHeader == null) {
+					if ((activeProfileName.equalsIgnoreCase("dev")) ||
+						(activeProfileName.equalsIgnoreCase("prod" )) && (sslSecurityMode.equalsIgnoreCase("pki"))) {
+						// No header was found, but I am in dev mode or "local prod" mode.  So, set a hard-coded user name
+						logger.debug("No header was found, so husing hard-dcoded header 'Bogus_user'");
+						userDnFromHeader = "Bogus_user";
+					}
 				}
 
 				// If this method returns null, then the user will see a 403 Forbidden Message
@@ -456,14 +458,11 @@ Procedure
 				return userDnFromHeader;
 			}
 
-
 		}
 
 
 
-
-
-19. Add this java class:  SubjectX509PrincipalExtractor
+10. Add this java class:  SubjectX509PrincipalExtractor
     a. Right-click on security -> New Java Class
        Class Name:  SubjectX509PrincipalExtractor
 
