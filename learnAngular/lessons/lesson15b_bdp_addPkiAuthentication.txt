@@ -98,7 +98,133 @@ Procedure
        Package Name:  com.lessons.security
 
 
- 7. Add this java class:  MyAuthenticationManager
+ 7. Add this java class:  UserInfo
+    a. Right-click on security -> New Java Class
+       Class Name:  UserInfo
+
+    b Copy this to your new class
+
+            package com.lessons.security;
+
+
+            import org.apache.commons.lang3.StringUtils;
+            import org.springframework.security.core.GrantedAuthority;
+            import org.springframework.security.core.userdetails.UserDetails;
+
+            import java.io.Serializable;
+            import java.util.Collection;
+            import java.util.Comparator;
+            import java.util.List;
+            import java.util.stream.Collectors;
+
+
+            public class UserInfo implements UserDetails, Serializable{
+
+                private String usernameUID;                           // The part of the Cn=.... that holds this user's client name (from PKI client cert)
+                private String usernameDN;                            // The entire DN string    (from the PKI client cert)
+                private List<GrantedAuthority> grantedAuthorities;    // List of roles for this user (found in the database)
+                private Integer id;                                   // Holds the user's ID in the database
+
+                public String getPassword() {
+                    // Must implement this method in order to implement the UserDetails interface
+                    // NOTE:  There is no password as we are using PKI authentication
+                    return null;
+                }
+
+                public String getUsername() {
+                    return this.usernameUID;
+                }
+
+                public boolean isAccountNonExpired() {
+                    // Must implement this method in order to implement the UserDetails interface
+                    return true;
+                }
+
+                public boolean isAccountNonLocked() {
+                    // Must implement this method in order to implement the UserDetails interface
+                    return true;
+                }
+
+                public boolean isCredentialsNonExpired() {
+                    // Must implement this method in order to implement the UserDetails interface
+                    return true;
+                }
+
+                public boolean isEnabled() {
+                    // Must implement this method in order to implement the UserDetails interface
+                    return true;
+                }
+
+
+                /**
+                 * @return an array of GrantedAuthority objects for this user
+                 */
+                public Collection<? extends GrantedAuthority> getAuthorities() {
+                    // Must implement this method in order to implement the UserDetails interface
+                    return this.grantedAuthorities;
+                }
+
+
+                /**
+                 * @return an array of Strings (for this user)
+                 */
+                public List<String> getRoles() {
+                    return grantedAuthorities.stream().map(auth -> auth.toString()).collect(Collectors.toList());
+                }
+
+
+                public String getUsernameDN() {
+                    return this.usernameDN;
+                }
+
+                public List<GrantedAuthority> getGrantedAuthorities() {
+                    return grantedAuthorities;
+                }
+
+                public void setGrantedAuthorities(List<GrantedAuthority> grantedAuthorities) {
+                    this.grantedAuthorities = grantedAuthorities;
+                }
+
+                private static class GrantedAuthorityComparator implements Comparator<GrantedAuthority> {
+                    public int compare(GrantedAuthority object1, GrantedAuthority object2) {
+                        return object1.getAuthority().compareTo(object2.getAuthority());
+                    }
+                }
+
+                public Integer getId() {
+                    return id;
+                }
+
+                public String toString() {
+                    return ("Roles=" + StringUtils.join(this.grantedAuthorities, ",") +
+                            " UID=" + this.usernameUID +
+                            " DN=" + this.usernameDN);
+                }
+
+                public UserInfo withId(Integer id) {
+                    this.id = id;
+                    return this;
+                }
+
+                public UserInfo withUsernameUID(String usernameUID) {
+                    this.usernameUID = usernameUID;
+                    return this;
+                }
+
+                public UserInfo withUsernameDn(String usernameDN) {
+                    this.usernameDN = usernameDN;
+                    return this;
+                }
+
+                public UserInfo withGrantedAuthorities(List<GrantedAuthority> grantedAuthorities) {
+                    this.grantedAuthorities = grantedAuthorities;
+                    return this;
+                }
+
+            }
+
+
+ 8. Add this java class:  MyAuthenticationManager
     a. Right-click on security -> New Java Class
        Class Name:  MyAuthenticationManager
 
@@ -252,7 +378,7 @@ Procedure
 
 
 
- 8. Add this java class:  MyRequestHeaderAuthFilter
+ 9. Add this java class:  MyRequestHeaderAuthFilter
     a. Right-click on security -> New Java Class
        Class Name:  MyRequestHeaderAuthFilter
 
@@ -274,6 +400,8 @@ Procedure
 		@Component("com.lessons.security.RequestHeaderAuthFilter")
 		public class MyRequestHeaderAuthFilter extends RequestHeaderAuthenticationFilter
 		{
+			private static final Logger logger = LoggerFactory.getLogger(MyRequestHeaderAuthFilter.class);
+
 			@Resource
 			private MyAuthenticationManager myAuthenticationManager;
 
@@ -289,7 +417,6 @@ Procedure
 			@Value("${ssl.security.mode:}")
 			private String sslSecurityMode;
 
-			private static final Logger logger = LoggerFactory.getLogger(MyRequestHeaderAuthFilter.class);
 
 			@PostConstruct
 			public void init() {
@@ -314,16 +441,18 @@ Procedure
 
 				// Get the principal from the header
 				String userDnFromHeader = request.getHeader(this.nameOfHeaderHoldingDN);
+				logger.debug("userDnFromHeader from header -->{}<---", userDnFromHeader);
 
 				if ((userDnFromHeader == null) && (sslSecurityMode.equalsIgnoreCase("pki"))) {
 					// No header was found, but I am in pki mode.  So set a hard-coded user name
-
+					logger.debug("No header was found, so husing hard-dcoded header 'Bogus_user'");
 					// The name has to be "hacked here" so the the CEDAuthenticationManager is called.
 					// We are assuming a preApprovedAuthentication so something must be in the header.
 					userDnFromHeader = "Bogus_user";
 				}
 
 				// If this method returns null, then the user will see a 403 Forbidden Message
+				logger.debug("getPreAuthenticatedPrincipal() returns -->{}<--", userDnFromHeader);
 				return userDnFromHeader;
 			}
 
@@ -333,7 +462,8 @@ Procedure
 
 
 
- 9. Add this java class:  SubjectX509PrincipalExtractor
+
+19. Add this java class:  SubjectX509PrincipalExtractor
     a. Right-click on security -> New Java Class
        Class Name:  SubjectX509PrincipalExtractor
 
@@ -363,134 +493,6 @@ Procedure
 
 
 
-10. Add this java class:  UserInfo
-    a. Right-click on security -> New Java Class
-       Class Name:  UserInfo
-
-    b Copy this to your new class
-
-            package com.lessons.security;
-
-
-            import org.apache.commons.lang3.StringUtils;
-            import org.springframework.security.core.GrantedAuthority;
-            import org.springframework.security.core.userdetails.UserDetails;
-
-            import java.io.Serializable;
-            import java.util.Collection;
-            import java.util.Comparator;
-            import java.util.List;
-            import java.util.stream.Collectors;
-
-
-            public class UserInfo implements UserDetails, Serializable{
-
-                private String usernameUID;                           // The part of the Cn=.... that holds this user's client name (from PKI client cert)
-                private String usernameDN;                            // The entire DN string    (from the PKI client cert)
-                private List<GrantedAuthority> grantedAuthorities;    // List of roles for this user (found in the database)
-                private Integer id;                                   // Holds the user's ID in the database
-
-                public String getPassword() {
-                    // Must implement this method in order to implement the UserDetails interface
-                    // NOTE:  There is no password as we are using PKI authentication
-                    return null;
-                }
-
-                public String getUsername() {
-                    return this.usernameUID;
-                }
-
-                public boolean isAccountNonExpired() {
-                    // Must implement this method in order to implement the UserDetails interface
-                    return true;
-                }
-
-                public boolean isAccountNonLocked() {
-                    // Must implement this method in order to implement the UserDetails interface
-                    return true;
-                }
-
-                public boolean isCredentialsNonExpired() {
-                    // Must implement this method in order to implement the UserDetails interface
-                    return true;
-                }
-
-                public boolean isEnabled() {
-                    // Must implement this method in order to implement the UserDetails interface
-                    return true;
-                }
-
-
-                /**
-                 * @return an array of GrantedAuthority objects for this user
-                 */
-                public Collection<? extends GrantedAuthority> getAuthorities() {
-                    // Must implement this method in order to implement the UserDetails interface
-                    return this.grantedAuthorities;
-                }
-
-
-                /**
-                 * @return an array of Strings (for this user)
-                 */
-                public List<String> getRoles() {
-                    return grantedAuthorities.stream().map(auth -> auth.toString()).collect(Collectors.toList());
-                }
-
-
-
-
-                public String getUsernameDN() {
-                    return this.usernameDN;
-                }
-
-                public List<GrantedAuthority> getGrantedAuthorities() {
-                    return grantedAuthorities;
-                }
-
-                public void setGrantedAuthorities(List<GrantedAuthority> grantedAuthorities) {
-                    this.grantedAuthorities = grantedAuthorities;
-                }
-
-                private static class GrantedAuthorityComparator implements Comparator<GrantedAuthority> {
-                    public int compare(GrantedAuthority object1, GrantedAuthority object2) {
-                        return object1.getAuthority().compareTo(object2.getAuthority());
-                    }
-                }
-
-
-                public Integer getId() {
-                    return id;
-                }
-
-                public String toString() {
-                    return ("Roles=" + StringUtils.join(this.grantedAuthorities, ",") +
-                            " UID=" + this.usernameUID +
-                            " DN=" + this.usernameDN);
-                }
-
-                public UserInfo withId(Integer id) {
-                    this.id = id;
-                    return this;
-                }
-
-                public UserInfo withUsernameUID(String usernameUID) {
-                    this.usernameUID = usernameUID;
-                    return this;
-                }
-
-                public UserInfo withUsernameDn(String usernameDN) {
-                    this.usernameDN = usernameDN;
-                    return this;
-                }
-
-                public UserInfo withGrantedAuthorities(List<GrantedAuthority> grantedAuthorities) {
-                    this.grantedAuthorities = grantedAuthorities;
-                    return this;
-                }
-
-
-            }
 
 11. Add this java class:  MyAuthorizationService
     a. Right-click on security -> New Java Class
@@ -609,133 +611,159 @@ Procedure
 
     b Copy this to your new class
 
-          package com.lessons.security;
 
-          import org.slf4j.Logger;
-          import org.slf4j.LoggerFactory;
-          import org.springframework.beans.factory.annotation.Autowired;
-          import org.springframework.beans.factory.annotation.Value;
-          import org.springframework.context.annotation.Bean;
-          import org.springframework.context.annotation.Configuration;
-          import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
-          import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-          import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-          import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
-          import org.springframework.security.config.http.SessionCreationPolicy;
-          import org.springframework.security.web.authentication.preauth.x509.X509AuthenticationFilter;
+		package com.lessons.security;
 
-          import javax.annotation.Resource;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import org.springframework.beans.factory.annotation.Autowired;
+		import org.springframework.beans.factory.annotation.Value;
+		import org.springframework.context.annotation.Bean;
+		import org.springframework.context.annotation.Configuration;
+		import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+		import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
+		import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+		import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+		import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+		import org.springframework.security.config.http.SessionCreationPolicy;
+		import org.springframework.security.web.authentication.preauth.x509.X509AuthenticationFilter;
 
-
-          @Configuration
-          @EnableWebSecurity
-          @EnableGlobalMethodSecurity(prePostEnabled = true)         // Needed for @PreAuthorize to work
-          public class SpringSecurityConfig extends WebSecurityConfigurerAdapter {
-
-              private static final Logger logger = LoggerFactory.getLogger(SpringSecurityConfig.class);
+		import javax.annotation.PostConstruct;
+		import javax.annotation.Resource;
 
 
-              @Value("${spring.profiles.active}")
-              private String activeProfileName;
+		@Configuration
+		@EnableWebSecurity
+		@EnableGlobalMethodSecurity(prePostEnabled = true)         // Needed for @PreAuthorize to work
+		public class SpringSecurityConfig extends WebSecurityConfigurerAdapter {
+
+			private static final Logger logger = LoggerFactory.getLogger(SpringSecurityConfig.class);
 
 
-              /**
-              * The authorization mode being
-              * Possible values:  pki    (if user is sending PKI certificate directly to the spring boot webapp)
-              *                   header (if a proxy is sending the PKI certificate info as headers to the spring boot webapp)
-              *                   null   (if not using ssl)
-              */
-              @Value("${ssl.security.mode:}")
-              private String sslSecurityMode;
+			@Value("${spring.profiles.active}")
+			private String activeProfileName;
 
-              @Resource
-              private MyAuthenticationManager myAuthenticationManager;
+			/**
+			 * The authorization mode being
+			 * Possible values:  pki    (if user is sending PKI certificate directly to the spring boot webapp)
+			 *                   header (if a proxy is sending the PKI certificate info as headers to the spring boot webapp)
+			 *                   null   (if not using ssl)
+			 */
+			@Value("${ssl.security.mode:}")
+			private String sslSecurityMode;
 
-              @Resource
-              private MyRequestHeaderAuthFilter requestHeaderAuthFilter;
+			@Resource
+			private MyAuthenticationManager myAuthenticationManager;
 
-              @Resource
-              private SubjectX509PrincipalExtractor subjectX509PrincipalExtractor;
+			@Resource
+			private MyRequestHeaderAuthFilter requestHeaderAuthFilter;
 
-              /**
-               * Global configuration to set the authorization listener.
-               * @param authenticationManagerBuilder
-               * @throws Exception
-               */
-              @Autowired
-              public void configureGlobal(AuthenticationManagerBuilder authenticationManagerBuilder) throws Exception {
-                  logger.debug("configureGlobal() started");
-                  super.configure(authenticationManagerBuilder);
+			@Resource
+			private SubjectX509PrincipalExtractor subjectX509PrincipalExtractor;
 
-                  logger.debug("configureGlobal() finished");
-              }
+			/**
+			 * Global configuration to set the authorization listener.
+			 * @param authenticationManagerBuilder
+			 * @throws Exception
+			 */
+			@Autowired
+			public void configureGlobal(AuthenticationManagerBuilder authenticationManagerBuilder) throws Exception {
+				logger.debug("configureGlobal() started");
+				super.configure(authenticationManagerBuilder);
+
+				logger.debug("configureGlobal() finished");
+			}
+
+			@PostConstruct
+			public void init() {
+				if (activeProfileName.equalsIgnoreCase("prod")) {
+					if (sslSecurityMode == null) {
+						throw new RuntimeException("Critical Error in SpringSecurityConfig:   ssl.security.mode is null.  ssl.security.mode is invalid.  The active profile is prod so ssl.security.mode must be 'pki' or 'header'");
+					}
+					else if (!(sslSecurityMode.equalsIgnoreCase("header")) && (!(sslSecurityMode.equalsIgnoreCase("pki")))) {
+						throw new RuntimeException("Critical Error in SpringSecurityConfig:   ssl.security.mode is an invalid value.  The active profile is prod so ssl.security.mode must be 'pki' or 'header'");
+					}
+				}
+			}
+
+			/*************************************************************************
+			 * configure()
+			 *
+			 * Configure Spring Security
+			 *
+			 * If the security.authenticate.mechanism property holds 'header'
+			 *   then use the Request Header to getByUserId the DN from the header
+			 *
+			 * If the security.authenticate.mechanism property holds 'x509'
+			 *   then use the x509 filter to getByUserId the DN from the x509 certificate
+			 *************************************************************************/
+			@Override
+			public void configure(HttpSecurity aHttpSecurity) throws Exception {
+				logger.debug("configure() started.");
+
+				if (activeProfileName.equalsIgnoreCase("prod")) {
+					// Running in prod mode
+					javax.servlet.Filter filter = null;
+
+					if (sslSecurityMode.equalsIgnoreCase("pki")) {
+						// Running in "prod" mode with sslSecurityMode="pki" so, get the CN information from the user's x509 pki cert
+						logger.debug("In configure()  filter will be the x509 filter");
+						filter = x509Filter();
+					}
+					else {
+						// Running in "prod" mode with sslSecurityMode="header" so, get the CN information from a header
+						logger.debug("In configure()  filter will be MyRequestHeaderAuthFilter");
+						filter = new MyRequestHeaderAuthFilter();
+					}
+
+					aHttpSecurity.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
+							.and()
+							.authorizeRequests()    // Filters out any URLs that are ignored.  This should be before any authorization filters
+							.antMatchers("/resources/**", "/app1/resources/**", "/error").permitAll()
+							.antMatchers("/**").access("hasRole('ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS')")   // All users must have the grantedAuthority called ROLE_UserFoundInLdap to view all pages
+							.and()
+							.requiresChannel().antMatchers("/**").requiresSecure()    // Redirect http to https
+							.and()
+							.addFilter(filter)                                 // Pull the DN from the user's X509 certificate or header
+							.headers().frameOptions().disable()               // By default X-Frame-Options is set to denied.  Disable frameoptions to let this webapp work in OWF
+							.and()
+							.anonymous().disable();
+				}
+				else {
+					// Running in non-prod mode
+					aHttpSecurity.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
+							.and()
+							.authorizeRequests()     // Filters out any URLs that are ignored.  This should be before any authorization filters
+							.antMatchers("/resources/**", "/app1/resources/**", "/app1/error", "/error").permitAll()
+							.antMatchers("/**").access("hasRole('ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS')")   // All users must have the grantedAuthority called ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS to view all pages
+							.anyRequest().authenticated()
+							.and()
+							.requiresChannel().antMatchers("/**").requiresInsecure()
+							.and()
+							.addFilter(requestHeaderAuthFilter)
+							.headers().frameOptions().disable()                       // By default X-Frame-Options is set to denied.
+							.and()
+							.anonymous().disable();
+				}
+			}
 
 
 
-              /*************************************************************************
-               * configure()
-               *
-               * Configure Spring Security
-               *
-               * If the security.authenticate.mechanism property holds 'header'
-               *   then use the Request Header to getByUserId the DN from the header
-               *
-               * If the security.authenticate.mechanism property holds 'x509'
-               *   then use the x509 filter to getByUserId the DN from the x509 certificate
-               *************************************************************************/
-              @Override
-              public void configure(HttpSecurity aHttpSecurity) throws Exception {
-                  logger.debug("configure() started.");
+			/**
+			 * Configures the X509AuthenticationFilter for extracting information from the Cert
+			 * @return
+			 */
+			@Bean
+			public X509AuthenticationFilter x509Filter() {
+				// Setup a filter that extracts the principal from the cert
+				X509AuthenticationFilter x509Filter = new X509AuthenticationFilter();
+				x509Filter.setContinueFilterChainOnUnsuccessfulAuthentication(false);
+				x509Filter.setAuthenticationManager(myAuthenticationManager);
+				x509Filter.setPrincipalExtractor(subjectX509PrincipalExtractor);
+				return x509Filter;
+			}
+		}
 
-                  if (activeProfileName.equalsIgnoreCase("prod")) {
-                      // Running in prod mode
-                      aHttpSecurity.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
-                              .and()
-                              .authorizeRequests()    // Filters out any URLs that are ignored.  This should be before any authorization filters
-                              .antMatchers("/resources/**", "/app1/resources/**", "/error").permitAll()
-                              .antMatchers("/**").access("hasRole('ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS')")   // All users must have the grantedAuthority called ROLE_UserFoundInLdap to view all pages
-                              .and()
-                              .requiresChannel().antMatchers("/**").requiresSecure()    // Redirect http to https
-                              .and()
-                              .addFilter(x509Filter())                                  // Pull the DN from the user's X509 certificate
-                              .headers().frameOptions().disable()                       // By default X-Frame-Options is set to denied.  Disable frameoptions to let this webapp work in OWF
-                              .and()
-                              .anonymous().disable();
-                  }
-                  else {
-                      // Running in non-prod mode
-                      aHttpSecurity.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
-                              .and()
-                              .authorizeRequests()     // Filters out any URLs that are ignored.  This should be before any authorization filters
-                              .antMatchers("/resources/**", "/app1/resources/**", "/app1/error", "/error").permitAll()
-                              .antMatchers("/**").access("hasRole('ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS')")   // All users must have the grantedAuthority called ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS to view all pages
-                              .anyRequest().authenticated()
-                              .and()
-                              .requiresChannel().antMatchers("/**").requiresInsecure()
-                              .and()
-                              .addFilter(requestHeaderAuthFilter)
-                              .headers().frameOptions().disable()                       // By default X-Frame-Options is set to denied.
-                              .and()
-                              .anonymous().disable();
-                  }
-              }
-
-
-
-              /**
-               * Configures the X509AuthenticationFilter for extracting information from the Cert
-               * @return
-               */
-              @Bean
-              public X509AuthenticationFilter x509Filter() {
-                  // Setup a filter that extracts the principal from the cert
-                  X509AuthenticationFilter x509Filter = new X509AuthenticationFilter();
-                  x509Filter.setContinueFilterChainOnUnsuccessfulAuthentication(false);
-                  x509Filter.setAuthenticationManager(myAuthenticationManager);
-                  x509Filter.setPrincipalExtractor(subjectX509PrincipalExtractor);
-                  return x509Filter;
-              }
-          }
 
 
 13. Update the HomeController.getDateTime() REST call so that it has the @PreAuthorization annotation
@@ -762,28 +790,32 @@ Procedure
 
 
 14. Create a backend (prod) mode
-
-14. Run your backend in "prod" profile mode
     a. Pull Run / Edit Configurations
     b. Select Application -> Backend
-    c. In the VM Options, add this:
+    c. Press Control-D to duplicate
+	d. In the VM Options, add this:
            -Dspring.profiles.active=prod
-    d. Start the debugger
+    d. Change the name to backend (prod) 
+	
+	
+15 Run your backend in "prod" profile mode
+    a. Pull Run / Edit Configurations
+    b. Select Application -> Backend (prod)
 
 
-15. Connect to an *authorized* REST endpoint using PKI authentication
+16. Connect to an *authorized* REST endpoint using PKI authentication
     a. Open a browser (that you have imported your client cert into)
     b. Go to https://localhost:8443/app1/api/time
        -- Your authorizations should let you see this
 
 
-16. Connect to an *unauthorized* REST endpoint using PKI authentication
+17. Connect to an *unauthorized* REST endpoint using PKI authentication
     a. Open a browser (that you have imported your client cert into)
     b. Go to  https://localhost:8443/app1/api/time2
         -- You should get the 403 forbidden error
 
 
-17. Connect to your webapp using PKI authentication
+18. Connect to your webapp using PKI authentication
     a. Open a browser (that you have imported your client cert into) 
     b. Go to https://localhost:8443/app1
 	
