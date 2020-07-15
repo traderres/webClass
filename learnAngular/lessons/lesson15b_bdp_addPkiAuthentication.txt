@@ -20,9 +20,248 @@ Procedure
  2. Open your angularApp1 project in Intellij
 
 
- 3. INCOMPLETE
-    -- Update maven so that it does *NOT* include the application.yaml from backend/src/main/resources
-    -- Update code to pull roles out of headers
+ 3. Update maven so that it does *NOT* include the application.yaml from backend/src/main/resources when using the buildRda profile
+    a. Edit the backend/pom.xml
+	
+	b. Add this profiles section to the end *BUT INSIDE THE CLOSING </project TAG*
+			<profiles>
+				<profile>
+					<!-- When running the buildRda profile, exclude the backend/src/main/resources/application.yaml -->
+					<id>buildRda</id>
+					<build>
+						<resources>
+							<resource>
+								<filtering>true</filtering>
+								<directory>src/main/resources</directory>
+								<excludes>
+									<exclude>application.yaml</exclude>
+								</excludes>
+							</resource>
+						</resources>
+					</build>
+				</profile>
+			</profiles>
+
+
+    When finished, your backend/pom.xml should look something like this:
+		<?xml version="1.0" encoding="UTF-8"?>
+
+		<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+				 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+			<modelVersion>4.0.0</modelVersion>
+
+			<groupId>com.lessons</groupId>
+			<artifactId>backend</artifactId>
+			<version>1.0-SNAPSHOT</version>
+
+			<name>backend</name>
+
+			<properties>
+				<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+				<maven.compiler.source>1.8</maven.compiler.source>
+				<maven.compiler.target>1.8</maven.compiler.target>
+			</properties>
+
+			<dependencyManagement>
+				<!-- Set Spring Boot Dependencies -->
+				<dependencies>
+					<dependency>
+						<groupId>org.springframework.boot</groupId>
+						<artifactId>spring-boot-dependencies</artifactId>
+						<version>2.2.1.RELEASE</version>
+						<type>pom</type>
+						<scope>import</scope>
+					</dependency>
+				</dependencies>
+			</dependencyManagement>
+
+			<dependencies>
+
+				<dependency>
+					<!-- Include the front-end as a dependency so the front-end is compiled *BEFORE* the backend is compiled -->
+					<groupId>com.lessons</groupId>
+					<artifactId>frontend</artifactId>
+					<version>${project.version}</version>
+				</dependency>
+
+				<dependency>
+					<!-- Spring Boot Web -->
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-starter-web</artifactId>
+
+					<exclusions>
+						<exclusion>
+							<!-- Remove Tomcat from Spring Boot -->
+							<groupId>org.springframework.boot</groupId>
+							<artifactId>spring-boot-starter-tomcat</artifactId>
+						</exclusion>
+
+						<exclusion>
+							<!-- Remove logging from spring as we will use logback -->
+							<groupId>org.springframework.boot</groupId>
+							<artifactId>spring-boot-starter-logging</artifactId>
+						</exclusion>
+					</exclusions>
+				</dependency>
+
+				<dependency>
+					<!-- Add Dependency for the Undertow App Server -->
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-starter-undertow</artifactId>
+
+					<exclusions>
+						<exclusion>
+							<!-- Remove logging from undertow as we will use logback -->
+							<groupId>org.springframework.boot</groupId>
+							<artifactId>spring-boot-starter-logging</artifactId>
+						</exclusion>
+					</exclusions>
+				</dependency>
+
+				<dependency>
+					<!-- Send logging from Java Common Logging to SLF4J -->
+					<groupId>org.slf4j</groupId>
+					<artifactId>jcl-over-slf4j</artifactId>
+					<version>1.7.5</version>
+				</dependency>
+
+				<dependency>
+					<!-- SLF4J will use Logback-classic as its logging implementation -->
+					<groupId>ch.qos.logback</groupId>
+					<artifactId>logback-classic</artifactId>
+					<version>1.2.3</version>
+				</dependency>
+
+				<dependency>
+					<groupId>org.springframework</groupId>
+					<artifactId>spring-jdbc</artifactId>
+					<version>5.2.1.RELEASE</version>
+				</dependency>
+
+				<dependency>
+					<groupId>org.springframework</groupId>
+					<artifactId>spring-web</artifactId>
+					<version>5.2.1.RELEASE</version>
+				</dependency>
+
+				<!-- Add the dependencies for Spring-Security -->
+				<dependency>
+					<groupId>org.springframework.security</groupId>
+					<artifactId>spring-security-web</artifactId>
+					<version>5.2.1.RELEASE</version>
+				</dependency>
+				<dependency>
+					<groupId>org.springframework.security</groupId>
+					<artifactId>spring-security-config</artifactId>
+					<version>5.2.1.RELEASE</version>
+				</dependency>
+
+				<dependency>
+					<!-- Implementation for converting objects to JSON -->
+					<groupId>com.fasterxml.jackson.core</groupId>
+					<artifactId>jackson-databind</artifactId>
+					<version>2.9.3</version>
+				</dependency>
+
+				<dependency>
+					<groupId>org.flywaydb</groupId>
+					<artifactId>flyway-core</artifactId>
+					<version>5.2.4</version>
+				</dependency>
+
+				<dependency>
+					<!-- Database Driver that Flyway will use to talk to the database -->
+					<groupId>org.postgresql</groupId>
+					<artifactId>postgresql</artifactId>
+					<version>42.1.4</version>
+				</dependency>
+
+				<dependency>
+					<!-- StringUtils Dependency -->
+					<groupId>org.apache.commons</groupId>
+					<artifactId>commons-lang3</artifactId>
+					<version>3.5</version>
+				</dependency>
+
+				<dependency>
+					<!-- Hikari Data Source / JDBC Connection Pool -->
+					<groupId>com.zaxxer</groupId>
+					<artifactId>HikariCP</artifactId>
+					<version>2.6.0</version>
+				</dependency>
+
+				<dependency>
+					<groupId>junit</groupId>
+					<artifactId>junit</artifactId>
+					<version>4.12</version>
+					<scope>test</scope>
+				</dependency>
+			</dependencies>
+
+			<build>
+
+				<plugins>
+					<plugin>
+						<!-- This plugin provides the tools needed to repackage the Spring Boot JAR into a runnable JAR
+							 Run this command to generate the runnable Spring Boot Jar
+								mvn clean package  *or*
+								mvn clean package spring-boot:repackage
+						 -->
+						<groupId>org.springframework.boot</groupId>
+						<artifactId>spring-boot-maven-plugin</artifactId>
+						<configuration>
+							<addResources>true</addResources>
+						</configuration>
+
+						<executions>
+							<execution>
+								<goals>
+									<goal>repackage</goal>
+								</goals>
+								<configuration>
+									<classifier>exec</classifier>
+								</configuration>
+							</execution>
+						</executions>
+
+					</plugin>
+
+					<plugin>
+						<groupId>org.flywaydb</groupId>
+						<artifactId>flyway-maven-plugin</artifactId>
+						<version>5.2.4</version>
+
+						<configuration>
+							<!-- Set the postgres credentials when running mvn flyway:migrate from command-line -->
+							<user>app1_user</user>
+							<password>secret</password>
+							<url>jdbc:postgresql://localhost:5432/app1_db</url>
+							<schemas>app1_db</schemas>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+
+			<profiles>
+				<profile>
+					<!-- When running the buildRda profile, exclude the backend/src/main/resources/application.yaml -->
+					<id>buildRda</id>
+					<build>
+						<resources>
+							<resource>
+								<filtering>true</filtering>
+								<directory>src/main/resources</directory>
+								<excludes>
+									<exclude>application.yaml</exclude>
+								</excludes>
+							</resource>
+						</resources>
+					</build>
+				</profile>
+			</profiles>
+		</project>
+
+
 
 
  4. Setup a directory to hold dev keystores
@@ -245,6 +484,7 @@ Procedure
 		import org.apache.commons.lang3.StringUtils;
 		import org.slf4j.Logger;
 		import org.slf4j.LoggerFactory;
+		import org.springframework.beans.factory.annotation.Autowired;
 		import org.springframework.beans.factory.annotation.Value;
 		import org.springframework.security.authentication.AuthenticationManager;
 		import org.springframework.security.core.Authentication;
@@ -257,6 +497,8 @@ Procedure
 		import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 		import org.springframework.stereotype.Component;
 
+		import javax.annotation.Resource;
+		import javax.servlet.http.HttpServletRequest;
 		import java.util.ArrayList;
 		import java.util.List;
 		import java.util.regex.Matcher;
@@ -267,7 +509,10 @@ Procedure
 			private static final Logger logger = LoggerFactory.getLogger(MyAuthenticationManager.class);
 
 			private static final Pattern patExtractCN = Pattern.compile("cn=(.*?)(?:,|/|\\z)", Pattern.CASE_INSENSITIVE);
+			private static final Pattern patMatchRole = Pattern.compile("ROLE:(.*?)(?:,|/|\\z)", Pattern.CASE_INSENSITIVE);
 
+			@Resource
+			private HttpServletRequest httpServletRequest;
 
 			@Value("${spring.profiles.active:}")             // If not found, then holds an empty string
 			private String activeProfileName;
@@ -322,15 +567,8 @@ Procedure
 				try {
 					String userUID = getCnValueFromLongDnString(userDN);
 
-					List<GrantedAuthority> grantedRoleAuthorities = new ArrayList<>();
-
-					// TODO:  Pull out the roles and add them to the grantedRoleAuthorities object
-					// header(X-BDP-User) holds -AUTH:FOUO;AUTH:U;AUTH:USA;GROUP:BDPUSERS;NAME:bdptest_u_fouo;ROLE:ANALYTIC_RUNNER;ROLE:BDP_ADMIN;ROLE:CITE_USER;ROLE:DATA_ADMIN;ROLE:KIBANA_ADMIN;ROLE:LOGS;ROLE:METRICS;ROLE:OWF_ADMIN;ROLE:OWF_USER;ROLE:UNITY_ADMIN<---
-					//  -- Add headers for each ROLE:
-
-					// Get the list or roles for this user from the real ActiveDirectory or Header
-					grantedRoleAuthorities.add(new SimpleGrantedAuthority("ROLE_SUPERUSER"));
-
+					// Get the list of roles from the header
+					List<GrantedAuthority> grantedRoleAuthorities = getAuthoritiesFromHeaderValue();
 
 					if ((grantedRoleAuthorities != null) && (grantedRoleAuthorities.size() > 0)) {
 						// This user has atleast one role found in my authorizatoin service
@@ -361,6 +599,36 @@ Procedure
 				} catch (Exception e) {
 					throw new UsernameNotFoundException("Exception raised in loadUserDetailsFromRealSource():  This user will definitely not login", e);
 				}
+			}
+
+			/**
+			 * header(X-BDP-User) holds -AUTH:FOUO;AUTH:U;AUTH:USA;GROUP:BDPUSERS;NAME:bdptest_u_fouo;ROLE:ANALYTIC_RUNNER;ROLE:BDP_ADMIN;ROLE:CITE_USER;ROLE:DATA_ADMIN;ROLE:KIBANA_ADMIN;ROLE:LOGS;ROLE:METRICS;ROLE:OWF_ADMIN;ROLE:OWF_USER;ROLE:UNITY_ADMIN<---
+			 * Pull every ROLE:role name entry out of the header and insert it into a list of GrantedAuthority objects
+			 * @return List of GrantedAuthority objects
+			 */
+			private List<GrantedAuthority> getAuthoritiesFromHeaderValue() {
+				List<GrantedAuthority> grantedRoles = new ArrayList<>();
+
+				// header(X-BDP-User) holds -AUTH:FOUO;AUTH:U;AUTH:USA;GROUP:BDPUSERS;NAME:bdptest_u_fouo;ROLE:ANALYTIC_RUNNER;ROLE:BDP_ADMIN;ROLE:CITE_USER;ROLE:DATA_ADMIN;ROLE:KIBANA_ADMIN;ROLE:LOGS;ROLE:METRICS;ROLE:OWF_ADMIN;ROLE:OWF_USER;ROLE:UNITY_ADMIN<---
+				String xbdpUserHeaderValue = httpServletRequest.getHeader("X-BDP-User");
+				logger.debug("In getAuthoritiesFromHeaderValue():  header-->{}<--", xbdpUserHeaderValue);
+				if (StringUtils.isEmpty(xbdpUserHeaderValue)) {
+					// The header is empty -- so return an empty list
+					logger.warn("Warning in getAuthoritiesFromHeaderValue():  The X-BDP-User header had nothing in it.  This should never happen.");
+					return grantedRoles;
+				}
+
+				// Pull every string that starts with ROLE: and add it to the list
+				Matcher matcher = patMatchRole.matcher(xbdpUserHeaderValue);
+				while (matcher.find()) {
+					String roleName = matcher.group(1);
+					logger.debug("Found a role:  roleName={}", roleName);
+					String roleNameWithPrefix = "ROLE_" + roleName;
+					grantedRoles.add(new SimpleGrantedAuthority(roleNameWithPrefix));
+				}
+
+				logger.debug("getAuthoritiesFromHeaderValue() returns -->{}<--", StringUtils.join(grantedRoles, ","));
+				return grantedRoles;
 			}
 
 
