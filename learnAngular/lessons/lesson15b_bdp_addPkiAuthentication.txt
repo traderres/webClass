@@ -19,7 +19,13 @@ Procedure
  
  2. Open your angularApp1 project in Intellij
 
- 3. Setup a directory to hold dev keystores
+
+ 3. INCOMPLETE
+    -- Update maven so that it does *NOT* include the application.yaml from backend/src/main/resources
+    -- Update code to pull roles out of headers
+	
+  
+ 4. Setup a directory to hold dev keystores
     a. Create this directory:  backend/src/main/resources/dev_resources
 	
     b. Copy the myKeystore.jks and myTrustStore.jks to your new dev_resources directory
@@ -28,7 +34,7 @@ Procedure
        -- Now, the dev_resources/ directory holds the two JKS files
   
 
- 4. Update your application.yaml so that *incoming* calls require PKI authentication
+ 5. Update your application.yaml so that *incoming* calls require PKI authentication
     and use your recently generated myKeystore.jks and myTruststore.jks files
 
     a. Edit your backend/src/main/resources/application.yaml
@@ -66,8 +72,7 @@ Procedure
 
 
 
-
- 5. Add the Spring Security dependencies to your backend/pom.xml file
+ 6. Add the Spring Security dependencies to your backend/pom.xml file
     NOTE:  Make sure the version used here matches your other spring versions
 	
         <!-- Add the dependencies for Spring-Security -->
@@ -93,12 +98,12 @@ Procedure
 
 
 
- 6. Add this package:  security
+ 7. Add this package:  security
     a. In Intellij, backend/src/main/java/com/lessons/ -> New Package
        Package Name:  com.lessons.security
 
 
- 7. Add this java class:  UserInfo
+ 8. Add this java class:  UserInfo
     a. Right-click on security -> New Java Class
        Class Name:  UserInfo
 
@@ -224,161 +229,176 @@ Procedure
             }
 
 
- 8. Add this java class:  MyAuthenticationManager
+ 9. Add this java class:  MyAuthenticationManager
     a. Right-click on security -> New Java Class
        Class Name:  MyAuthenticationManager
 
     b Copy this to your new class
 
-            package com.lessons.security;
+		package com.lessons.security;
 
-            import org.apache.commons.lang3.StringUtils;
-            import org.slf4j.Logger;
-            import org.slf4j.LoggerFactory;
-            import org.springframework.beans.factory.annotation.Value;
-            import org.springframework.security.authentication.AuthenticationManager;
-            import org.springframework.security.core.Authentication;
-            import org.springframework.security.core.AuthenticationException;
-            import org.springframework.security.core.GrantedAuthority;
-            import org.springframework.security.core.authority.SimpleGrantedAuthority;
-            import org.springframework.security.core.context.SecurityContextHolder;
-            import org.springframework.security.core.userdetails.UserDetails;
-            import org.springframework.security.core.userdetails.UsernameNotFoundException;
-            import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
-            import org.springframework.stereotype.Component;
+		import org.apache.commons.lang3.StringUtils;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import org.springframework.beans.factory.annotation.Value;
+		import org.springframework.security.authentication.AuthenticationManager;
+		import org.springframework.security.core.Authentication;
+		import org.springframework.security.core.AuthenticationException;
+		import org.springframework.security.core.GrantedAuthority;
+		import org.springframework.security.core.authority.SimpleGrantedAuthority;
+		import org.springframework.security.core.context.SecurityContextHolder;
+		import org.springframework.security.core.userdetails.UserDetails;
+		import org.springframework.security.core.userdetails.UsernameNotFoundException;
+		import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
+		import org.springframework.stereotype.Component;
 
-            import java.util.ArrayList;
-            import java.util.List;
-            import java.util.regex.Matcher;
-            import java.util.regex.Pattern;
+		import java.util.ArrayList;
+		import java.util.List;
+		import java.util.regex.Matcher;
+		import java.util.regex.Pattern;
 
-            @Component("com.lessons.security.MyAuthenticationManager")
-            public class MyAuthenticationManager implements AuthenticationManager {
-                private static final Logger logger = LoggerFactory.getLogger(MyAuthenticationManager.class);
+		@Component("com.lessons.security.MyAuthenticationManager")
+		public class MyAuthenticationManager implements AuthenticationManager {
+			private static final Logger logger = LoggerFactory.getLogger(MyAuthenticationManager.class);
 
-                private static final Pattern patExtractCN = Pattern.compile("cn=(.*?)(?:,|/|\\z)", Pattern.CASE_INSENSITIVE);
-
-
-                @Value("${spring.profiles.active:}")             // If not found, then holds an empty string
-                private String activeProfileName;
+			private static final Pattern patExtractCN = Pattern.compile("cn=(.*?)(?:,|/|\\z)", Pattern.CASE_INSENSITIVE);
 
 
-                @Override
-                public Authentication authenticate(Authentication authentication) throws AuthenticationException {
-                    if (SecurityContextHolder.getContext().getAuthentication() != null) {
-                        // Users is already authenticated, so do nothing
-                        return  SecurityContextHolder.getContext().getAuthentication();
-                    }
-
-                    UserDetails userDetails;
-
-                    // We are really authenticating in the UserDetailService -- so do nothing here
-                    if ( activeProfileName.equalsIgnoreCase("prod") ) {
-                        // Get the user details from *real* source -- e.g., ActiveDirectory or a database
-                        userDetails = loadUserDetailsFromRealSource(authentication);
-                    }
-                    else {
-                        // Get the hard-coded bogus user details
-                        userDetails = loadUserDetailsForDevelopment(authentication);
-                    }
-
-                    // Return an AuthenticationToken object
-                    PreAuthenticatedAuthenticationToken preapproved = new PreAuthenticatedAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                    preapproved.setAuthenticated(true);
-                    return preapproved;
-                }
+			@Value("${spring.profiles.active:}")             // If not found, then holds an empty string
+			private String activeProfileName;
 
 
-                private UserDetails loadUserDetailsFromRealSource(Authentication authentication) {
-                    String userDN;
-                    PreAuthenticatedAuthenticationToken token = null;
+			@Override
+			public Authentication authenticate(Authentication authentication) throws AuthenticationException {
+				logger.debug("authenticate() started.   authentication={}", authentication);
 
-                    if (authentication.getPrincipal() instanceof String) {
-                        userDN = authentication.getPrincipal().toString();
-                    } else if (authentication.getPrincipal() instanceof UserInfo) {
-                        return (UserDetails) authentication.getPrincipal();
-                    } else {
-                        token = ( PreAuthenticatedAuthenticationToken ) authentication.getPrincipal();
-                        userDN = token.getName();
-                    }
+				if (SecurityContextHolder.getContext().getAuthentication() != null) {
+					// Users is already authenticated, so do nothing
+					return  SecurityContextHolder.getContext().getAuthentication();
+				}
 
-                    // Get the user's UID from the CN=<...>
-                    try {
-                        String userUID = getCnValueFromLongDnString(userDN);
+				UserDetails userDetails;
 
-                        List<GrantedAuthority> grantedRoleAuthorities = new ArrayList<>();
+				// We are really authenticating in the UserDetailService -- so do nothing here
+				if ( activeProfileName.equalsIgnoreCase("prod") ) {
+					// Get the user details from *real* source -- e.g., ActiveDirectory or a database
+					userDetails = loadUserDetailsFromRealSource(authentication);
+				}
+				else {
+					// Get the hard-coded bogus user details
+					userDetails = loadUserDetailsForDevelopment(authentication);
+				}
 
-                        // Get the list or roles for this user from the real ActiveDirectory or Header
-                        grantedRoleAuthorities.add(new SimpleGrantedAuthority("ROLE_SUPERUSER"));
-
-
-                        if ((grantedRoleAuthorities != null) && (grantedRoleAuthorities.size() > 0)) {
-                            // This user has atleast one role found in my authorizatoin service
-                            // NOTE:  All granted authorities must start with the "ROLE_" prefix
-                            grantedRoleAuthorities.add(new SimpleGrantedAuthority("ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS"));
-                        }
-                        else {
-                            // This user has no roles so throw a runtime exception
-                            throw new RuntimeException("No roles were found for this user: " + userUID);
-                        }
-
-                        logger.info("{} successfully logged-in.", userUID);
-
-                        // User is about to login
-                        // -- This would be the place to add/update a database record indicating that the user logged-in
-
-                        // Get the user's userid from the database
-                        int userId = 25;
-
-                        // We *MUST* set the database ID in the UserInfo object here
-                        return new UserInfo()
-                                .withId(userId)
-                                .withUsernameDn(userDN)
-                                .withUsernameUID(userUID)
-                                .withGrantedAuthorities(grantedRoleAuthorities);
-                    } catch (Exception e) {
-                        throw new UsernameNotFoundException("Exception raised in loadUserDetailsFromRealSource():  This user will definitely not login", e);
-                    }
-                }
+				// Return an AuthenticationToken object
+				PreAuthenticatedAuthenticationToken preapproved = new PreAuthenticatedAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+				preapproved.setAuthenticated(true);
+				logger.debug("authenticate() finished.  preapproved={}", preapproved.toString());
+				return preapproved;
+			}
 
 
-                public UserDetails loadUserDetailsForDevelopment(Authentication authentication) {
+			private UserDetails loadUserDetailsFromRealSource(Authentication authentication) {
+				logger.debug("loadUserDetailsFromRealSource() started authentication={}", authentication);
+				String userDN;
+				PreAuthenticatedAuthenticationToken token = null;
 
-                    final String userUID = "my_test_user";
-                    final String userDN = "3.2.12.144549.1.9.1=#161760312e646576,CN=my_test_user,OU=Hosts,O=ZZTop.Org,C=ZZ";
+				if (authentication.getPrincipal() instanceof String) {
+					userDN = authentication.getPrincipal().toString();
+				} else if (authentication.getPrincipal() instanceof UserInfo) {
+					return (UserDetails) authentication.getPrincipal();
+				} else {
+					token = ( PreAuthenticatedAuthenticationToken ) authentication.getPrincipal();
+					userDN = token.getName();
+				}
 
-                    // Create a list of granted authorities
-                    List<GrantedAuthority> grantedAuthorities = new ArrayList<>();
-                    grantedAuthorities.add(new SimpleGrantedAuthority("ROLE_SUPER_USER"));
-                    grantedAuthorities.add(new SimpleGrantedAuthority("ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS"));
+				logger.debug("userDN={}", userDN);
 
-                    // Create a bogus UserInfo object
-                    // NOTE:  I am hard-coding the user's userid=25
-                    UserInfo anonymousUserInfo = new UserInfo()
-                            .withId(25)
-                            .withUsernameUID(userUID)
-                            .withUsernameDn(userDN)
-                            .withGrantedAuthorities(grantedAuthorities);
-                    return anonymousUserInfo;
-                }
+				// Get the user's UID from the CN=<...>
+				try {
+					String userUID = getCnValueFromLongDnString(userDN);
 
+					List<GrantedAuthority> grantedRoleAuthorities = new ArrayList<>();
 
-                private static String getCnValueFromLongDnString(String userDN) {
-                    String cnValue = null;
-                    // Use the regular expression pattern to getByUserId the value part of "CN=value"
-                    Matcher matcher = patExtractCN.matcher(userDN);
-                    if (matcher.find()) {
-                        cnValue = matcher.group(1);
-                    }
-                    return cnValue;
-                }
+					// TODO:  Pull out the roles and add them to the grantedRoleAuthorities object
+					// header(X-BDP-User) holds -AUTH:FOUO;AUTH:U;AUTH:USA;GROUP:BDPUSERS;NAME:bdptest_u_fouo;ROLE:ANALYTIC_RUNNER;ROLE:BDP_ADMIN;ROLE:CITE_USER;ROLE:DATA_ADMIN;ROLE:KIBANA_ADMIN;ROLE:LOGS;ROLE:METRICS;ROLE:OWF_ADMIN;ROLE:OWF_USER;ROLE:UNITY_ADMIN<---
+					//  -- Add headers for each ROLE:
 
-            }
+					// Get the list or roles for this user from the real ActiveDirectory or Header
+					grantedRoleAuthorities.add(new SimpleGrantedAuthority("ROLE_SUPERUSER"));
 
 
+					if ((grantedRoleAuthorities != null) && (grantedRoleAuthorities.size() > 0)) {
+						// This user has atleast one role found in my authorizatoin service
+						// NOTE:  All granted authorities must start with the "ROLE_" prefix
+						grantedRoleAuthorities.add(new SimpleGrantedAuthority("ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS"));
+					}
+					else {
+						// This user has no roles so throw a runtime exception
+						throw new RuntimeException("No roles were found for this user: " + userUID);
+					}
+
+					logger.info("{} successfully logged-in.", userUID);
+
+					// User is about to login
+					// -- This would be the place to add/update a database record indicating that the user logged-in
+
+					// Get the user's userid from the database
+					int userId = 25;
+
+					logger.debug("loadUserDetailsFromRealSource() about to return new UserInfo object");
+
+					// We *MUST* set the database ID in the UserInfo object here
+					return new UserInfo()
+							.withId(userId)
+							.withUsernameDn(userDN)
+							.withUsernameUID(userUID)
+							.withGrantedAuthorities(grantedRoleAuthorities);
+				} catch (Exception e) {
+					throw new UsernameNotFoundException("Exception raised in loadUserDetailsFromRealSource():  This user will definitely not login", e);
+				}
+			}
 
 
- 9. Add this java class:  MyRequestHeaderAuthFilter
+			public UserDetails loadUserDetailsForDevelopment(Authentication authentication) {
+
+				final String userUID = "my_test_user";
+				final String userDN = "3.2.12.144549.1.9.1=#161760312e646576,CN=my_test_user,OU=Hosts,O=ZZTop.Org,C=ZZ";
+
+				// Create a list of granted authorities
+				List<GrantedAuthority> grantedAuthorities = new ArrayList<>();
+				grantedAuthorities.add(new SimpleGrantedAuthority("ROLE_SUPER_USER"));
+				grantedAuthorities.add(new SimpleGrantedAuthority("ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS"));
+
+				// Create a bogus UserInfo object
+				// NOTE:  I am hard-coding the user's userid=25
+				UserInfo anonymousUserInfo = new UserInfo()
+						.withId(25)
+						.withUsernameUID(userUID)
+						.withUsernameDn(userDN)
+						.withGrantedAuthorities(grantedAuthorities);
+				return anonymousUserInfo;
+			}
+
+
+			private static String getCnValueFromLongDnString(String userDN) {
+				logger.debug("getCnValueFromLongDnString()  userDN={}");
+				String cnValue = null;
+				// Use the regular expression pattern to getByUserId the value part of "CN=value"
+				Matcher matcher = patExtractCN.matcher(userDN);
+				if (matcher.find()) {
+					cnValue = matcher.group(1);
+				}
+
+				logger.debug("getCnValueFromLongDnString() returns -->{}<--", cnValue);
+				return cnValue;
+			}
+
+		}
+
+
+
+
+10. Add this java class:  MyRequestHeaderAuthFilter
     a. Right-click on security -> New Java Class
        Class Name:  MyRequestHeaderAuthFilter
 
@@ -394,6 +414,7 @@ Procedure
 		import javax.annotation.PostConstruct;
 		import javax.annotation.Resource;
 		import javax.servlet.http.HttpServletRequest;
+		import java.util.Enumeration;
 
 
 		@Component("com.lessons.security.RequestHeaderAuthFilter")
@@ -403,9 +424,6 @@ Procedure
 
 			@Resource
 			private MyAuthenticationManager myAuthenticationManager;
-
-			@Value("${security.authenticate.header.dn:SSL_CLIENT_S_DN}")
-			private String nameOfHeaderHoldingDN;
 
 			/**
 			 * The authorization mode being
@@ -422,7 +440,6 @@ Procedure
 			@PostConstruct
 			public void init() {
 				this.setAuthenticationManager(myAuthenticationManager);
-				logger.debug("RequestHeaderAuthFilter()  sNameOfHeaderHoldingDN={}", nameOfHeaderHoldingDN);
 			}
 
 
@@ -441,12 +458,12 @@ Procedure
 				logger.debug("getPreAuthenticatedPrincipal() called");
 
 				// Get the principal from the header
-				String userDnFromHeader = request.getHeader(this.nameOfHeaderHoldingDN);
+				String userDnFromHeader = (String) request.getHeader("SSL_CLIENT_S_DN");
 				logger.debug("userDnFromHeader from header -->{}<---", userDnFromHeader);
 
 				if (userDnFromHeader == null) {
 					if ((activeProfileName.equalsIgnoreCase("dev")) ||
-						(activeProfileName.equalsIgnoreCase("prod" )) && (sslSecurityMode.equalsIgnoreCase("pki"))) {
+						((activeProfileName.equalsIgnoreCase("prod" )) && (sslSecurityMode.equalsIgnoreCase("pki")))) {
 						// No header was found, but I am in dev mode or "local prod" mode.  So, set a hard-coded user name
 						logger.debug("No header was found, so husing hard-dcoded header 'Bogus_user'");
 						userDnFromHeader = "Bogus_user";
@@ -458,11 +475,27 @@ Procedure
 				return userDnFromHeader;
 			}
 
+			/**************************************************************
+			 * logHeaders()
+			 **************************************************************/
+			private void logHeaders(HttpServletRequest aRequest)
+			{
+				if (logger.isDebugEnabled())
+				{
+					Enumeration<String> enumHeaders = aRequest.getHeaderNames();
+					while (enumHeaders.hasMoreElements()) {
+						String sHeaderName = enumHeaders.nextElement();
+						String sHeaderValue = aRequest.getHeader(sHeaderName);
+						logger.debug("header({}) holds -->{}<---", sHeaderName, sHeaderValue);
+					}
+				}
+			}
+
 		}
 
 
 
-10. Add this java class:  SubjectX509PrincipalExtractor
+11. Add this java class:  SubjectX509PrincipalExtractor
     a. Right-click on security -> New Java Class
        Class Name:  SubjectX509PrincipalExtractor
 
@@ -492,124 +525,11 @@ Procedure
 
 
 
-
-11. Add this java class:  MyAuthorizationService
-    a. Right-click on security -> New Java Class
-       Class Name:  MyAuthorizationService
-
-    b Copy this to your new class
-
-             package com.lessons.security;
-
-             import org.slf4j.Logger;
-             import org.slf4j.LoggerFactory;
-             import org.springframework.beans.factory.annotation.Autowired;
-             import org.springframework.beans.factory.annotation.Value;
-             import org.springframework.security.core.context.SecurityContextHolder;
-             import org.springframework.stereotype.Service;
-
-             import javax.annotation.PostConstruct;
-             import javax.annotation.Resource;
-             import javax.servlet.http.HttpServletRequest;
-             import java.util.HashMap;
-             import java.util.List;
-
-             @Service("com.lessons.security.myAuthorizationService")
-             public class MyAuthorizationService {
-                 private static final Logger logger = LoggerFactory.getLogger(MyAuthorizationService.class);
-
-
-                 @Resource
-                 private HttpServletRequest request;             // Inject the current Request object
-
-                 @Value("${spring.profiles.active")
-                 private String activeProfileName;               // Inject the active spring profile name
-
-
-                 private HashMap<String, String> mapUrlToRole;
-
-
-
-                 @PostConstruct
-                 public void init()
-                 {
-                     logger.debug("init() started.");
-
-                     // Initialize the map of urls-to-roles
-                     //   Key=URL-TYPE + url
-                     //   Value=Role name
-                     this.mapUrlToRole = new HashMap<String, String>();
-
-                     this.mapUrlToRole.put("GET/app1/api/dashboard/timeSUPERUSER", null);
-                     this.mapUrlToRole.put("GET/app1/api/dashboard/aggsSUPERUSER", null);
-                 }
-
-
-                 /**
-                  * @return the logged-in user name
-                  */
-                 public String getUsername() {
-                     if (SecurityContextHolder.getContext().getAuthentication() == null) {
-                         return "";
-                     }
-
-                     // Get the UserInfo object from Spring Security
-                     UserInfo userInfo = (UserInfo) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-
-                     return userInfo.getUsername();
-                 }
-
-
-                 /**
-                  * @return TRUE if the the user's roles allows the user to see this current REST endpoint
-                  */
-                 public boolean isAuthorized() {
-                     if (activeProfileName.equalsIgnoreCase("dev")) {
-                         // Running in dev mode
-                         return true;
-                     }
-
-                     if (SecurityContextHolder.getContext().getAuthentication() == null) {
-                         // There is no Authentication object.  This user is definitely not authorized
-                         return false;
-                     }
-
-                     // Get the UserInfo object from Spring Security
-                     UserInfo userInfo = (UserInfo) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-
-                     // Get all of the roles from the UserInfo object
-                     List<String> roles = userInfo.getRoles();
-
-                     // Loop through all of the roles (to see if this user is authorized)
-                     for (String role: roles) {
-                         if (role.startsWith("ROLE_")) {
-                             role = role.substring(5);    // Remove the ROLE_ prefix
-                         }
-
-                          String key = request.getMethod() + request.getRequestURI() + role;
-
-                          // If this key is found in the map, then the user is authorized
-                          boolean isRoleFoundInMap = this.mapUrlToRole.containsKey(key);
-
-                          if (isRoleFoundInMap) {
-                              return true;
-                          }
-                     }
-
-                     // If I got this far, then the role was not found in the map
-                     return false;
-                 }
-
-             }
-
-
-
 12. Add this java class:  SpringSecurityConfig
     a. Right-click on security -> New Java Class
        Class Name:  SpringSecurityConfig
 
     b Copy this to your new class
-
 
 		package com.lessons.security;
 
@@ -712,7 +632,7 @@ Procedure
 					else {
 						// Running in "prod" mode with sslSecurityMode="header" so, get the CN information from a header
 						logger.debug("In configure()  filter will be MyRequestHeaderAuthFilter");
-						filter = new MyRequestHeaderAuthFilter();
+						filter = requestHeaderAuthFilter;
 					}
 
 					aHttpSecurity.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
@@ -744,6 +664,9 @@ Procedure
 							.and()
 							.anonymous().disable();
 				}
+
+				// Disable CSRF Checks (because the BDP cannot handle it)
+				aHttpSecurity.csrf().disable();
 			}
 
 
@@ -762,7 +685,6 @@ Procedure
 				return x509Filter;
 			}
 		}
-
 
 
 13. Update the HomeController.getDateTime() REST call so that it has the @PreAuthorization annotation
@@ -808,13 +730,7 @@ Procedure
        -- Your authorizations should let you see this
 
 
-17. Connect to an *unauthorized* REST endpoint using PKI authentication
-    a. Open a browser (that you have imported your client cert into)
-    b. Go to  https://localhost:8443/app1/api/time2
-        -- You should get the 403 forbidden error
-
-
-18. Connect to your webapp using PKI authentication
+17. Connect to your webapp using PKI authentication
     a. Open a browser (that you have imported your client cert into) 
     b. Go to https://localhost:8443/app1
 	
