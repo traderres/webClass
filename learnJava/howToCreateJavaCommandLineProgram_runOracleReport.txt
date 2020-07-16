@@ -285,14 +285,73 @@ Procedures
             }
 
 
-            private void runReport() {
-                logger.debug("runReport() started");
-				
-				// Fill in with all of your queries
-			
+			/**
+			 * Helper method to write the SqlRowSet to a flatfile
+			 * @param aSqlRowSet 
+			 * @param aOutputFilePath
+			 * @param aSeparator
+			 * @param aAddColumnNames
+			 * @throws Exception
+			 */
+			private void sendRowSetToFile(SqlRowSet aSqlRowSet,
+										  String aOutputFilePath,
+										  String aSeparator,
+										  boolean aAddColumnNames) throws Exception {
 
-                logger.debug("runReport() finished successfully.");
-            }
+				// **OVERWRITE** this file for writing
+				File outputFile = new File(aOutputFilePath);
+
+				try (FileWriter fw = new FileWriter(outputFile) ) {
+					SqlRowSetMetaData sqlRowSetMetaData = aSqlRowSet.getMetaData();
+
+					// Get a fixed list of column names
+					String[] columnNames = sqlRowSetMetaData.getColumnNames();
+
+					if (aAddColumnNames) {
+						// Add column names
+						String columnNamesCsv = StringUtils.join(columnNames, aSeparator);
+						fw.append(columnNamesCsv);
+						fw.append("\n");
+					}
+
+					// Loop through each row
+					while (aSqlRowSet.next()) {
+
+						// Loop through each column
+						for (int i=0; i<columnNames.length; i++) {
+							String columnName = columnNames[i];
+							String value = aSqlRowSet.getString(columnName);
+							fw.append(value);
+
+							if (i < (columnNames.length - 1 )) {
+								fw.append(aSeparator);
+							}
+						}
+
+						fw.append("\n");
+					}
+				}
+
+			}
+
+
+
+			private void runReport() throws Exception {
+				logger.debug("runReport() started");
+
+				// Construct the SQL for report 1
+				String sql = "select SYSDATE as col1, SYSDATE as col2 from dual";
+
+				// Execute the SQL and send the output to the output file for report 1
+				JdbcTemplate jt = new JdbcTemplate(this.dataSource);
+				SqlRowSet rs = jt.queryForRowSet(sql);				
+				String outputFilePath = "/tmp/output.txt";
+				boolean addColumnNames = true;
+				sendRowSetToFile(rs, outputFilePath, ",", addColumnNames);
+
+				logger.debug("runReport() finished successfully.");
+			}
+
 
         }
 
