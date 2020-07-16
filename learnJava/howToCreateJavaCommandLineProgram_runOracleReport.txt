@@ -1,0 +1,688 @@
+How to Create a Java Command Line Program to Query an Oracle Database
+---------------------------------------------------------------------
+Assumptions:  
+ A) You have Intellij installed
+ B) You have Maven installed
+
+
+
+NOTE:  If you are running Windows,
+       then replace
+              /home/adam/    -->     c:\users\<YOUR USERNAME>\
+
+
+Procedures
+----------
+ 1. Create your "reports" Maven command-line project in Intellij
+    a. Startup Intellij
+       NOTE:  IF an existing Intellij project appear, then pull File / Close Project
+
+    b. Press "Create New Project"
+       1) In the "New Project" window,
+            a) Select Maven [on the left]
+            b) Next to Project SDK:  Select your Java JDK
+               NOTE:  If you do not see your java JDK, then
+                      Press New
+                      -- Browse to your Java JDK:  /usr/lib/jvm/java-1.8.0-openjdk
+                      -- Press OK
+
+            c) Check "Create from archetype"
+            d) Select maven-archetype-quickstart
+               Press Next
+
+       2) In the next screen
+          GroupId:     com.lessons
+          ArtifactId:  reports
+          Version:     1.0-SNAPSHOT
+          Press Next
+
+
+       3) In the next screen, make sure you're using your Maven (not the bundled one)
+          Maven home directory:  /opt/apache-maven-3.3.9
+          User settings file:    /home/adam/.m2/settings.xml
+                                 /home/adam/.m2/repository
+          Press Next
+
+
+       4) Project Name:      springJdbcApp1
+          Project Location:  /home/adam/intellijProjects/reports
+          Press Finish
+
+
+       5) If you are prompted
+          Maven projects need to be imported
+          Press "Enable Auto-Import"
+
+          Now, maven has created a simple Java JAR project
+
+       
+ 2. Configure Intellij preferences for this project
+    a. Turn off spell-checking
+       1) Pull File / Settings
+       2) Search for spelling
+          a) Single-click on Inspections
+          b) next to Typo -- Uncheck the checkbox
+          c) Press Apply
+          
+          
+
+ 3. Setup the Maven test directories for your Intellij project
+
+    Add these directories
+       src/test/resources/             # Holds the logback.xml used by unit test code
+       src/main/resources/             # Holds the logback.xml used by main program
+
+
+    a. Right-click on src/test   -> New -> Directory:    resources
+    b. Right-click on src/main   -> New -> Directory:    resources
+
+
+    Now, you should have this directory structure
+      src/main/java/ 
+      src/main/resources/               # Holds logback.xml used by java main program     
+      src/test/java
+      src/test/resources/               # Holds logback.xml used by unit test code
+   
+
+
+           
+ 4. Add dependencies for your project
+    Your pom.xml should already have one dependency:
+      <dependencies>
+      
+        <dependency>
+          <groupId>junit</groupId>
+          <artifactId>junit</artifactId>
+          <version>4.11</version>
+          <scope>test</scope>
+        </dependency>
+        
+      </dependencies>
+    
+        
+        
+    a. Copy and paste these dependencies into your pom.xml
+       NOTE:  Add all of these dependencies should be between these tags:
+        <dependencies>
+         . . .
+         </dependencies>
+       
+       
+       <dependency>
+          <!-- Logback Classic -->
+          <groupId>ch.qos.logback</groupId>
+          <artifactId>logback-classic</artifactId>
+          <version>1.2.3</version>
+        </dependency>
+
+        <dependency>
+          <!-- Spring-JDBC -->
+          <groupId>org.springframework</groupId>
+          <artifactId>spring-jdbc</artifactId>
+          <version>5.0.3.RELEASE</version>
+        </dependency>
+
+        <dependency>
+          <!-- Oracle Database Driver -->
+          <groupId>com.oracle.ojdbc</groupId>
+          <artifactId>ojdbc8</artifactId>
+          <version>19.3.0.0</version>
+        </dependency>
+
+        <dependency>
+          <!-- StringUtils Dependency -->
+          <groupId>org.apache.commons</groupId>
+          <artifactId>commons-lang3</artifactId>
+          <version>3.5</version>
+        </dependency>
+
+
+
+    b. Reimport maven dependencies
+       Right-click on pom.xml -> Maven -> Reload
+
+
+
+ 5. Create this file:  logback.xml
+    a. Browse to src/main/resources
+    b. Right-click on classes -> New -> File
+       filename:  logback.xml
+    c. Copy this contents to your logback.xml file
+       WARNING:  You *CANNOT* have leading spaces before <?xml version="1.0"... ?>
+    
+        <?xml version="1.0" encoding="UTF-8" ?>
+
+        <configuration debug="false">
+            <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+                <encoder>
+                    <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+                </encoder>
+            </appender>
+
+            <logger name="com.lessons" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+
+            <logger name="org.springframework" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+
+            <root level="DEBUG">
+                <appender-ref ref="CONSOLE"/>
+            </root>
+
+        </configuration>
+
+
+        
+
+
+ 6. Create a class:  OracleReport
+    a. Right-click on /src/main/java/com/lessons -> New Class
+       Name:  OracleR
+
+       You should see something like this:
+       
+           package com.lessons;
+
+           public class OracleReport {
+
+           }
+    
+     
+    b. Change your class to this:
+
+        package com.lessons;
+
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.jdbc.core.JdbcTemplate;
+        import org.springframework.jdbc.datasource.SingleConnectionDataSource;
+
+        import javax.sql.DataSource;
+        import java.io.FileInputStream;
+        import java.io.IOException;
+        import java.io.InputStream;
+        import java.util.Properties;
+
+        public class OracleReport {
+
+            private static final Logger logger = LoggerFactory.getLogger(OracleReport.class);
+
+            private DataSource dataSource;
+
+
+            public static void main( String[] args ) throws IOException {
+                logger.debug("main() started");
+
+
+                if (args.length != 1) {
+                    throw new RuntimeException("Critical error in main():  The first argument is missing.  The first argument should be a property file.");
+                }
+                String propertyFilePath = args[0];
+
+
+                // Get the data source
+                DataSource dataSource = buildDataSourceUsingPropertyFile(propertyFilePath);
+
+                // Pass-in the data source and run the report
+                OracleReport OracleReport = new OracleReport(dataSource);
+                OracleReport.runReport();
+
+                logger.debug("main() finished.");
+            }
+
+            private void runReport() {
+                logger.debug("runReport() started");
+
+                logger.debug("runReport() finished successfully.");
+            }
+
+
+            /**
+             * Read the property file
+             * Pull out url, username, password, schema
+             * Create a data source
+             * @param aPropertyFilePath path of hte property file
+             * @return DataSource object
+             */
+            private static DataSource buildDataSourceUsingPropertyFile(String aPropertyFilePath) throws IOException {
+
+                // Read the file into the props object
+                Properties props = new Properties();
+                try (InputStream inputStream = new FileInputStream(aPropertyFilePath)) {
+                    // Read the file and automatically close it as soon as we leave this try block
+                    props.load(inputStream);
+                }
+
+                if ( (! props.containsKey("url")) || (! props.containsKey("username")) || (! props.containsKey("password")) || (! props.containsKey("schema"))) {
+                    // Some of the required properties are missing
+                    throw new RuntimeException("I found the property file here: " + aPropertyFilePath + " but some of the required fields are missing.  It must have username, password, url, and schema.");
+                }
+
+                // Pull the url, username, password, and schema from the props object
+                String url =      props.getProperty("url");
+                String username = props.getProperty("username");
+                String password = props.getProperty("password");
+                String schema   = props.getProperty("schema");
+
+                // Create the Data Source
+                SingleConnectionDataSource sdds = new SingleConnectionDataSource();
+                sdds.setDriverClassName("oracle.jdbc.OracleDriver");
+                sdds.setUsername(username);
+                sdds.setPassword(password);
+                sdds.setSchema(schema);
+                sdds.setUrl(url);
+
+                // Verify that we can run a query
+                String sql = "select SYSDATE from dual";
+                JdbcTemplate jt = new JdbcTemplate(sdds);
+                String currentDate = jt.queryForObject(sql, String.class);
+                logger.debug("Current database time is {}", currentDate);
+
+                return sdds;
+            }
+
+
+
+            public OracleReport(DataSource aDataSource) {
+                this.dataSource = aDataSource;
+            }
+
+
+        }
+
+ 
+
+ 7. Create a property file with Oracle credentials
+    unix> vi /tmp/report.properties
+    
+        #
+        # reports properties file
+        #
+        url=jdbc:oracle:thin:@//HOSTNAME_OR_ORACLE_DATABASE:1521/ORCL
+        username=john
+        password=secret
+        schema=MY_SCHEMA
+
+
+
+ 8. Setup your debugger
+    a. Set a breakpoint near line 19 in your App.main() by clicking in the margin
+       NOTE:  This line should have this line of code in it:
+                 logger.debug("main() started");
+                 
+    b. Browse to src/main/java/com/lessons/App -> Right-Click -> Debug 'App.main()'
+     
+    c. Press F9 to continue the program and you should see this in your console:
+      
+    d. Add the property file as the first argument
+       Pull Edit Configurations  
+          Program arguments:  /tmp/reports.properties
+        
+    e. Run the debugger again
+    
+
+               
+ 9. Create a Java JAR
+
+    a. Update your pom.xml to tell Maven to rename your java JAR that has *all* of the dependencies
+       Edit your pom.xml
+        
+       Add the following text so that appears **AFTER* the <pluginManagement>...</pluginManagement> section
+                               but it appears **BEFORE** the closing </build>
+                              
+            <plugins>
+                <plugin>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.1</version>
+                    <configuration>
+                        <source>1.8</source>
+                        <target>1.8</target>
+                    </configuration>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <version>2.3.2</version>
+                    <configuration>
+                        <!-- Set the name of the generated Java JAR filename *without* dependencies -->
+                        <finalName>Queries</finalName>
+                    </configuration>
+                </plugin>
+
+                <plugin>
+                    <artifactId>maven-assembly-plugin</artifactId>
+
+                    <configuration>
+                        <descriptorRefs>
+                            <descriptorRef>jar-with-dependencies</descriptorRef>
+                        </descriptorRefs>
+
+                        <archive>
+                            <manifest>
+                                <addClasspath>true</addClasspath>
+                            </manifest>
+                        </archive>
+                    </configuration>
+
+                    <executions>
+                        <execution>
+                            <id>make-assembly</id>
+                            <phase>package</phase>
+                            <goals>
+                                <goal>single</goal>
+                            </goals>
+                            <configuration>
+                                <!-- Set the name of the generated Java JAR filename *with* dependencies -->
+                                <appendAssemblyId>false</appendAssemblyId>
+                                <finalName>UberQueries</finalName>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+
+            </plugins>
+
+    
+    b. Now, your pom.xml should look like this:
+          <?xml version="1.0" encoding="UTF-8"?>
+
+          <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+            <modelVersion>4.0.0</modelVersion>
+
+            <groupId>com.lessons</groupId>
+            <artifactId>springJdbcApp1</artifactId>
+            <version>1.0-SNAPSHOT</version>
+
+            <name>springJdbcApp1</name>
+
+            <properties>
+              <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+              <maven.compiler.source>1.7</maven.compiler.source>
+              <maven.compiler.target>1.7</maven.compiler.target>
+            </properties>
+
+            <dependencies>
+
+
+              <dependency>
+                <!-- Logback Classic -->
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-classic</artifactId>
+                <version>1.2.3</version>
+              </dependency>
+
+              <dependency>
+                <!-- Spring-JDBC -->
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-jdbc</artifactId>
+                <version>5.0.3.RELEASE</version>
+              </dependency>
+
+              <dependency>
+                <!-- Postgres Database Driver -->
+                <groupId>org.postgresql</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>42.2.6</version>
+              </dependency>
+
+
+              <dependency>
+                <groupId>junit</groupId>
+                <artifactId>junit</artifactId>
+                <version>4.11</version>
+                <scope>test</scope>
+              </dependency>
+            </dependencies>
+
+            <build>
+              <pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
+                <plugins>
+                  <!-- clean lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#clean_Lifecycle -->
+                  <plugin>
+                    <artifactId>maven-clean-plugin</artifactId>
+                    <version>3.1.0</version>
+                  </plugin>
+                  <!-- default lifecycle, jar packaging: see https://maven.apache.org/ref/current/maven-core/default-bindings.html#Plugin_bindings_for_jar_packaging -->
+                  <plugin>
+                    <artifactId>maven-resources-plugin</artifactId>
+                    <version>3.0.2</version>
+                  </plugin>
+                  <plugin>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.8.0</version>
+                  </plugin>
+                  <plugin>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>2.22.1</version>
+                  </plugin>
+                  <plugin>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <version>3.0.2</version>
+                  </plugin>
+                  <plugin>
+                    <artifactId>maven-install-plugin</artifactId>
+                    <version>2.5.2</version>
+                  </plugin>
+                  <plugin>
+                    <artifactId>maven-deploy-plugin</artifactId>
+                    <version>2.8.2</version>
+                  </plugin>
+                  <!-- site lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#site_Lifecycle -->
+                  <plugin>
+                    <artifactId>maven-site-plugin</artifactId>
+                    <version>3.7.1</version>
+                  </plugin>
+                  <plugin>
+                    <artifactId>maven-project-info-reports-plugin</artifactId>
+                    <version>3.0.0</version>
+                  </plugin>
+                </plugins>
+              </pluginManagement>
+
+              <plugins>
+                <plugin>
+                  <artifactId>maven-compiler-plugin</artifactId>
+                  <version>3.1</version>
+                  <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                  </configuration>
+                </plugin>
+
+                <plugin>
+                  <groupId>org.apache.maven.plugins</groupId>
+                  <artifactId>maven-jar-plugin</artifactId>
+                  <version>2.3.2</version>
+                  <configuration>
+                    <!-- Set the name of the generated Java JAR filename *without* dependencies -->
+                    <finalName>Queries</finalName>
+                  </configuration>
+                </plugin>
+
+                <plugin>
+                  <artifactId>maven-assembly-plugin</artifactId>
+
+                  <configuration>
+                    <descriptorRefs>
+                      <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+
+                    <archive>
+                      <manifest>
+                        <addClasspath>true</addClasspath>
+                      </manifest>
+                    </archive>
+                  </configuration>
+
+                  <executions>
+                    <execution>
+                      <id>make-assembly</id>
+                      <phase>package</phase>
+                      <goals>
+                        <goal>single</goal>
+                      </goals>
+                      <configuration>
+                        <!-- Set the name of the generated Java JAR filename *with* dependencies -->
+                        <appendAssemblyId>false</appendAssemblyId>
+                        <finalName>OracleReport</finalName>
+                      </configuration>
+                    </execution>
+                  </executions>
+                </plugin>
+
+              </plugins>
+
+            </build>
+          </project>
+
+
+
+     
+    c. Build your Java JAR by running mvn package
+       1) Open a Terminal
+       2) In the terminal, type-in this:
+          unix> cd ~/intellijProjects/springJdbcApp1
+          unix> mvn clean package
+
+       3) Verify that you can see the Java JARs
+          unix> ls -l ./target
+
+            drwxrwxr-x. 2 adam adam       6 Jul 16 19:49 archive-tmp/
+            drwxrwxr-x. 3 adam adam      36 Jul 16 19:49 classes/
+            drwxrwxr-x. 3 adam adam      25 Jul 16 19:49 generated-sources/
+            drwxrwxr-x. 3 adam adam      30 Jul 16 19:49 generated-test-sources/
+            drwxrwxr-x. 2 adam adam      28 Jul 16 19:49 maven-archiver/
+            drwxrwxr-x. 3 adam adam      35 Jul 16 19:49 maven-status/
+            -rw-rw-r--. 1 adam adam    4560 Jul 16 19:49 OracleReports.jar            <--- Smaller JAR
+            drwxrwxr-x. 2 adam adam      73 Jul 16 19:49 surefire-reports/
+            drwxrwxr-x. 3 adam adam      17 Jul 16 19:49 test-classes/
+            -rw-rw-r--. 1 adam adam 4148318 Jul 16 19:49 UberOracleReport.jar        <--- Larger JAR
+
+       
+          NOTE:  The UberQueries.jar has its dependencies so we can run it
+           
+              
+               
+               
+10. Run your Java JAR from the command-line  (using the java -cp technique)
+    a. Open a DOS window by pressing <Start><Run>CMD
+    b. In the DOS window, type-in this:
+       DOS> cd ~/intellijProjects/springJdbcApp1
+       DOS> java -cp ./target/UberOracleReport.jar com.lessons.OracleReport  /tmp/reports.properties 
+
+        
+       You should see this:
+            07/16/2020 12:16:40 DEBUG com.lessons.OracleReport main() started
+            07/16/2020 12:16:40 INFO  org.springframework.jdbc.datasource.SingleConnectionDataSource Loaded JDBC driver: oracle.jdbc.OracleDriver
+            07/16/2020 12:16:40 DEBUG org.springframework.jdbc.core.JdbcTemplate Executing SQL query [select SYSDATE from dual]
+            07/16/2020 12:16:40 DEBUG org.springframework.jdbc.datasource.DataSourceUtils Fetching JDBC Connection from DataSource
+            07/16/2020 12:16:40 DEBUG org.springframework.jdbc.datasource.SingleConnectionDataSource Creating new JDBC DriverManager Connection to [jdbc:oracle:thin:@//dcsa-reports.cs4uoee6f0ij.us-east-1.rds.amazonaws.com:1521/ORCL]
+            07/16/2020 12:16:40 INFO  org.springframework.jdbc.datasource.SingleConnectionDataSource Established shared JDBC Connection: oracle.jdbc.driver.T4CConnection@34cd072c
+            07/16/2020 12:16:40 DEBUG org.springframework.jdbc.datasource.DataSourceUtils Returning JDBC Connection to DataSource
+            07/16/2020 12:16:40 DEBUG com.lessons.OracleReport Current database time is 2020-07-16 16:16:40
+            07/16/2020 12:16:40 DEBUG com.lessons.OracleReport runReport() started
+            07/16/2020 12:16:40 DEBUG com.lessons.OracleReport runReport() finished successfully.
+            07/16/2020 12:16:40 DEBUG com.lessons.OracleReport main() finished.
+
+
+
+
+11. Reduce the spring-jdbc and your own package's logging
+    a. Browse your src/main/resources/logback.xml
+
+       You should see this:
+            <logger name="com.lessons" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+            <logger name="org.springframework" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+
+
+       Change it to this
+            <logger name="com.lessons" level="WARN" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+            <logger name="org.springframework" level="WARN" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+
+    b. Rebuild your java JAR
+       unix> cd ~/intellijProjects/springJdbcApp1
+       unix> mvn clean package
+           
+    c. Run your Java JAR from the command-line  (using the java -cp technique)
+       unix> java -cp ./target/UberOracleReport.jar com.lessons.OracleReport  /tmp/reports.properties 
+        
+       You should see this:
+       Current Database Time is 2019-07-16 19:54:55.24319-04
+        
+
+12. Change your Java JAR so that it is "executable" JAR
+    a. Go to your pom.xml
+    
+      Look at your maven-assembly-plugin.  It should look like this:
+        <plugin>
+          <artifactId>maven-assembly-plugin</artifactId>
+
+          <configuration>
+            <descriptorRefs>
+              <descriptorRef>jar-with-dependencies</descriptorRef>
+            </descriptorRefs>
+
+            <archive>
+              <manifest>
+                <addClasspath>true</addClasspath>
+              </manifest>
+            </archive>
+          </configuration>
+
+          <executions>
+            <execution>
+              <id>make-assembly</id>
+              <phase>package</phase>
+              <goals>
+                <goal>single</goal>
+              </goals>
+              <configuration>
+                <!-- Set the name of the generated Java JAR filename *with* dependencies -->
+                <appendAssemblyId>false</appendAssemblyId>
+                <finalName>UberOracleReport</finalName>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+
+     b. Edit the <archive>...</archive> section by adding the <mainClass>...</mainClass> line:
+           
+           <archive>
+              <!-- Set the main class in the manifest -->
+              <manifest>
+                <addClasspath>true</addClasspath>
+                <mainClass>com.lessons.OracleReport</mainClass>
+              </manifest>
+           </archive>  
+
+
+    d. Rebuild your java JAR
+       unix> cd ~/intellijProjects/springJdbcApp1
+       unix> mvn clean package
+
+    e. Run your executable java JAR  (using the java -jar technique)
+       unix> java -jar ./target/UberOracleReport.jar  /tmp/reports.properties 
+       You should see this:
+       Current Database Time is 2019-07-16 19:54:55.24319-04
+
+    f. Look at the manifest in your JAR
+       unix> unzip -q -c ./target/UberOracleReport.jar META-INF/MANIFEST.MF
+
+       -- You should see a Main-Class entry:
+             Main-Class: com.lessons.OracleReport
+
+       -- This is the main() that is executed when you use java -jar
+
+
