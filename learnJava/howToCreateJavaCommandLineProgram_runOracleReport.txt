@@ -180,7 +180,7 @@ Procedures
 
  6. Create a class:  OracleReport
     a. Right-click on /src/main/java/com/lessons -> New Class
-       Name:  OracleR
+       Name:  OracleReport
 
        You should see something like this:
        
@@ -193,31 +193,33 @@ Procedures
      
     b. Change your class to this:
 
-        package com.lessons;
 
-        import org.slf4j.Logger;
-        import org.slf4j.LoggerFactory;
-        import org.springframework.jdbc.core.JdbcTemplate;
-        import org.springframework.jdbc.datasource.SingleConnectionDataSource;
+		package com.lessons;
 
-        import javax.sql.DataSource;
-        import java.io.FileInputStream;
-        import java.io.IOException;
-        import java.io.InputStream;
-        import java.util.Properties;
+		import org.apache.commons.lang3.StringUtils;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import org.springframework.jdbc.core.JdbcTemplate;
+		import org.springframework.jdbc.datasource.SingleConnectionDataSource;
+		import org.springframework.jdbc.support.rowset.SqlRowSet;
+		import org.springframework.jdbc.support.rowset.SqlRowSetMetaData;
 
-        public class OracleReport {
+		import javax.sql.DataSource;
+		import java.io.*;
+		import java.util.Properties;
 
-            private static final Logger logger = LoggerFactory.getLogger(OracleReport.class);
+		public class OracleReport {
 
-            private DataSource dataSource;
+			private static final Logger logger = LoggerFactory.getLogger(OracleReport.class);
+
+			private DataSource dataSource;
 
 
-			 public static void main( String[] args ) throws IOException {
+			public static void main( String[] args ) throws Exception {
 				Long startTime = System.currentTimeMillis();
 				logger.debug("main() started");
 
-			   if (args.length != 1) {
+				if (args.length != 1) {
 					throw new RuntimeException("Critical error in main():  The first argument is missing.  The first argument should be a property file.");
 				}
 				String propertyFilePath = args[0];
@@ -226,8 +228,8 @@ Procedures
 				DataSource dataSource = buildDataSourceUsingPropertyFile(propertyFilePath);
 
 				// Pass-in the data source and run the report
-				ArmyReport armyReport = new ArmyReport(dataSource);
-				armyReport.runReport();
+				OracleReport oracleReport = new OracleReport(dataSource);
+				oracleReport.runReport();
 
 				Long endTime = System.currentTimeMillis();
 				long totalSeconds = (endTime - startTime) / 1000;
@@ -236,59 +238,59 @@ Procedures
 
 
 
-            /**
-             * Read the property file
-             * Pull out url, username, password, schema
-             * Create a data source
-             * @param aPropertyFilePath path of hte property file
-             * @return DataSource object
-             */
-            private static DataSource buildDataSourceUsingPropertyFile(String aPropertyFilePath) throws IOException {
+			/**
+			 * Read the property file
+			 * Pull out url, username, password, schema
+			 * Create a data source
+			 * @param aPropertyFilePath path of hte property file
+			 * @return DataSource object
+			 */
+			private static DataSource buildDataSourceUsingPropertyFile(String aPropertyFilePath) throws IOException {
 
-                // Read the file into the props object
-                Properties props = new Properties();
-                try (InputStream inputStream = new FileInputStream(aPropertyFilePath)) {
-                    // Read the file and automatically close it as soon as we leave this try block
-                    props.load(inputStream);
-                }
+				// Read the file into the props object
+				Properties props = new Properties();
+				try (InputStream inputStream = new FileInputStream(aPropertyFilePath)) {
+					// Read the file and automatically close it as soon as we leave this try block
+					props.load(inputStream);
+				}
 
-                if ( (! props.containsKey("url")) || (! props.containsKey("username")) || (! props.containsKey("password")) || (! props.containsKey("schema"))) {
-                    // Some of the required properties are missing
-                    throw new RuntimeException("I found the property file here: " + aPropertyFilePath + " but some of the required fields are missing.  It must have username, password, url, and schema.");
-                }
+				if ( (! props.containsKey("url")) || (! props.containsKey("username")) || (! props.containsKey("password")) || (! props.containsKey("schema"))) {
+					// Some of the required properties are missing
+					throw new RuntimeException("I found the property file here: " + aPropertyFilePath + " but some of the required fields are missing.  It must have username, password, url, and schema.");
+				}
 
-                // Pull the url, username, password, and schema from the props object
-                String url =      props.getProperty("url");
-                String username = props.getProperty("username");
-                String password = props.getProperty("password");
-                String schema   = props.getProperty("schema");
+				// Pull the url, username, password, and schema from the props object
+				String url =      props.getProperty("url");
+				String username = props.getProperty("username");
+				String password = props.getProperty("password");
+				String schema   = props.getProperty("schema");
 
-                // Create the Data Source
-                SingleConnectionDataSource sdds = new SingleConnectionDataSource();
-                sdds.setDriverClassName("oracle.jdbc.OracleDriver");
-                sdds.setUsername(username);
-                sdds.setPassword(password);
-                sdds.setSchema(schema);
-                sdds.setUrl(url);
+				// Create the Data Source
+				SingleConnectionDataSource sdds = new SingleConnectionDataSource();
+				sdds.setDriverClassName("oracle.jdbc.OracleDriver");
+				sdds.setUsername(username);
+				sdds.setPassword(password);
+				sdds.setSchema(schema);
+				sdds.setUrl(url);
 
-                // Verify that we can run a query
-                String sql = "select SYSDATE from dual";
-                JdbcTemplate jt = new JdbcTemplate(sdds);
-                String currentDate = jt.queryForObject(sql, String.class);
-                logger.debug("Current database time is {}", currentDate);
+				// Verify that we can run a query
+				String sql = "select SYSDATE from dual";
+				JdbcTemplate jt = new JdbcTemplate(sdds);
+				String currentDate = jt.queryForObject(sql, String.class);
+				logger.debug("Current database time is {}", currentDate);
 
-                return sdds;
-            }
+				return sdds;
+			}
 
 
-            public OracleReport(DataSource aDataSource) {
-                this.dataSource = aDataSource;
-            }
+			public OracleReport(DataSource aDataSource) {
+				this.dataSource = aDataSource;
+			}
 
 
 			/**
 			 * Helper method to write the SqlRowSet to a flatfile
-			 * @param aSqlRowSet 
+			 * @param aSqlRowSet
 			 * @param aOutputFilePath
 			 * @param aSeparator
 			 * @param aAddColumnNames
@@ -345,7 +347,7 @@ Procedures
 
 				// Execute the SQL and send the output to the output file for report 1
 				JdbcTemplate jt = new JdbcTemplate(this.dataSource);
-				SqlRowSet rs = jt.queryForRowSet(sql);				
+				SqlRowSet rs = jt.queryForRowSet(sql);
 				String outputFilePath = "/tmp/output.txt";
 				boolean addColumnNames = true;
 				sendRowSetToFile(rs, outputFilePath, ",", addColumnNames);
@@ -354,9 +356,9 @@ Procedures
 			}
 
 
-        }
+		}
 
- 
+
 
  7. Create a property file with Oracle credentials
     unix> vi /tmp/report.properties
@@ -376,16 +378,36 @@ Procedures
        NOTE:  This line should have this line of code in it:
                  logger.debug("main() started");
                  
-    b. Browse to src/main/java/com/lessons/App -> Right-Click -> Debug 'App.main()'
-     
-    c. Press F9 to continue the program and you should see this in your console:
+    b. Browse to src/main/java/com/lessons/OracleReport -> Right-Click -> Debug 'App.main()'
+       You should see this:
+	   13:59:38.659 [main] DEBUG com.lessons.OracleReport - main() started
+Exception in thread "main" java.lang.RuntimeException: Critical error in main():  The first argument is missing.  The first argument should be a property file.
+	at com.lessons.OracleReport.main(OracleReport.java:28)
+	
+
       
-    d. Add the property file as the first argument
-       Pull Edit Configurations  
+    c. Add the property file as the first argument
+       Pull Run -> Edit Configurations  
           Program arguments:  /tmp/reports.properties
         
-    e. Run the debugger again
-    
+    d. Pull Run -> Debug 'OracleReport'
+	   You should see this:
+		14:00:56.103 [main] DEBUG com.lessons.OracleReport - main() started
+		14:00:56.228 [main] INFO org.springframework.jdbc.datasource.SingleConnectionDataSource - Loaded JDBC driver: oracle.jdbc.OracleDriver
+		14:00:56.234 [main] DEBUG org.springframework.jdbc.core.JdbcTemplate - Executing SQL query [select SYSDATE from dual]
+		14:00:56.237 [main] DEBUG org.springframework.jdbc.datasource.DataSourceUtils - Fetching JDBC Connection from DataSource
+		14:00:56.237 [main] DEBUG org.springframework.jdbc.datasource.SingleConnectionDataSource - Creating new JDBC DriverManager Connection to [jdbc:oracle:thin:@//dcsa-reports.cs4uoee6f0ij.us-east-1.rds.amazonaws.com:1521/ORCL]
+		14:00:56.643 [main] INFO org.springframework.jdbc.datasource.SingleConnectionDataSource - Established shared JDBC Connection: oracle.jdbc.driver.T4CConnection@6a4f787b
+		14:00:56.673 [main] DEBUG org.springframework.jdbc.datasource.DataSourceUtils - Returning JDBC Connection to DataSource
+		14:00:56.674 [main] DEBUG com.lessons.OracleReport - Current database time is 2020-07-16 18:00:56
+		14:00:56.675 [main] DEBUG com.lessons.OracleReport - runReport() started
+		14:00:56.675 [main] DEBUG org.springframework.jdbc.core.JdbcTemplate - Executing SQL query [select SYSDATE as col1, SYSDATE as col2 from dual]
+		14:00:56.675 [main] DEBUG org.springframework.jdbc.datasource.DataSourceUtils - Fetching JDBC Connection from DataSource
+		14:00:56.687 [main] DEBUG org.springframework.jdbc.datasource.DataSourceUtils - Returning JDBC Connection to DataSource
+		14:00:56.689 [main] DEBUG com.lessons.OracleReport - runReport() finished successfully.
+		14:00:56.690 [main] DEBUG com.lessons.OracleReport - main() finished after 0 seconds.
+
+
 
                
  9. Create a Java JAR
@@ -411,7 +433,7 @@ Procedures
                     <version>2.3.2</version>
                     <configuration>
                         <!-- Set the name of the generated Java JAR filename *without* dependencies -->
-                        <finalName>Queries</finalName>
+                        <finalName>oracleReport</finalName>
                     </configuration>
                 </plugin>
 
@@ -440,7 +462,7 @@ Procedures
                             <configuration>
                                 <!-- Set the name of the generated Java JAR filename *with* dependencies -->
                                 <appendAssemblyId>false</appendAssemblyId>
-                                <finalName>UberQueries</finalName>
+                                <finalName>UberOracleReport</finalName>
                             </configuration>
                         </execution>
                     </executions>
@@ -450,157 +472,164 @@ Procedures
 
     
     b. Now, your pom.xml should look like this:
-          <?xml version="1.0" encoding="UTF-8"?>
+		<?xml version="1.0" encoding="UTF-8"?>
 
-          <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-            xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-            <modelVersion>4.0.0</modelVersion>
+		<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+		  <modelVersion>4.0.0</modelVersion>
 
-            <groupId>com.lessons</groupId>
-            <artifactId>springJdbcApp1</artifactId>
-            <version>1.0-SNAPSHOT</version>
+		  <groupId>com.lessons</groupId>
+		  <artifactId>reports</artifactId>
+		  <version>1.0-SNAPSHOT</version>
 
-            <name>springJdbcApp1</name>
+		  <name>reports2</name>
+		  <!-- FIXME change it to the project's website -->
+		  <url>http://www.example.com</url>
 
-            <properties>
-              <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-              <maven.compiler.source>1.7</maven.compiler.source>
-              <maven.compiler.target>1.7</maven.compiler.target>
-            </properties>
+		  <properties>
+			<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+			<maven.compiler.source>1.7</maven.compiler.source>
+			<maven.compiler.target>1.7</maven.compiler.target>
+		  </properties>
 
-            <dependencies>
+		  <dependencies>
+
+			<dependency>
+			  <!-- Logback Classic -->
+			  <groupId>ch.qos.logback</groupId>
+			  <artifactId>logback-classic</artifactId>
+			  <version>1.2.3</version>
+			</dependency>
+
+			<dependency>
+			  <!-- Spring-JDBC -->
+			  <groupId>org.springframework</groupId>
+			  <artifactId>spring-jdbc</artifactId>
+			  <version>5.0.3.RELEASE</version>
+			</dependency>
+
+			<dependency>
+			  <!-- Oracle Database Driver -->
+			  <groupId>com.oracle.ojdbc</groupId>
+			  <artifactId>ojdbc8</artifactId>
+			  <version>19.3.0.0</version>
+			</dependency>
+
+			<dependency>
+			  <!-- StringUtils Dependency -->
+			  <groupId>org.apache.commons</groupId>
+			  <artifactId>commons-lang3</artifactId>
+			  <version>3.5</version>
+			</dependency>
 
 
-              <dependency>
-                <!-- Logback Classic -->
-                <groupId>ch.qos.logback</groupId>
-                <artifactId>logback-classic</artifactId>
-                <version>1.2.3</version>
-              </dependency>
+			<dependency>
+			  <groupId>junit</groupId>
+			  <artifactId>junit</artifactId>
+			  <version>4.11</version>
+			  <scope>test</scope>
+			</dependency>
+		  </dependencies>
 
-              <dependency>
-                <!-- Spring-JDBC -->
-                <groupId>org.springframework</groupId>
-                <artifactId>spring-jdbc</artifactId>
-                <version>5.0.3.RELEASE</version>
-              </dependency>
+		  <build>
+			<pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
+			  <plugins>
+				<!-- clean lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#clean_Lifecycle -->
+				<plugin>
+				  <artifactId>maven-clean-plugin</artifactId>
+				  <version>3.1.0</version>
+				</plugin>
+				<!-- default lifecycle, jar packaging: see https://maven.apache.org/ref/current/maven-core/default-bindings.html#Plugin_bindings_for_jar_packaging -->
+				<plugin>
+				  <artifactId>maven-resources-plugin</artifactId>
+				  <version>3.0.2</version>
+				</plugin>
+				<plugin>
+				  <artifactId>maven-compiler-plugin</artifactId>
+				  <version>3.8.0</version>
+				</plugin>
+				<plugin>
+				  <artifactId>maven-surefire-plugin</artifactId>
+				  <version>2.22.1</version>
+				</plugin>
+				<plugin>
+				  <artifactId>maven-jar-plugin</artifactId>
+				  <version>3.0.2</version>
+				</plugin>
+				<plugin>
+				  <artifactId>maven-install-plugin</artifactId>
+				  <version>2.5.2</version>
+				</plugin>
+				<plugin>
+				  <artifactId>maven-deploy-plugin</artifactId>
+				  <version>2.8.2</version>
+				</plugin>
+				<!-- site lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#site_Lifecycle -->
+				<plugin>
+				  <artifactId>maven-site-plugin</artifactId>
+				  <version>3.7.1</version>
+				</plugin>
+				<plugin>
+				  <artifactId>maven-project-info-reports-plugin</artifactId>
+				  <version>3.0.0</version>
+				</plugin>
+			  </plugins>
+			</pluginManagement>
 
-              <dependency>
-                <!-- Postgres Database Driver -->
-                <groupId>org.postgresql</groupId>
-                <artifactId>postgresql</artifactId>
-                <version>42.2.6</version>
-              </dependency>
+			<plugins>
+			  <plugin>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.1</version>
+				<configuration>
+				  <source>1.8</source>
+				  <target>1.8</target>
+				</configuration>
+			  </plugin>
 
+			  <plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<version>2.3.2</version>
+				<configuration>
+				  <!-- Set the name of the generated Java JAR filename *without* dependencies -->
+				  <finalName>oracleReport</finalName>
+				</configuration>
+			  </plugin>
 
-              <dependency>
-                <groupId>junit</groupId>
-                <artifactId>junit</artifactId>
-                <version>4.11</version>
-                <scope>test</scope>
-              </dependency>
-            </dependencies>
+			  <plugin>
+				<artifactId>maven-assembly-plugin</artifactId>
 
-            <build>
-              <pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
-                <plugins>
-                  <!-- clean lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#clean_Lifecycle -->
-                  <plugin>
-                    <artifactId>maven-clean-plugin</artifactId>
-                    <version>3.1.0</version>
-                  </plugin>
-                  <!-- default lifecycle, jar packaging: see https://maven.apache.org/ref/current/maven-core/default-bindings.html#Plugin_bindings_for_jar_packaging -->
-                  <plugin>
-                    <artifactId>maven-resources-plugin</artifactId>
-                    <version>3.0.2</version>
-                  </plugin>
-                  <plugin>
-                    <artifactId>maven-compiler-plugin</artifactId>
-                    <version>3.8.0</version>
-                  </plugin>
-                  <plugin>
-                    <artifactId>maven-surefire-plugin</artifactId>
-                    <version>2.22.1</version>
-                  </plugin>
-                  <plugin>
-                    <artifactId>maven-jar-plugin</artifactId>
-                    <version>3.0.2</version>
-                  </plugin>
-                  <plugin>
-                    <artifactId>maven-install-plugin</artifactId>
-                    <version>2.5.2</version>
-                  </plugin>
-                  <plugin>
-                    <artifactId>maven-deploy-plugin</artifactId>
-                    <version>2.8.2</version>
-                  </plugin>
-                  <!-- site lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#site_Lifecycle -->
-                  <plugin>
-                    <artifactId>maven-site-plugin</artifactId>
-                    <version>3.7.1</version>
-                  </plugin>
-                  <plugin>
-                    <artifactId>maven-project-info-reports-plugin</artifactId>
-                    <version>3.0.0</version>
-                  </plugin>
-                </plugins>
-              </pluginManagement>
+				<configuration>
+				  <descriptorRefs>
+					<descriptorRef>jar-with-dependencies</descriptorRef>
+				  </descriptorRefs>
 
-              <plugins>
-                <plugin>
-                  <artifactId>maven-compiler-plugin</artifactId>
-                  <version>3.1</version>
-                  <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
-                  </configuration>
-                </plugin>
+				  <archive>
+					<manifest>
+					  <addClasspath>true</addClasspath>
+					</manifest>
+				  </archive>
+				</configuration>
 
-                <plugin>
-                  <groupId>org.apache.maven.plugins</groupId>
-                  <artifactId>maven-jar-plugin</artifactId>
-                  <version>2.3.2</version>
-                  <configuration>
-                    <!-- Set the name of the generated Java JAR filename *without* dependencies -->
-                    <finalName>Queries</finalName>
-                  </configuration>
-                </plugin>
+				<executions>
+				  <execution>
+					<id>make-assembly</id>
+					<phase>package</phase>
+					<goals>
+					  <goal>single</goal>
+					</goals>
+					<configuration>
+					  <!-- Set the name of the generated Java JAR filename *with* dependencies -->
+					  <appendAssemblyId>false</appendAssemblyId>
+					  <finalName>UberOracleReport</finalName>
+					</configuration>
+				  </execution>
+				</executions>
+			  </plugin>
 
-                <plugin>
-                  <artifactId>maven-assembly-plugin</artifactId>
-
-                  <configuration>
-                    <descriptorRefs>
-                      <descriptorRef>jar-with-dependencies</descriptorRef>
-                    </descriptorRefs>
-
-                    <archive>
-                      <manifest>
-                        <addClasspath>true</addClasspath>
-                      </manifest>
-                    </archive>
-                  </configuration>
-
-                  <executions>
-                    <execution>
-                      <id>make-assembly</id>
-                      <phase>package</phase>
-                      <goals>
-                        <goal>single</goal>
-                      </goals>
-                      <configuration>
-                        <!-- Set the name of the generated Java JAR filename *with* dependencies -->
-                        <appendAssemblyId>false</appendAssemblyId>
-                        <finalName>OracleReport</finalName>
-                      </configuration>
-                    </execution>
-                  </executions>
-                </plugin>
-
-              </plugins>
-
-            </build>
-          </project>
+			</plugins>
+		  </build>
+		</project>
 
 
 
@@ -608,7 +637,7 @@ Procedures
     c. Build your Java JAR by running mvn package
        1) Open a Terminal
        2) In the terminal, type-in this:
-          unix> cd ~/intellijProjects/springJdbcApp1
+          unix> cd ~/intellijProjects/reports
           unix> mvn clean package
 
        3) Verify that you can see the Java JARs
@@ -634,7 +663,7 @@ Procedures
 10. Run your Java JAR from the command-line  (using the java -cp technique)
     a. Open a DOS window by pressing <Start><Run>CMD
     b. In the DOS window, type-in this:
-       DOS> cd ~/intellijProjects/springJdbcApp1
+       DOS> cd ~/intellijProjects/reports
        DOS> java -cp ./target/UberOracleReport.jar com.lessons.OracleReport  /tmp/reports.properties 
 
         
@@ -732,13 +761,29 @@ Procedures
 
 
     d. Rebuild your java JAR
-       unix> cd ~/intellijProjects/springJdbcApp1
+       unix> cd ~/intellijProjects/reports
        unix> mvn clean package
 
     e. Run your executable java JAR  (using the java -jar technique)
        unix> java -jar ./target/UberOracleReport.jar  /tmp/reports.properties 
-       You should see this:
-       Current Database Time is 2019-07-16 19:54:55.24319-04
+
+	   You should see this:
+		14:05:16.782 [main] DEBUG com.lessons.OracleReport - main() started
+		14:05:16.874 [main] INFO org.springframework.jdbc.datasource.SingleConnectionDataSource - Loaded JDBC driver: oracle.jdbc.OracleDriver
+		14:05:16.879 [main] DEBUG org.springframework.jdbc.core.JdbcTemplate - Executing SQL query [select SYSDATE from dual]
+		14:05:16.881 [main] DEBUG org.springframework.jdbc.datasource.DataSourceUtils - Fetching JDBC Connection from DataSource
+		14:05:16.881 [main] DEBUG org.springframework.jdbc.datasource.SingleConnectionDataSource - Creating new JDBC DriverManager Connection to [jdbc:oracle:thin:@//dcsa-reports.cs4uoee6f0ij.us-east-1.rds.amazonaws.com:1521/ORCL]
+		14:05:17.234 [main] INFO org.springframework.jdbc.datasource.SingleConnectionDataSource - Established shared JDBC Connection: oracle.jdbc.driver.T4CConnection@548a9f61
+		14:05:17.265 [main] DEBUG org.springframework.jdbc.datasource.DataSourceUtils - Returning JDBC Connection to DataSource
+		14:05:17.266 [main] DEBUG com.lessons.OracleReport - Current database time is 2020-07-16 18:05:17
+		14:05:17.267 [main] DEBUG com.lessons.OracleReport - runReport() started
+		14:05:17.268 [main] DEBUG org.springframework.jdbc.core.JdbcTemplate - Executing SQL query [select SYSDATE as col1, SYSDATE as col2 from dual]
+		14:05:17.268 [main] DEBUG org.springframework.jdbc.datasource.DataSourceUtils - Fetching JDBC Connection from DataSource
+		14:05:17.281 [main] DEBUG org.springframework.jdbc.datasource.DataSourceUtils - Returning JDBC Connection to DataSource
+		14:05:17.284 [main] DEBUG com.lessons.OracleReport - runReport() finished successfully.
+		14:05:17.284 [main] DEBUG com.lessons.OracleReport - main() finished after 0 seconds.
+
+
 
     f. Look at the manifest in your JAR
        unix> unzip -q -c ./target/UberOracleReport.jar META-INF/MANIFEST.MF
