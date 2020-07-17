@@ -1,10 +1,7 @@
 Lesson:  How to adjust the spring-boot webapp so communicates with ES on the BDP
 --------------------------------------------------------------------------------
 
-
-
-Part 1: Get the ElasticSearch to work on the localbox
------------------------------------------------------
+Approach
  1. Add an ElasticSearchResources class  (has the url and httpClient needed to make the calls)
  2. Add an ElasticSearchService class
  3. Add a SearchController (that injects the ElasticSearchService)
@@ -12,8 +9,492 @@ Part 1: Get the ElasticSearch to work on the localbox
  4. Verify it works locally
  
  
+
+
+Part 1: Get the ElasticSearch to work on the localbox
+-----------------------------------------------------
+
  
+ 1. Add the AsyncHttpClient and StringUtils dependencies to your pom.xml
+    a. Edit the sync-service/pom.xml
+    b. Add these dependencies:
+
+        <dependency>
+            <!-- AsyncHttpClient Client implementation (used to make outgoing REST calls out to ES) -->
+            <groupId>com.ning</groupId>
+            <artifactId>async-http-client</artifactId>
+            <version>1.9.40</version>
+        </dependency>
+
+        <dependency>
+            <!-- StringUtils Dependency -->
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.5</version>
+        </dependency>
+
+
+ 2. Add this java class:  ElasticSearchResources      (to the config package)
+    a. Right-click on sync/src/main/java/com/lessons/sync/config -> New Java Class
+       Class Name:  ElasticSearchResources
+
+    b. Copy this to your new class
+
+		package com.lessons.config;
+
+		import com.ning.http.client.AsyncHttpClient;
+
+
+		public class ElasticSearchResources {
+
+			private AsyncHttpClient asyncHttpClient;
+			private String          elasticSearchUrl;
+
+			// Used for test classes
+			public ElasticSearchResources(String aElasticSearchUrl, AsyncHttpClient asyncHttpClient) {
+				this.elasticSearchUrl = aElasticSearchUrl;
+				this.asyncHttpClient = asyncHttpClient;
+			}
+
+
+			public String getElasticSearchUrl() {
+				return elasticSearchUrl;
+			}
+
+			public AsyncHttpClient getAsyncHttpClient() {
+				return this.asyncHttpClient;
+			}
+		}
+
  
+
+ 3. Add this java class:  ElasticSearchResourcesConfig      (to the config package)
+    a. Right-click on sync/src/main/java/com/lessons/sync/config -> New Java Class
+       Class Name:  ElasticSearchResourcesConfig
+
+    b. Copy this to your new class
+
+		package com.lessons.config;
+
+		import com.ning.http.client.AsyncHttpClient;
+		import org.springframework.beans.factory.annotation.Value;
+		import org.springframework.context.annotation.Bean;
+		import org.springframework.context.annotation.Configuration;
+
+
+		@Configuration
+		public class ElasticSearchResourcesConfig {
+
+
+			@Value("${es.url}")
+			private String elasticSearchUrl;
+
+			@Bean
+			public ElasticSearchResources elasticSearchResources() {
+
+				// Create a new AsyncHttpClient object
+				com.ning.http.client.AsyncHttpClientConfig.Builder configBuilder = new com.ning.http.client.AsyncHttpClientConfig.Builder();
+				configBuilder.setReadTimeout(-1);
+				configBuilder.setAcceptAnyCertificate(true);
+				configBuilder.setFollowRedirect(true);
+				com.ning.http.client.AsyncHttpClientConfig config = configBuilder.build();
+				AsyncHttpClient asyncHttpClient = new AsyncHttpClient(config);
+
+
+				// Store the AsyncHttpClient and elasticSearc url in the ElasticSearchResources object
+				// NOTE:  THe elastic search url is injected from the application.yaml
+				//        The AsyncHttpClient is constructed with java code
+				ElasticSearchResources elasticSearchResources = new ElasticSearchResources(this.elasticSearchUrl, asyncHttpClient);
+
+				// Return a spring bean that holds the AsyncHttpClient and elasticsearch url
+				return elasticSearchResources;
+			}
+
+		}
+
+
+ 4. Add this java class:  ElasticSearchService     (to the services package)
+    a. Right-click on sync/src/main/java/com/lessons/sync -> New Package
+       Package Name:  services
+
+    b. Copy this to your new class
+		package com.lessons.services;
+
+		import com.lessons.config.ElasticSearchResources;
+		import com.ning.http.client.AsyncHttpClient;
+		import com.ning.http.client.Response;
+		import org.apache.commons.lang3.StringUtils;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import org.springframework.stereotype.Service;
+		import org.springframework.util.StreamUtils;
+
+		import javax.annotation.PostConstruct;
+		import javax.annotation.Resource;
+		import java.io.InputStream;
+		import java.nio.charset.StandardCharsets;
+
+		@Service("com.lessons.sync.services.ElasticSearchService")
+		public class ElasticSearchService {
+
+			private static final Logger logger = LoggerFactory.getLogger(ElasticSearchService.class);
+
+			@Resource
+			private ElasticSearchResources elasticSearchResources;
+
+
+			private String elasticSearchUrl;
+			private AsyncHttpClient asyncHttpClient;
+			private final int ES_REQUEST_TIMEOUT_IN_MILLISECS = 90000;   // All ES requests timeout after 90 seconds
+
+
+			@PostConstruct
+			public void init() {
+				logger.debug("init() started.");
+
+				// In order to make outgoing calls to ElasticSearch you need 2 things:
+				//  1) The elastic search url -- e.g., "http://localhost:9201"
+				//  2) The initialiaed AsyncHttpClient object
+				this.elasticSearchUrl = elasticSearchResources.getElasticSearchUrl();
+				this.asyncHttpClient = elasticSearchResources.getAsyncHttpClient();
+			}
+
+
+			/**
+			 * Helper method to read an entire file into a String -- handy for reading in JSON mapping files
+			 * @param aFilename holds the name of the file (found in /src/main/resources
+			 * @return the file's contents as a String
+			 * @throws Exception if there are problems reading from the file
+			 */
+			public String readInternalFileIntoString(String aFilename) throws Exception {
+				try (InputStream inputStream =  ElasticSearchService.class.getResourceAsStream("/" + aFilename)) {
+					return StreamUtils.copyToString(inputStream, StandardCharsets.UTF_8);
+				}
+			}
+
+
+			/**
+			 * Create a new ES Index
+			 * @param aIndexName holds the name of the new index to create
+			 * @param aJsonMapping holds the mapping of this index
+			 * @throws Exception
+			 */
+			public void createIndex(String aIndexName, String aJsonMapping) throws Exception {
+				if (StringUtils.isEmpty(aIndexName)) {
+					throw new RuntimeException("The passed-in aIndexName is null or empty.");
+				}
+
+				// Make a synchronous POST call to ElasticSearch to create this an index
+				Response response = this.asyncHttpClient.preparePut(this.elasticSearchUrl + "/" + aIndexName)
+						.setRequestTimeout(this.ES_REQUEST_TIMEOUT_IN_MILLISECS)
+						.setHeader("accept", "application/json")
+						.setHeader("Content-Type", "application/json")
+						.setBody(aJsonMapping)
+						.execute()
+						.get();
+
+				if (response.getStatusCode() != 200) {
+					// ElasticSearch returned a non-200 status response
+					throw new RuntimeException("Error in createIndex:  ES returned a status code of " + response.getStatusCode() + " with an error of: " + response.getResponseBody());
+				}
+
+				logger.info("Successfully created this ES index: {}", aIndexName);
+			}
+
+
+			/**
+			 * Do a bulk update within ES
+			 * @param aBulkUpdateJson Holds the JSON bulk string
+			 * @param aWaitForRefresh Holds TRUE if we will wait for a refresh
+			 * @throws Exception
+			 */
+			public void bulkUpdate(String aBulkUpdateJson, boolean aWaitForRefresh) throws Exception {
+				if (StringUtils.isEmpty(aBulkUpdateJson)) {
+					throw new RuntimeException("The passed-in JSON is null or empty.");
+				}
+
+				String url = this.elasticSearchUrl + "/_bulk";
+				if (aWaitForRefresh) {
+					url = url + "?refresh=wait_for";
+				}
+
+				// Make a synchronous POST call to do a bulk-index request
+				Response response = this.asyncHttpClient.preparePost(url)
+						.setRequestTimeout(this.ES_REQUEST_TIMEOUT_IN_MILLISECS)
+						.setHeader("accept", "application/json")
+						.setHeader("Content-Type", "application/json")
+						.setBody(aBulkUpdateJson)
+						.execute()
+						.get();
+
+				if (response.getStatusCode() != 200) {
+					// ElasticSearch returned a non-200 status response
+					throw new RuntimeException("Error in bulkUpdate:  ES returned a status code of " + response.getStatusCode() + " with an error of: " + response.getResponseBody());
+				}
+			}
+
+
+			/**
+			 * Delete the index from ElasticSearch
+			 * @param aIndexName  holds the index name (or alias name)
+			 */
+			public void deleteIndex(String aIndexName) throws Exception {
+				if (StringUtils.isEmpty(aIndexName)) {
+					throw new RuntimeException("The passed-in aIndexName is null or empty.");
+				}
+
+				// Make a synchronous POST call to delete this ES Index
+				Response response = this.asyncHttpClient.prepareDelete(this.elasticSearchUrl + "/" + aIndexName)
+						.setRequestTimeout(this.ES_REQUEST_TIMEOUT_IN_MILLISECS)
+						.setHeader("accept", "application/json")
+						.setHeader("Content-Type", "application/json")
+						.execute()
+						.get();
+
+				if (response.getStatusCode() != 200) {
+					// ElasticSearch returned a non-200 status response
+					throw new RuntimeException("Error in deleteIndex:  ES returned a status code of " + response.getStatusCode() + " with an error of: " + response.getResponseBody());
+				}
+			}
+		}
+
+
+
+ 5. Add the es.url property to application.yaml (for dev mode)
+    a. Edit backend/src/main/resources/application.yaml
+	
+	b. Add this to the top:
+
+		###########################################################
+		# ElasticSearch Settings
+		##########################################################
+		es.url: http://localhost:9201
+
+
+ 6. Verify that your DataSource is created
+    a. Set a breakpoint in your ElasticSearchService.init() method to make sure it is called
+    b. Debug your application
+       -- Make sure your breakpoint is hit.
+	   
+	   
+ 
+ 7. Add this class:  SearchController
+    a. Right-click on sync/src/main/java/com/lessons/controllers -> New Java Class
+       Class Name:  SearchController
+
+    b. Copy this to your new class
+		package com.lessons.controllers;
+
+		import com.lessons.services.ElasticSearchService;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import org.springframework.http.HttpStatus;
+		import org.springframework.http.MediaType;
+		import org.springframework.http.ResponseEntity;
+		import org.springframework.security.access.prepost.PreAuthorize;
+		import org.springframework.stereotype.Controller;
+		import org.springframework.web.bind.annotation.RequestMapping;
+		import org.springframework.web.bind.annotation.RequestMethod;
+
+		import javax.annotation.Resource;
+
+		@Controller("com.lessons.controllers.SearchController")
+		public class SearchController {
+			private static final Logger logger = LoggerFactory.getLogger(SearchController.class);
+
+
+			@Resource
+			private ElasticSearchService elasticSearchService;
+
+
+			/*************************************************************************
+			 * REST endpoint /api/search/create
+			 *
+			 * @return nothing
+			 *************************************************************************/
+			@RequestMapping(value = "/api/search/create", method = RequestMethod.GET, produces = "application/json")
+			@PreAuthorize("hasRole('ROLE_SUPERUSER')")
+			public ResponseEntity<?> createMapping() throws Exception {
+
+				logger.debug("createMapping() started.");
+
+				// Read the mapping from the src/main/resources/repots.json file into this string
+				String reportsMappingAsJson = elasticSearchService.readInternalFileIntoString("reports.mapping.json");
+
+				// Create a mapping in ElasticSearch
+				elasticSearchService.createIndex("reports" , reportsMappingAsJson);
+
+				// Change the contentType to text-plain as we are returning a simple string back to the frontend
+				return ResponseEntity
+						.status(HttpStatus.OK)
+						.contentType(MediaType.TEXT_PLAIN)
+						.body("Successfully Created the mapping reports");
+			}
+
+
+			/*************************************************************************
+			 * REST endpoint /api/search/add
+			 *
+			 * @return nothing
+			 *************************************************************************/
+			@RequestMapping(value = "/api/search/add", method = RequestMethod.GET, produces = "application/json")
+			@PreAuthorize("hasRole('ROLE_SUPERUSER')")
+			public ResponseEntity<?> addRecords() throws Exception {
+
+				logger.debug("addRecords() started.");
+
+				// Construct the JSON for a bulk update
+				// NOTE:  You must have the \n at the end of each data line (including the last one)
+				String jsonBulkInsert = "" +
+						"{ \"index\": { \"_index\": \"reports\", \"_type\": \"record\"}}\n" +
+						"{ \"priority\": \"low\",  \"description\": \"he really likes o'reilly\"}\n" +
+						"{ \"index\": { \"_index\": \"reports\", \"_type\": \"record\"}}\n" +
+						"{ \"priority\": \"LOW\",  \"description\": \"depending on the kind query, you might want to go different ways with it\"}\n";
+
+				// Add 2 records to the Reports mapping and *wait* for it to be refreshed in ES
+				elasticSearchService.bulkUpdate(jsonBulkInsert, true);
+
+				// Change the contentType to text-plain as we are returning a simple string back to the frontend
+				return ResponseEntity
+						.status(HttpStatus.OK)
+						.contentType(MediaType.TEXT_PLAIN)
+						.body("Successfully added some records.  Here is what was added:  " + jsonBulkInsert);
+			}
+
+
+			/*************************************************************************
+			 * REST endpoint /api/search/delete
+			 *
+			 * @return nothing
+			 *************************************************************************/
+			@RequestMapping(value = "/api/search/delete", method = RequestMethod.GET, produces = "application/json")
+			@PreAuthorize("hasRole('ROLE_SUPERUSER')")
+			public ResponseEntity<?> deleteMapping() throws Exception {
+
+				logger.debug("deleteMapping() started.");
+
+				// Delete this mapping within ElasticSearch
+				elasticSearchService.deleteIndex("reports");
+
+				// Change the contentType to text-plain as we are returning a simple string back to the frontend
+				return ResponseEntity
+						.status(HttpStatus.OK)
+						.contentType(MediaType.TEXT_PLAIN)
+						.body("Successfully deleted the mapping");
+			}
+		}
+
+
+ 
+ 8. Add the reports ES mapping
+    a. Right-click on backend/src/main/resources -> New File
+       File Name:  reports.mapping.json
+
+    b. Copy this to your newly-created file:
+        {
+            "settings": {
+            "analysis": {
+              "analyzer" : {
+                "my_ngram_analyzer" : {
+                  "tokenizer" : "my_ngram_tokenizer",
+                  "filter": ["lowercase"]
+                }
+              },
+              "tokenizer" : {
+                "my_ngram_tokenizer" : {
+                  "type" : "ngram",
+                  "min_gram" : "1",
+                  "max_gram" : "75",
+                  "token_chars": [ ]
+                }
+              },
+              "normalizer": {
+                "case_insensitive_normalizer": {
+                  "type": "custom",
+                  "char_filter": [],
+                  "filter": [ "lowercase", "asciifolding" ]
+                }
+              }
+            },
+            "max_result_window": 500000,
+            "refresh_interval": "1s"
+            },
+
+            "mappings": {
+              "record": {
+                 "dynamic": "strict",
+                     "properties": {
+                         "id": {
+                               "type": "integer",
+                               "ignore_malformed": false
+                           },
+                          "description": {
+                              "type": "text",
+                              "include_in_all": true
+                           },
+                          "display_name": {
+                              "type": "text",
+                              "include_in_all": true,
+                              "fields": {
+                                "raw": {
+                                  "type": "keyword"
+                                },
+                                "sort": {
+                                  "type": "keyword",
+                                  "normalizer": "case_insensitive_normalizer"
+                                },
+                                "filtered": {
+                                   "type": "text",
+                                   "analyzer": "my_ngram_analyzer"
+                                }
+                              }
+                         },
+                         "priority": {
+                              "type": "text",
+                              "include_in_all": true,
+                              "fields": {
+                                "raw": {
+                                  "type": "keyword"
+                                },
+                                "sort": {
+                                  "type": "keyword",
+                                  "normalizer": "case_insensitive_normalizer"
+                                },
+                                "filtered": {
+                                   "type": "text",
+                                   "analyzer": "my_ngram_analyzer"
+                                }
+                              }
+                         }
+                     }
+                }
+             }
+        }
+
+
+ 9. Hit the REST endpoint to create an index
+    a. Connect to kibana by going to http://localhost:5601
+	b. Use Kibana to run an ES query:
+	     GET _cat/indices
+	   
+	   You should see any *existing* ES mappings
+  			yellow open .kibana PpfaigtMRwKcjrkylRGo2w 1 1 1 0 3.1kb 3.1kb
+	   
+    c. Startup the backend in dev mode
+	d. Use the REST call to create a new mapping
+	   -- Make a GET call to http://localhost:8080/app1/api/search/create
+		
+	e. Use Kibana to run an ES query:
+	     GET _cat/indices
+ 
+ 	   You should see one *MORE* ES mapping
+			yellow open .kibana PpfaigtMRwKcjrkylRGo2w 1 1 1 0 3.1kb 3.1kb
+			yellow open reports Rkn50FENSGKnviHtpZlyxA 5 1 0 0  650b  650b
+
+
+
+
+     
  Part 2: Get the ElasticSearch to work on the BDP
  ------------------------------------------------
  1. Add an ES mapping file to your backend
