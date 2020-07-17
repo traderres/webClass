@@ -497,18 +497,147 @@ Part 1: Get the ElasticSearch to work on the localbox
      
  Part 2: Get the ElasticSearch to work on the BDP
  ------------------------------------------------
- 1. Add an ES mapping file to your backend
-    -- It has special settings so that people with the "app1_es_writer" role can read/write to this ES mapping
+ 1. Adjust the mapping so that it has security in it
+    a. Edit src/main/resources/reports.mapping.json
+	b. Add this right after the "mappings": {
+		  "security": {
+			  "_meta": {
+				"acl": {
+				  "data_read":      "role:ES_READER",
+				  "data_write":     "role:ES_READER|role:ES_WRITER",
+				  "metadata_read":  "role:ES_READER",
+				  "metadata_write": "role:ES_READER|role:ES_WRITER"
+				}
+			  }
+			},
+	
+	   When finished, the reports.mapping.json should look like this:
+		{
+		  "settings": {
+			"analysis": {
+			  "analyzer" : {
+				"my_ngram_analyzer" : {
+				  "tokenizer" : "my_ngram_tokenizer",
+				  "filter": ["lowercase"]
+				}
+			  },
+			  "tokenizer" : {
+				"my_ngram_tokenizer" : {
+				  "type" : "ngram",
+				  "min_gram" : "1",
+				  "max_gram" : "75",
+				  "token_chars": [ ]
+				}
+			  },
+			  "normalizer": {
+				"case_insensitive_normalizer": {
+				  "type": "custom",
+				  "char_filter": [],
+				  "filter": [ "lowercase", "asciifolding" ]
+				}
+			  }
+			},
+			"max_result_window": 500000,
+			"refresh_interval": "1s"
+		  },
+
+		  "mappings": {
+			"security": {
+			  "_meta": {
+				"acl": {
+				  "data_read":      "role:ES_READER",
+				  "data_write":     "role:ES_READER|role:ES_WRITER",
+				  "metadata_read":  "role:ES_READER",
+				  "metadata_write": "role:ES_READER|role:ES_WRITER"
+				}
+			  }
+			},
+			"record": {
+			  "dynamic": "strict",
+			  "properties": {
+				"id": {
+				  "type": "integer",
+				  "ignore_malformed": false
+				},
+				"description": {
+				  "type": "text",
+				  "include_in_all": true
+				},
+				"display_name": {
+				  "type": "text",
+				  "include_in_all": true,
+				  "fields": {
+					"raw": {
+					  "type": "keyword"
+					},
+					"sort": {
+					  "type": "keyword",
+					  "normalizer": "case_insensitive_normalizer"
+					},
+					"filtered": {
+					  "type": "text",
+					  "analyzer": "my_ngram_analyzer"
+					}
+				  }
+				},
+				"priority": {
+				  "type": "text",
+				  "include_in_all": true,
+				  "fields": {
+					"raw": {
+					  "type": "keyword"
+					},
+					"sort": {
+					  "type": "keyword",
+					  "normalizer": "case_insensitive_normalizer"
+					},
+					"filtered": {
+					  "type": "text",
+					  "analyzer": "my_ngram_analyzer"
+					}
+				  }
+				}
+			  }
+			}
+		  }
+		}
+
+
+
+ 2. Grant the ES_WRITER role to all of the data nodes on ES
+    a. Get a list of all data nodes
+	   ssh to the puppet master
+	   unix> sudo -s
+	   unix> bdp_describe ROLE datanode
+	   
+	b. Grant the ES_WRITER role to all of them
+	   unix> citadel -u <datanode1> attribute:add role:ES_WRITER
+	   
+	
  
- 2. Grant the app1_es_writer to all of the data nodes on ES
-    -- The spring-boot app is using the PKI cert of the data node to make an **outgoing** REST call to ES
-    -- So, the data node needs to have hte "app1_es_writer" role granted to it
+ 3. Add ElasticSearch settings to production template application.yaml
+    a. Edit bdp-install/src/main/assembly/config/application.yaml
+	b. Add this section to the top:
+	
+		###########################################################
+		# ElasticSearch Settings
+		##########################################################
+		es:
+		  url: {{{bdp:proxy.url/elasticsearch}}}
+		  ssl_enabled: true
+		  key-store: {{{bdp:host.pki.keystore.jks}}}
+		  key-store-password: {{{bdp:host.pki.keystore.password}}}
+		  key-store-type: JKS
+		  trust-store: {{{bdp:host.pki.truststore.jks}}}
+		  trust-store-password: {{{bdp:host.pki.truststore.password}}}
+		  trust-store-type: JKS 
  
- 3. Add ElasticSearch settings to the application.yaml and template application.yaml
+ 4. Add code to generate SSL Conext
  
- 4. Package the RDA
- 5. Deploy to the BDP
- 6. Try it out on the BDP
+ 
+ 5. Package the RDA
+ 6. Deploy to the BDP
+ 7. Try it out on the BDP
  
 
 
