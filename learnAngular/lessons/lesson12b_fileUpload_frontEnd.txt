@@ -1,7 +1,127 @@
 Lesson:  Setup the Frontend to Alow Uploading One or More Files
 ---------------------------------------------------------------
+Create a new page that allows the user to upload one or more files
 
+References
+----------
+https://www.ninjadevcorner.com/2019/01/how-to-upload-file-with-angular-6-7-tutorial.html
+https://www.npmjs.com/package/ng2-file-upload
 
 Procedure
 ---------
+ 1. Install the ng2-file-upload javascript library
+    unix> cd ~/intellijProjects/angularApp1/frontend
+	unix> npm install ng2-file-upload --save
+	
+    -- Your frontend/package.json should have this entry (or something like it)
+	      "ng2-file-upload": "1.4.0",
+		
 
+ 2. Add the FileUploadModule to the app.module.ts imports
+    a. Edit frontend/src/app.module.ts
+	b. Add FileUploadModule to the imports section
+	
+
+	
+ 3. Add a new report upload page
+    a. Create the page component
+	   unix> cd ~/intellijProjects/angularApp1/frontend
+	   unix> ng generate component reports/uploadReport
+	   
+	
+	b. Add the "Upload Report" page to the navigation bar
+	   1) Edit frontend/src/app/navbar/navbar.component.html
+	   2) After the <mat-list-item..> for the Audit history, add this
+			  <!-- Upload Report -->
+			  <mat-list-item class="navItem" [routerLink]="'page/uploadReport'" routerLinkActive="active">
+				<a title="Upload Report">Upload Report</a>
+				<div fxFlex fxLayoutAlign="end end" >
+				  <a [routerLink]="'page/uploadReport'" target="_blank">
+					<i class="fas fa-external-link-alt navItemIcon" title="Open Upload Reportin a new window"></i>
+				  </a>
+				</div>
+			  </mat-list-item>   
+	 
+	 c. Add 'page/uploadReport' to the routes
+	    1) Edit frontend/src/app.module.ts
+		2) Add this to the list of routes
+				{ path: 'page/uploadReport', component: UploadReportComponent },
+				  
+		   When finished, the Routes object should look like this:
+				const appRoutes: Routes = [
+				  { path: 'page/addReport',    component: AddReportComponent },
+				  { path: 'page/viewReports',  component: ViewReportsComponent },
+				  { path: 'page/uploadReport', component: UploadReportComponent },
+				  { path: 'page/chart1',       component: Chart1Component },
+				  { path: 'page/chart2',       component: Chart2Component },
+				  { path: '',                  component: WelcomeComponent},
+				  { path: '**',                component: NotFoundComponent}
+				];		   
+		   
+ 4. Verify that the "Upload Report" page shows up
+    a. Start the debugger -- "Full WebApp (dev)"
+	b. Make sure you see an Upload Report option
+	
+	
+ 5. Update the upload-report.component.ts to configure the FileUploader object
+    a. Edit upload-report-component.ts
+	b. Replace its contents with this:
+
+		import { Component, OnInit } from '@angular/core';
+		import {FileUploader} from "ng2-file-upload";
+		import {environment} from "../../../environments/environment";
+		import {MessageService} from "../../services/message.service";
+
+
+		const backendUploadUrl =  environment.baseUrl + '/api/reports/upload';
+
+		@Component({
+		  selector: 'app-upload-report',
+		  templateUrl: './upload-report.component.html',
+		  styleUrls: ['./upload-report.component.css']
+		})
+		export class UploadReportComponent implements OnInit {
+
+		  // Make sure the itemAlias matches the @RequestParam(value = "file" in the REST endpoint
+		  public uploader: FileUploader = new FileUploader({url: backendUploadUrl,
+																	itemAlias: 'file'});
+
+		  constructor(private messageService: MessageService) { }
+
+		  ngOnInit(): void {
+			this.uploader.onAfterAddingFile = (file) => {
+			  file.withCredentials = false;
+			};
+
+			this.uploader.onCompleteItem = (item: any, response: any, status: any, headers: any ) => {
+			  console.log('File uploaded:  item=', item, '  status=', status, '  response=', response, '  headers=', headers);
+
+			  // Send a message to the user letting him know if it worked
+			  let message = " status=" + status + "   response=" + response;
+			  this.messageService.sendMessage(message);
+			}
+		  }
+
+		}
+
+
+
+ 6. Edit the upload-report.component.html
+    a. Edit upload-report.component.html
+	b. Replace its contents with this:
+
+		<mat-card>
+		  <mat-card-title>Upload Report</mat-card-title>
+
+		  <mat-card-content>
+			<br/>
+			<input type="file" name="file" ng2FileSelect [uploader]="uploader" />
+
+			<button type="button" class="btn btn-success btn-s"
+					(click)="uploader.uploadAll()"
+					[disabled]="!uploader.getNotUploadedItems().length" >
+			  Upload a file
+			</button>
+
+		  </mat-card-content>
+		</mat-card>
