@@ -4,4 +4,89 @@ Lesson:  How to Show Progress during the File Upload
 
 Procedure
 ---------
+ 1. Add a progress bar to the upload page
+    a. Edit upload-report-component.html
+	b. Add the progress bar:
+		<!-- Progress Bar -->
+		<mat-progress-bar *ngIf="uploader.progress > 0" style="margin-top: 5px" [value]="uploader.progress"></mat-progress-bar>
+    
+	When completed, the upload-report-component.html should look like this:
+	
+		<mat-card>
+		  <mat-card-title>Upload Report</mat-card-title>
+
+		  <mat-card-content>
+			<br/>
+			<input type="file" name="file" ng2FileSelect [uploader]="uploader" />
+
+			<button type="button" class="btn btn-success btn-s"
+					(click)="uploader.uploadAll()"
+					[disabled]="!uploader.getNotUploadedItems().length" >
+			  Upload a file
+			</button>
+
+			<!-- Progress Bar -->
+			<mat-progress-bar *ngIf="uploader.progress > 0" style="margin-top: 5px" [value]="uploader.progress"></mat-progress-bar>
+
+		  </mat-card-content>
+		</mat-card>
+
+	
+ 2. Have the uploader report its progress
+    a. Edit the upload-report-component.ts
+	
+	b. Add this to the ngOnInit() method:
+			this.uploader.onProgressItem = (progress: any) => {
+			  console.log('progress=', progress['progress']);
+			};
+ 
+       When finished, the upload-report-component.ts file looks like this:
+
+			import { Component, OnInit } from '@angular/core';
+			import {FileUploader} from "ng2-file-upload";
+			import {environment} from "../../../environments/environment";
+			import {MessageService} from "../../services/message.service";
+
+
+			const backendUploadUrl =  environment.baseUrl + '/api/reports/upload';
+
+			@Component({
+			  selector: 'app-upload-report',
+			  templateUrl: './upload-report.component.html',
+			  styleUrls: ['./upload-report.component.css']
+			})
+			export class UploadReportComponent implements OnInit {
+
+			  // Make sure the itemAlias matches the @RequestParam(value = "file" in the REST endpoint
+			  public uploader: FileUploader = new FileUploader({url: backendUploadUrl,
+																		itemAlias: 'file'});
+
+			  constructor(private messageService: MessageService) { }
+
+			  ngOnInit(): void {
+				this.uploader.onAfterAddingFile = (file) => {
+				  file.withCredentials = false;
+				};
+
+				this.uploader.onCompleteItem = (item: any, response: any, status: any, headers: any ) => {
+				  console.log('File uploaded:  item=', item, '  status=', status, '  response=', response, '  headers=', headers);
+
+				  // Send a message to the user letting him know if it worked
+				  let message = " status=" + status + "   response=" + response;
+				  this.messageService.sendMessage(message);
+				};
+
+				this.uploader.onProgressItem = (progress: any) => {
+				  console.log('progress=', progress['progress']);
+				};
+
+			  }
+
+			}
+
+ 3. Verify it works
+    Click on Reports -> Upload Report
+	Click "Choose File" and browse to a large file
+	press "Upload"
+	-- You should see the progress bar 
 
