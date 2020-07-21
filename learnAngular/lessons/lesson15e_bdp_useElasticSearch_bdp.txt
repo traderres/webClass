@@ -12,10 +12,10 @@ Procedure
 		  "security": {
 			  "_meta": {
 				"acl": {
-				  "data_read":      "role:ES_READER",
-				  "data_write":     "role:ES_READER|role:ES_WRITER",
-				  "metadata_read":  "role:ES_READER",
-				  "metadata_write": "role:ES_READER|role:ES_WRITER"
+				  "data_read":      "role:ES_WRITER|role:ES_READER",
+				  "data_write":     "role:ES_WRITER",
+				  "metadata_read":  "role:ES_WRITER|role:ES_READER",
+				  "metadata_write": "role:ES_WRITER"
 				}
 			  }
 			},
@@ -54,10 +54,10 @@ Procedure
 			"security": {
 			  "_meta": {
 				"acl": {
-				  "data_read":      "role:ES_READER",
-				  "data_write":     "role:ES_READER|role:ES_WRITER",
-				  "metadata_read":  "role:ES_READER",
-				  "metadata_write": "role:ES_READER|role:ES_WRITER"
+				  "data_read":      "role:ES_WRITER|role:ES_READER",
+				  "data_write":     "role:ES_WRITER",
+				  "metadata_read":  "role:ES_WRITER|role:ES_READER",
+				  "metadata_write": "role:ES_WRITER"
 				}
 			  }
 			},
@@ -333,6 +333,8 @@ Procedure
 			}
 		}
 
+
+
  5. Add this class:  SSLContextFactory
     a. Right-click on backend/src/main/java/com/lessons/security -> New Java Class
 	   Filename:  SSLContextFactory
@@ -491,6 +493,7 @@ Procedure
 			}
 		}
 
+
  6. Update the ElasticSearchResourcesConfig class so that it loads an SSL Context if es.ssl_enabled holds true
     a. Edit backend/src/main/java/com/lessons/config/ElasticSearchResourcesConfig
 	
@@ -582,7 +585,7 @@ Procedure
 				else if (StringUtils.isEmpty(this.trustStorePassword)) {
 					throw new RuntimeException("Critical Error Creating SSL Context:  The truststore jks password is empty.  Check this property 'es.trust-store-password' in the application.yaml");
 				}
-				else if ((StringUtils.isEmpty(this.turstStoreType)) || (! this.turstStoreType.equalsIgnoreCase("jdk"))) {
+				else if ((StringUtils.isEmpty(this.turstStoreType)) || (! this.turstStoreType.equalsIgnoreCase("JKS"))) {
 					throw new RuntimeException("Critical Error Creating SSL Context:  The truststore type must be JKS.   Check this property 'es.trust-store-type'");
 				}
 
@@ -598,12 +601,12 @@ Procedure
 				}
 
 				logger.debug("Generating SSL Context from client p12 {} and truststore {}", this.clientP12FilePath, this.trustStoreFilePath);
-				logger.debug("clientp12Password -->{}<--  truststorepassword -->{}<--", this.clientP12Password, this.trustStorePassword);
 				SSLContext sslContext = SSLContextFactory.makeContext(clientP12File, this.clientP12Password, trustStoreJkdFile, this.trustStorePassword);
 				return sslContext;
 			}
 
 		}
+
 
 
  7. Package the RDA
@@ -613,14 +616,14 @@ Procedure
 	NOTE:  The RDA will be located here:
 				~/intellijProjects/angularApp1/bdp-install/target/webapp.rda.zip
 	
- 6. Upload the RDA to the BDP
+ 8. Upload the RDA to the BDP
     -- Upload the webapp.rda.zip
 	
 	
- 7. Startup the RDA
+ 9. Startup the RDA
  
  
- 8. Grant the SUPERUSER role to your p12 cert
+10. Grant the ES_READER role to your p12 cert (so you can see the elasticsearch status info from the browser)
     a. Find your p12 cert name in citadel
 	   ssh to the puppet master
 	   unix> sudo -s
@@ -631,8 +634,34 @@ Procedure
 	   unix> citadel attribute:add -u $USERNAME -a ROLE:SUPERUSER
 	
 	
- 9. Attempt to connect to the create-index search REST call
+11. Invoke a REST call that will create an ElasticSearch index on the BDP
     a. Open a browser with a p12 cert loaded in it
 	b. Go to https:// <IP address of nginx frontdoor>  /app1/api/search/create
-     
- 
+       -- You should see "Successfully Created the mapping reports"
+	   
+	c. Verify that the index exists in elasticsearch
+	   Go to https:// <IP address of nginx frontdoor>  /elasticsearch-primary/_cat/indices
+	   -- You should see an index called "reports"
+
+
+12. Invoke a REST call that will add records to the ElasticSearch index (called "reports") on the BDP
+    a. Open a browser with a p12 cert loaded in it
+	b. Go to https:// <IP address of nginx frontdoor>  /app1/api/search/add
+       -- You should see "Successfully added some records.  Here is what was added...."
+	   
+	c. Verify that the data exists in elasticsearch
+	   Go to https:// <IP address of nginx frontdoor>  /elasticsearch-primary/reports/_search?pretty
+	   -- You should see the data
+	   
+
+13. Invoke a REST call that will delete the ElasticSearch index (called "reports") on the BDP
+    a. Open a browser with a p12 cert loaded in it
+	b. Go to https:// <IP address of nginx frontdoor>  /app1/api/search/delete
+       -- You should see "Successfully deleted the mapping"
+	   
+	c. Verify that the data exists in elasticsearch
+	   Go to https:// <IP address of nginx frontdoor>  /elasticsearch-primary/_cat/indices
+	   -- You should *NOT* see an index called "reports"
+	   
+	  	 
+		
