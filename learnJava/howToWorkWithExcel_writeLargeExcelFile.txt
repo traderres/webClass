@@ -1,0 +1,116 @@
+How to Read a Large Excel Files Using excel-stremaing-reader
+------------------------------------------------------------
+Problem:  The older Apache POI library reads the entire Excel file into memory (it's not memory efficient)
+          But, I want to process a large Excel file *without* reading the entire thing into memory
+
+
+Approach:  Use the excel-streaming-reader 
+           NOTE:  This library will ONLY work with XLSX files. The older XLS format is not capable of being streamed.
+           
+
+
+
+
+Procedure
+---------
+ 1. Add this dependency to your pom.xml
+		<dependency>
+		  <!-- Apache POI dependency (used to generate xlsx files) -->
+		  <groupId>org.apache.poi</groupId>
+		  <artifactId>poi-ooxml</artifactId>
+		  <version>4.1.2</version>
+		</dependency>
+
+  
+ 
+ 2. Create a method to write to a new excel file
+   public void sendRowSetToExcelFile(SqlRowSet aSqlRowSet,
+                                     String aOutputFilePath,
+                                     String aSheetName,
+                                     boolean aAddColumnNames) throws Exception {
+        logger.debug("Starting to write to file: {}", aOutputFilePath);
+
+        // Creating a Streaming Workbook instance
+        //        Keep 100 rows in memory.  The remaining rows will be written to disk
+        //        + This does not increase or decreate the time it takes to generate the XLSX file
+        //        + This reduces memory consumption
+        SXSSFWorkbook streamingWorkBook = new SXSSFWorkbook(100);
+
+        // Create the worksheet (within this excel workbook)
+        SXSSFSheet sheet = streamingWorkBook.createSheet(aSheetName);
+
+        // Get a fixed list of column names
+        SqlRowSetMetaData sqlRowSetMetaData = aSqlRowSet.getMetaData();
+        String[] columnNames = sqlRowSetMetaData.getColumnNames();
+
+        // In Apache POI, the first row starts with row number of zero
+        int currentRowNumber = 0;
+
+        if (aAddColumnNames) {
+            // Set the first row with column headers
+            addHeaderRowToSheet(sheet, columnNames);
+            currentRowNumber++;
+        }
+
+        // Loop through the remaining data, writing it one row at a time
+        while (aSqlRowSet.next()) {
+
+            // Create a row in this worksheet
+            Row row = sheet.createRow(currentRowNumber);
+
+            // Loop through each column in this row, adding it to the excel sheet
+            for (int i=0; i<columnNames.length; i++) {
+                String columnName = columnNames[i];
+                String value = aSqlRowSet.getString(columnName);
+
+                // Create the cell in this row
+                Cell cell = row.createCell(i);
+                cell.setCellValue(value);
+            }
+
+            currentRowNumber++;
+        }
+
+        // Write the remaining contents of the excel file to disk
+        try (FileOutputStream outputStream = new FileOutputStream(aOutputFilePath)) {
+            // Overwrite the existing file
+            streamingWorkBook.write(outputStream);
+        }
+
+        // Dispose of the temporary file (used by the streaming workbook)
+        streamingWorkBook.dispose();
+        logger.debug("Finished writing to file:  {}", aOutputFilePath);
+    }
+
+
+
+    private void addHeaderRowToSheet(SXSSFSheet aSheet, String[] aColumnNames) {
+        if (aSheet == null) {
+            throw new RuntimeException("Critical error in addHeaderRowToSheet():  The passed-in aSheet is null");
+        }
+
+        // Create a row in this worksheet
+        Row row = aSheet.createRow(0);
+
+        CellStyle headerCellStyle = aSheet.getWorkbook().createCellStyle();
+        Font font = aSheet.getWorkbook().createFont();
+        font.setBold(true);
+        font.setFontHeightInPoints((short) 11);
+        headerCellStyle.setFont(font);
+
+        // Loop through the column names, writing them to this row
+        int i=0;
+        for (String columnName: aColumnNames) {
+            // Create a cell in this worksheet
+            Cell cell = row.createCell(i);
+            cell.setCellValue(columnName);
+            cell.setCellStyle(headerCellStyle);   // Set this cell as bold
+
+            // This is the width that fits most of the headers
+            aSheet.setColumnWidth(i, 4500);
+            i++;
+        }
+
+    }
+ 
+
