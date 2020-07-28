@@ -1,0 +1,70 @@
+How to Parse Dates in Java
+--------------------------
+Problem:  You need to convert a String to a Timestamp object
+          You do not know which of N date formats will be used
+          
+
+Approach
++ Use SimpleDateFormat 
++ Loop through the various formats trying to parse the string
++ The first parse that works successfully -- is returned
+
+NOTE: Set  simpleDateFormat.setLeniant(false) so that SimpleDateFormat is more *strict* about parsing
+
+
+Procedure
+---------
+ 1. Create a DateUtilities class with a list of date formats
+
+    package com.lessons.utilities;
+
+    import org.apache.commons.lang3.StringUtils;
+    import org.slf4j.Logger;
+    import org.slf4j.LoggerFactory;
+
+    import java.sql.Timestamp;
+    import java.text.SimpleDateFormat;
+    import java.util.Arrays;
+    import java.util.Date;
+    import java.util.List;
+
+    public class DateUtilities {
+        private static final Logger logger = LoggerFactory.getLogger(DateUtilities.class);
+
+        // NOTE:  The order of the formats may be important
+        final static List<String> dateFormats = Arrays.asList( "yyyy-MM-dd",  "yyyy/MM/dd", "MM/dd/yyyy", "d-MM-yy", "dd-MM-yy", "dd-MMM-yyyy","dd/MM/yyyy");
+
+
+        public static Timestamp convertToTimestamp(String aString) {
+            if (StringUtils.isEmpty(aString) || (aString.length() == 1)) {
+                return null;
+            }
+
+            // Loop through all of the date formats (attempting to convert this string to a date)
+            for (String dateFormat : dateFormats) {
+                try {
+                    SimpleDateFormat simpleDateFormat = new SimpleDateFormat(dateFormat);
+                    simpleDateFormat.setLenient(false);   // Parsing requires exact match
+
+                    // Attempt to convert the String to a Date
+                    Date parsedDate = simpleDateFormat.parse(aString);
+
+                    // Convert the Date into a Timestamp
+                    Timestamp timestamp = new java.sql.Timestamp(parsedDate.getTime());
+                    return timestamp;
+                } catch (Exception e) {
+                    // I could not parse this date -- so try the next
+                    continue;
+                }
+            }
+
+            // If I got this far, then I could not parse the date using *any* of the date formats
+            logger.warn("I could not parse this date using any of the date formats:  {}", aString);
+            return null;
+        }
+
+    }
+    
+2. Call DataUtilities.convertToTimestamp("2015-05-03")
+   -- And you should get a Timestamp
+   
