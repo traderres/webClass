@@ -1,0 +1,161 @@
+How to Install Elastic Search 5.6.16 on a Mac
+---------------------------------------------
+
+References
+----------
+https://www.elastic.co/guide/en/elasticsearch/reference/5.4/gs-installation.html
+
+
+Procedure
+---------
+ 1. Make sure your JAVA_HOME variable is set to a Java JDK 1.8 or later
+
+ 2. Download and install ElasticSearch to your ~/tools/elasticsearch-5.6.16/
+    unix> cd 
+    unix> mkdir ~/tools
+    unix> curl -L -O https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.6.16.tar.gz
+    unix> tar -xvf elasticsearch-5.6.16.tar.gz
+
+ 3. Change the ElasticSearch port from 9200 to 9201
+    unix> vi ~/tools/elasticsearch-5.6.16/config/elasticsearch.yml
+    
+    Change this:
+       #http.port: 9200
+       
+    To this:
+       http.port: 9201
+
+
+ 4. Start ElasticSearch manually
+    unix> cd ~/tools/elasticsearch-5.6.16/bin
+    unix> ./elasticsearch
+    -- Your ElasticSearch should be listening on port 9201
+
+ 5. Verify that ElasticSearch is up
+    a. Open a browser
+    b. Connect to http://localhost:9201/
+
+       You should see this:
+        {
+          "name" : "8emT9ye",
+          "cluster_name" : "elasticsearch",
+          "cluster_uuid" : "uxhDSHioQuiZwgfdYoAmxg",
+          "version" : {
+            "number" : "5.6.16",
+            "build_hash" : "780f8c4",
+            "build_date" : "2017-04-28T17:43:27.229Z",
+            "build_snapshot" : false,
+            "lucene_version" : "6.5.0"
+          },
+          "tagline" : "You Know, for Search"
+        }
+
+
+
+Set up ElasticSearch so it starts-up on bootup
+----------------------------------------------
+1. Create the plist file (with the line to run ElasticSearch)
+
+   unix> sudo vim /Library/LaunchAgents/com.edb.launchd.elasticsearch-5.6.16.plist
+
+       <?xml version="1.0" encoding="UTF-8"?>
+       <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN"
+               "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+       <plist version="1.0">
+       <dict>
+           <key>Disabled</key>
+           <false/>
+               <key>Label</key>
+               <string>com.edb.launchd.elasticsearch-5.6.16</string>
+               <key>ProgramArguments</key>
+               <array>
+                       <string>/Users/MY_USERNAME/tools/elasticsearch-5.6.16/bin/elasticsearch</string>
+               </array>
+               <key>RunAtLoad</key>
+               <true/>
+           <key>KeepAlive</key>
+           <dict>
+                <key>SuccessfulExit</key>
+                <false/>
+           </dict>
+       </dict>
+       </plist>
+
+   NOTES:
+    A) ElasticSearch cannot run as the root user -- so use LaunchAgents to run as a non-root user
+    B) Do not add leading spaces before the first line
+    C) The filename must match the string in the plist file
+             com.edb.launchd.elasticsearch-5.6.16.plist
+
+
+ 2. Disable System Integrity Protection
+    a. Shut down the box
+    b. Press and hold Command and R 
+    c. Press Power button once -- keep holding Command-R until you see macOS Utilities -- about 90 seconds)
+    d. Pull Utilities -> Terminal
+
+    e. Disable System Integrity Protection
+       1. Get the current status
+          unix> csrutil status
+          -- It will show that it currently enabled
+
+       2. Disable System Integrity Protection
+          unix> csrutil disable
+          Successfully disabled System Integrity Protection.  Please restart the machine for the changes to take effect.
+
+       3. Restart mac
+          Pull Apple icon -> Restart
+
+
+ 4. Register the newly-created plist file into the LaunchAgents (because SIP is disabled)
+    a. Get the current status
+       unix> csrutil status
+       -- It will show that it currently disabled
+
+    b. Register the new plist item
+       unix> sudo launchctl load  -w /Library/LaunchAgents/com.edb.launchd.elasticsearch-5.6.16.plist
+       unix> sudo launchctl start -w /Library/LaunchAgents/com.edb.launchd.elasticsearch-5.6.16.plist   # Not sure if this is required
+
+    c. Look at your elasticsearch/logs/elasticsearch.log file to verify it is running
+       unix> tail -f ~/tools/elasticsearch-5.6.16/logs/elasticsearch.log
+       -- You should see it is running
+
+
+ 5. Enable System Integrity Protection
+    a. Shut down the box
+    b. Press and hold Command and R
+    c. Press Power button once -- keep holding until you see macOS Utilities -- about 90 seconds)
+    d. Pull Utilities -> Terminal
+
+    e. Disable System Integrity Protection
+       1. Get the current status
+          unix> csrutil status
+          -- It will show that it currently disabled
+
+       2. Disable System Integrity Protection
+          unix> csrutil enable
+          Successfully enabled System Integrity Protection.  Please restart the machine for the changes to take effect.
+
+       3. Restart mac
+          Pull Apple icon -> Restart
+
+
+ 6. Verify that ElasticSearch started automatically after reboot
+    a. Open a browser
+    b. Connect to http://localhost:9201/
+
+       You should see this:
+        {
+          "name" : "8emT9ye",
+          "cluster_name" : "elasticsearch",
+          "cluster_uuid" : "uxhDSHioQuiZwgfdYoAmxg",
+          "version" : {
+            "number" : "5.6.16",
+            "build_hash" : "780f8c4",
+            "build_date" : "2017-04-28T17:43:27.229Z",
+            "build_snapshot" : false,
+            "lucene_version" : "6.5.0"
+          },
+          "tagline" : "You Know, for Search"
+        }
+
