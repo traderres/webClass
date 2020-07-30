@@ -1,0 +1,323 @@
+How to Install Elastic Search 5.6.18 on CentOS 8 (using the RPM)
+----------------------------------------------------------------
+
+Advantages of using the rpm package to install ElasticSearch
+ 1) It will create an elasticsearch group
+ 2) It will create an elasticsearch user 
+ 3) it will create an elasticsearch service
+
+
+Disadvantages of using the rpm package to install ElasticSearch
+ 1) it installs the files to
+      /usr/share/elasticsearch
+ 2) The config files are located here:
+      /etc/elasticsearch/logging.yml
+      /etc/elasticsearch/elasticsearch.yml
+      /etc/sysconfig/elasticsearch
+ 3) logging is stored here:
+     /var/log/elasticsearch
+ 4) data directory is here:
+     /var/lib/elasticsearch
+     
+NOTES:
+ A) Default directory values (for the elasticsearch service) are in this file:          
+      /etc/rc.d/init.d/elasticsearch has default directories
+ B) You can override these values by modifying this file:  
+      /etc/sysconfig/elasticsearch     
+
+
+
+References
+----------
+https://www.digitalocean.com/community/tutorials/how-to-install-and-configure-elasticsearch-on-centos-7
+
+
+
+Assumptions
+ A) You have a Java JDK installed and in your PATH
+ 
+ 
+
+Procedures
+----------
+ 1. Download the Elastic Search 5.6.18 rpm package to your unix box
+    unix> cd /tmp
+    unix> wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.6.16.rpm
+     
+       
+ 
+ 2. Install Elastic Search 5.6.18 (using the rpm)
+    unix> cd /tmp
+    unix> sudo rpm -ivh elasticsearch-5.6.16.rpm
+    unix> rm /tmp/elasticsearch-5.6.16.rpm
+ 
+    unix> sudo systemctl daemon-reload          # To tell unix to reload the services
+    unix> sudo systemctl enable elasticsearch   # To startup elasticsearch upon reboot
+      
+      
+
+ 3. Verify that we have an elasticsearch user and group
+    unix> grep elasticsearch /etc/passwd
+    elasticsearch:x:494:491:elasticsearch user:/home/elasticsearch:/sbin/nologin
+       
+    unix> grep elasticsearch /etc/group
+    elasticsearch:x:491:
+      
+      
+ 
+ 4. Configure ElasticSearch service so that it knows where the JAVA_HOME is
+    unix> sudo vi /etc/sysconfig/elasticsearch
+    
+        # Tell ElasticSearch where your JAVA_HOME is
+        JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
+        
+        NOTE:  The JAVA_HOME line should not have a # in front of it
+        
+ 
+ 5. Configure ElasticSearch to bind to a localhost *and* public-facing IP address and to listen on port 9201
+    unix> sudo vi /etc/elasticsearch/elasticsearch.yml
+    
+       network.bind_host: "0.0.0.0"
+       network.host: 0.0.0.0
+       http.port: 9201
+
+       NOTE:  You must have a space after the colon
+        
+ 
+ 6. Setup your elasticsearch user so that its open file limit is 65536 or more
+    NOTE:  If this is not set, 
+            then you will get an error in /var/log/elasticsearch.log
+                bootstrap checks failed
+                max file descriptors [1024] for elasticsearch process is too low, increase to at least [65536]
+
+      unix> sudo -s
+      unix> vi /etc/security/limits.conf
+           
+             # Setup the elasticsearch user so that it can have 65536 open files
+             elasticsearch -     nofile 65536
+      
+      
+      
+ 7. Setup your elasticsearch user so that its max thread limit is 2048 or more
+    NOTE:  If this is not set, 
+            then you will get an error in /var/log/elasticsearch.log
+                bootstrap checks failed
+                max number of threads [1024] for user [elasticsearch] is too low, increase to at least [2048]
+
+      unix> sudo -s
+      unix> vi /etc/security/limits.conf
+           
+             # Setup the elasticsearch user so that it can have up to 2048 threads
+             elasticsearch -     nproc 2048
+      
+
+
+ 8. **OPTIONAL** Setup the elasticsearch service to automatically startup on boot
+     unix> sudo systemctl enable elasticsearch
+
+
+    
+ 9. Attempt to start the elasticsearch service
+    unix> sudo systemctl start elasticsearch
+    Starting elasticsearch:                                    [  OK  ]
+    
+
+10. Look at the log files to see what's happening
+    unix> sudo tail -2000f /var/log/elasticsearch/elasticsearch.log 
+
+    *OR*
+
+    unix> sudo journctl -fu elasticsearch
+
+    [2016-11-20T16:47:01,716][INFO ][o.e.n.Node               ] [] initializing ...
+    [2016-11-20T16:47:01,798][INFO ][o.e.e.NodeEnvironment    ] [q6kqqlh] using [1] data paths, mounts [[/ (/dev/mapper/vg_centosvm-lv_root)]], net usable_space [14.9gb], net total_space [34.9gb], spins? [possibly], types [ext4]
+    [2016-11-20T16:47:01,798][INFO ][o.e.e.NodeEnvironment    ] [q6kqqlh] heap size [1.9gb], compressed ordinary object pointers [true]
+    [2016-11-20T16:47:01,799][INFO ][o.e.n.Node               ] [q6kqqlh] node name [q6kqqlh] derived from node ID; set [node.name] to override
+    [2016-11-20T16:47:01,800][INFO ][o.e.n.Node               ] [q6kqqlh] version[5.4.0], pid[7737], build[080bb47/2016-11-11T22:08:49.812Z], OS[Linux/2.6.32-573.18.1.el6.x86_64/amd64], JVM[Oracle Corporation/Java HotSpot(TM) 64-Bit Server VM/1.8.0_74/25.74-b02]
+    [2016-11-20T16:47:02,458][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [aggs-matrix-stats]
+    [2016-11-20T16:47:02,458][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [ingest-common]
+    [2016-11-20T16:47:02,458][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [lang-expression]
+    [2016-11-20T16:47:02,458][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [lang-groovy]
+    [2016-11-20T16:47:02,458][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [lang-mustache]
+    [2016-11-20T16:47:02,458][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [lang-painless]
+    [2016-11-20T16:47:02,458][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [percolator]
+    [2016-11-20T16:47:02,459][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [reindex]
+    [2016-11-20T16:47:02,459][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [transport-netty3]
+    [2016-11-20T16:47:02,459][INFO ][o.e.p.PluginsService     ] [q6kqqlh] loaded module [transport-netty4]
+    [2016-11-20T16:47:02,459][INFO ][o.e.p.PluginsService     ] [q6kqqlh] no plugins loaded
+    [2016-11-20T16:47:04,446][INFO ][o.e.n.Node               ] [q6kqqlh] initialized
+    [2016-11-20T16:47:04,446][INFO ][o.e.n.Node               ] [q6kqqlh] starting ...
+    [2016-11-20T16:47:04,600][INFO ][o.e.t.TransportService   ] [q6kqqlh] publish_address {127.0.0.1:9300}, bound_addresses {[::]:9300}
+    [2016-11-20T16:47:04,604][INFO ][o.e.b.BootstrapCheck     ] [q6kqqlh] bound or publishing to a non-loopback or non-link-local address, enforcing bootstrap checks
+      
+          
+       
+11. Verify ElasticSearch is up
+    a. Open a browser
+    b. Go to http://localhost:9201/
+
+       You should see this:
+       {
+         "name" : "YbVZxpu",
+         "cluster_name" : "elasticsearch",
+         "cluster_uuid" : "c3oWorHDQAKjRDRXMd1UuQ",
+         "version" : {
+           "number" : "5.6.18",
+           "build_hash" : "780f8c4",
+           "build_date" : "2017-04-28T17:43:27.229Z",
+           "build_snapshot" : false,
+           "lucene_version" : "6.5.0"
+         },
+         "tagline" : "You Know, for Search"
+       }
+
+
+
+How to Uninstall this RPM
+--------------------------
+unix> sudo rpm -e elasticsearch
+
+
+Trouble-Shooting ElasticSearch Will Not Startup on Reboot (for VirtualBox Users)
+--------------------------------------------------------------------------------
+Problem:  The elasticsearch service is set to start on reboot
+          But, we keep getting the error Cannot Allocate Memory
+          Then, manually starting elasticsearch would work
+          Using Virtual Box 6.0 and Centos 7 Linux host, we saw this issue:
+
+Symptom
+unix> sudo tail -500f /var/log/elasticsearch/elasticsearch.log
+
+[2019-06-11T15:37:14,208][INFO ][o.e.n.Node               ] [] initializing ...
+[2019-06-11T15:37:14,288][INFO ][o.e.e.NodeEnvironment    ] [5zaLqs-] using [1] data paths, mounts [[/ (rootfs)]], net usable_space [98gb], net total_space [110.9gb], spins? [unknown], types [rootfs]
+[2019-06-11T15:37:14,289][INFO ][o.e.e.NodeEnvironment    ] [5zaLqs-] heap size [1.9gb], compressed ordinary object pointers [true]
+[2019-06-11T15:37:14,290][INFO ][o.e.n.Node               ] node name [5zaLqs-] derived from node ID [5zaLqs-iSrGH_Pkh8_lmsg]; set [node.name] to override
+[2019-06-11T15:37:14,291][INFO ][o.e.n.Node               ] version[5.4.0], pid[4495], build[780f8c4/2017-04-28T17:43:27.229Z], OS[Linux/3.10.0-957.21.2.el7.x86_64/amd64], JVM[Oracle Corporation/OpenJDK 64-Bit Server VM/1.8.0_212/25.212-b04]
+[2019-06-11T15:37:15,223][INFO ][o.e.p.PluginsService     ] [5zaLqs-] loaded module [aggs-matrix-stats]
+[2019-06-11T15:37:15,224][INFO ][o.e.p.PluginsService     ] [5zaLqs-] loaded module [ingest-common]
+[2019-06-11T15:37:15,224][INFO ][o.e.p.PluginsService     ] [5zaLqs-] loaded module [lang-expression]
+[2019-06-11T15:37:15,224][INFO ][o.e.p.PluginsService     ] [5zaLqs-] loaded module [lang-groovy]
+[2019-06-11T15:37:15,224][INFO ][o.e.p.PluginsService     ] [5zaLqs-] loaded module [lang-mustache]
+[2019-06-11T15:37:15,224][INFO ][o.e.p.PluginsService     ] [5zaLqs-] loaded module [lang-painless]
+[2019-06-11T15:37:15,224][INFO ][o.e.p.PluginsService     ] [5zaLqs-] loaded module [percolator]
+[2019-06-11T15:37:15,224][INFO ][o.e.p.PluginsService     ] [5zaLqs-] loaded module [reindex]
+[2019-06-11T15:37:15,224][INFO ][o.e.p.PluginsService     ] [5zaLqs-] loaded module [transport-netty3]
+[2019-06-11T15:37:15,224][INFO ][o.e.p.PluginsService     ] [5zaLqs-] loaded module [transport-netty4]
+[2019-06-11T15:37:15,225][INFO ][o.e.p.PluginsService     ] [5zaLqs-] no plugins loaded
+[2019-06-11T15:37:16,566][INFO ][o.e.d.DiscoveryModule    ] [5zaLqs-] using discovery type [zen]
+[2019-06-11T15:37:17,184][INFO ][o.e.n.Node               ] initialized
+[2019-06-11T15:37:17,185][INFO ][o.e.n.Node               ] [5zaLqs-] starting ...
+[2019-06-11T15:37:17,373][ERROR][o.e.b.Bootstrap          ] [5zaLqs-] Exception
+org.elasticsearch.transport.BindTransportException: Failed to bind to [9300]
+at org.elasticsearch.transport.TcpTransport.bindToPort(TcpTransport.java:760) ~[elasticsearch-5.4.0.jar:5.4.0]
+at org.elasticsearch.transport.TcpTransport.bindServer(TcpTransport.java:725) ~[elasticsearch-5.4.0.jar:5.4.0]
+at org.elasticsearch.transport.netty4.Netty4Transport.doStart(Netty4Transport.java:172) ~[?:?]
+at org.elasticsearch.common.component.AbstractLifecycleComponent.start(AbstractLifecycleComponent.java:69) ~[elasticsearch-5.4.0.jar:5.4.0]
+at org.elasticsearch.transport.TransportService.doStart(TransportService.java:196) ~[elasticsearch-5.4.0.jar:5.4.0]
+at org.elasticsearch.common.component.AbstractLifecycleComponent.start(AbstractLifecycleComponent.java:69) ~[elasticsearch-5.4.0.jar:5.4.0]
+at org.elasticsearch.node.Node.start(Node.java:685) ~[elasticsearch-5.4.0.jar:5.4.0]
+at org.elasticsearch.bootstrap.Bootstrap.start(Bootstrap.java:287) ~[elasticsearch-5.4.0.jar:5.4.0]
+at org.elasticsearch.bootstrap.Bootstrap.init(Bootstrap.java:369) [elasticsearch-5.4.0.jar:5.4.0]
+at org.elasticsearch.bootstrap.Elasticsearch.init(Elasticsearch.java:123) [elasticsearch-5.4.0.jar:5.4.0]
+at org.elasticsearch.bootstrap.Elasticsearch.execute(Elasticsearch.java:114) [elasticsearch-5.4.0.jar:5.4.0]
+at org.elasticsearch.cli.EnvironmentAwareCommand.execute(EnvironmentAwareCommand.java:67) [elasticsearch-5.4.0.jar:5.4.0]
+at org.elasticsearch.cli.Command.mainWithoutErrorHandling(Command.java:122) [elasticsearch-5.4.0.jar:5.4.0]
+at org.elasticsearch.cli.Command.main(Command.java:88) [elasticsearch-5.4.0.jar:5.4.0]
+at org.elasticsearch.bootstrap.Elasticsearch.main(Elasticsearch.java:91) [elasticsearch-5.4.0.jar:5.4.0]
+at org.elasticsearch.bootstrap.Elasticsearch.main(Elasticsearch.java:84) [elasticsearch-5.4.0.jar:5.4.0]
+Caused by: java.net.SocketException: Cannot allocate memory
+at sun.nio.ch.Net.bind0(Native Method) ~[?:?]
+at sun.nio.ch.Net.bind(Net.java:433) ~[?:?]
+at sun.nio.ch.Net.bind(Net.java:425) ~[?:?]
+at sun.nio.ch.ServerSocketChannelImpl.bind(ServerSocketChannelImpl.java:223) ~[?:?]
+at io.netty.channel.socket.nio.NioServerSocketChannel.doBind(NioServerSocketChannel.java:128) ~[?:?]
+at io.netty.channel.AbstractChannel$AbstractUnsafe.bind(AbstractChannel.java:554) ~[?:?]
+at io.netty.channel.DefaultChannelPipeline$HeadContext.bind(DefaultChannelPipeline.java:1258) ~[?:?]
+at io.netty.channel.AbstractChannelHandlerContext.invokeBind(AbstractChannelHandlerContext.java:501) ~[?:?]
+at io.netty.channel.AbstractChannelHandlerContext.bind(AbstractChannelHandlerContext.java:486) ~[?:?]
+at io.netty.channel.DefaultChannelPipeline.bind(DefaultChannelPipeline.java:980) ~[?:?]
+at io.netty.channel.AbstractChannel.bind(AbstractChannel.java:250) ~[?:?]
+at io.netty.bootstrap.AbstractBootstrap$2.run(AbstractBootstrap.java:365) ~[?:?]
+at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:163) ~[?:?]
+at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:403) ~[?:?]
+at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:442) ~[?:?]
+at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:858) ~[?:?]
+at java.lang.Thread.run(Thread.java:748) ~[?:1.8.0_212]
+[2019-06-11T15:37:17,383][WARN ][o.e.b.ElasticsearchUncaughtExceptionHandler] [] uncaught exception in thread [main]
+org.elasticsearch.bootstrap.StartupException: BindTransportException[Failed to bind to [9300]]; nested: SocketException[Cannot allocate memory];
+at org.elasticsearch.bootstrap.Elasticsearch.init(Elasticsearch.java:127) ~[elasticsearch-5.4.0.jar:5.4.0]
+at org.elasticsearch.bootstrap.Elasticsearch.execute(Elasticsearch.java:114) ~[elasticsearch-5.4.0.jar:5.4.0]
+at org.elasticsearch.cli.EnvironmentAwareCommand.execute(EnvironmentAwareCommand.java:67) ~[elasticsearch-5.4.0.jar:5.4.0]
+at org.elasticsearch.cli.Command.mainWithoutErrorHandling(Command.java:122) ~[elasticsearch-5.4.0.jar:5.4.0]
+at org.elasticsearch.cli.Command.main(Command.java:88) ~[elasticsearch-5.4.0.jar:5.4.0]
+at org.elasticsearch.bootstrap.Elasticsearch.main(Elasticsearch.java:91) ~[elasticsearch-5.4.0.jar:5.4.0]
+at org.elasticsearch.bootstrap.Elasticsearch.main(Elasticsearch.java:84) ~[elasticsearch-5.4.0.jar:5.4.0]
+Caused by: org.elasticsearch.transport.BindTransportException: Failed to bind to [9300]
+at org.elasticsearch.transport.TcpTransport.bindToPort(TcpTransport.java:760) ~[elasticsearch-5.4.0.jar:5.4.0]
+at org.elasticsearch.transport.TcpTransport.bindServer(TcpTransport.java:725) ~[elasticsearch-5.4.0.jar:5.4.0]
+at org.elasticsearch.transport.netty4.Netty4Transport.doStart(Netty4Transport.java:172) ~[?:?]
+at org.elasticsearch.common.component.AbstractLifecycleComponent.start(AbstractLifecycleComponent.java:69) ~[elasticsearch-5.4.0.jar:5.4.0]
+at org.elasticsearch.transport.TransportService.doStart(TransportService.java:196) ~[elasticsearch-5.4.0.jar:5.4.0]
+at org.elasticsearch.common.component.AbstractLifecycleComponent.start(AbstractLifecycleComponent.java:69) ~[elasticsearch-5.4.0.jar:5.4.0]
+at org.elasticsearch.node.Node.start(Node.java:685) ~[elasticsearch-5.4.0.jar:5.4.0]
+at org.elasticsearch.bootstrap.Bootstrap.start(Bootstrap.java:287) ~[elasticsearch-5.4.0.jar:5.4.0]
+at org.elasticsearch.bootstrap.Bootstrap.init(Bootstrap.java:369) ~[elasticsearch-5.4.0.jar:5.4.0]
+at org.elasticsearch.bootstrap.Elasticsearch.init(Elasticsearch.java:123) ~[elasticsearch-5.4.0.jar:5.4.0]
+... 6 more
+Caused by: java.net.SocketException: Cannot allocate memory
+at sun.nio.ch.Net.bind0(Native Method) ~[?:?]
+at sun.nio.ch.Net.bind(Net.java:433) ~[?:?]
+at sun.nio.ch.Net.bind(Net.java:425) ~[?:?]
+at sun.nio.ch.ServerSocketChannelImpl.bind(ServerSocketChannelImpl.java:223) ~[?:?]
+at io.netty.channel.socket.nio.NioServerSocketChannel.doBind(NioServerSocketChannel.java:128) ~[?:?]
+at io.netty.channel.AbstractChannel$AbstractUnsafe.bind(AbstractChannel.java:554) ~[?:?]
+at io.netty.channel.DefaultChannelPipeline$HeadContext.bind(DefaultChannelPipeline.java:1258) ~[?:?]
+at io.netty.channel.AbstractChannelHandlerContext.invokeBind(AbstractChannelHandlerContext.java:501) ~[?:?]
+at io.netty.channel.AbstractChannelHandlerContext.bind(AbstractChannelHandlerContext.java:486) ~[?:?]
+at io.netty.channel.DefaultChannelPipeline.bind(DefaultChannelPipeline.java:980) ~[?:?]
+at io.netty.channel.AbstractChannel.bind(AbstractChannel.java:250) ~[?:?]
+at io.netty.bootstrap.AbstractBootstrap$2.run(AbstractBootstrap.java:365) ~[?:?]
+at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:163) ~[?:?]
+at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:403) ~[?:?]
+at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:442) ~[?:?]
+at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:858) ~[?:?]
+at java.lang.Thread.run(Thread.java:748) [?:1.8.0_212]
+[2019-06-11T15:37:18,232][INFO ][o.e.n.Node               ] [5zaLqs-] stopping ...
+[2019-06-11T15:37:18,235][INFO ][o.e.n.Node               ] [5zaLqs-] stopped
+[2019-06-11T15:37:18,235][INFO ][o.e.n.Node               ] [5zaLqs-] closing ...
+[2019-06-11T15:37:18,252][INFO ][o.e.n.Node               ] [5zaLqs-] closed
+  
+  
+Solution:
+ 1) We Adjusted the elasticsearch.service to restart on error after waiting 30 seconds
+    -- Add the Restart=always and RestartSec=30 to the [Service] section of the elasticsearch.service
+    unix> sudo -s
+    unix> vi /usr/lib/systemd/system/elasticsearch.service
+    
+        [Service] 
+        Restart=always
+        RestartSec=30
+  
+  2) We saved the settings
+     unix> systemctl enable elasticsearch   # To startup on reboot
+     unix> systemctl daemon-reload
+     
+  3) We replaced the /etc/elasticsearch/elasticsearch.yml with these 6 lines
+     unix> vi /etc/elasticsearch/elasticsearch.yml
+     
+     network.bind_host: 127.0.0.1
+     http.port: 9200
+     node.master: True
+     node.data: true
+     transport.host: localhost
+     transport.tcp.port: 9300
+       
+  4) Reboot the virtual box running centos 7
+     unix> reboot
+  
+  5) After reboot
+     unix> sudo systemctl status elasticsearch
+     -- the ElasticSearch service would show it's running on reboot
+     
+     
+    
