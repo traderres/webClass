@@ -1,0 +1,123 @@
+How to Modify the postgresReport Class to Export to PowerPoint
+--------------------------------------------------------------
+Assumptions:
+ A) You have Intellij installed
+ B) You have Maven installed
+ C) You want to generate a PowerPoint File
+ D) You have started the postgresReport project
+
+
+NOTE:  If you are running Windows,
+       then replace
+              /home/adam/    -->     c:\users\<YOUR USERNAME>\
+
+
+Procedures
+----------
+ 1. Add dependencies for your project
+ 	a. Go to your pom.xml
+    b. Add this to the <dependencies>....</dependencies> section
+    
+		<dependency>
+		  <!-- Apache POI dependency (used to generate xlsx files) -->
+		  <groupId>org.apache.poi</groupId>
+		  <artifactId>poi-ooxml</artifactId>
+		  <version>4.1.2</version>
+		</dependency>
+    
+ 
+ 2. Add this class:  PowerPointUtils
+    a. Right-click on src/main/java/com/lessons -> New Java Class
+       Class Name:  PowerPointUtils
+    
+    b. Copy this to your newly created class
+        package com.lessons;
+
+        import org.apache.poi.xslf.usermodel.*;
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+
+        import java.awt.*;
+        import java.io.FileOutputStream;
+
+        public class PowerPointUtils {
+            private static final Logger logger = LoggerFactory.getLogger(PowerPointUtils.class);
+
+            public static void createPowerPointFile(String aOutputFilePath, String aSlideTitle) throws Exception
+            {
+                logger.debug("createPowerPointFile() started  outputFilePath={}", aOutputFilePath);
+
+                // Create the presentation file
+                XMLSlideShow ppt = new XMLSlideShow();
+
+
+                // Get the first master slide (there may be multiple)
+                XSLFSlideMaster defaultMaster = ppt.getSlideMasters().get(0);
+
+
+                // Create Slide 1:  Title Slide
+                XSLFSlideLayout titleLayout = defaultMaster.getLayout(SlideLayout.TITLE);
+
+                // fill the placeholders
+                XSLFSlide slide1 = ppt.createSlide(titleLayout);
+                XSLFTextShape title1 = slide1.getPlaceholder(0);
+                title1.setText(aSlideTitle);
+
+
+
+                // Create Slide 2
+                XSLFSlideLayout titleBodyLayout = defaultMaster.getLayout(SlideLayout.TITLE_AND_CONTENT);
+                XSLFSlide slide2 = ppt.createSlide(titleBodyLayout);
+                XSLFTextShape title2 = slide2.getPlaceholder(0);
+                title2.setText("Second Title");
+
+
+                XSLFTextShape body2 = slide2.getPlaceholder(1);
+                body2.clearText(); // unset any existing text
+                body2.addNewTextParagraph().addNewTextRun().setText("First paragraph");
+                body2.addNewTextParagraph().addNewTextRun().setText("Second paragraph");
+                body2.addNewTextParagraph().addNewTextRun().setText("Third paragraph");
+
+
+                // Save the presentation
+                try (FileOutputStream fileOutputStream = new FileOutputStream(aOutputFilePath)) {
+                    ppt.write(fileOutputStream);
+                }
+
+                logger.debug("createPowerPointFile() finished outputFilePath={}", aOutputFilePath);
+            }
+        }
+
+
+ 3. Modify PostgresReport.runReport() so that it calls PowerPointUtils.createPowerPointFile()
+    a. Edit PostgresReport.java
+    b. Change the runReport() method to this:
+        private void runReport() throws Exception {
+            logger.debug("runReport() started");
+
+            // Construct the SQL for report 1
+            String sql = "select now() as \"Right Now\", now() - interval '1 day' as \"Yesterday\", now() - interval '7 days' as \"1 Week Ago\"";
+
+            // Get a connection from the data source, execute the SQL, get a read-only SqlRowSet, and return the connection to the pool
+            JdbcTemplate jt = new JdbcTemplate(this.dataSource);
+            SqlRowSet rs = jt.queryForRowSet(sql);
+
+            // Send the info in the SqlRowSet to a file
+            String outputFilePath = "/tmp/output.xlsx";
+
+            // Take the SqlRowSet and Write its contents to an Excel File
+            ExcelUtils.sendRowSetToExcelFile(rs, outputFilePath, "Test Sheet", true);
+
+            // Generate a PowerPoint File
+            PowerPointUtils.createPowerPointFile("/tmp/bogus.pptx", "Demo Generated PPTX File");
+
+            logger.debug("runReport() finished successfully.");
+        }
+
+
+
+ 4. Try it out by activating the debugger
+ 
+ 5. Open the excel file
+    -- Does the PowerPoint file look acceptable?
+    
