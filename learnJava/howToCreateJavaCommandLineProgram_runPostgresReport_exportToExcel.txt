@@ -1,0 +1,174 @@
+How to Modify the postgresReport Class to Export to Excel
+---------------------------------------------------------
+Assumptions:
+ A) You have Intellij installed
+ B) You have Maven installed
+ C) You want to generate an Excel File
+ D) You have started the postgresReport project
+
+
+NOTE:  If you are running Windows,
+       then replace
+              /home/adam/    -->     c:\users\<YOUR USERNAME>\
+
+
+Procedures
+----------
+ 1. Add dependencies for your project
+ 	a. Go to your pom.xml
+    b. Add this to the <dependencies>....</dependencies> section
+    
+		<dependency>
+		  <!-- Apache POI dependency (used to generate xlsx files) -->
+		  <groupId>org.apache.poi</groupId>
+		  <artifactId>poi-ooxml</artifactId>
+		  <version>4.1.2</version>
+		</dependency>
+    
+ 
+ 2. Add this class:  ExcelUtils
+    a. Right-click on src/main/java/com/lessons -> New Java Class
+       Class Name:  ExcelUtils
+    
+    b. Copy this to your newly created class
+        package com.lessons;
+
+        import org.apache.poi.ss.usermodel.Cell;
+        import org.apache.poi.ss.usermodel.CellStyle;
+        import org.apache.poi.ss.usermodel.Font;
+        import org.apache.poi.ss.usermodel.Row;
+        import org.apache.poi.xssf.streaming.SXSSFSheet;
+        import org.apache.poi.xssf.streaming.SXSSFWorkbook;
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.jdbc.support.rowset.SqlRowSet;
+        import org.springframework.jdbc.support.rowset.SqlRowSetMetaData;
+
+        import java.io.FileOutputStream;
+
+        public class ExcelUtils {
+            private static final Logger logger = LoggerFactory.getLogger(ExcelUtils.class);
+
+
+            public static void sendRowSetToExcelFile(SqlRowSet aSqlRowSet,
+                                                     String aOutputFilePath,
+                                                     String aSheetName,
+                                                     boolean aAddColumnNames) throws Exception {
+
+                logger.debug("sendRowSetToExcelFile() started.   aOutputFilePath={}", aOutputFilePath);
+
+                // Creating a Streaming Workbook instance
+                //        Keep 100 rows in memory.  The remaining rows will be written to disk
+                //        + This does not increase or decreate the time it takes to generate the XLSX file
+                //        + This reduces memory consumption
+                SXSSFWorkbook streamingWorkBook = new SXSSFWorkbook(100);
+
+                // Create the worksheet (within this excel workbook)
+                SXSSFSheet sheet = streamingWorkBook.createSheet(aSheetName);
+
+                // Get a fixed list of column names
+                SqlRowSetMetaData sqlRowSetMetaData = aSqlRowSet.getMetaData();
+                String[] columnNames = sqlRowSetMetaData.getColumnNames();
+
+                // In Apache POI, the first row starts with row number of zero
+                int currentRowNumber = 0;
+
+                if (aAddColumnNames) {
+                    // Set the first row with column headers
+                    addHeaderRowToSheet(sheet, columnNames);
+                    currentRowNumber++;
+                }
+
+                // Loop through the remaining data, writing it one row at a time
+                while (aSqlRowSet.next()) {
+
+                    // Create a row in this worksheet
+                    Row row = sheet.createRow(currentRowNumber);
+
+                    // Loop through each column in this row, adding it to the excel sheet
+                    for (int i = 0; i < columnNames.length; i++) {
+                        String columnName = columnNames[i];
+                        String value = aSqlRowSet.getString(columnName);
+
+                        // Create the cell in this row
+                        Cell cell = row.createCell(i);
+                        cell.setCellValue(value);
+                    }
+
+                    currentRowNumber++;
+                }
+
+                // Write the remaining contents of the excel file to disk
+                try (FileOutputStream outputStream = new FileOutputStream(aOutputFilePath)) {
+                    // Overwrite the existing file
+                    streamingWorkBook.write(outputStream);
+                }
+
+                // Dispose of the temporary file (used by the streaming workbook)
+                streamingWorkBook.dispose();
+
+                logger.debug("sendRowSetToExcelFile() finished.  aOutputFilePath={}", aOutputFilePath);
+            }
+
+
+            private static void addHeaderRowToSheet(SXSSFSheet aSheet, String[] aColumnNames) {
+                if (aSheet == null) {
+                    throw new RuntimeException("Critical error in addHeaderRowToSheet():  The passed-in aSheet is null");
+                }
+
+                // Create a row in this worksheet
+                Row row = aSheet.createRow(0);
+
+                CellStyle headerCellStyle = aSheet.getWorkbook().createCellStyle();
+                Font font = aSheet.getWorkbook().createFont();
+                font.setBold(true);
+                font.setFontHeightInPoints((short) 11);
+                headerCellStyle.setFont(font);
+
+                // Loop through the column names, writing them to this row
+                int i = 0;
+                for (String columnName : aColumnNames) {
+                    // Create a cell in this worksheet
+                    Cell cell = row.createCell(i);
+                    cell.setCellValue(columnName);
+                    cell.setCellStyle(headerCellStyle);   // Set this cell as bold
+
+                    // This is the width that fits most of the headers
+                    aSheet.setColumnWidth(i, 4500);
+                    i++;
+                }
+
+            }
+
+        }
+
+
+ 3. Modify PostgresReport.runReport() so that it calls ExcelUtils.sendRowSetToExcelFile()
+    a. Edit PostgresReport.java
+    b. Change the runReport() method to this:
+         private void runReport() throws Exception {
+            logger.debug("runReport() started");
+
+            // Construct the SQL for report 1
+            String sql = "select now() as \"Right Now\", now() - interval '1 day' as \"Yesterday\", now() - interval '7 days' as \"1 Week Ago\"";
+
+            // Get a connection from the data source, execute the SQL, get a read-only SqlRowSet, and return the connection to the pool
+            JdbcTemplate jt = new JdbcTemplate(this.dataSource);
+            SqlRowSet rs = jt.queryForRowSet(sql);
+
+            // Send the info in the SqlRowSet to a file
+            String outputFilePath = "/tmp/output.xlsx";
+
+            // Take the SqlRowSet and Write its contents to an Excel File
+            ExcelUtils.sendRowSetToExcelFile(rs, outputFilePath, "Test Sheet", true);
+
+            logger.debug("runReport() finished successfully.");
+        }   
+
+
+
+ 4. Try it out by activating the debugger
+ 
+ 5. Open the excel file
+    -- Does the Excel file look acceptable?
+    
