@@ -1,0 +1,724 @@
+How to create a Java Command-line Program using IntelliJ and Maven (spring-JDBC)
+--------------------------------------------------------------------------------
+
+Assumptions:  
+ A) You have Intellij installed
+ B) You have Maven installed
+
+
+
+NOTE:  If you are running Windows,
+       then replace
+              /home/adam/    -->     c:\users\<YOUR USERNAME>\
+
+
+Procedures
+----------
+ 1. Create a local postgres test database
+    a. Open a terminal and run psql
+       unix> psql -U postgres -h localhost
+       password: secret
+    
+    b. Create a database called "bogus_db" and a user called "bogus_user"
+         create database bogus_db;
+         create user bogus_user with password 'secret';
+         grant all privileges on database bogus_db to bogus_user;
+         alter database bogus_db     SET search_path=bogus_db;
+         alter role     bogus_user   SET search_path=bogus_db;
+         \q
+         
+ 
+ 2. Create your "postgresReport" Maven command-line project in Intellij
+    a. Startup Intellij
+       NOTE:  IF an existing Intellij project appear, then pull File / Close Project
+       
+    b. Press "Create New Project"
+       1) In the "New Project" window, 
+            a) Select Maven [on the left]
+            b) Next to Project SDK:  Select your Java JDK
+               NOTE:  If you do not see your java JDK, then
+                      Press New
+                      -- Browse to your Java JDK:  /usr/lib/jvm/java-1.8.0-openjdk
+                      -- Press OK
+               
+            c) Check "Create from archetype"
+            d) Select maven-archetype-quickstart
+               Press Next
+               
+       2) In the next screen
+	      Name:   		addNumbers
+		  Location: 	~/intellijProjects/postgresReport   
+		  
+		  Under "Artifact Coordinates"
+            GroupId:     com.lessons
+            ArtifactId:  postgresReport
+            Version:     1.0-SNAPSHOT
+			
+          Press Next
+          
+          
+       3) In the next screen,
+          Maven home directory:  /opt/apache-maven-3.3.9     (or where ever you installed Maven)
+          User settings file:    /home/adam/.m2/settings.xml
+          Press Finish                       
+                                 
+       4) Project Name:      postgresReport
+          Project Location:  /home/adam/intellijProjects/postgresReport
+          Press Finish
+
+          
+          Now, maven has created a simple Java JAR project
+       
+       
+       
+ 3. Configure Intellij preferences for this project
+    a. Turn off spell-checking
+       1) Pull File / Settings
+       2) Search for spelling
+       3) Single-click on Inspections
+       4) On the right side, you should see Proofreading -> Typo
+	      Uncheck "Typo" 
+		  Press OK
+          
+          
+         
+
+ 4. Setup the Maven test directories for your Intellij project
+
+    Add these directories
+       src/test/resources/             # Holds the logback.xml used by unit test code
+       src/main/resources/             # Holds the logback.xml used by main program
+
+
+    a. Right-click on src/test   -> New -> Directory:    resources
+    b. Right-click on src/main   -> New -> Directory:    resources
+
+
+    Now, you should have this directory structure
+      src/main/java/ 
+      src/main/resources/               # Holds logback.xml used by java main program     
+      src/test/java
+      src/test/resources/               # Holds logback.xml used by unit test code
+   
+
+
+           
+ 5. Add the logback dependencies to your project
+    Your pom.xml should already have one dependency:
+      <dependencies>
+      
+        <dependency>
+          <groupId>junit</groupId>
+          <artifactId>junit</artifactId>
+          <version>4.11</version>
+          <scope>test</scope>
+        </dependency>
+        
+      </dependencies>
+    
+        
+        
+    a. Add the logback dependency t your pom.xml
+         <dependency>
+           <!-- Logback Classic -->
+           <groupId>ch.qos.logback</groupId>
+           <artifactId>logback-classic</artifactId>
+           <version>1.2.3</version>
+         </dependency>
+           
+           
+       NOTE:  This dependency should be between these tags:
+        <dependencies>
+         . . .
+          
+        </dependencies>
+       
+       
+  
+    b. Use Intellij to refresh the maven dependencies
+       Right-click on pom.xml -> Maven -> Reimport
+
+
+
+ 6. Create this file:  logback.xml
+    a. Browse to src/main/resources
+    b. Right-click on classes -> New -> File
+       filename:  logback.xml
+    c. Copy this contents to your logback.xml file
+       WARNING:  You *CANNOT* have leading spaces before <?xml version="1.0"... ?>
+    
+        <?xml version="1.0" encoding="UTF-8" ?>
+
+        <configuration debug="false">
+            <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+                <encoder>
+                    <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+                </encoder>
+            </appender>
+
+            <logger name="com.lessons" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+
+            <logger name="org.springframework" level="INFO" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+
+            <root level="DEBUG">
+                <appender-ref ref="CONSOLE"/>
+            </root>
+
+        </configuration>
+
+
+        
+
+
+ 7. Add a logger to the com.lessons.App class
+    a. Edit src/main/java/com/lessons/App.java
+    
+    b. You should see this:
+        package com.lessons;
+
+        /**
+         * Hello world!
+         *
+         */
+        public class App 
+        {
+            public static void main( String[] args )
+            {
+                System.out.println( "Hello World!" );
+            }
+        }
+    
+    
+    c. Replace it with this:
+        package com.lessons;
+
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+
+        /**
+         * Hello world!
+         *
+         */
+        public class App 
+        {
+            private static final Logger logger = LoggerFactory.getLogger(App.class);
+
+            /**
+             * This is the main class
+             * @param args holds command-line arguments as a fixed array of strings
+             */
+            public static void main( String[] args )
+            {
+                logger.debug("main() started.");
+
+
+                logger.debug("main() finished.");
+            }
+        }
+  
+    
+ 8. Verify that the logger and breakpoints work
+    a. Set a breakpoint on the first logger.debug() call   [around line 20]
+    
+    b. Right-click on PostgresReport -> Debug 'App.main()'
+       -- You should hit your first breakpoint
+    
+    c. Press F9 to continue
+    
+    d. You should see this in your console:
+        08/04/2020 17:30:46 DEBUG com.lessons.App main() started.
+        08/04/2020 17:30:46 DEBUG com.lessons.App main() finished.
+
+
+
+
+ 9. Add additional dependencies to your pom.xml (so you can query a SQL database)
+    NOTE:  You must add these betwen the <dependencies>....</dependencies> tags
+    
+    a. Edit the postgresReport/pom.xml
+    
+         <dependency>
+          <!-- Spring-JDBC -->
+          <groupId>org.springframework</groupId>
+          <artifactId>spring-jdbc</artifactId>
+          <version>5.2.3.RELEASE</version>
+        </dependency>
+
+        <dependency>
+          <!-- Postgres Database Driver -->
+          <groupId>org.postgresql</groupId>
+          <artifactId>postgresql</artifactId>
+          <version>42.2.6</version>
+        </dependency>
+        
+    b. Right-click on the pom.xml -> Maven -> Reload Project
+    
+    
+ 
+  
+10. Create a class:  PostgresReport
+    a. Right-click on /src/main/java/com/lessons -> New Class
+       Name:  PostgresReport
+
+       You should see something like this:
+       
+           package com.lessons;
+
+           public class PostgresReport {
+
+           }
+    
+     
+    b. Add a logger to your class and use it
+       Change your class to this:
+       
+            package com.lessons;
+
+            import org.slf4j.Logger;
+            import org.slf4j.LoggerFactory;
+
+
+            public class PostgresReport {
+                private static final Logger logger = LoggerFactory.getLogger(PostgresReport.class);
+
+
+                /**
+                 * Get a datasource object
+                 * Run a SQL query
+                 * Send the results to the logger
+                 */
+                public void runReport() {
+                    logger.debug("runReport() started.");
+
+                    logger.debug("runReport() finished.");       
+                }
+            }
+            
+
+11. Have your main driver class (com.lessons.App) use this
+    a. Edit src/main/java/com/lessons/App.java
+    
+    b. Add these lines to your main:
+            PostgresReport postgresReport = new PostgresReport();
+            postgresReport.runReport();
+        
+        
+    When finished, your main() should look something like this:
+            /**
+             * This is the main class
+             * @param args holds command-line arguments as a fixed array of strings
+             */
+            public static void main( String[] args )
+            {
+                logger.debug("main() started.");
+
+                PostgresReport postgresReport = new PostgresReport();
+                postgresReport.runReport();
+
+                logger.debug("main() finished.");
+            }  
+    
+
+12. Use the debugger
+    a. Set a breakpoint on the postgresReport.runReport()
+    b. Activate the Debugger (Pull Run -> Debug 'App)
+    c. Step through the code using F8
+    
+    When finished, your console should look like this:
+        08/04/2020 17:37:32 DEBUG com.lessons.App main() started.
+        08/04/2020 17:37:34 DEBUG com.lessons.PostgresReport runReport() started.
+        08/04/2020 17:37:36 DEBUG com.lessons.PostgresReport runReport() finished.
+        08/04/2020 17:37:36 DEBUG com.lessons.App main() finished.   
+    
+    
+    
+13. Change your PostgresReport class to execute some SQL to get the database time 
+    a. Edit src/main/java/com/lessons/PostgresReport.java
+    b. Replace the runReport() method with this:
+    
+    
+            package com.lessons;
+
+            import org.slf4j.Logger;
+            import org.slf4j.LoggerFactory;
+            import org.springframework.jdbc.core.JdbcTemplate;
+            import org.springframework.jdbc.datasource.SingleConnectionDataSource;
+
+            public class Queries
+            {
+                private static final Logger logger = LoggerFactory.getLogger(Queries.class);
+
+
+
+                public String getDatabaseTime() {
+                    logger.debug("getDatabaseTime() started.");
+
+                    // Create a data source object
+                    SingleConnectionDataSource dataSource = new SingleConnectionDataSource();
+                    dataSource.setUsername("test");
+                    dataSource.setPassword("test");
+                    dataSource.setUrl("jdbc:postgresql://localhost:5432/test");
+
+
+                    // Create a new JdbcTemplate object   [needs the data source]
+                    JdbcTemplate jt = new JdbcTemplate(dataSource);
+                    String sql = "Select now()";
+
+                    // Use the JdbcTemplate object to run a query and get a result
+                    String databaseTime = jt.queryForObject(sql, String.class);
+
+                    // Return the string
+                    logger.debug("getDatabaseTime() returns {}", databaseTime);
+                    return databaseTime;
+                }
+            }
+
+14. Use your debugger
+    a. Set a breakpoint on the first logger in runReport() and 
+    b. Activate the debugger by Pulling Run -> Debug 'App'
+    c. Step through the code by pressing F8
+    
+    When finished, your console should look something like this:
+        08/04/2020 17:46:19 DEBUG com.lessons.App main() started.
+        08/04/2020 17:46:20 DEBUG com.lessons.PostgresReport runReport() started.
+        08/04/2020 17:46:25 DEBUG com.lessons.PostgresReport getDatabaseTime() returns 2020-08-04 17:46:23.98336-04
+        08/04/2020 17:46:26 DEBUG com.lessons.PostgresReport runReport() finished.
+        08/04/2020 17:46:26 DEBUG com.lessons.App main() finished.
+
+
+15. Increase the logging by org.springframework
+    a. Edit src/main/resources/logback.xml
+    
+    b. Change this:
+            <logger name="org.springframework" level="INFO" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>    
+       To this:
+            <logger name="org.springframework" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>     
+            
+16. Use your debugger
+
+    When finished, your console should look something like this:
+        08/04/2020 17:50:41 DEBUG com.lessons.App main() started.
+        08/04/2020 17:50:41 DEBUG com.lessons.PostgresReport runReport() started.
+        08/04/2020 17:50:41 DEBUG org.springframework.jdbc.core.JdbcTemplate Executing SQL query [Select now()]
+        08/04/2020 17:50:41 DEBUG org.springframework.jdbc.datasource.DataSourceUtils Fetching JDBC Connection from DataSource
+        08/04/2020 17:50:41 DEBUG org.springframework.jdbc.datasource.SingleConnectionDataSource Creating new JDBC DriverManager Connection to [jdbc:postgresql://localhost:5432/bogus_db]
+        08/04/2020 17:50:41 DEBUG org.springframework.jdbc.datasource.SingleConnectionDataSource Established shared JDBC Connection: org.postgresql.jdbc.PgConnection@17579e0f
+        08/04/2020 17:50:41 DEBUG com.lessons.PostgresReport getDatabaseTime() returns 2020-08-04 17:50:41.383767-04
+        08/04/2020 17:50:41 DEBUG com.lessons.PostgresReport runReport() finished.
+        08/04/2020 17:50:41 DEBUG com.lessons.App main() finished.    
+
+
+
+17. Adjust your pom.xml so that it builds an "Uber JAR" called PostgresReportUber.jar
+    a. Update your pom.xml to tell Maven to rename your java JAR that has *all* of the dependencies
+       Edit your pom.xml
+        
+    b. Append the following text so that appears **AFTER* the <pluginManagement>...</pluginManagement> section
+                               but it appears **BEFORE** the closing </build>
+                              
+            <plugins>
+                <plugin>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.1</version>
+                    <configuration>
+                        <source>1.8</source>
+                        <target>1.8</target>
+                    </configuration>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <version>2.3.2</version>
+                    <configuration>
+                        <!-- Set the name of the generated Java JAR filename *without* dependencies -->
+                        <finalName>PostgresReport</finalName>
+                    </configuration>
+                </plugin>
+
+                <plugin>
+                    <artifactId>maven-assembly-plugin</artifactId>
+
+                    <configuration>
+                        <descriptorRefs>
+                            <descriptorRef>jar-with-dependencies</descriptorRef>
+                        </descriptorRefs>
+
+                        <archive>
+                            <manifest>
+                                <addClasspath>true</addClasspath>
+                            </manifest>
+                        </archive>
+                    </configuration>
+
+                    <executions>
+                        <execution>
+                            <id>make-assembly</id>
+                            <phase>package</phase>
+                            <goals>
+                                <goal>single</goal>
+                            </goals>
+                            <configuration>
+                                <!-- Set the name of the generated Java JAR filename *with* dependencies -->
+                                <appendAssemblyId>false</appendAssemblyId>
+                                <finalName>UberPostgresReport</finalName>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+
+            </plugins>
+
+    
+    Now, your pom.xml should look like this:
+        <?xml version="1.0" encoding="UTF-8"?>
+
+        <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+          <modelVersion>4.0.0</modelVersion>
+
+          <groupId>com.lessons</groupId>
+          <artifactId>postgresReport</artifactId>
+          <version>1.0-SNAPSHOT</version>
+
+          <name>postgresReport</name>
+          <!-- FIXME change it to the project's website -->
+          <url>http://www.example.com</url>
+
+          <properties>
+            <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+            <maven.compiler.source>1.7</maven.compiler.source>
+            <maven.compiler.target>1.7</maven.compiler.target>
+          </properties>
+
+          <dependencies>
+            <dependency>
+              <groupId>junit</groupId>
+              <artifactId>junit</artifactId>
+              <version>4.11</version>
+              <scope>test</scope>
+            </dependency>
+
+            <dependency>
+              <!-- Logback Classic -->
+              <groupId>ch.qos.logback</groupId>
+              <artifactId>logback-classic</artifactId>
+              <version>1.2.3</version>
+            </dependency>
+
+            <dependency>
+              <!-- Spring-JDBC -->
+              <groupId>org.springframework</groupId>
+              <artifactId>spring-jdbc</artifactId>
+              <version>5.2.3.RELEASE</version>
+            </dependency>
+
+            <dependency>
+              <!-- Postgres Database Driver -->
+              <groupId>org.postgresql</groupId>
+              <artifactId>postgresql</artifactId>
+              <version>42.2.6</version>
+            </dependency>
+
+          </dependencies>
+
+          <build>
+            <pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
+              <plugins>
+                <!-- clean lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#clean_Lifecycle -->
+                <plugin>
+                  <artifactId>maven-clean-plugin</artifactId>
+                  <version>3.1.0</version>
+                </plugin>
+                <!-- default lifecycle, jar packaging: see https://maven.apache.org/ref/current/maven-core/default-bindings.html#Plugin_bindings_for_jar_packaging -->
+                <plugin>
+                  <artifactId>maven-resources-plugin</artifactId>
+                  <version>3.0.2</version>
+                </plugin>
+                <plugin>
+                  <artifactId>maven-compiler-plugin</artifactId>
+                  <version>3.8.0</version>
+                </plugin>
+                <plugin>
+                  <artifactId>maven-surefire-plugin</artifactId>
+                  <version>2.22.1</version>
+                </plugin>
+                <plugin>
+                  <artifactId>maven-jar-plugin</artifactId>
+                  <version>3.0.2</version>
+                </plugin>
+                <plugin>
+                  <artifactId>maven-install-plugin</artifactId>
+                  <version>2.5.2</version>
+                </plugin>
+                <plugin>
+                  <artifactId>maven-deploy-plugin</artifactId>
+                  <version>2.8.2</version>
+                </plugin>
+                <!-- site lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#site_Lifecycle -->
+                <plugin>
+                  <artifactId>maven-site-plugin</artifactId>
+                  <version>3.7.1</version>
+                </plugin>
+                <plugin>
+                  <artifactId>maven-project-info-reports-plugin</artifactId>
+                  <version>3.0.0</version>
+                </plugin>
+              </plugins>
+            </pluginManagement>
+
+            <plugins>
+              <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.1</version>
+                <configuration>
+                  <source>1.8</source>
+                  <target>1.8</target>
+                </configuration>
+              </plugin>
+
+              <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>2.3.2</version>
+                <configuration>
+                  <!-- Set the name of the generated Java JAR filename *without* dependencies -->
+                  <finalName>PostgresReport</finalName>
+                </configuration>
+              </plugin>
+
+              <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+
+                <configuration>
+                  <descriptorRefs>
+                    <descriptorRef>jar-with-dependencies</descriptorRef>
+                  </descriptorRefs>
+
+                  <archive>
+                    <manifest>
+                      <addClasspath>true</addClasspath>
+                    </manifest>
+                  </archive>
+                </configuration>
+
+                <executions>
+                  <execution>
+                    <id>make-assembly</id>
+                    <phase>package</phase>
+                    <goals>
+                      <goal>single</goal>
+                    </goals>
+                    <configuration>
+                      <!-- Set the name of the generated Java JAR filename *with* dependencies -->
+                      <appendAssemblyId>false</appendAssemblyId>
+                      <finalName>UberPostgresReport</finalName>
+                    </configuration>
+                  </execution>
+                </executions>
+              </plugin>
+
+            </plugins>
+          </build>
+        </project>
+
+     
+    c. Build your Java JAR by running mvn package
+       1) Open a Terminal
+       2) In the terminal, type-in this:
+          unix> cd ~/intellijProjects/postgresReport
+          unix> mvn clean package
+
+       3) Verify that you can see the Java JARs
+          unix> ls -l ./target
+            drwxrwxr-x. 2 adam adam       6 Aug  4 17:53 archive-tmp/
+            drwxrwxr-x. 3 adam adam      36 Aug  4 17:53 classes/
+            drwxrwxr-x. 3 adam adam      25 Aug  4 17:53 generated-sources/
+            drwxrwxr-x. 3 adam adam      30 Aug  4 17:53 generated-test-sources/
+            drwxrwxr-x. 2 adam adam      28 Aug  4 17:53 maven-archiver/
+            drwxrwxr-x. 3 adam adam      35 Aug  4 17:53 maven-status/
+            -rw-rw-r--. 1 adam adam    4561 Aug  4 17:53 PostgresReport.jar           <-- Smaller JAR (worthless)
+            drwxrwxr-x. 2 adam adam      73 Aug  4 17:53 surefire-reports/
+            drwxrwxr-x. 3 adam adam      17 Aug  4 17:53 test-classes/
+            -rw-rw-r--. 1 adam adam 4460881 Aug  4 17:53 UberPostgresReport.jar       <--- Uber JAR   (Runnable)
+
+
+       
+          NOTE:  The UberPostgresReport.jar has *ALL* of its dependencies so we can run it
+           
+              
+               
+               
+10. Run your Java JAR from the command-line  (using the java -cp technique)
+    a. Open a DOS window by pressing <Start><Run>CMD
+    b. In the DOS window, type-in this:
+       DOS> cd ~/intellijProjects/postgresReport
+       DOS> java -cp ./target/UberPostgresReport.jar com.lessons.App
+
+        
+       You should see this:
+        08/04/2020 17:54:18 DEBUG com.lessons.App main() started.
+        08/04/2020 17:54:18 DEBUG com.lessons.PostgresReport runReport() started.
+        08/04/2020 17:54:18 DEBUG org.springframework.jdbc.core.JdbcTemplate Executing SQL query [Select now()]
+        08/04/2020 17:54:18 DEBUG org.springframework.jdbc.datasource.DataSourceUtils Fetching JDBC Connection from DataSource
+        08/04/2020 17:54:18 DEBUG org.springframework.jdbc.datasource.SingleConnectionDataSource Creating new JDBC DriverManager Connection to [jdbc:postgresql://localhost:5432/bogus_db]
+        08/04/2020 17:54:18 DEBUG org.springframework.jdbc.datasource.SingleConnectionDataSource Established shared JDBC Connection: org.postgresql.jdbc.PgConnection@4f063c0a
+        08/04/2020 17:54:18 DEBUG com.lessons.PostgresReport getDatabaseTime() returns 2020-08-04 17:54:18.385452-04
+        08/04/2020 17:54:18 DEBUG com.lessons.PostgresReport runReport() finished.
+        08/04/2020 17:54:18 DEBUG com.lessons.App main() finished.
+
+
+11. Change your Java JAR so that it is "executable" JAR
+    a. Go to your pom.xml
+    
+    b. Add this line
+    
+       c. Add this one line to the <manifest>...</manifest> section:
+	 
+	       <mainClass>com.lessons.App</mainClass>
+		   
+		   
+		When done, the manifest section should look like this:
+		
+            <manifest>
+              <mainClass>com.lessons.App</mainClass>
+              <addClasspath>true</addClasspath>
+            </manifest>
+       
+
+    c. Rebuild your java JAR
+       unix> cd ~/intellijProjects/postgresReport
+       unix> mvn clean package
+
+    e. Run your executable java JAR  (using the java -jar technique)
+       unix> java -jar ./target/UberPostgresReport.jar
+
+       You should see this:
+        08/04/2020 17:56:26 DEBUG com.lessons.App main() started.
+        08/04/2020 17:56:26 DEBUG com.lessons.PostgresReport runReport() started.
+        08/04/2020 17:56:26 DEBUG org.springframework.jdbc.core.JdbcTemplate Executing SQL query [Select now()]
+        08/04/2020 17:56:26 DEBUG org.springframework.jdbc.datasource.DataSourceUtils Fetching JDBC Connection from DataSource
+        08/04/2020 17:56:26 DEBUG org.springframework.jdbc.datasource.SingleConnectionDataSource Creating new JDBC DriverManager Connection to [jdbc:postgresql://localhost:5432/bogus_db]
+        08/04/2020 17:56:26 DEBUG org.springframework.jdbc.datasource.SingleConnectionDataSource Established shared JDBC Connection: org.postgresql.jdbc.PgConnection@76707e36
+        08/04/2020 17:56:26 DEBUG com.lessons.PostgresReport getDatabaseTime() returns 2020-08-04 17:56:26.473925-04
+        08/04/2020 17:56:26 DEBUG com.lessons.PostgresReport runReport() finished.
+        08/04/2020 17:56:26 DEBUG com.lessons.App main() finished.
+
+
+    f. Look at the manifest in your JAR
+       unix> unzip -q -c ./target/UberPostgresReport.jar META-INF/MANIFEST.MF
+
+       -- You should see a Main-Class entry:
+             Main-Class: com.lessons.App
+
+       -- This is the main() that is executed when you use java -jar
+
+
