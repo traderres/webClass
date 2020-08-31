@@ -1,0 +1,107 @@
+Lesson:  How to load a Highchart with Data from a REST Call
+-----------------------------------------------------------
+
+
+
+
+Procedure
+---------
+ 1. Create a front-end DashboardDTO (that will hold data returned from the REST call
+    a. right-click on angularApp1/frontend/src/app -> New Directory
+	b. Directory Name:  models
+	c. Right-click on angularApp1/frontend/src/app/models -> New File
+	   File name:  dashboard.dto.ts
+	
+	d. Copy this to your new file:
+		export class DashboardDTO {
+		  chartData1: any;
+		  chartData2: any;
+		}
+
+ 
+ 2. Build a front-end chart.service.ts
+    a. Create the chart service
+       unix> cd ~/intellijProjects/angularApp1/frontend
+	   unix> ng generate service services/chart
+	   
+	
+	
+	b. Inject the httpClient
+	
+         constructor(private httpClient: HttpClient)
+ 	     {}
+  
+  
+    c. Use the httpClient to call your REST call and return an observable
+		  /*
+		   * Return an observable with the dashboard info
+		   */
+		  public getDashboardDTO(): Observable<DashboardDTO>  {
+
+			// Construct the URL of the REST call
+			const restUrl = environment.baseUrl + '/api/dashboard/info';
+
+			// Return an observable
+			return this.httpClient.get <DashboardDTO>(restUrl);
+		  }
+    
+	d. Make another public method that will return a hard-coded observable
+		  /*
+		   * Return a hard-coded observable with the dashboard info
+		   */
+		  public getDashboardDTO_hardcoded(): Observable<DashboardDTO>  {
+			let dto: DashboardDTO = new DashboardDTO();
+
+			dto.chartData1 = {
+			  'data': 15,
+			  'data2': 27
+			}
+
+			dto.chartData2 = {
+			  'data': 15,
+			  'data2': 27
+			}
+
+			// Return hard-coded observable
+			return of(dto);
+		  }
+
+
+ 4. In your dashboard.component.ts
+    a. Inject the chartService (in your constructor)
+	
+    b. Create a method called reloadData() that will
+		
+		  public reloadData(): void {
+			// Tell the templat epage that dats is loading (so it will show the spinners)
+			this.dataIsLoading = true;
+
+			// Get an observable to the chara data
+			this.subscription = this.chartService.getData().subscribe(data => {
+			  // Got the data from the REST call
+
+			  // Convert the data object into an IndustryDashboardDTO object
+			  let dashboardDTO: DashboardDTO = data;
+
+			  // Update Chart 1:  Update the "Pending Case Distribution" pie chart"
+			  this.pendingCaseDistChartOptions.series[0].data = dashboardDTO.pendingCaseDistributions;
+			  Highcharts.chart('chart1', this.pendingCaseDistChartOptions);
+
+
+			  // Refresh the chart so that they fill in the mat-cards perfectly by calling reflow()
+			  Highcharts.charts.forEach(function (chart) {
+				// Redraw all of the charts to fix a problem with the initial display not being corr
+				chart?.reflow();
+			  })
+
+			}).add(() => {
+			  // At this point the REST call has finished.  So, hide the loading message
+			  this.dataIsLoading = false;
+			})
+		  }
+
+ 
+    c. Call reloadData from ngAfterViewInit
+		  ngAfterViewInit() {
+			this.reloadData();
+		  }
