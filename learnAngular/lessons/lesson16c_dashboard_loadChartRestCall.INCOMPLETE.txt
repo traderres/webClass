@@ -1,10 +1,76 @@
 Lesson:  Add Charts to the Dashboard (w/hard-coded data)
 --------------------------------------------------------
-Problem:  I want to add charts to my dashboard
+Problem:  Charts data should come from a REST call
+
+
 
  
 
 Procedure
 ---------
- 1. 
-          
+ 1. Create a back-end REST call that will return data
+ 
+ 
+ 2. Create a front-end DashboardDTO
+ 
+ 
+ 3. Build a front-end chart.service.ts
+    a. Create the chart service
+	
+	b. Inject the httpClient
+	
+         constructor(private httpClient: HttpClient)
+ 	     {}
+  
+    c. Use the httpClient to call your REST call and return an observable
+		  /*
+		   * Return an observable with the dashboard info
+		   */
+		  public getDashboardDTO(): Observable<DashboardDTO>  {
+
+			// Construct the URL of the REST call
+			const restUrl = environment.baseUrl + '/api/dashboard/info';
+
+			// Return an observable
+			return this.httpClient.get <DashboardDTO>(restUrl);
+		  }
+ 
+ 
+ 4. In your dashboard.component.ts
+    a. Inject the chartService (in your constructor)
+	
+    b. Create a method called reloadData() that will
+		
+		  public reloadData(): void {
+			// Tell the templat epage that dats is loading (so it will show the spinners)
+			this.dataIsLoading = true;
+
+			// Get an observable to the chara data
+			this.subscription = this.chartService.getData().subscribe(data => {
+			  // Got the data from the REST call
+
+			  // Convert the data object into an IndustryDashboardDTO object
+			  let dashboardDTO: DashboardDTO = data;
+
+			  // Update Chart 1:  Update the "Pending Case Distribution" pie chart"
+			  this.pendingCaseDistChartOptions.series[0].data = dashboardDTO.pendingCaseDistributions;
+			  Highcharts.chart('chart1', this.pendingCaseDistChartOptions);
+
+
+			  // Refresh the chart so that they fill in the mat-cards perfectly by calling reflow()
+			  Highcharts.charts.forEach(function (chart) {
+				// Redraw all of the charts to fix a problem with the initial display not being corr
+				chart?.reflow();
+			  })
+
+			}).add(() => {
+			  // At this point the REST call has finished.  So, hide the loading message
+			  this.dataIsLoading = false;
+			})
+		  }
+
+ 
+    c. Call reloadData from ngAfterViewInit
+		  ngAfterViewInit() {
+			this.reloadData();
+		  }
