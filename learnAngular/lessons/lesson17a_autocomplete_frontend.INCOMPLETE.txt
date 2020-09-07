@@ -5,12 +5,110 @@ Problem:  As the user starts typing-in company names, we want to show up to 5 ma
 
 Procedure
 ---------
- 1. Add the AutoComplete textbox to the top right of the dashboard page
- 
- 2. Add an AutoComplete Service to the frontend
- 
- 3. Add a method AutoComplete.getMatchingCompanyNames  (that returns an Observable)
-    -- For now, it will return a random matching of hard-coded values
+ 1. Add the MatAutocompleteModule to the app.module.ts
+    a. Edit app.module.ts
+	b. Add this to the imports: [ ] section
+		MatAutocompleteModule,
+		  
+	c. Add this to the top:
+		import {MatAutocompleteModule} from "@angular/material/autocomplete";
+	
+	
+ 2. Add the AutoComplete textbox to the top right of the dashboard page
+    a. Edit the dashboard.component.html
+	b. Change this:
+		  <!-- Right Side of the Top Row -->
+		  <div fxFlex fxLayoutAlign="end center">
+
+		  </div>	
+	   To this:
+		  <!-- Right Side of the Top Row -->
+		  <div fxFlex fxLayoutAlign="end center">
+
+			<mat-form-field>
+			
+			  <!-- Create the textbox that is bound to the auto complete -->
+			  <input type="text" placeholder="Company Name" matInput
+			                    [formControl]="this.companyNameCtrl"  
+								[matAutocomplete]="autocompleteCompanyName">
+
+			  <!-- Show the matching entries in a popup -->
+			  <mat-autocomplete #autocompleteCompanyName="matAutocomplete">
+				<mat-option *ngFor="let name of this.matchingNames | async" [value]="name">
+				  {{name}}
+				</mat-option>
+			  </mat-autocomplete>
+			</mat-form-field>
+
+		  </div>
+	  
+	   
+ 3. Add an elasticsesarch Service to the frontend
+    a. Create the elasticsearch.service
+	   unix> cd ~/intellijProjects/angularApp1/frontend
+  	   unix> ng generate service services/elasticsearch
+
+    b. Replace its contents wiht a method that return hard-coded observables
+		import { Injectable } from '@angular/core';
+		import {Observable, of} from "rxjs";
+
+		@Injectable({
+		  providedIn: 'root'
+		})
+		export class ElasticsearchService {
+
+		  constructor() { }
+
+
+		  public getMatchingCompanyNames(name: string, totalResultsToShow: number): Observable<string[]> {
+
+			if (name.startsWith('a')) {
+			  // The rnd number is even
+
+			  // Return hard-coded observable with 3 strings that start with A
+			  return of(["Amazon", "Apple", "American Airlines"] );
+			}
+			else if (name.startsWith('b')) {
+			  // The rnd number is odd
+
+			  // Return hard-coded observable with 3 strings that start with B
+			  return of(["Best Buy", "Boeing", "Bed, Bath, and Beyond"] );
+			}
+			else {
+			  return of( [] );
+			}
+
+		  }
+		}
+
+ 4. Add the remaining elements to the dashboard.component.ts
+    a. Add the matchingNames and companyNameCtrl
+	  	public matchingNames: Observable<string[]>;
+  		public companyNameCtrl:  FormControl = new FormControl();
     
-    
-    
+	b. Inject your ElasticsearchService by add it to your constructor
+		  constructor(private breakpointObserver: BreakpointObserver,
+					  private elasticsearchService: ElasticsearchService) { }
+		
+    c. Add this to your ngOnInit() method:
+			this.matchingNames = this.companyNameCtrl.valueChanges
+			  .pipe(
+				startWith(''),
+				debounceTime(500),
+				distinctUntilChanged(),
+				switchMap(enteredName => {
+				  return this.filterResults(enteredName);
+				})
+			  );
+	
+	d. Add this private method
+		  private filterResults(name: string): Observable<string[]> {
+			if (name == '') {
+			  // The searchbox is empty so return an empty list (so nothing appears)
+			  return of( [] );
+			}
+
+			// The user entered some terms, so run a real search 
+			return this.elasticsearchService.getMatchingCompanyNames(name, 5);
+		  }
+  
