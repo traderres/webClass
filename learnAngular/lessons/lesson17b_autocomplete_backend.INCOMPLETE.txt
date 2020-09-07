@@ -15,7 +15,7 @@ My favorite approach is to use ngrams of up to 15 characters
 
 Autocomplete Approaches with ES
  A) Use prefix query
-    - Matching is supposeted only at the beginning of the term.  One cannot match the query in the middle of the text
+    - Matching is supported only at the beginning of the term.  One cannot match the query in the middle of the text
 	- Not optimized for large data set
 	- Since this is a query, duplicate results won't be filtered out
 	  (workaround is to use an aggreation query to group results and then filter the results)
@@ -203,6 +203,240 @@ Procedure
 	Returns a list of strings
 	
 	
- 3. Have the frontend invoke the REST endpoint
-    
+ 3. Create the AutoCompleteDTO object with the getters and setters
+    a. Right-click on backend/src/main/java/com/lessons/models -> New Java Class
+	   Class Name:  AutoCompleteDTO
+	   
+	b. Copy this to your newly-created class
+	
+		package com.lessons.models;
+
+		import com.fasterxml.jackson.annotation.JsonProperty;
+
+		public class AutoCompleteDTO {
+			@JsonProperty("index_name")
+			private String indexName;
+
+			@JsonProperty("returned_field")
+			private String returnedField;
+
+			@JsonProperty("searched_field")
+			private String searchedField;
+
+			@JsonProperty("raw_query")
+			private String rawQuery;
+
+			private int    size;
+
+
+			public String getIndexName() {
+				return indexName;
+			}
+
+			public void setIndexName(String indexName) {
+				this.indexName = indexName;
+			}
+
+			public String getReturnedField() {
+				return returnedField;
+			}
+
+			public void setReturnedField(String returnedField) {
+				this.returnedField = returnedField;
+			}
+
+			public String getSearchedField() {
+				return searchedField;
+			}
+
+			public void setSearchedField(String searchedField) {
+				this.searchedField = searchedField;
+			}
+
+			public String getRawQuery() {
+				return rawQuery;
+			}
+
+			public void setRawQuery(String rawQuery) {
+				this.rawQuery = rawQuery;
+			}
+
+			public int getSize() {
+				return size;
+			}
+
+			public void setSize(int size) {
+				this.size = size;
+			}
+		}
+
+
  
+ 4. Add an ObjectMapper to the ElasticSearchService.java  (if it's not already there)
+    a. Add the private variable
+	     private ObjectMapper objectMapper;
+   
+    b. Make sure the objectMapper is initialized in the PostConstruct method
+	
+		@PostConstruct
+		public void init() {
+			logger.debug("init() started.");
+
+			// In order to make outgoing calls to ElasticSearch you need 2 things:
+			//  1) The elastic search url -- e.g., "http://localhost:9201"
+			//  2) The initialiaed AsyncHttpClient object
+			this.elasticSearchUrl = elasticSearchResources.getElasticSearchUrl();
+			this.asyncHttpClient = elasticSearchResources.getAsyncHttpClient();
+
+			this.objectMapper = new ObjectMapper();
+
+			logger.debug("init() finished.  elasticSearchUrl={}", this.elasticSearchUrl);
+		}
+
+
+
+ 5. Add these 2 methods to ElasticSearchService.java:
+
+		/**
+		 * Run an auto-complete search
+		 * @param aAutoCompleteDTO   holds information about the index and what field to search
+		 * @return a list of matching strings
+		 * @throws Exception
+		 */
+		public List<String> runAutoComplete(AutoCompleteDTO aAutoCompleteDTO) throws Exception {
+			if (aAutoCompleteDTO == null) {
+				throw new RuntimeException("Error in runAutoComplete():  The passed-in aAutoCompleteDTO is null.");
+			}
+
+			String cleanedQuery = cleanupRawQuery(aAutoCompleteDTO.getRawQuery());
+
+			// Convert the cleaned query to lowercaes (which is required as all ngrams are lowercase)
+			cleanedQuery = cleanedQuery.toLowerCase();
+
+			String jsonRequest =
+					"{\n" +
+					"  \"_source\": [\"" + aAutoCompleteDTO.getReturnedField() + "\"]," +
+					"  \"query\": {\n" +
+					"    \"term\": {\n" +
+					"       \"" + aAutoCompleteDTO.getSearchedField() + "\": \"" + cleanedQuery + "\"\n" +
+					"     }\n" +
+					"  },\n" +
+					"  \"size\": " + aAutoCompleteDTO.getSize() +"\n" +
+					"}";
+
+			// Make a synchronous POST call to delete this ES Index
+			Response response = this.asyncHttpClient.preparePost(this.elasticSearchUrl + "/" + aAutoCompleteDTO.getIndexName() + "/_search")
+					.setRequestTimeout(this.ES_REQUEST_TIMEOUT_IN_MILLISECS)
+					.setHeader("accept", "application/json")
+					.setHeader("Content-Type", "application/json")
+					.setBody(jsonRequest)
+					.execute()
+					.get();
+
+			if (response.getStatusCode() != 200) {
+				// ElasticSearch returned a non-200 status response
+				throw new RuntimeException("Error in runAutoComplete():  ES returned a status code of " + response.getStatusCode() + " with an error of: " + response.getResponseBody());
+			}
+
+			// Create an empty array list
+			List<String> matchingStrings = new ArrayList<>();
+
+
+			String jsonResponse = response.getResponseBody();
+
+			// Convert the response JSON string into a map and examine it to see if the request really worked
+			Map<String, Object> mapResponse = objectMapper.readValue(jsonResponse, new TypeReference<Map<String, Object>>() {});
+
+			Map<String, Object> outerHits = (Map<String, Object>) mapResponse.get("hits");
+			if (outerHits == null) {
+				throw new RuntimeException("Error in runAutoComplete():  The outer hits value was not found in the JSON response");
+			}
+
+			List<Map<String, Object>> innerHits = (List<Map<String, Object>>) outerHits.get("hits");
+			if (innerHits == null) {
+				throw new RuntimeException("Error in runAutoComplete():  The inner hits value was not found in the JSON response");
+			}
+
+			if (innerHits.size() > 0) {
+				for (Map<String, Object> hit: innerHits) {
+					Map<String, Object> sourceMap = (Map<String, Object>) hit.get("_source");
+					if (sourceMap == null) {
+						throw new RuntimeException("Error in runAutoComplete():  The source map was null in the JSON response");
+					}
+
+					String match = (String) sourceMap.get(aAutoCompleteDTO.getReturnedField());
+					matchingStrings.add(match);
+				}
+			}
+
+
+
+			return matchingStrings;
+		}
+
+
+		/**
+		 * @param aRawQuery 
+		 * @return a cleaned-up string
+		 */
+		private String cleanupRawQuery(String aRawQuery) {
+			String cleanedQuery = aRawQuery;
+
+			if (cleanedQuery == null) {
+				cleanedQuery = "";
+			}
+
+			return cleanedQuery;
+		}
+
+
+ 
+ 6. Add a method to the SearchController class 
+    
+     /**
+     * REST endpoint /api/search/autocomplete
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/api/search/autocomplete", method = RequestMethod.POST, produces = "application/json")
+    public ResponseEntity<?> runAutoComplete(@RequestBody AutoCompleteDTO aAutoCompleteDTO) throws Exception {
+
+        logger.debug("runAutoComplete() started.");
+
+        // Read the mapping from the src/main/resources/repots.json file into this string
+        List<String> matches = elasticSearchService.runAutoComplete(aAutoCompleteDTO);
+
+        // Return a list of matches (or an empty list if there are no matches)
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(matches);
+    }
+    
+
+ 7. Try it out
+    a. Activate the "backend" debugger
+	b. Simulate hitting the REST endpoint with Postman
+	   1) Startup Postman
+	   2) Press the "+" to create a new request
+	   
+	   3) In the request, put in these settings
+	      POST   http://localhost:8080/app1/api/search/autocomplete
+		  
+		  Headers
+		    Accept        application/json
+			Content-Type  application/json
+			
+	      Body -> Raw
+			{
+			   "index_name":     "reports",
+			   "returned_field": "report_name",
+			   "searched_field": "report_name.filtered",
+			   "raw_query":      ".PDF",
+			   "size":           5
+			}
+	
+	   4) Press "Send"
+	   
+	   -- You should get a match on all fields that have pdf in the name
+	   
+	   
