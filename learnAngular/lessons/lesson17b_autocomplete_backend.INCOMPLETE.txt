@@ -8,9 +8,201 @@ My favorite approach is to use ngrams of up to 15 characters
  3) Create a backend REST call that will search this ngram
  
  
-Advantages/Disadvantages of ngrams
- + Matches any character (including spaces and special punctuation)
- - Makes the ES index consume more disk space
- 
+ References
+ ----------
+ https://medium.com/@taranjeet/elasticsearch-building-autocomplete-functionality-494fcf81a7cf
+  
+
+Autocomplete Approaches with ES
+ A) Use prefix query
+    - Matching is supposeted only at the beginning of the term.  One cannot match the query in the middle of the text
+	- Not optimized for large data set
+	- Since this is a query, duplicate results won't be filtered out
+	  (workaround is to use an aggreation query to group results and then filter the results)
+	  
+ B) Use edge ngrams
+    This approach uses different analyzers at index and search time
+	When indexing, a custom analyzer with an edge n-gram filter is applied.  
+	At search time, standard analyzer can be applied
+	+ Matches any character (including spaces and special punctuation)
+	- Makes the ES index use more disk space
+	
+ C) Use Completion Suggester
+    ES is shipped with an in-house solution called Completion Suggester
+	NOTE:  The autosuggest item should have a "completion" type as its field type
+	       Storing all of the terms in lowercase helps in the case-insensitive match
+		   
+	- Matching always starts at the beginning of the text.  
+	- No sorting mechanism is available.  The only way to sort suggestions is via weights
+	  (this creates aproblem when any custom sorting like alphabetical sort or sort by context is required)
+	  
+	  
+NOTE: Create the index with 3 versions of report_name
+      report_name.raw       will be used for case-sensitive searching
+      report_name.sort      will be used for case-insensitive sorting -- e.g., all of the A a are together, all of the B b are together
+      report_name.filtered  will be used for filtering by single-char and the *autocomplete*
+
+
+
 Procedure
 ---------
+ 1. Create an ES mapping that has an ngram
+    a. Startup kibana by going to localhost:5601
+	b. Run this ES query
+
+    # Delete the existing index
+    DELETE /reports
+ 
+    # Create the reports ES index
+    PUT /reports
+    {
+      "settings": {
+        "analysis": {
+          "analyzer" : {
+            "my_ngram_analyzer" : {
+              "tokenizer" : "my_ngram_tokenizer",
+              "filter": ["lowercase"]
+            }
+          },
+          "tokenizer" : {
+            "my_ngram_tokenizer" : {
+              "type" : "ngram",
+              "min_gram" : "1",
+              "max_gram" : "25",
+              "token_chars": [ ]
+            }
+          },
+          "normalizer": {
+            "case_insensitive_normalizer": {
+              "type": "custom",
+              "char_filter": [],
+              "filter": [ "lowercase", "asciifolding" ]
+            }
+          }
+        },
+        "refresh_interval": "1s"
+      },
+
+      "mappings":
+           {
+              "record": {
+                 "properties": {
+
+                        "report_name": {
+                          "type": "text",
+                          "include_in_all": true,
+                          "fields": {
+                            "raw": {
+                              "type": "keyword"
+                            },
+                            "sort": {
+                              "type": "keyword",
+                              "normalizer": "case_insensitive_normalizer"
+                            },
+                            "filtered" : {
+                              "type":     "text",
+                              "analyzer": "my_ngram_analyzer"
+                            }
+                          }
+                        },
+
+                       "value": {
+                          "type": "text",
+                          "include_in_all": true,
+                          "fields": {
+                            "raw": {
+                              "type": "keyword"
+                            },
+                            "sort": {
+                              "type": "keyword",
+                              "normalizer": "case_insensitive_normalizer"
+                            },
+                            "ip": {
+                              "type": "ip",
+                              "ignore_malformed": true,
+                              "store": true
+                            },
+                            "filtered" : {
+                              "type": "text",
+                              "analyzer": "my_ngram_analyzer"
+                            }
+                          }
+                        },
+
+                        "type": {
+                          "type": "keyword",
+                          "normalizer": "case_insensitive_normalizer",
+                          "include_in_all": true,
+                          "fields": {
+                            "raw": {
+                              "type": "keyword"
+                            }
+                          }
+                        },
+
+                        "recommended_by": {
+                          "type": "text",
+                          "include_in_all": true,
+                          "fields": {
+                            "raw": {
+                              "type": "keyword"
+                            },
+                            "sort": {
+                              "type": "keyword",
+                              "normalizer": "case_insensitive_normalizer"
+                            }
+                          }
+                        },
+                        "recommended_date": {
+                          "type": "date",
+                          "ignore_malformed": true,
+                          "format": "epoch_millis||epoch_second||yyyy/MM/dd HH:mm:ss.SSS||yyyy-MM-dd HH:mm:ss.SSS||yyyy/MM/dd HH:mm:ss||yyyy-MM-dd HH:mm:ss.SSSZ||yyyy-MM-dd'T'HH:mm:ss||yyyy-MM-dd'T'HH:mm:ssZ||yyyy-MM-dd HH:mm:ss||yyyy-MM-dd HH:mm:ssZ||yyyy/MM/dd||yyyy-MM-dd||S",
+                          "include_in_all": true
+                        }
+
+
+                }
+              }
+           }
+    }
+
+
+    # Put data into the reports index
+    POST _bulk
+    { "index": { "_index": "reports", "_type": "record", "_id": 1 }}
+    { "report_name": "Email One.pdf"}
+    { "index": { "_index": "reports", "_type": "record", "_id": 2 }}
+    { "report_name": "Email TWO.txt"}
+    { "index": { "_index": "reports", "_type": "record", "_id": 3 }}
+    { "report_name": "Email Three.pdf"}
+    { "index": { "_index": "reports", "_type": "record", "_id": 4 }}
+
+
+	# Simulate an auto complete search for three.p  (should produce 1 match) 
+	POST /reports/_search
+	{
+		"query": {
+			"term": {
+			   "report_name.filtered": "three.p"
+			}
+		},
+		"size": 5
+	}	   
+
+ 
+ 2. Create a REST endpoint that searches for names and enforced this contract
+    POST /api/search/autocomplete
+	{
+	   "index_name":     "reports",
+	   "returned_field": "report_name",
+	   "searched_field": "report_name.filtered",
+	   "raw_query":      "three.p",
+	   "size":           5
+	}
+	
+	Returns a list of strings
+	
+	
+ 3. Have the frontend invoke the REST endpoint
+    
+ 
