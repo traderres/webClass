@@ -1,0 +1,57 @@
+How to Calculate Hard Drive Speed on Centos
+-------------------------------------------
+
+Procedure
+---------
+ 1. Find the device file that corresponds to your hard drive
+    unix> sudo -s
+    unix> mount | grep '/dev/'
+    tmpfs on /dev/shm type tmpfs (rw,nosuid,nodev,seclabel)
+    devpts on /dev/pts type devpts (rw,nosuid,noexec,relatime,seclabel,gid=5,mode=620,ptmxmode=000)
+    /dev/mapper/luks-876cbc99-a352-4ad5-a2f2-4b7880bdb5da on / type xfs (rw,relatime,seclabel,attr2,inode64,noquota)
+    mqueue on /dev/mqueue type mqueue (rw,relatime,seclabel)
+    hugetlbfs on /dev/hugepages type hugetlbfs (rw,relatime,seclabel)
+    /dev/sda5 on /boot type xfs (rw,relatime,seclabel,attr2,inode64,noquota)
+    /dev/sda3 on /mnt/windows type fuseblk (rw,relatime,user_id=0,group_id=0,allow_other,blksize=4096)
+
+    -- This tells me that /dev/sda is the hard drive I am interested in
+    
+2. Run a speed test
+   unix> hdparm -t /dev/sda
+
+   /dev/sda:
+      Timing buffered disk reads: 1536 MB in  3.00 seconds = 511.92 MB/sec
+
+
+3. Test data transfer rate (but this time bypassing hard drive's buffer cache memory) thus reading directly from the disk
+   unix> hdparm -t /dev/sda
+
+    /dev/sda:
+     Timing buffered disk reads: 1536 MB in  3.00 seconds = 511.92 MB/sec
+    root@myCentos /home/adam > hdparm -t --direct /dev/sda
+
+    /dev/sda:
+     Timing O_DIRECT disk reads: 1552 MB in  3.00 seconds = 516.73 MB/sec
+
+
+
+4. Have hdparm to read data from the second half of the disk (that is skip the first 500 GB) 
+   a. Get the size of your hard drive
+      unix> fdisk -l /dev/sda
+
+      Disk /dev/sda: 1000.2 GB, 1000204886016 bytes, 1953525168 sectors
+      -- We see it is 1000 GB in size
+  
+   b. Have hdparm skip the first half and start reading from the 2nd half of the disk
+      unix> hdparm --offset 500 -t /dev/sda
+        /dev/sda:
+         Timing buffered disk reads (offset 500 GB): 1556 MB in  3.00 seconds = 518.63 MB/sec
+
+
+5. Repeat the last test (but use cached reads)
+   unix> hdparm --offset 500 -T /dev/sda
+     
+     /dev/sda:
+     Timing cached reads:   29412 MB in  1.99 seconds = 14793.36 MB/sec
+   
+   
