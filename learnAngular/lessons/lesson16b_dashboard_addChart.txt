@@ -5,6 +5,113 @@ Problem:  We want to put a chart in a mat-card and load it with hard-coded data
 
 Procedure
 ---------
+ 1. Add this css class:  chart-content
+    a. Edit dashboard.component.css
+	b. Add this class to it:
+	
+		.chart-content {
+		  /* Cause the chart to fit perfectly within the mat-card tag */
+		  flex-grow: 1;
+		  display: flex;
+		  flex-direction: column;
+		  max-height: 100%;
+		}
+
+ 
+ 2. Add the <div> for chart 1 to the dashboard.component.html
+    a. Edit dashboard.component.html
+	b. Replace this:
+
+		<mat-grid-tile colspan="1" rowspan="1">
+		  <mat-card>
+			<mat-card-content class="chart-content">
+
+			  <!-- Chart 1 -->
+			  Chart 1
+
+			</mat-card-content>
+		  </mat-card>
+		</mat-grid-tile>
+	       
+	
+	  With this:  (NOTE, we are also using the chart-content css class)
+        <mat-grid-tile colspan="1" rowspan="1">
+          <mat-card>
+            <mat-card-content class="chart-content">
+
+              <!-- Chart 1 -->
+              <div id="chart1" style="width: 100%; height: 100%"></div>
+
+            </mat-card-content>
+          </mat-card>
+        </mat-grid-tile>
+			  
+
+ 3. Adjust the dashboard.component.ts so that it initializes the chart
+    a. Edit dashboard.component.ts
+	
+	b. Make sure your dashboard component implements OnInit, OnDestroy, and AfterViewInit
+	     export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
+		 
+		 }
+		 
+	
+	c. Add this call to the ngOnInit() to set Higchart options:
+	
+		ngOnInit(): void {
+
+			// Set options for all highchart menus on this page
+			Highcharts.setOptions( {
+				lang: {
+				  thousandsSep: ','    // Set the thousand separator as a comma
+				}
+			});
+		
+		...
+		
+		}
+		
+
+	d. Create the ngAfterViewInit() method and make sure it calls reloadData();
+	
+		 ngAfterViewInit() {
+			// Reload chart data
+			// NOTE:  This call must be in ngAfterViewInit() and not in ngOnInit()
+			this.reloadData();
+		}
+  
+
+	e. Add this method:  reloadData
+		  private reloadData(): void {
+			this.dataIsLoading = true;
+
+			this.chartDataSubscription = this.dashboardService.getDashboardDTO().subscribe( data => {
+				// I got the data from the dashboard service
+				let dashboardDTO: DashboardDTO = data;
+
+				// Update chart 1 with the data
+				this.chartOptions1.series[0].data = dashboardDTO.chartData1;
+				Highcharts.chart('chart1', this.chartOptions1);
+
+
+				// Loop through all charts on the page -- redrawing them
+				Highcharts.charts.forEach(function (chart: Chart | undefined) {
+				  // Refreh the chart (so that it fits perfectly within the <mat-card> tags
+				  chart?.reflow();
+				});
+
+			  }).add( () => {
+				// The REST call has finished
+				this.dataIsLoading = false;
+			  })
+
+		  }	
+	
+	
+	f.
+	
+	
+	
  1. Add a DashboardDTO object (that will hold the data for the multiple charts)
     a. Right-click on frontend/src/app/models -> New File
 	   Filename:  dashboard.DTO.ts
@@ -24,18 +131,6 @@ Procedure
 
  3. Update the dashboard service to return an observable (with hard-coded data)
     
-
- 1. Add the <divs> for the charts to the dashboard.component.html
-    a. Edit dashboard.component.html
-	b. Replace this:
-	
-	          <!-- Chart 1 -->
-              Chart 1
-	
-	   With this:
-	          <!-- Chart 1 -->
-			  <div id="pieChart" style="width: 100%; height: 100%"></div>
-			  
 
  2. Edit the dashboard.component.ts to define the chart and populate it with hard-coded data
     a. Edit dashboard.component.ts
