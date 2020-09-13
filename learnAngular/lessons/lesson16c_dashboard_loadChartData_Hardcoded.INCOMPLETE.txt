@@ -1,6 +1,8 @@
 Lesson:  How to load a Highchart with Data from a REST Call
 -----------------------------------------------------------
-
+Create a DashboardService
+Create a method that returns an observable with hard-coded data
+Update the dashboard.component.ts so that it uses the observable from the DashboardService
 
 
 
@@ -72,8 +74,20 @@ Procedure
 	   by adding this to the constructor
 	       private dashboardService: DashboardService
 		   
-		   
-    b. Change reloadData() so that it gets data from the dashboard service
+	
+	b. Add a private variable to hold the subscription:
+	       private chartDataSubscription: Subscription;
+		
+	
+	c. Change the ngOnDestroy() to unsubscribe from the chartDataSubscription object
+		ngOnDestroy(): void {
+				// Unsubscribe from subscriptions (to avoid memory leaks)
+				this.cardLayoutSubscription.unsubscribe();
+				this.chartDataSubscription.unsubscribe();
+		}
+	
+	
+    d. Change reloadData() so that it gets data from the dashboard service
 		
 		  private reloadData(): void {
 			this.dataIsLoading = true;
@@ -99,6 +113,199 @@ Procedure
 			  })
 
 		  }	
+    
+	
+   When finished, the dashboard.component.ts should look something like this:
+		import {AfterViewInit, Component, OnDestroy, OnInit} from '@angular/core';
+		import {BreakpointObserver, Breakpoints, BreakpointState} from '@angular/cdk/layout';
+		import {Observable, Subscription} from 'rxjs';
+		import {FormControl} from "@angular/forms";
+		import {debounceTime, distinctUntilChanged, startWith, switchMap} from "rxjs/operators";
+		import {ElasticsearchService} from "../services/elasticsearch.service";
+		import * as Highcharts from "highcharts";    // needed
+
+		window.Highcharts = Highcharts;   // needed
+
+		// Turn on the highchart context menu view/print/download options
+		import HC_exporting from "highcharts/modules/exporting";
+		HC_exporting(Highcharts);
+
+		// Turn on the highchart context menu *export* options
+		// NOTE:  This provides these menu options: Download CSV, Download XLS, View Data Table
+		import HC_exportData from "highcharts/modules/export-data";
+		HC_exportData(Highcharts);
+
+		// Do client-side exporting (so that the exporting does *NOT* go to https://export.highcharts.com/
+		// NOTE:  This does not work on all web browsers
+		import HC_offlineExport from "highcharts/modules/offline-exporting";
+		HC_offlineExport(Highcharts);
+
+		// Turn on the drilldown capabilities
+		import HC_drillDown from "highcharts/modules/drilldown";
+		import {Chart} from "highcharts";
+		import {DashboardService} from "../services/dashboard.service";
+		import {DashboardDTO} from "../models/dashboard.DTO";
+		HC_drillDown(Highcharts);
 
 
+		@Component({
+		  selector: 'app-dashboard',
+		  templateUrl: './dashboard.component.html',
+		  styleUrls: ['./dashboard.component.css']
+		})
+		export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
+		  public totalColumns: number;
+		  private cardLayoutSubscription: Subscription;
+		  public matchingNames: Observable<string[]>;
+		  public companyNameCtrl:  FormControl = new FormControl();
+
+		  public dataIsLoading: boolean = false;
+		  private chartDataSubscription: Subscription;
+
+
+		  constructor(private breakpointObserver: BreakpointObserver,
+					  private elasticsearchService: ElasticsearchService,
+					  private dashboardService: DashboardService) { }
+
+		  ngOnInit(): void {
+
+			// Set options for all highchart menus on this page
+			Highcharts.setOptions( {
+				lang: {
+				  thousandsSep: ','    // Set the thousand separator as a comma
+				}
+			});
+
+			this.matchingNames = this.companyNameCtrl.valueChanges
+			  .pipe(
+				startWith(''),
+				debounceTime(500),
+				distinctUntilChanged(),
+				switchMap(enteredName => {
+				  // NOTE:  We use switchMap for its cancelling effect:  On each observable, the previous observable is cancelled.
+				  return this.filterResults(enteredName);
+				})
+			  );
+
+			this.cardLayoutSubscription = this.breakpointObserver.observe(
+			  [Breakpoints.XLarge, Breakpoints.Large, Breakpoints.Medium, Breakpoints.Small, Breakpoints.XSmall])
+			  .subscribe((state: BreakpointState) => {
+
+				if ((state.breakpoints[Breakpoints.XSmall]) || (state.breakpoints[Breakpoints.Small])) {
+				  // The browser is Small or XSmall -- so reduce the number of columns to 1
+				  console.log('Width is small or xsmall.  totalColumns=1');
+				  this.totalColumns = 1;
+
+				} else if (state.breakpoints[Breakpoints.Medium]) {
+				  // The browser is Medium -- so set columns to 2
+				  console.log('Width is medium.  totalColumns=2');
+				  this.totalColumns = 2;
+
+				} else {
+				  // The browser is larger or greater -- so set the columns to 3
+				  console.log('Width is large or greater.  totalColumns=3');
+				  this.totalColumns = 3;
+				}
+
+			  });
+
+
+		  }
+
+
+		  ngOnDestroy(): void {
+			// Unsubscribe from the subscription (to avoid memory leaks)
+			this.cardLayoutSubscription.unsubscribe();
+
+			this.chartDataSubscription.unsubscribe();
+		  }
+
+		  ngAfterViewInit() {
+			// Reload chart data
+			this.reloadData();
+		  }
+
+		  private filterResults(name: string): Observable<string[]> {
+
+			// Return a real observable
+			return this.elasticsearchService.getMatchingCompanyNames(name, 5);
+		  }
+
+		  private reloadData(): void {
+			this.dataIsLoading = true;
+
+			this.chartDataSubscription = this.dashboardService.getDashboardDTO().subscribe( data => {
+			  // I got the data from the dashboard service
+			  let dashboardDTO: DashboardDTO = data;
+
+			  // Update chart 1 with the data
+			  this.chartOptions1.series[0].data = dashboardDTO.chartData1;
+			  Highcharts.chart('chart1', this.chartOptions1);
+
+
+			  // Loop through all charts on the page -- redrawing them
+			  Highcharts.charts.forEach(function (chart: Chart | undefined) {
+				// Refreh the chart (so that it fits perfectly within the <mat-card> tags
+				chart?.reflow();
+			  });
+
+			}).add( () => {
+			  // The REST call has finished
+			  this.dataIsLoading = false;
+			})
+
+		  }
+
+
+
+		  private chartOptions1: any = {
+			credits: {
+			  enabled: false        // Hide the highcharts.com label
+			},
+			caption: {
+			  text: ''
+			},
+			chart: {
+			  type: 'pie'
+			},
+			title: {
+			  text: 'Pending Case Distribution'
+			},
+			subtitle: {
+			  text: ''
+			},
+			accessibility: {
+			  announceNewData: {
+				enabled: true
+			  },
+			  point: {
+				valueSuffix: '%'
+			  }
+			},
+			plotOptions: {
+			  series: {
+				dataLabels: {
+				  enabled: true,
+				  format: '<b>{point.name}</b>:<br>{point.percentage:.1f} %<br>value: {point.y}'
+				}
+			  }
+			},
+			tooltip: {
+			  headerFormat: '<span style="font-size:11px">{series.name}</span><br>',
+			  pointFormat: '<span style="color:{point.color}">{point.name}</span>: <b>{point.y}</b> or <b>{point.percentage:.1f}%</b> of total<br/>'
+			},
+			series: [
+			  {
+				name: "Browsers",
+				colorByPoint: true,
+				data: []
+			  }
+			]
+		  };
+
+		}
+   
  
+
+5. Try it out
+
