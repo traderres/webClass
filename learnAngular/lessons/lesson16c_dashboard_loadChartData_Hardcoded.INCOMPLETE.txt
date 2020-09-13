@@ -13,95 +13,92 @@ Procedure
 	   File name:  dashboard.dto.ts
 	
 	d. Copy this to your new file:
+		/*
+		 * Define the DashboardDTO class
+		 */
 		export class DashboardDTO {
 		  chartData1: any;
-		  chartData2: any;
 		}
 
+
  
- 2. Build a front-end chart.service.ts
-    a. Create the chart service
-       unix> cd ~/intellijProjects/angularApp1/frontend
-	   unix> ng generate service services/chart
-	   
+ 2. Add a dashboard service (that will provide the hard-coded data)
+    unix> cd ~/intellijProjects/angularApp1/frontend
+	unix> ng generate service services/dashboard
+ 
+ 
+ 3. Update the dashboard service to return an observable (with hard-coded data)
+    a. edit dashboard.service.ts
 	
-	
-	b. Inject the httpClient
-	
-         constructor(private httpClient: HttpClient)
- 	     {}
-  
-  
-    c. Use the httpClient to call your REST call and return an observable
-		  /*
-		   * Return an observable with the dashboard info
-		   */
-		  public getDashboardDTO(): Observable<DashboardDTO>  {
+	b. Add this method:
 
-			// Construct the URL of the REST call
-			const restUrl = environment.baseUrl + '/api/dashboard/info';
+	  /*
+	   * Return an observable with the DashboardDTO object
+	   * NOTE:  This object has information for multiple charts
+	   */
+	  public getDashboardDTO(): Observable<DashboardDTO>
+	  {
+		// Create a DashboardDTO object
+		let dto: DashboardDTO = new DashboardDTO();
 
-			// Return an observable
-			return this.httpClient.get <DashboardDTO>(restUrl);
-		  }
-    
-	d. Make another public method that will return a hard-coded observable
-		  /*
-		   * Return a hard-coded observable with the dashboard info
-		   */
-		  public getDashboardDTO_hardcoded(): Observable<DashboardDTO>  {
-			let dto: DashboardDTO = new DashboardDTO();
-
-			dto.chartData1 = {
-			  'data': 15,
-			  'data2': 27
+		dto.chartData1 =
+		  [
+			{
+			  name: "Unit 3",
+			  y: 989
+			},
+			{
+			  name: "Unit 3R",
+			  y: 249
+			},
+			{
+			  name: "Unit 5",
+			  y: 1035
+			},
+			{
+			  name: "Unit 5R",
+			  y: 324
 			}
+		  ];
 
-			dto.chartData2 = {
-			  'data': 15,
-			  'data2': 27
-			}
+		// Return an observable that holds the DashboardDTO
+		return of(dto);
+	  }
 
-			// Return hard-coded observable
-			return of(dto);
-		  }
-
-
- 4. In your dashboard.component.ts
-    a. Inject the chartService (in your constructor)
 	
-    b. Create a method called reloadData() that will
+
+ 4. Edit your dashboard.component.ts to use the new dashboard service
+    a. Inject the dashboardService (in your constructor)
+	   by adding this to the constructor
+	       private dashboardService: DashboardService
+		   
+		   
+    b. Change reloadData() so that it gets data from the dashboard service
 		
-		  public reloadData(): void {
-			// Tell the templat epage that dats is loading (so it will show the spinners)
+		  private reloadData(): void {
 			this.dataIsLoading = true;
 
-			// Get an observable to the chara data
-			this.subscription = this.chartService.getData().subscribe(data => {
-			  // Got the data from the REST call
+			this.chartDataSubscription = this.dashboardService.getDashboardDTO().subscribe( data => {
+				// I got the data from the dashboard service
+				let dashboardDTO: DashboardDTO = data;
 
-			  // Convert the data object into an IndustryDashboardDTO object
-			  let dashboardDTO: DashboardDTO = data;
-
-			  // Update Chart 1:  Update the "Pending Case Distribution" pie chart"
-			  this.pendingCaseDistChartOptions.series[0].data = dashboardDTO.pendingCaseDistributions;
-			  Highcharts.chart('chart1', this.pendingCaseDistChartOptions);
+				// Update chart 1 with the data
+				this.chartOptions1.series[0].data = dashboardDTO.chartData1;
+				Highcharts.chart('chart1', this.chartOptions1);
 
 
-			  // Refresh the chart so that they fill in the mat-cards perfectly by calling reflow()
-			  Highcharts.charts.forEach(function (chart) {
-				// Redraw all of the charts to fix a problem with the initial display not being corr
-				chart?.reflow();
+				// Loop through all charts on the page -- redrawing them
+				Highcharts.charts.forEach(function (chart: Chart | undefined) {
+				  // Refreh the chart (so that it fits perfectly within the <mat-card> tags
+				  chart?.reflow();
+				});
+
+			  }).add( () => {
+				// The REST call has finished
+				this.dataIsLoading = false;
 			  })
 
-			}).add(() => {
-			  // At this point the REST call has finished.  So, hide the loading message
-			  this.dataIsLoading = false;
-			})
-		  }
+		  }	
+
 
  
-    c. Call reloadData from ngAfterViewInit
-		  ngAfterViewInit() {
-			this.reloadData();
-		  }
