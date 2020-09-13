@@ -5,8 +5,9 @@ Solution: Submit a worker in the background and update a database record
 
 
 Approach
- 1) User uploads massive file
- 2) REST call runs
+ 1) Create an AsyncService that lets you run jobs in the background
+ 2) Inject the AsyncService into the controller
+ 3) REST call runs
     a) REST call creates a new JOBS database record (and gets a job id)
     b) REST call runs a worker in the background
     c) REST call returns the job id
@@ -17,6 +18,159 @@ Approach
  
 Procedure
 ---------
+ 1. Create the AsyncService
+    a. Right-click on backend/src/main/java/com/lessons/services -> New Java Class
+	   Class Name:  AsyncService
+	
+	b. Copy this to your newly-created class:
+		package com.lessons.services;
 
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import org.springframework.stereotype.Service;
+
+		import javax.annotation.PostConstruct;
+		import javax.annotation.PreDestroy;
+		import java.util.concurrent.Callable;
+		import java.util.concurrent.ExecutorService;
+		import java.util.concurrent.Executors;
+
+		@Service
+		public class AsyncService {
+			private static final Logger logger = LoggerFactory.getLogger(AsyncService.class);
+
+			private ExecutorService executorService = null;
+
+
+			@PostConstruct
+			public void init() {
+				// Initialize the executor service
+				this.executorService = Executors.newSingleThreadExecutor();
+			}
+
+			@PreDestroy 
+			public void destroy() {
+				logger.debug("destroy() started.");
+
+				// Spring is shutting down, so shutdown the executor service
+				if (this.executorService != null) {
+					executorService.shutdown();
+				}
+
+				logger.debug("destroy() finished.");
+			}
+
+			/**
+			 * Submit the passed-in worker to the ExecutorService (so it runs in the background)
+			 * @param aCallableOperation holds the worker
+			 */
+			public void submit(Callable aCallableOperation) {
+				logger.debug("submit() started.");
+
+				if (aCallableOperation == null) {
+					throw new RuntimeException("Critical error in submit():  The passed-in callable is null.");
+				}
+
+				// Run this worker in the background
+				this.executorService.submit(aCallableOperation);
+
+				logger.debug("submit() finished.");
+			}
+
+		}
+
+
+ 2. Create a Worker class (that implements Callable) to do the work in the background
+    a. Right-click on backend/src/main/java/com/lessons -> New Package
+	   Package Name:  workers
+	
+	b. Right-click on backend/src/main/java/com/lessons/workers -> New Java Class
+	   Class Name:  LongRunningWorker
+	   
+	c. Copy this to your newly-created class
+		package com.lessons.workers;
+
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+
+		import java.util.concurrent.Callable;
+
+		public class LongRunningWorker implements Callable<String> {
+			private static final Logger logger = LoggerFactory.getLogger(LongRunningWorker.class);
+
+
+			@Override
+			public String call() throws Exception {
+				logger.debug("call() started.");
+
+				// Simulate a long running process
+				Thread.sleep(5000);
+
+
+				logger.debug("call() finished.");
+				return null;
+			}
+		}
+
+	
+	
+ 3. Have your REST call create a worker and submit it to run in the background:
+    a. Edit the ReportController
+	
+	b. Inject the AsyncService
+	     @Resource
+		 private AsyncService asyncService;
+		 
+	c. Have a REST call use it
+			/**
+			 * REST endpoint /api/reports/uploadAsync
+			 * @param aMultipartFile
+			 * @return
+			 */
+			@RequestMapping(value = "/api/reports/uploadAsync", method = RequestMethod.POST)
+			public ResponseEntity<?> uploadFileAsync(
+					@RequestParam(value = "file", required = true) MultipartFile aMultipartFile)
+			{
+				logger.debug("uploadFileAsync() started. ");
+
+				String uploadedFilename = aMultipartFile.getOriginalFilename();
+				long uploadedFileSize = aMultipartFile.getSize();
+
+				logger.debug("Submitted file name is {}", uploadedFilename );
+				logger.debug("Submitted file is {} bytes",uploadedFileSize );
+
+				// Create the backend worker
+				LongRunningWorker worker = new LongRunningWorker();
+
+				// Submit the worker to run in the background
+				asyncService.submit(worker);
+
+				// The REST call returns information immediately
+
+				// Return a message back to the front-end
+				String returnedMessage = "You uploaded the file called " + uploadedFilename + " with a size of " + uploadedFileSize + " bytes";
+
+				return ResponseEntity.status(HttpStatus.OK)
+						.contentType(MediaType.TEXT_PLAIN)
+						.body(returnedMessage);
+
+			}	
+
+ 4. Activate the backend Debugger
  
- 
+ 5. Use Postman to upload a file
+    a. Startup Postman
+	b. Create a new request:
+	   POST http://localhost:8080/app1/api/reports/uploadAsync
+	   
+	   Headers:
+	      key=Accept        value=application/json
+	
+	   Body -> Form-data
+	      key=file          value=<browse to any file>
+	
+	   Press Submit
+	   
+  -- The REST call should finish quickly
+  -- 5 seconds later, the long running worker should finish
+  
