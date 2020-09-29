@@ -62,20 +62,32 @@ Procedure
 		import java.io.FileOutputStream;
 
 		public class ExcelUtilities {
-			private static final Logger logger = LoggerFactory.getLogger(ExcelUtilities.class);
+			    private static final Logger logger = LoggerFactory.getLogger(ExcelUtilities.class);
 
 
-			public static void createExcelFileWithRowSet(SqlRowSet aSqlRowSet,
-														 String aOutputFilePath,
-														 String aSheetName,
-														 boolean aAddColumnNames) throws Exception {
-				logger.debug("createExcelFileWithRowSet() started  writing to file: {}", aOutputFilePath);
+				public static void appendRowSetToExcelFile(SqlRowSet aSqlRowSet,
+															 String aExistingExcelFilePath,
+															 String aSheetName,
+															 boolean aAddColumnNames) throws Exception {
 
-				// Creating a Streaming Workbook instance
+				if (StringUtils.isEmpty(aExistingExcelFilePath)) {
+					throw new RuntimeException("Critical error in appendRowSetToExcelFile:  The passed-in excel file path is null or empty.");
+				}
+
+				File file = new File(aExistingExcelFilePath);
+				if (! file.exists()) {
+					throw new RuntimeException("Critical error in appendRowSetToExcelFile:  The passed-in file path does not exist: " + aExistingExcelFilePath);
+				}
+
+				// Open the existing excel file
+				// NOTE:  You *must* use a new FileInputStream here to open the workbook.  Do not use a File object as that will not work.
+				XSSFWorkbook wb = new XSSFWorkbook(new FileInputStream(aExistingExcelFilePath));
+
+				// Get a reference to the Streaming Workbook instance
 				//        Keep 100 rows in memory.  The remaining rows will be written to disk
 				//        + This does not increase or decreate the time it takes to generate the XLSX file
 				//        + This reduces memory consumption
-				SXSSFWorkbook streamingWorkBook = new SXSSFWorkbook(100);
+				SXSSFWorkbook streamingWorkBook = new SXSSFWorkbook(wb, 100);
 
 				// Create the worksheet (within this excel workbook)
 				SXSSFSheet sheet = streamingWorkBook.createSheet(aSheetName);
@@ -112,16 +124,16 @@ Procedure
 					currentRowNumber++;
 				}
 
+
 				// Write the remaining contents of the excel file to disk
-				try (FileOutputStream outputStream = new FileOutputStream(aOutputFilePath)) {
+				try (FileOutputStream outputStream = new FileOutputStream(aExistingExcelFilePath)) {
 					// Overwrite the existing file
 					streamingWorkBook.write(outputStream);
+					streamingWorkBook.close();
 				}
 
 				// Dispose of the temporary file (used by the streaming workbook)
 				streamingWorkBook.dispose();
-
-				logger.debug("createExcelFileWithRowSet() finished writing to file: {}", aOutputFilePath);
 			}
 
 
