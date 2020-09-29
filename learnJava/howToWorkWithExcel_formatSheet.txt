@@ -1,0 +1,119 @@
+How to Format the Excel Worksheet
+---------------------------------
+Problem:  How do I set the background color of a cell?
+          How do I merge cells?
+          How do I set formula?
+          Hot do I create styles
+          
+
+
+Procedure
+---------
+ 1. Add the apache poi dependency to your pom.xml
+     <dependency>
+      <!-- Apache POI dependency (used to generate xlsx files) -->
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi-ooxml</artifactId>
+      <version>4.1.2</version>
+    </dependency>
+
+ 
+ 2. Add your method to open the existing file, format the sheet, and write to it
+
+        public static void formatExistingExcelFile(String aExistingExcelFilePath) throws Exception {
+ 
+            if (StringUtils.isEmpty(aExistingExcelFilePath)) {
+                throw new RuntimeException("Critical error in sendRowSetToExistingExcelFile:  The passed-in excel file path is null or empty.");
+            }
+
+            File file = new File(aExistingExcelFilePath);
+            if (! file.exists()) {
+                throw new RuntimeException("Critical error in sendRowSetToExistingExcelFile:  The passed-in file path does not exist: " + aExistingExcelFilePath);
+            }
+
+            // Open the existing excel file
+            // NOTE:  You *must* use a new FileInputStream here to open the workbook.  Do not use a File object as that will not work.
+            XSSFWorkbook wb = new XSSFWorkbook(new FileInputStream(aExistingExcelFilePath));
+
+            // Get a reference to the Streaming Workbook instance
+            //        Keep 100 rows in memory.  The remaining rows will be written to disk
+            //        + This does not increase or decreate the time it takes to generate the XLSX file
+            //        + This reduces memory consumption
+            SXSSFWorkbook streamingWorkBook = new SXSSFWorkbook(wb, 100);
+
+            // Create the worksheet (within this excel workbook)
+            SXSSFSheet sheet = streamingWorkBook.createSheet(aSheetName);
+
+            // Get a fixed list of column names
+            SqlRowSetMetaData sqlRowSetMetaData = aSqlRowSet.getMetaData();
+            String[] columnNames = sqlRowSetMetaData.getColumnNames();
+
+        // In Apache POI, the first row starts with row number of zero
+        int currentRowNumber = 0;
+
+        if (aAddColumnNames) {
+            // Set the first row with column headers
+            addHeaderRowToSheet(sheet, columnNames);
+            currentRowNumber++;
+        }
+
+        // Loop through the remaining data, writing it one row at a time
+        while (aSqlRowSet.next()) {
+
+            // Create a row in this worksheet
+            Row row = sheet.createRow(currentRowNumber);
+
+            // Loop through each column in this row, adding it to the excel sheet
+            for (int i=0; i<columnNames.length; i++) {
+                String columnName = columnNames[i];
+                String value = aSqlRowSet.getString(columnName);
+
+                // Create the cell in this row
+                Cell cell = row.createCell(i);
+                cell.setCellValue(value);
+            }
+
+            currentRowNumber++;
+        }
+
+
+        // Write the remaining contents of the excel file to disk
+        try (FileOutputStream outputStream = new FileOutputStream(aExistingExcelFilePath)) {
+            // Overwrite the existing file
+            streamingWorkBook.write(outputStream);
+            streamingWorkBook.close();
+        }
+
+        // Dispose of the temporary file (used by the streaming workbook)
+        streamingWorkBook.dispose();
+     }
+
+
+
+    private static void addHeaderRowToSheet(SXSSFSheet aSheet, String[] aColumnNames) {
+        if (aSheet == null) {
+            throw new RuntimeException("Critical error in addHeaderRowToSheet():  The passed-in aSheet is null");
+        }
+
+        // Create a row in this worksheet
+        Row row = aSheet.createRow(0);
+
+        CellStyle headerCellStyle = aSheet.getWorkbook().createCellStyle();
+        Font font = aSheet.getWorkbook().createFont();
+        font.setBold(true);
+        font.setFontHeightInPoints((short) 11);
+        headerCellStyle.setFont(font);
+
+        // Loop through the column names, writing them to this row
+        int i=0;
+        for (String columnName: aColumnNames) {
+            // Create a cell in this worksheet
+            Cell cell = row.createCell(i);
+            cell.setCellValue(columnName);
+            cell.setCellStyle(headerCellStyle);   // Set this cell as bold
+
+            // This is the width that fits most of the headers
+            aSheet.setColumnWidth(i, 4500);
+            i++;
+        }
+    }
