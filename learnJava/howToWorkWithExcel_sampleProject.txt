@@ -1,0 +1,516 @@
+Build a Sample Java JAR that will Export to Excel
+-------------------------------------------------
+
+
+
+Procedure
+---------
+ 1. Add the apache poi dependency to your pom.xml
+     <dependency>
+		<!-- Apache POI dependency (used to generate xlsx files) -->
+		<groupId>org.apache.poi</groupId>
+		<artifactId>poi-ooxml</artifactId>
+		<version>4.1.2</version>
+     </dependency>
+
+     <dependency>
+		<!-- StringUtils Dependency -->
+		<groupId>org.apache.commons</groupId>
+		<artifactId>commons-lang3</artifactId>
+		<version>3.5</version>
+     </dependency>
+
+    <dependency>
+		<!-- Spring-JDBC -->
+		<groupId>org.springframework</groupId>
+		<artifactId>spring-jdbc</artifactId>
+		<version>5.0.3.RELEASE</version>
+    </dependency>
+	
+    <dependency>
+		<!-- Database Driver that will be used to talk to the database -->
+		<groupId>org.postgresql</groupId>
+		<artifactId>postgresql</artifactId>
+		<version>42.1.4</version>
+    </dependency>
+	
+	
+ 2. Add your method to open the existing file, add a sheet, and write to it
+    a. Create the com.lessons.utilities package
+	
+	b. Add this class to the com.lessons.utilities -> ExcelUtilities.java
+	
+	c. Copy this to your newly-created file
+		package com.lessons.utilities;
+
+		import org.apache.commons.lang3.StringUtils;
+		import org.apache.poi.ss.usermodel.Cell;
+		import org.apache.poi.ss.usermodel.CellStyle;
+		import org.apache.poi.ss.usermodel.Font;
+		import org.apache.poi.ss.usermodel.Row;
+		import org.apache.poi.xssf.streaming.SXSSFSheet;
+		import org.apache.poi.xssf.streaming.SXSSFWorkbook;
+		import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import org.springframework.jdbc.support.rowset.SqlRowSet;
+		import org.springframework.jdbc.support.rowset.SqlRowSetMetaData;
+
+		import java.io.File;
+		import java.io.FileInputStream;
+		import java.io.FileOutputStream;
+
+		public class ExcelUtilities {
+			private static final Logger logger = LoggerFactory.getLogger(ExcelUtilities.class);
+
+
+			public static void createExcelFileWithRowSet(SqlRowSet aSqlRowSet,
+														 String aOutputFilePath,
+														 String aSheetName,
+														 boolean aAddColumnNames) throws Exception {
+				logger.debug("createExcelFileWithRowSet() started  writing to file: {}", aOutputFilePath);
+
+				// Creating a Streaming Workbook instance
+				//        Keep 100 rows in memory.  The remaining rows will be written to disk
+				//        + This does not increase or decreate the time it takes to generate the XLSX file
+				//        + This reduces memory consumption
+				SXSSFWorkbook streamingWorkBook = new SXSSFWorkbook(100);
+
+				// Create the worksheet (within this excel workbook)
+				SXSSFSheet sheet = streamingWorkBook.createSheet(aSheetName);
+
+				// Get a fixed list of column names
+				SqlRowSetMetaData sqlRowSetMetaData = aSqlRowSet.getMetaData();
+				String[] columnNames = sqlRowSetMetaData.getColumnNames();
+
+				// In Apache POI, the first row starts with row number of zero
+				int currentRowNumber = 0;
+
+				if (aAddColumnNames) {
+					// Set the first row with column headers
+					addHeaderRowToSheet(sheet, columnNames);
+					currentRowNumber++;
+				}
+
+				// Loop through the remaining data, writing it one row at a time
+				while (aSqlRowSet.next()) {
+
+					// Create a row in this worksheet
+					Row row = sheet.createRow(currentRowNumber);
+
+					// Loop through each column in this row, adding it to the excel sheet
+					for (int i=0; i<columnNames.length; i++) {
+						String columnName = columnNames[i];
+						String value = aSqlRowSet.getString(columnName);
+
+						// Create the cell in this row
+						Cell cell = row.createCell(i);
+						cell.setCellValue(value);
+					}
+
+					currentRowNumber++;
+				}
+
+				// Write the remaining contents of the excel file to disk
+				try (FileOutputStream outputStream = new FileOutputStream(aOutputFilePath)) {
+					// Overwrite the existing file
+					streamingWorkBook.write(outputStream);
+				}
+
+				// Dispose of the temporary file (used by the streaming workbook)
+				streamingWorkBook.dispose();
+
+				logger.debug("createExcelFileWithRowSet() finished writing to file: {}", aOutputFilePath);
+			}
+
+
+			public static void appendRowSetToExcelFile(SqlRowSet aSqlRowSet,
+															 String aExistingExcelFilePath,
+															 String aSheetName,
+															 boolean aAddColumnNames) throws Exception {
+
+				if (StringUtils.isEmpty(aExistingExcelFilePath)) {
+					throw new RuntimeException("Critical error in appendRowSetToExcelFile:  The passed-in excel file path is null or empty.");
+				}
+
+				File file = new File(aExistingExcelFilePath);
+				if (! file.exists()) {
+					throw new RuntimeException("Critical error in appendRowSetToExcelFile:  The passed-in file path does not exist: " + aExistingExcelFilePath);
+				}
+
+				// Open the existing excel file
+				// NOTE:  You *must* use a new FileInputStream here to open the workbook.  Do not use a File object as that will not work.
+				XSSFWorkbook wb = new XSSFWorkbook(new FileInputStream(aExistingExcelFilePath));
+
+				// Get a reference to the Streaming Workbook instance
+				//        Keep 100 rows in memory.  The remaining rows will be written to disk
+				//        + This does not increase or decreate the time it takes to generate the XLSX file
+				//        + This reduces memory consumption
+				SXSSFWorkbook streamingWorkBook = new SXSSFWorkbook(wb, 100);
+
+				// Create the worksheet (within this excel workbook)
+				SXSSFSheet sheet = streamingWorkBook.createSheet(aSheetName);
+
+				// Get a fixed list of column names
+				SqlRowSetMetaData sqlRowSetMetaData = aSqlRowSet.getMetaData();
+				String[] columnNames = sqlRowSetMetaData.getColumnNames();
+
+				// In Apache POI, the first row starts with row number of zero
+				int currentRowNumber = 0;
+
+				if (aAddColumnNames) {
+					// Set the first row with column headers
+					addHeaderRowToSheet(sheet, columnNames);
+					currentRowNumber++;
+				}
+
+				// Loop through the remaining data, writing it one row at a time
+				while (aSqlRowSet.next()) {
+
+					// Create a row in this worksheet
+					Row row = sheet.createRow(currentRowNumber);
+
+					// Loop through each column in this row, adding it to the excel sheet
+					for (int i=0; i<columnNames.length; i++) {
+						String columnName = columnNames[i];
+						String value = aSqlRowSet.getString(columnName);
+
+						// Create the cell in this row
+						Cell cell = row.createCell(i);
+						cell.setCellValue(value);
+					}
+
+					currentRowNumber++;
+				}
+
+
+				// Write the remaining contents of the excel file to disk
+				try (FileOutputStream outputStream = new FileOutputStream(aExistingExcelFilePath)) {
+					// Overwrite the existing file
+					streamingWorkBook.write(outputStream);
+					streamingWorkBook.close();
+				}
+
+				// Dispose of the temporary file (used by the streaming workbook)
+				streamingWorkBook.dispose();
+			}
+
+
+
+			private static void addHeaderRowToSheet(SXSSFSheet aSheet, String[] aColumnNames) {
+				if (aSheet == null) {
+					throw new RuntimeException("Critical error in addHeaderRowToSheet():  The passed-in aSheet is null");
+				}
+
+				// Create a row in this worksheet
+				Row row = aSheet.createRow(0);
+
+				CellStyle headerCellStyle = aSheet.getWorkbook().createCellStyle();
+				Font font = aSheet.getWorkbook().createFont();
+				font.setBold(true);
+				font.setFontHeightInPoints((short) 11);
+				headerCellStyle.setFont(font);
+
+				// Loop through the column names, writing them to this row
+				int i=0;
+				for (String columnName: aColumnNames) {
+					// Create a cell in this worksheet
+					Cell cell = row.createCell(i);
+					cell.setCellValue(columnName);
+					cell.setCellStyle(headerCellStyle);   // Set this cell as bold
+
+					// This is the width that fits most of the headers
+					aSheet.setColumnWidth(i, 4500);
+					i++;
+				}
+			}
+		}
+
+ 
+ 3. Create this class:  FileUtilities
+    a. Right-click on com.lessons.utilities -> New Java Class
+	b. Class Name:  FileUtilities
+	c. Copy this to your newly-created class
+
+		package com.lessons.utilities;
+
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import java.io.File;
+		import java.io.FileInputStream;
+		import java.io.InputStream;
+		import java.nio.file.Paths;
+		import java.util.Properties;
+
+		public class FileUtilities {
+			private static final Logger logger = LoggerFactory.getLogger(FileUtilities.class);
+
+			/**
+			 * @return String holding the path of the current directory
+			 */
+			public static String getCurrentWorkingDirectory() {
+				return Paths.get(".").toAbsolutePath().normalize().toString();
+			}
+
+			/**
+			 * @param aFilePath Holds the complete file path of a file
+			 * @return TRUE if the passed-in file path exists
+			 */
+			public static boolean doesFileExist(String aFilePath) {
+				File file = new File(aFilePath);
+				return file.exists();
+			}
+
+
+			/**
+			 * @param aPropertiesInputFilePath holds the file path of a file to read propertie sfrom
+			 * @return Properties object from the passed-in property file
+			 */
+			public static Properties readProperties(String aPropertiesInputFilePath) throws Exception {
+				logger.debug("readProperties() started for file:  {}", aPropertiesInputFilePath);
+
+				if (! doesFileExist(aPropertiesInputFilePath)) {
+					throw new RuntimeException("Critical error in readProperties():  The passed-in file path does not exist " + aPropertiesInputFilePath);
+				}
+
+				Properties properties = new Properties();
+				try (InputStream inputStream = new FileInputStream(aPropertiesInputFilePath)) {
+					// Read the file and automatically close it as soon as we leave this try block
+					properties.load(inputStream);
+				}
+
+				logger.debug("readProperties() finished for file: {}", aPropertiesInputFilePath);
+				return properties;
+			}
+		}
+
+
+ 4. Create this class:  DatabaseUtilities
+    a. Right-click on com.lessons.utilities -> New Java Class
+	b. Class Name:  DatabaseUtilities
+	c. Copy this to your newly-created class
+
+		package com.lessons.utilities;
+
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import org.springframework.jdbc.core.JdbcTemplate;
+		import org.springframework.jdbc.datasource.SingleConnectionDataSource;
+
+		import javax.sql.DataSource;
+		import java.util.Properties;
+
+		public class DatabaseUtilities {
+			private static final Logger logger = LoggerFactory.getLogger(DatabaseUtilities.class);
+
+
+			public static DataSource buildDataSource(Properties aProperties) {
+				logger.debug("buildDataSource() started.");
+
+				if ( (! aProperties.containsKey("jdbc.url")) || (! aProperties.containsKey("jdbc.username")) || (! aProperties.containsKey("jdbc.password")) || (! aProperties.containsKey("jdbc.schema"))) {
+					// Some of the required properties are missing
+					throw new RuntimeException("I found the property file but some of the REQUIRED fields are missing.  It must have username, password, url, and schema.");
+				}
+
+				// Pull the url, username, password, and schema from the props object
+				String url =      aProperties.getProperty("jdbc.url");
+				String username = aProperties.getProperty("jdbc.username");
+				String password = aProperties.getProperty("jdbc.password");
+				String schema   = aProperties.getProperty("jdbc.schema");
+				String driver   = aProperties.getProperty("jdbc.driverClassName");
+
+				logger.debug("Connecting to jdbc.url={}   username={}  schema={}", url, username, schema);
+
+
+				// Create the Data Source
+				SingleConnectionDataSource sdds = new SingleConnectionDataSource();
+				sdds.setDriverClassName(driver);
+				sdds.setUsername(username);
+				sdds.setPassword(password);
+				sdds.setSchema(schema);
+				sdds.setUrl(url);
+
+				// Verify that we can run a query
+				// If this query works, then the DataSource object is good
+				String sql = "select now()";
+				JdbcTemplate jt = new JdbcTemplate(sdds);
+				String currentDate = jt.queryForObject(sql, String.class);
+
+				logger.debug("buildDataSource() finished.  Current database time is {}", currentDate);
+				return sdds;
+			}
+		}
+
+
+ 5. Create this class:  MyReport
+    a. Right-click on com.lessons -> New Java Class
+	b. Class Name:  MyReport
+	c. Copy this to your newly-created class
+
+		package com.lessons;
+
+		import com.lessons.utilities.ExcelUtilities;
+		import com.lessons.utilities.FileUtilities;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import org.springframework.jdbc.core.JdbcTemplate;
+		import org.springframework.jdbc.support.rowset.SqlRowSet;
+
+		import javax.sql.DataSource;
+		import java.util.Properties;
+
+		public class MyReport {
+			private static final Logger logger = LoggerFactory.getLogger(MyReport.class);
+
+			private final DataSource dataSource;
+			private final Properties properties;
+
+			public MyReport(DataSource aDataSource, Properties aProperties) {
+				if (aDataSource == null) {
+					throw new RuntimeException("Critical Error in MyReport():  The passed-in data source is null.");
+				}
+				else if ((aProperties == null) || (aProperties.size() == 0)) {
+					throw new RuntimeException("Critical Error in MyReport():  The passed-in properties object is null or empty.");
+				}
+				this.dataSource = aDataSource;
+				this.properties = aProperties;
+			}
+
+
+
+			public void runReport() throws Exception {
+				logger.debug("runReport() started.");
+				long startTime = System.currentTimeMillis();
+
+				// Construct the SQL to get the information from the database
+				String sql = "select id, display_name, priority, created_date " +
+							 "from reports " +
+							 "order by id";
+
+				// Execute the SQL, generating a read-only SqlRowSet
+				JdbcTemplate jt = new JdbcTemplate(this.dataSource);
+				SqlRowSet rs = jt.queryForRowSet(sql);
+
+				// Construct the path of the excel file
+				String outputFilePath = FileUtilities.getCurrentWorkingDirectory() + "/output.xlsx";
+
+				// Send the SqlRowSet to the excel file
+				ExcelUtilities.createExcelFileWithRowSet(rs, outputFilePath, "report 1", true);
+
+				long endTime = System.currentTimeMillis();
+				logger.debug("runReport() finished after {} secs.", ((endTime - startTime) / 1000));
+			}
+		}
+
+
+	
+ 6. Create this class:  MyReportDriver
+    a. Right-click on com.lessons -> New Java Class
+	b. Class Name:  MyReportDriver
+	c. Copy this to your newly-created class
+	
+		package com.lessons;
+
+		import com.lessons.utilities.DatabaseUtilities;
+		import com.lessons.utilities.FileUtilities;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+
+		import javax.sql.DataSource;
+		import java.util.Properties;
+
+		public class MyReportDriver {
+			private static final Logger logger = LoggerFactory.getLogger(MyReportDriver.class);
+
+
+			/**
+			 * Driver class that will run a report
+			 *
+			 * @param args
+			 * @throws Exception
+			 */
+			public static void main(String[] args) throws Exception {
+				logger.debug("main() started.");
+
+				// The first argument is the properties file
+				String propertiesInputFilePath = args[0];
+
+				// Read the file into the properties object
+				Properties properties = FileUtilities.readProperties(propertiesInputFilePath);
+
+				// Get the data source
+				DataSource dataSource = DatabaseUtilities.buildDataSource(properties);
+
+				// Create a Report Object
+				MyReport report = new MyReport(dataSource, properties);
+				report.runReport();
+
+				logger.debug("main() finished.");
+			}
+
+
+		}
+
+
+
+ 7. Create a postgres database and postgres user account
+    unix> psql -U postgres -h localhost
+    password:  secret
+
+      create database app2_db;
+      create user app2_user with password 'secret';
+      grant all privileges on database app2_db to app2_user;
+      alter database app2_db     SET search_path=app2_db;
+      alter role     app2_user   SET search_path=app2_db;  
+      \q
+    
+	  
+ 8. Create the app2_db schema, reports table the reports table with data 
+    unix> psql -U app2_user -d app2_db -h localhost
+	password:  secret
+	
+	create schema app2_db;
+	
+	
+	CREATE TABLE reports
+        (
+          id                  INTEGER PRIMARY KEY NOT NULL,
+          version             INTEGER,
+          description         TEXT,
+          display_name        VARCHAR(255),
+          reviewed            BOOLEAN,
+          reference_source    INTEGER,
+          priority            INTEGER,
+          created_date        TIMESTAMP,
+          last_modified_date  TIMESTAMP,
+          is_custom_report    BOOLEAN DEFAULT FALSE,
+          reserved            BOOLEAN,
+          reserved_by         VARCHAR(255)
+        );
+    
+	 insert into reports(id, display_name, priority, created_date) values(1, 'report 1.txt', 5, now() );
+	 insert into reports(id, display_name, priority, created_date) values(2, 'report 2.txt', 5, now() );
+	 insert into reports(id, display_name, priority, created_date) values(3, 'report 3.txt', 5, now() );
+	 
+	 \q
+	 
+ 
+
+ 9. Create a properties file with the database credentials
+    unix> cd ~/intellijProjects/myProject
+	unix> mkdir docs
+	unix> vi docs/reports.properties
+	
+		####################################################################
+		# reports.properties
+		####################################################################
+		jdbc.url=jdbc:postgresql://localhost:5432/app2_db
+		jdbc.username=app2_user
+		jdbc.password=secret
+		jdbc.schema=app2_db
+		jdbc.driverClassName=org.postgresql.Driver	
+ 
+ 
+10. Run the program and make sure docs/reports.properties is the 1st argument
+
+
