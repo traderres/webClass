@@ -637,7 +637,9 @@ Procedure
 				long startTime = System.currentTimeMillis();
 
 				// Construct the SQL to get the information from the database
-				String sql = "select id, display_name, priority, created_date " +
+				// NOTE:  The column names become the headers in the Excel spreadsheet
+				//        So if you rename the column here, it will have a different header in the Excel tab
+				String sql = "select id as \"ID\", display_name as \"Display Name\", priority as \"Priority\", created_date as \"Created Date\" " +
 							 "from reports " +
 							 "order by id";
 
@@ -655,7 +657,6 @@ Procedure
 				logger.debug("runReport() finished after {} secs.", ((endTime - startTime) / 1000));
 			}
 		}
-
 
 	
 10. Edit this class:  App
@@ -811,3 +812,273 @@ Procedure
 		-- The tab should have 4 columns with 3 records in it
 		-- The headers should all be in bold
 		
+
+15. Edit the pom.xml so that maven will build an *uber* JAR called myUberReports.jar
+    a. Edit the pom.xml
+	
+	b. Add these plugins to the end of the file after the <pluginManagement>...</pluginManagement> section
+
+			<plugins>
+			  <plugin>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.1</version>
+				<configuration>
+				  <source>1.8</source>
+				  <target>1.8</target>
+				</configuration>
+			  </plugin>
+
+			  <plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<version>2.3.2</version>
+				<configuration>
+				  <!-- Set the name of the generated Java JAR filename *without* dependencies -->
+				  <finalName>myReports</finalName>
+				</configuration>
+			  </plugin>
+
+			  <plugin>
+				<artifactId>maven-assembly-plugin</artifactId>
+
+				<configuration>
+				  <descriptorRefs>
+					<descriptorRef>jar-with-dependencies</descriptorRef>
+				  </descriptorRefs>
+
+				  <archive>
+					<manifest>
+					  <addClasspath>true</addClasspath>
+
+					  <!-- Add Extra Manifest info to the JAR that has all dependencies -->
+					  <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+					</manifest>
+
+					<manifestEntries>
+					  <!-- Add timestamp entry to the Manifest file -->
+					  <Build-timestamp>${timestamp}</Build-timestamp>
+					</manifestEntries>
+				  </archive>
+				</configuration>
+
+				<executions>
+				  <execution>
+					<id>make-assembly</id>
+					<phase>package</phase>
+					<goals>
+					  <goal>single</goal>
+					</goals>
+					<configuration>
+					  <!-- Set the name of the generated Java JAR filename *with* dependencies -->
+					  <appendAssemblyId>false</appendAssemblyId>
+					  <finalName>myUberReports</finalName>
+					</configuration>
+				  </execution>
+				</executions>
+			  </plugin>
+			</plugins>
+			
+	c. Change the <properties>...</properties> section to look like this:
+		 <properties>
+			<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+			<maven.compiler.source>1.8</maven.compiler.source>
+			<maven.compiler.target>1.8</maven.compiler.target>
+
+			<!-- This timestamp variable will be used to set the build timestamp (in the manifest file) -->
+			<maven.build.timestamp.format>MM/dd/yyyy HH:mm:ss zzzz</maven.build.timestamp.format>
+			<timestamp>${maven.build.timestamp}</timestamp>
+		  </properties>
+		  
+
+	When finished, the pom.xml should look like this:
+
+		<?xml version="1.0" encoding="UTF-8"?>
+
+		<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+		  <modelVersion>4.0.0</modelVersion>
+
+		  <groupId>com.lessons</groupId>
+		  <artifactId>myReports</artifactId>
+		  <version>1.0-SNAPSHOT</version>
+
+		  <name>myReports</name>
+
+		  <properties>
+			<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+			<maven.compiler.source>1.8</maven.compiler.source>
+			<maven.compiler.target>1.8</maven.compiler.target>
+
+			<!-- This timestamp variable will be used to set the build timestamp (in the manifest file) -->
+			<maven.build.timestamp.format>MM/dd/yyyy HH:mm:ss zzzz</maven.build.timestamp.format>
+			<timestamp>${maven.build.timestamp}</timestamp>
+		  </properties>
+
+		  <dependencies>
+			<dependency>
+			  <groupId>ch.qos.logback</groupId>
+			  <artifactId>logback-classic</artifactId>
+			  <version>1.2.3</version>
+			</dependency>
+
+			<dependency>
+			  <!-- Apache POI dependency (used to generate xlsx files) -->
+			  <groupId>org.apache.poi</groupId>
+			  <artifactId>poi-ooxml</artifactId>
+			  <version>4.1.2</version>
+			</dependency>
+
+			<dependency>
+			  <!-- StringUtils Dependency -->
+			  <groupId>org.apache.commons</groupId>
+			  <artifactId>commons-lang3</artifactId>
+			  <version>3.5</version>
+			</dependency>
+
+			<dependency>
+			  <!-- Spring-JDBC -->
+			  <groupId>org.springframework</groupId>
+			  <artifactId>spring-jdbc</artifactId>
+			  <version>5.0.3.RELEASE</version>
+			</dependency>
+
+			<dependency>
+			  <!-- Database Driver that will be used to talk to the database -->
+			  <groupId>org.postgresql</groupId>
+			  <artifactId>postgresql</artifactId>
+			  <version>42.1.4</version>
+			</dependency>
+
+
+			<dependency>
+			  <groupId>junit</groupId>
+			  <artifactId>junit</artifactId>
+			  <version>4.11</version>
+			  <scope>test</scope>
+			</dependency>
+		  </dependencies>
+
+		  <build>
+			<pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
+			  <plugins>
+				<!-- clean lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#clean_Lifecycle -->
+				<plugin>
+				  <artifactId>maven-clean-plugin</artifactId>
+				  <version>3.1.0</version>
+				</plugin>
+				<!-- default lifecycle, jar packaging: see https://maven.apache.org/ref/current/maven-core/default-bindings.html#Plugin_bindings_for_jar_packaging -->
+				<plugin>
+				  <artifactId>maven-resources-plugin</artifactId>
+				  <version>3.0.2</version>
+				</plugin>
+				<plugin>
+				  <artifactId>maven-compiler-plugin</artifactId>
+				  <version>3.8.0</version>
+				</plugin>
+				<plugin>
+				  <artifactId>maven-surefire-plugin</artifactId>
+				  <version>2.22.1</version>
+				</plugin>
+				<plugin>
+				  <artifactId>maven-jar-plugin</artifactId>
+				  <version>3.0.2</version>
+				</plugin>
+				<plugin>
+				  <artifactId>maven-install-plugin</artifactId>
+				  <version>2.5.2</version>
+				</plugin>
+				<plugin>
+				  <artifactId>maven-deploy-plugin</artifactId>
+				  <version>2.8.2</version>
+				</plugin>
+				<!-- site lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#site_Lifecycle -->
+				<plugin>
+				  <artifactId>maven-site-plugin</artifactId>
+				  <version>3.7.1</version>
+				</plugin>
+				<plugin>
+				  <artifactId>maven-project-info-reports-plugin</artifactId>
+				  <version>3.0.0</version>
+				</plugin>
+			  </plugins>
+			</pluginManagement>
+
+			<plugins>
+			  <plugin>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.1</version>
+				<configuration>
+				  <source>1.8</source>
+				  <target>1.8</target>
+				</configuration>
+			  </plugin>
+
+			  <plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<version>2.3.2</version>
+				<configuration>
+				  <!-- Set the name of the generated Java JAR filename *without* dependencies -->
+				  <finalName>myReports</finalName>
+				</configuration>
+			  </plugin>
+
+			  <plugin>
+				<artifactId>maven-assembly-plugin</artifactId>
+
+				<configuration>
+				  <descriptorRefs>
+					<descriptorRef>jar-with-dependencies</descriptorRef>
+				  </descriptorRefs>
+
+
+				  <archive>
+					<manifest>
+					  <addClasspath>true</addClasspath>
+
+					  <!-- Add Extra Manifest info to the JAR that has all dependencies -->
+					  <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+
+					</manifest>
+
+					<manifestEntries>
+					  <!-- Add timestamp entry to the Manifest file -->
+					  <Build-timestamp>${timestamp}</Build-timestamp>
+					</manifestEntries>
+
+				  </archive>
+				</configuration>
+
+				<executions>
+				  <execution>
+					<id>make-assembly</id>
+					<phase>package</phase>
+					<goals>
+					  <goal>single</goal>
+					</goals>
+					<configuration>
+					  <!-- Set the name of the generated Java JAR filename *with* dependencies -->
+					  <appendAssemblyId>false</appendAssemblyId>
+					  <finalName>myUberReports</finalName>
+					</configuration>
+				  </execution>
+				</executions>
+			  </plugin>
+			</plugins>
+
+		  </build>
+		</project>
+
+16. Build the Uber JAR
+    unix> cd ~/intellijProjects/myReports
+	unix> mvn clean package
+	-- Should generate ./target/myUberReports.jar
+	
+
+17. Run the Uber JAR
+    unix> java -cp ./target/myUberReports.jar com.lessons.App docs/reports.properties
+
+
+18. Verify that the output.xlsx file was created in the current directory
+
+
