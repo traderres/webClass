@@ -20,4 +20,273 @@ Procedure
  
  2. Add your method to open the existing file, format the sheet, and write to it
 
-      
+
+    public static void addFormattedTab(String aExistingExcelFilePath, String aSheetTitle, List<PersonDTO> aListOfPersonDTOs) throws Exception {
+        if (StringUtils.isEmpty(aExistingExcelFilePath))  {
+            throw new RuntimeException("Critical error in addFormattedTab:  The passed-in excel file path is null or empty.");
+        }
+        else if (! FileUtilities.doesFileExist(aExistingExcelFilePath)) {
+            throw new RuntimeException("Critical error in addFormattedTab:  The passed-in file path does not exist: " + aExistingExcelFilePath);
+        }
+
+        // Open the existing excel file
+        // NOTE:  You *must* use a new FileInputStream here to open the workbook.  Do not use a File object as that will not work.
+        XSSFWorkbook wb = new XSSFWorkbook(new FileInputStream(aExistingExcelFilePath));
+
+        // Get a reference to the Streaming Workbook instance
+        //        Keep 100 rows in memory.  The remaining rows will be written to disk
+        //        + This does not increase or decreate the time it takes to generate the XLSX file
+        //        + This reduces memory consumption
+        SXSSFWorkbook streamingWorkBook = new SXSSFWorkbook(wb, 100);
+
+        // Create the worksheet (within this excel workbook)
+        SXSSFSheet sheet = streamingWorkBook.createSheet(aSheetTitle);
+
+
+        CellStyle headerCellStyle         = ExcelUtilities.getHeaderCellStyle(sheet);
+        CellStyle borderAndCenteredStyle  = ExcelUtilities.getBorderAndCenteredTextStyle(sheet);
+        CellStyle numericAndBorderedStyle = ExcelUtilities.getBorderAndCenteredNumericStyle(sheet);
+        CellStyle greenNumericStyle       = ExcelUtilities.getBorderedGreenNumericStyle(sheet);
+
+        // Set column widths
+        sheet.setColumnWidth(0, 2600);
+        sheet.setColumnWidth(1, 6000);
+        for (int columnNumber=2; columnNumber<=9; columnNumber++) {
+            // Set column 2 to 9 as medium-wide
+            sheet.setColumnWidth(columnNumber, 4900);
+        }
+
+        // Row 1:  Title Row
+        int currentRowNumber = 0;
+        Row row = sheet.createRow(currentRowNumber);
+        row.setHeight((short) 600);
+
+        // Create the cells in this row
+        CellUtil.createCell(row, 0, "Bogus Employee List", headerCellStyle);
+        sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 3));    // Merge cells (0,0) to (0,3)
+
+        // Row 2:  Note
+        currentRowNumber++;
+        row = sheet.createRow(currentRowNumber);
+        row.setHeight((short) 400);
+        CellUtil.createCell(row, 0, "NOTE: This shows the salaries of all employees in the company");
+
+        // Row 3:  Empty row
+        currentRowNumber++;
+
+        // Row 4:  Headers for the whole sheet
+        currentRowNumber++;
+        row = sheet.createRow(currentRowNumber);
+        row.setHeight((short) 750);
+
+        CellUtil.createCell(row, 0, "ID",            borderAndCenteredStyle);
+        CellUtil.createCell(row, 1, "Full Name",     borderAndCenteredStyle);
+        CellUtil.createCell(row, 2, "Title",         borderAndCenteredStyle);
+        CellUtil.createCell(row, 3, "Annual Salary", greenNumericStyle);
+
+
+        if (aListOfPersonDTOs != null) {
+            for (PersonDTO personDTO: aListOfPersonDTOs) {
+                currentRowNumber++;
+                row = sheet.createRow(currentRowNumber);
+                row.setHeight((short) 600);
+
+                ExcelUtilities.createCell(row, 0, personDTO.getId(),                  numericAndBorderedStyle);
+                ExcelUtilities.createCell(row, 1, personDTO.getName(),                borderAndCenteredStyle);
+                ExcelUtilities.createCell(row, 2, personDTO.getTitle(),               borderAndCenteredStyle);
+                ExcelUtilities.createCell(row, 3, personDTO.getAnnualSalary(),        greenNumericStyle);
+            }
+        }
+
+
+        // Write the remaining contents of the excel file to disk
+        try (FileOutputStream outputStream = new FileOutputStream(aExistingExcelFilePath)) {
+            // Overwrite the existing file
+            streamingWorkBook.write(outputStream);
+            streamingWorkBook.close();
+        }
+
+        // Dispose of the temporary file (used by the streaming workbook)
+        streamingWorkBook.dispose();
+    }
+	
+	
+ 3. Add helper methods to set the style and create cells
+
+		private static CellStyle getBorderedGreenNumericStyle(SXSSFSheet aSheet) {
+			// Get the color index closes to the RGB coordinates
+			short colorIndexForGreen = getGreenColorIndex(aSheet);
+
+			// Create the blue-colored style for cells that are blue and formatted as a centered string
+			CellStyle style = aSheet.getWorkbook().createCellStyle();
+			style.setBorderBottom(BorderStyle.HAIR);
+			style.setBorderLeft(BorderStyle.HAIR);
+			style.setBorderRight(BorderStyle.HAIR);
+			style.setBorderTop(BorderStyle.HAIR);
+			style.setAlignment(HorizontalAlignment.CENTER);
+			style.setFillForegroundColor(colorIndexForGreen);
+			style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+			Font boldFont11 = aSheet.getWorkbook().createFont();
+			boldFont11.setBold(true);
+			boldFont11.setFontHeightInPoints((short) 11);
+			boldFont11.setFontName("Calibri");
+			style.setFont(boldFont11);
+
+			// Format the number with commas every 3 digits
+			DataFormat df = aSheet.getWorkbook().createDataFormat();
+			style.setDataFormat(df.getFormat("#,##0"));
+
+			return style;
+		}
+
+		private static CellStyle getBorderedGreenTextStyle(SXSSFSheet aSheet) {
+			// Get the color index closes to the RGB coordinates
+			short colorIndexForGreen = getGreenColorIndex(aSheet);
+
+			// Create the blue-colored style for cells that are blue and formatted as a centered string
+			CellStyle style = aSheet.getWorkbook().createCellStyle();
+			style.setBorderBottom(BorderStyle.HAIR);
+			style.setBorderLeft(BorderStyle.HAIR);
+			style.setBorderRight(BorderStyle.HAIR);
+			style.setBorderTop(BorderStyle.HAIR);
+			style.setAlignment(HorizontalAlignment.CENTER);
+			style.setFillForegroundColor(colorIndexForGreen);
+			style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+			Font boldFont11 = aSheet.getWorkbook().createFont();
+			boldFont11.setBold(true);
+			boldFont11.setFontHeightInPoints((short) 11);
+			boldFont11.setFontName("Calibri");
+			style.setFont(boldFont11);
+
+			return style;
+		}
+
+		public static short getGreenColorIndex(SXSSFSheet aSheet) {
+			HSSFWorkbook hwb = new HSSFWorkbook();
+			HSSFPalette palette = hwb.getCustomPalette();
+			HSSFColor myColor = palette.findSimilarColor(224, 224, 180);
+			short colorIndexForGreen = myColor.getIndex();
+
+			return colorIndexForGreen;
+		}
+
+
+		private static CellStyle getBorderedAndVerticallyTopCenteredTextStyle(SXSSFSheet aSheet) {
+			CellStyle style = aSheet.getWorkbook().createCellStyle();
+			style.setBorderBottom(BorderStyle.HAIR);
+			style.setBorderLeft(BorderStyle.HAIR);
+			style.setBorderRight(BorderStyle.HAIR);
+			style.setBorderTop(BorderStyle.HAIR);
+
+			// Horizontally, it is centered
+			style.setAlignment(HorizontalAlignment.CENTER);
+
+			// Vertically, it is top-aligned
+			style.setVerticalAlignment(VerticalAlignment.TOP);
+
+			return style;
+		}
+
+		private static CellStyle getBorderedAndVerticallyCenteredLeftTextStyle(SXSSFSheet aSheet) {
+			CellStyle style = aSheet.getWorkbook().createCellStyle();
+			style.setBorderBottom(BorderStyle.HAIR);
+			style.setBorderLeft(BorderStyle.HAIR);
+			style.setBorderRight(BorderStyle.HAIR);
+			style.setBorderTop(BorderStyle.HAIR);
+
+			// Horizontally, it is left-aligned
+			style.setAlignment(HorizontalAlignment.LEFT);
+
+			// Vertically, it is centered
+			style.setVerticalAlignment(VerticalAlignment.CENTER);
+
+			return style;
+		}
+
+		private static CellStyle getBorderAndCenteredTextStyle(SXSSFSheet aSheet) {
+			CellStyle style = aSheet.getWorkbook().createCellStyle();
+			style.setBorderBottom(BorderStyle.HAIR);
+			style.setBorderLeft(BorderStyle.HAIR);
+			style.setBorderRight(BorderStyle.HAIR);
+			style.setBorderTop(BorderStyle.HAIR);
+
+			// Center horizontally
+			style.setAlignment(HorizontalAlignment.CENTER);
+
+			// Vertically, push to the bottom
+			style.setVerticalAlignment(VerticalAlignment.BOTTOM);
+
+			return style;
+		}
+
+
+		public static CellStyle getBorderAndCenteredNumericStyle(SXSSFSheet aSheet) {
+			CellStyle style = aSheet.getWorkbook().createCellStyle();
+			style.setBorderBottom(BorderStyle.HAIR);
+			style.setBorderLeft(BorderStyle.HAIR);
+			style.setBorderRight(BorderStyle.HAIR);
+			style.setBorderTop(BorderStyle.HAIR);
+
+			// Vertically, push to the bottom
+			style.setVerticalAlignment(VerticalAlignment.BOTTOM);
+
+			// Format the number with commas every 3 digits
+			DataFormat df = aSheet.getWorkbook().createDataFormat();
+			style.setDataFormat(df.getFormat("#,##0"));
+
+			return style;
+		}
+
+		private static CellStyle getHeaderCellStyle(SXSSFSheet aSheet) {
+			// Build the Header cell style
+			CellStyle headerCellStyle = aSheet.getWorkbook().createCellStyle();
+			Font font = aSheet.getWorkbook().createFont();
+			font.setBold(true);
+			font.setFontHeightInPoints((short) 12);
+			headerCellStyle.setFont(font);
+
+			return headerCellStyle;
+		}
+
+
+		public static void createCell(Row aRow, int aColumnNumber, Float aValue, CellStyle aCellStyle) {
+			Cell cell = aRow.createCell(aColumnNumber);
+			cell.setCellValue(aValue);
+
+			if (aCellStyle != null) {
+				cell.setCellStyle(aCellStyle);
+			}
+		}
+
+		public static void createCell(Row aRow, int aColumnNumber, Long aValue, CellStyle aCellStyle) {
+			Cell cell = aRow.createCell(aColumnNumber);
+			cell.setCellValue(aValue);
+
+			if (aCellStyle != null) {
+				cell.setCellStyle(aCellStyle);
+			}
+		}
+
+		public static void createCell(Row aRow, int aColumnNumber, String aValue, CellStyle aCellStyle) {
+			Cell cell = aRow.createCell(aColumnNumber);
+			cell.setCellValue(aValue);
+
+			if (aCellStyle != null) {
+				cell.setCellStyle(aCellStyle);
+			}
+		}
+
+
+		public static void createCell(Row aRow, int aColumnNumber, Integer aValue, CellStyle aCellStyle) {
+			Cell cell = aRow.createCell(aColumnNumber);
+			cell.setCellValue(aValue);
+
+			if (aCellStyle != null) {
+				cell.setCellStyle(aCellStyle);
+			}
+		}
+
+	
+
