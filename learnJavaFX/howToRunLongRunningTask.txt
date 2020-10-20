@@ -1,0 +1,101 @@
+How to Run a Long-Running Task and Show Progress
+------------------------------------------------
+Problem:  I want to run a long-running task and show progress to the user
+Solution: Use the provided Service class as it has a built-in ExecutorService and provides way to show progress in a decoupled-way
+
+
+Procedure
+---------
+ 1. Create a command-line program with a main, logger, and maven to package it
+ 
+ 2. Modify the Application.main() to extend Application
+            // -- Call start() and then call stop().   This call is blocking.  Main thread waits here until GUI closes
+            Application.launch(args);
+
+            // The GUI has closed so end the program
+            System.exit(0);
+ 
+ 3. Add Application.start()
+   /**
+     * Start Up the GUI
+     * NOTE:  When this method finishes, then the GUI has been closed
+     * @param aPrimaryStage which represents a window in a JavaFX desktop app
+     */
+    @Override
+    public void start(Stage aPrimaryStage)  {
+        logger.debug("start() started.");
+
+
+        // Initialize the Main()
+        this.mainUI = new MainUI(aPrimaryStage);
+        BorderPane rootBorderPane = mainUI.getRootBorderPane();
+        Scene scene = new Scene(rootBorderPane);
+
+        // Setup the behavior of the application
+        aPrimaryStage.setScene(scene);
+
+        // Let users resize this GUI
+        aPrimaryStage.setResizable(true);
+
+        // Set initial width and height of main window (user can resize)
+        aPrimaryStage.setWidth(800);
+        aPrimaryStage.setMinWidth(800);
+
+        aPrimaryStage.setTitle("GUI Tool");
+
+        // Set the application icon
+        aPrimaryStage.getIcons().add(new Image("/images/applicaiton.icon.jpg"));
+
+        aPrimaryStage.addEventHandler(KeyEvent.KEY_PRESSED, (KeyEvent event) -> {
+            if (event.getCode() == KeyCode.ESCAPE)  {
+                // User pressed Escape or Enter, so end the GUI
+                Platform.exit();
+            }
+        });
+
+        // Show the main window by setting the visibility to true   (does not block)
+        aPrimaryStage.show();
+
+        logger.debug("start() finished.");
+    }
+    
+    
+    
+ 4. Add a MainUI class with these fields:
+    textfield       selected input directory for the long-running task
+    start button    to run the task), 
+    cancel button   to cancel the task)
+    a progress bar  to show progress of the task
+    textarea        to show progress messages
+    
+    MainUI constructor will need the aPrimaryStage
+      addUI();
+      addEventHandlers(aPrimaryStage);
+      bindButtonState();
+      bindUItoWorker(this.backgroundService);
+ 
+ 
+ 5. Add a Worker class:  MyTask that extends Task<ObservableList<Long>> 
+    a. Add a constructor that has the passed-in informtaion
+
+    
+ 6. In the MainUI class, add a private Service<ObservableList<Long>> that overrides the createTask
+ 
+    // Create the backgroundService and override createTask() to build the task correctly
+    // NOTE:  This class has a built-in executor service so it will run the task in the background
+    private Service<ObservableList<Long>> backgroundService = new Service<ObservableList<Long>>() {
+        @Override
+        protected Task<ObservableList<Long>> createTask() {
+            // Define the unit of work
+
+            // Create the task (to process a directory of XML files)
+            MyTask task = new MyTask( textInputDirectory.getText() ;
+
+            // Create a new task and pass-in values from the GUI
+            return task;
+        }
+    };
+    
+    
+ 
+ 
