@@ -6,96 +6,452 @@ Solution: Use the provided Service class as it has a built-in ExecutorService an
 
 Procedure
 ---------
- 1. Create a command-line program with a main, logger, and maven to package it
+ 1. Create a command-line program called gui
+    [see learnJava / howToCreateJavaCommandLineProgram_numbers.txt]
+	
+	Notes:
+	 A) The Project SDK must be Oracle Java 8, 9, or 10  
+	 B) The OpenJDK does not come with JavaFx libraries
+	 C) The maven pom.xml must have maven.compiler.source and target as 1.8
+		 <properties>
+			<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+			<maven.compiler.source>1.8</maven.compiler.source>
+			<maven.compiler.target>1.8</maven.compiler.target>
+		  </properties>
+  
+	
+	
+		   
+ 2. Add this class:  MyWorker
  
- 2. Modify the Application.main() to extend Application
-            // -- Call start() and then call stop().   This call is blocking.  Main thread waits here until GUI closes
-            Application.launch(args);
+		package com.lessons;
 
-            // The GUI has closed so end the program
-            System.exit(0);
- 
- 3. Add Application.start()
-   /**
-     * Start Up the GUI
-     * NOTE:  When this method finishes, then the GUI has been closed
-     * @param aPrimaryStage which represents a window in a JavaFX desktop app
-     */
-    @Override
-    public void start(Stage aPrimaryStage)  {
-        logger.debug("start() started.");
+		import javafx.collections.ObservableList;
+		import javafx.concurrent.Task;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+
+		import java.text.SimpleDateFormat;
+		import java.util.Date;
+
+		public class MyWorker extends Task<ObservableList<Long>> {
+			private static final Logger logger = LoggerFactory.getLogger(MyWorker.class);
+
+			private String inputDirectoryPath;
+
+			public MyWorker(String aInputDirectoryPath) {
+				this.inputDirectoryPath = aInputDirectoryPath;
+			}
+
+			@Override
+			protected ObservableList<Long> call() throws Exception {
+				logger.debug("call() started.  inputDirectoryPath={}", this.inputDirectoryPath);
+
+				int totalWorkDone = 0;
+				int totalWorkRequired = 100;
+
+				updateProgress(totalWorkDone, totalWorkRequired);
+
+				for (int i=1; i<=10; i++) {
+					Thread.sleep(1000);
+					totalWorkDone = totalWorkDone + 10;
+
+					updateProgress(totalWorkDone, totalWorkRequired);
+					updateMessage(5, "I did more work.  totalWorkDone=" + totalWorkDone);
+				}
+
+				updateProgress(totalWorkRequired, totalWorkRequired);
+				updateMessage(5, "Job Completed!");
+
+				logger.debug("call() finished.");
+				return null;
+			}
 
 
-        // Initialize the Main()
-        this.mainUI = new MainUI(aPrimaryStage);
-        BorderPane rootBorderPane = mainUI.getRootBorderPane();
-        Scene scene = new Scene(rootBorderPane);
 
-        // Setup the behavior of the application
-        aPrimaryStage.setScene(scene);
+			private void updateMessage(long aSleepTimeMilliSeconds, String aNewMessage) throws Exception {
+				// Get the date time
+				String currentDateTime = getCurrentDateTimeForGui();
 
-        // Let users resize this GUI
-        aPrimaryStage.setResizable(true);
+				// Update the worker message
+				super.updateMessage(currentDateTime + aNewMessage);
 
-        // Set initial width and height of main window (user can resize)
-        aPrimaryStage.setWidth(800);
-        aPrimaryStage.setMinWidth(800);
+				// Give the UI time to refresh
+				// NOTE:  The worker will combine messages into one if we send them too fast
+				//        This sleep call ensures that messages are not lost in the GUI
+				Thread.sleep(aSleepTimeMilliSeconds);
+			}
 
-        aPrimaryStage.setTitle("GUI Tool");
 
-        // Set the application icon
-        aPrimaryStage.getIcons().add(new Image("/images/applicaiton.icon.jpg"));
+			/**
+			 * This task was cacnelled
+			 */
+			@Override
+			protected void cancelled() {
+				try {
+					updateMessage(10, "User Cancelled Operation.");
+				} catch (Exception e) {
+					// Log the exception and continue
+					logger.debug("Exception raised in cacnelled()", e);
+				}
+			}
 
-        aPrimaryStage.addEventHandler(KeyEvent.KEY_PRESSED, (KeyEvent event) -> {
-            if (event.getCode() == KeyCode.ESCAPE)  {
-                // User pressed Escape or Enter, so end the GUI
-                Platform.exit();
-            }
-        });
 
-        // Show the main window by setting the visibility to true   (does not block)
-        aPrimaryStage.show();
+			public static String getCurrentDateTimeForGui()
+			{
+				SimpleDateFormat simpleDateFormat = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss ");
+				Date now = new Date();
+				return simpleDateFormat.format(now);
+			}
+		}
 
-        logger.debug("start() finished.");
-    }
-    
-    
-    
- 4. Add a MainUI class with these fields:
-    textfield       selected input directory for the long-running task
-    start button    to run the task), 
-    cancel button   to cancel the task)
-    a progress bar  to show progress of the task
-    textarea        to show progress messages
-    
-    MainUI constructor will need the aPrimaryStage
-      addUI();
-      addEventHandlers(aPrimaryStage);
-      bindButtonState();
-      bindUItoWorker(this.backgroundService);
- 
- 
- 5. Add a Worker class:  MyTask that extends Task<ObservableList<Long>> 
-    a. Add a constructor that has the passed-in informtaion
 
-    
- 6. In the MainUI class, add a private Service<ObservableList<Long>> that overrides the createTask
- 
-    // Create the backgroundService and override createTask() to build the task correctly
-    // NOTE:  This class has a built-in executor service so it will run the task in the background
-    private Service<ObservableList<Long>> backgroundService = new Service<ObservableList<Long>>() {
-        @Override
-        protected Task<ObservableList<Long>> createTask() {
-            // Define the unit of work
 
-            // Create the task (to process a directory of XML files)
-            MyTask task = new MyTask( textInputDirectory.getText() ;
+ 3. Add this class:  MainUI
 
-            // Create a new task and pass-in values from the GUI
-            return task;
-        }
-    };
-    
-    
- 
- 
+		package com.lessons;
+
+		import javafx.beans.binding.BooleanBinding;
+		import javafx.beans.binding.When;
+		import javafx.collections.ObservableList;
+		import javafx.concurrent.Service;
+		import javafx.concurrent.Task;
+		import javafx.concurrent.Worker;
+		import javafx.geometry.Insets;
+		import javafx.geometry.Pos;
+		import javafx.scene.control.*;
+		import javafx.scene.layout.*;
+		import javafx.stage.DirectoryChooser;
+		import javafx.stage.Stage;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+
+		import java.io.File;
+
+
+		public class MainUI {
+			private static final Logger logger = LoggerFactory.getLogger(MainUI.class);
+
+			private static final int BUTTON_WIDTH = 150;
+
+			private DirectoryChooser directoryChooser;
+			private Button      btnStart;
+			private Button      btnCancel;
+			private Button      btnSelectInputDirectory;
+			private TextField   txtFieldInput;
+			private TextArea    taConsole;
+			private Label       lblProgressNumericValue;
+			private ProgressBar progressBar;
+			private BorderPane  rootBorderPane;
+
+			// Create the backgroundService and override createTask() to build the task correctly
+			// NOTE:  This class has a built-in executor service so it will run the task in the background
+			private Service<ObservableList<Long>> backgroundService = new Service<ObservableList<Long>>() {
+				@Override
+				protected Task<ObservableList<Long>> createTask() {
+					// Define the unit of work
+
+					// Create the worker (to process this input directory of files)
+					// -- If the service is started, then execute the worker.call()
+					MyWorker worker = new MyWorker(txtFieldInput.getText() );
+
+					// Return the worker
+					return worker;
+				}
+			};
+
+
+
+			/**
+			 * Setup the UI, event handlers, enable/disable buttons and bind certain UI fields to the task
+			 * @param aPrimaryStage is passed-in from the main Application
+			 */
+			public MainUI(Stage aPrimaryStage) {
+				if (aPrimaryStage == null) {
+					throw new RuntimeException("Critical Error in MainUI Constructor:  aPrimaryStage is null.");
+				}
+
+				// Setup the UI
+				addUI();
+
+				// Add event handlers
+				addEventHandlers(aPrimaryStage);
+
+				// Disable/Enable buttons based on state of the UI
+				bindButtonsState();
+
+				// Bind to the background service worker
+				bindUItoWorker(this.backgroundService);
+			}
+
+			private void bindUItoWorker(Service<ObservableList<Long>> aWorker) {
+
+				// Bind the  worker's progress to the progressBar
+				// -- As the worker's progress change, the UI progress bar will also change
+				progressBar.progressProperty().bind(
+						// Bind the progress bar to the progress of the worker
+
+						// If the Task is READY,
+						//   Then set progress bar to 0
+						//   Else set progress bar = worker's actual progress value
+						new When(aWorker.stateProperty().isEqualTo(Worker.State.READY)).then(0.0)
+								.otherwise(aWorker.progressProperty()
+								)
+				);
+
+				this.lblProgressNumericValue.textProperty().bind(
+						// Bind the progress label to the progress of the worker
+
+						// If the Task is READY,
+						//   Then set progress label to an empty string
+						//   Else set progress label = worker's actual progress value
+						new When(aWorker.stateProperty().isEqualTo(Worker.State.READY)).then("")
+								.otherwise(aWorker.progressProperty().multiply(100).asString("%.0f%%")
+								)
+				);
+
+				// Listen for changes to the messageProperty
+				// -- If there are changes, then append to the text area console
+				aWorker.messageProperty().addListener((observable, oldValue, newValue) -> {
+					this.taConsole.appendText(newValue + "\n");
+				});
+			}
+
+			private void bindButtonsState() {
+
+				// Dsiable the Start button IF
+				//   1) the selected-dir-textbox is empty OR
+				//   2) the service is running
+				BooleanBinding booleanBindsForStartBtn = txtFieldInput.textProperty().isEmpty()
+														 .or(backgroundService.runningProperty() );
+				btnStart.disableProperty().bind(booleanBindsForStartBtn);
+
+				// Enable the Cancel button if the service is running
+				btnCancel.disableProperty().bind( backgroundService.runningProperty().not() );
+
+				// Disable the txtFieldInput if the service is running
+				txtFieldInput.disableProperty().bind(backgroundService.runningProperty() );
+
+				// Disable the select-input-directory if the service is running
+				btnSelectInputDirectory.disableProperty().bind(backgroundService.runningProperty() );
+			}
+
+
+
+			private void addEventHandlers(Stage aPrimaryStage) {
+				btnStart.setOnAction(event -> {
+					// User pressed "Start" -- so start the background service (to start parsing XML files)
+
+					// Reset the background service back to READY state -- so that backgroundService.start() will start the service reliably
+					backgroundService.reset();
+
+					// Start the background service (which calls createTask() and then call()
+					backgroundService.start();
+				});
+
+
+				btnCancel.setOnAction(event -> {
+					// User pressed "Cancel" -- so cancel the background service
+					backgroundService.cancel();
+
+					// Wait .5 seconds before resetting the service
+					try {
+						Thread.sleep(500);
+					} catch (InterruptedException interruptedException) {
+						// Do nothing
+					}
+
+					// Reset the service (so it can be re-started by press "Start")
+					backgroundService.reset();
+				});
+
+
+				btnSelectInputDirectory.setOnAction(event -> {
+					// User pressed the "Select Directory" button
+
+					// Show the directory chooser
+					File selectedDirectory = this.directoryChooser.showDialog(aPrimaryStage);
+
+					// The user has finished using the directory chooser
+					if (selectedDirectory != null) {
+						// The user selected a directory
+
+						// Show the selected directory to the user
+						this.txtFieldInput.setText(selectedDirectory.toString());
+					}
+				});
+
+			}
+
+			private void addUI() {
+
+				// Create DirectoryChooser and btnSelectDirectory
+				this.directoryChooser = new DirectoryChooser();
+
+				this.btnSelectInputDirectory = new Button("Select Directory");
+				this.btnSelectInputDirectory.setMinWidth(BUTTON_WIDTH);
+
+				this.txtFieldInput = new TextField();
+
+				GridPane grid = new GridPane();
+				grid.setHgap(8);
+				grid.setVgap(5);
+
+				ColumnConstraints column1 = new ColumnConstraints(200);
+				ColumnConstraints column2 = new ColumnConstraints(400,400,Double.MAX_VALUE);
+				column2.setHgrow(Priority.ALWAYS);
+				grid.getColumnConstraints().addAll(column1, column2); // first column gets any extra width
+
+				// Grid Row 1:  Label saying "Select Input Directory"
+				int rowNumber = 0;
+				grid.add(new Label("1. Enter Input Directory"), 0, rowNumber, 2, 1);
+
+				// Grid Row 2:  "Select Input Dir" button and selected-input-dir textbox
+				rowNumber++;
+				grid.add(btnSelectInputDirectory, 0, rowNumber);
+				grid.add(txtFieldInput, 1, rowNumber);
+
+				// Grid Row 3:  Empty Row
+				rowNumber++;
+				grid.add(new Label(""), 0, rowNumber);
+
+				this.btnStart = new Button("Start");
+				this.btnStart.setPrefWidth(BUTTON_WIDTH);
+
+				this.btnCancel = new Button("Cancel");
+				this.btnCancel.setPrefWidth(BUTTON_WIDTH);
+
+
+				// Create a button box to hold the "Start" and "Cancel" buttons
+				HBox buttonBox = new HBox(15, this.btnStart, this.btnCancel);
+
+				// Grid Row 4:  Start and Cancel buttons
+				rowNumber++;
+				grid.add(buttonBox, 0, rowNumber, 2, 1);
+
+				// Grid Row 5:  Label saying "Console"
+				rowNumber++;
+				grid.add(new Label("Console"), 0, rowNumber, 2, 1);
+
+				// Initialize the text area
+				this.taConsole = new TextArea();
+
+				// Grid Row 6:  TextArea box (10 rows tall)
+				rowNumber++;
+				grid.add(taConsole, 0, rowNumber, 2, 10);
+				rowNumber = rowNumber + 9;
+
+				// Grid Row 7:  Label saying "Progress"
+				rowNumber++;
+				this.lblProgressNumericValue = new Label("");
+				Label progressLabel = new Label("Progress ");
+				HBox hboxHoldingLabels = new HBox(progressLabel, lblProgressNumericValue);
+				grid.add(hboxHoldingLabels, 0, rowNumber, 2, 1);
+
+				// Initialize the progress bar
+				this.progressBar = new ProgressBar();
+				this.progressBar.setPrefWidth(Double.MAX_VALUE);  // Set the progress bar to stretch wide
+				this.progressBar.setProgress(0.0);
+
+				// Grid Row 8:  Progress Bar
+				rowNumber++;
+				grid.add(progressBar, 0, rowNumber, 2, 1);
+
+				// Create a container (to be placed in the center of the screen)
+				VBox vboxContainer = new VBox();
+				vboxContainer.getChildren().addAll(grid);
+				vboxContainer.setAlignment(Pos.TOP_LEFT);
+				vboxContainer.setFillWidth(true);
+				vboxContainer.setPadding(new Insets(10));
+				vboxContainer.setSpacing(5.0);   // Set vertical spacing between each child
+
+				// Create The main border Pane
+				BorderPane borderPane = new BorderPane();
+				borderPane.setCenter(vboxContainer);
+
+				this.rootBorderPane = borderPane;
+			}
+
+
+			public BorderPane getRootBorderPane() {
+				return this.rootBorderPane;
+			}
+		}
+
+
+ 4. Update this class:  App
+    NOTE:  This class must extend javafx.application.Application
+    a. Edit App.java
+	b. Replace its contents with this:
+
+		package com.lessons;
+
+		import javafx.application.Application;
+		import javafx.scene.Scene;
+		import javafx.scene.layout.BorderPane;
+		import javafx.stage.Stage;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+
+		/**
+		 * App
+		 */
+		public class App extends Application {
+			private static final Logger logger = LoggerFactory.getLogger(App.class);
+
+			public static void main(String[] args) {
+				logger.debug("main() started.");
+
+				// Launch the GUI, by calling start() and then stop()
+				// NOTE:  This call is BLOCKING
+				Application.launch(args);
+
+				logger.debug("main() finished.");
+			}
+
+			/**
+			 * The GUI has closed
+			 * Do any cleanup here -- e.g., remove temporary files or close database connection pools
+			 */
+			@Override
+			public void stop() {
+				logger.debug("stop() started.");
+
+				logger.debug("stop() finished.");
+			}
+
+
+			/**
+			 * Launch the GUI
+			 * @param aPrimaryStage represents a window in a JavaFX desktop app
+			 */
+			@Override
+			public void start(Stage aPrimaryStage) {
+				logger.debug("start() started.");
+
+				// Initialize the Main() class
+				MainUI mainUI = new MainUI(aPrimaryStage);
+				BorderPane rootBorderPane = mainUI.getRootBorderPane();
+
+				// Setup the behavior of the application
+				Scene scene = new Scene(rootBorderPane);
+				aPrimaryStage.setScene(scene);
+
+				// Let users resize this GUI
+				aPrimaryStage.setResizable(true);
+
+				// Set initial width and height of main window (user can resize)
+				aPrimaryStage.setWidth(800);
+				aPrimaryStage.setMinWidth(800);
+
+				aPrimaryStage.setTitle("My Tool");
+
+				// Set the application icon to be found in src/main/resources/images/application.icon.jpg
+			  //  aPrimaryStage.getIcons().add(new Image("/images/application.icon.jpg"));
+
+				// Show the main window by setting the visibility to true   (does not block)
+				aPrimaryStage.show();
+
+				logger.debug("start() finished.");
+			}
+		}
