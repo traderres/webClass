@@ -1,0 +1,36 @@
+Set the proxy maximum upload limit is set to be 25 MB (on BDP 4)
+----------------------------------------------------------------
+
+Procedure
+---------
+ 1. Get the current proxy max upload limit
+	unix> ssh admin@192.168.xx.7   # connect to the cde_proxy_server
+	unix> sudo -s
+	unix> grep client_max_body_size /etc/nginx/nginx.conf
+
+	You should see this:
+      client_max_body_size 25m;
+
+
+ 2. Set the value
+ 	unix> ssh admin@puppet   # connect to the puppet master
+	unix> sudo vi /etc/puppetlabs/code/modules/nginx/data/default.yaml
+
+	Change the line so that it looks like this: 
+		nginx::client_max_body_size : "100m"
+
+
+ 3. Update the roles (on the puppet master)
+    unix> sudo /var/bdp/bin/bdp_roles -o
+
+ 4. Push-out this change to the nginx server immdiately
+    unix> su - admin    # on the puppet master
+    unix> yarcs -r cde_proxy_server -v
+
+ 5. Verify that the nginx.conf file was updated
+	unix> go nginx_server   # connect to the proxy_server as user 'admin'
+	unix> sudo grep client_max_body_size /etc/nginx/nginx.conf
+	You should see this, `client_max_body_size 100m;`
+
+ 6. Reload the nginx configuration while on the nginx server (see previous step)
+	unix> sudo systemctl restart nginx
