@@ -1,0 +1,150 @@
+Lesson:  How to Embed Static Pages into Angular 9 Application
+-------------------------------------------------------------
+Problem:  I want to embed a large number of static pages -- e.g., the SchemaSpy generated HTML files
+
+Approach:
+ 1) Add your files to frontend/src/app/assets/schema/
+ 2) Create a SafePipe that will sanitize the DOM
+ 3) Create a PageComponent (that will display the iframe)
+ 4) Use CSS to make sure the iframe uses the entire router-outlet
+ 5) Add a special route to app.module.ts to detect all of these static pages
+
+ 
+ 
+Procedure
+---------
+ 1. Add your static pages to the frontend/src/app/assets/schema/ directory
+    a. Create the directory: frontend/src/app/assets/schema
+    b. Copy the SchemaSpy files to this directory
+
+
+ 2. Create the SafePipe (used by the iframe)
+    a. Add this directory:  frontend/src/app/pipes
+    b. Right-click on pipes -> New File
+       Filename:  safe-pipe.ts
+    c. Copy this to your safe.pipe.ts file
+
+        import { Pipe, PipeTransform } from '@angular/core';
+        import { DomSanitizer} from '@angular/platform-browser';
+
+        @Pipe({ name: 'safe' })
+        export class SafePipe implements PipeTransform {
+
+          constructor(private sanitizer: DomSanitizer) {}
+
+          transform(url: string) {
+            return this.sanitizer.bypassSecurityTrustResourceUrl(url);
+          }
+        }
+
+ 
+ 3. Create a PageComponent
+    a. Create the PageComponent
+       unix> cd ~/intelliJProjects/angularApp1/frontend
+       unix> ng generate component page
+    
+    b. Replace the page-component.ts with this:
+        import { Component, OnInit } from '@angular/core';
+        import {ActivatedRoute} from "@angular/router";
+        import {environment} from "../../environments/environment";
+
+        @Component({
+          selector: 'app-page',
+          templateUrl: './page.component.html',
+          styleUrls: ['./page.component.css']
+        })
+        export class PageComponent implements OnInit {
+          public path: string;
+
+          constructor(private activatedRoute: ActivatedRoute) {
+
+            this.activatedRoute.url
+              .subscribe( aParams => {
+                // The url has changed
+
+                // Get the path of where to go
+                // @ts-ignore
+                this.path = environment.baseUrl + this.activatedRoute['_routerState'].snapshot.url;
+
+                // Strip off the /page so the page is found in the assets/
+                this.path = this.path.replace("/page", "");
+              });
+          }
+
+          ngOnInit(): void {
+            console.log("Loading page with path=", this.path);
+          }
+
+
+        }
+
+
+    c. Replace the page-component.html with this:
+        <!-- Load the page into an iframe so that the page javascript and css loads correctly -->
+        <div class="iframe-container">
+          <iframe id="ifrm" [src]="this.path | safe" scrolling="yes" allowfullscreen></iframe>
+        </div>
+
+    
+    
+    d. Replace the page-component.css with this:
+        .iframe-container {
+          overflow: hidden;
+          /* 16:9 aspect ratio */
+          padding-top: 56.25%;
+          position: relative;
+        }
+
+        .iframe-container iframe {
+          border: 0;
+          height: 100%;
+          left: 0;
+          position: absolute;
+          top: 0;
+          width: 100%;
+          overflow: hidden;
+        }
+
+
+    
+
+ 4. Add a special route within app.module.ts so that all routes from page/schema/.... go to the PageComponent
+    a. Edit the app.module.ts
+    b. Edit the routes so they look something like this:
+         
+        const childRoutes: Routes = [
+          { path: "**", component: PageComponent }
+        ];
+
+        const appRoutes: Routes = [
+          { path: 'page/reports/addReport',    component: AddReportComponent },
+          { path: 'page/reports/viewReports',  component: ViewReportsComponent },
+          { path: 'page/search/results/:query',component: SearchResultsComponent },
+          { path: 'page/assets/:path',         component: PageComponent,  children: childRoutes    },
+          { path: '**',                        component: NotFoundComponent}
+        ];
+
+
+
+ 5. Add a link to one of the static pages
+     <a [routerLink]="'page/assets/schema/jvs/index.html'" target="_blank">
+          <i class="fas fa-external-link-alt navItemIcon" title="Open 'View Schema' in a new window"></i>
+     </a>
+
+    *OR*
+     
+     <mat-list-item class="navItem" [routerLink]="'page/assets/schema/jvs/index.html'" routerLinkActive="active">
+      <a title="View Schema">View Schema</a>
+      <div fxFlex fxLayoutAlign="end end">
+        <a [routerLink]="'page/assets/schema/jvs/index.html'" target="_blank">
+          <i class="fas fa-external-link-alt navItemIcon" title="Open 'View Schema' in a new window"></i>
+        </a>
+      </div>
+    </mat-list-item>  
+    
+    
+    
+ 6. Activate your debugger
+    -- Click on the View Schema link
+    -- It should open your schema-spy pages in your Angular app
+    
