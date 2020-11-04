@@ -1,0 +1,122 @@
+How to Get Card Reader to Work on Centos 8
+------------------------------------------
+Redhat 7/Centos 7 used the CoolKey smart cards driver
+Redhat 8/Centos 8 uses the OpenSC support
+
+
+
+References
+----------
+https://www.redhat.com/en/blog/consistent-pkcs-11-support-red-hat-enterprise-linux-8
+https://access.redhat.com/articles/4253861
+https://www.reddit.com/r/Fedora/comments/6t2p0k/cac_card_for_dodmilitary/
+
+
+Procedure
+---------
+ 1. List registered modules
+    unix> p11-kit list-modules
+
+ 2. Connect your cac to your iogear card-reader 
+
+ 3. List tokens
+    unix> p11-kit list-modules
+    -- If you are prompted to install packages, press Yes
+		autogen-libopts-5.18.12-7.el8.x86_64	Automated option processing library based on autogen
+ 		gnutls-utils-3.6.8-11.el8_2.x86_64	Command line tools for TLS protocol
+
+    -- You should see your CAC card credentials listed
+
+
+ 4. List all certificates in a regustered module
+    unix>  p11tool --list-all-certs
+
+	pkcs11:model=p11-kit-trust;manufacturer=PKCS%2311%20Kit;serial=1;token=System%20Trust
+	pkcs11:model=p11-kit-trust;manufacturer=PKCS%2311%20Kit;serial=1;token=Default%20Trust
+	pkcs11:model=PKCS%2315%20emulated;manufacturer=piv_II;serial=1235110d7e1;token=SMITH.JOHN.L.123456790     <-- This should be your CAC credentials
+ 
+
+ 5. List your OpenSC module
+    unix> cat /usr/share/p11-kit/modules/opensc.module
+
+	# This file describes how to load the opensc module
+	# See: http://p11-glue.freedesktop.org/doc/p11-kit/config.html
+
+	# This is a relative path, which means it will be loaded from
+	# the p11-kit default path which is usually $(libdir)/pkcs11.
+	# Doing it this way allows for packagers to package opensc for
+	# 32-bit and 64-bit and make them parallel installable
+	module: opensc-pkcs11.so
+
+
+ 6. Configure Fixfox to tuse the opensc-pkcs11.so module
+    a. startup Firefox
+    b. Pull Edit -> Preferences
+    c. Search for Security devices and press "Security Devices"
+    d. In the "Device Manager"
+       1) Press "Load"
+       2) In the popup
+          Module Name:      CAC Reader
+          Module filename:  /usr/lib64/opensc-pkcs11.so
+          Press OK
+
+     e. Single-Click on CAC Reader -> "Alcor Micro AU9520 00"
+     f. Press Login
+     g. You should be prompted for your CAC Card pin
+        -- Enter you CAC pin
+     h. Press OK
+
+
+ 7. Download & Unzip DOD Certificates
+    a. Download all DOD certificates
+       https://militarycac.com/maccerts/AllCerts.zip
+
+    b. Save the allCerts.zip to your Downloads
+    
+    c. Unzip certificates
+       unix> mkdir -p ~/Downloads/certs
+       unix> mv ~/Downloads/AllCerts.zip ~/Downloads/certs
+       unix> cd ~/Downloads/certs
+       unix> unzip AllCerts.zip
+       unix> rm AllCerts.zip
+
+
+ 8. Import certificates into Firefox
+    a. Pull Edit -> Preferences > Search for View Certificates
+    b. Click oN "View Certificates..."
+    c. Click on Authorities
+    d. Press Import
+       Browse to ~/Downloads/certs/DOD EMAIL CA-33.cer
+       Check "Trust this CA to identify websites"
+       Check "Trust this CA to identify email users"
+
+  d. Repeat for 
+
+		DOD EMAIL CA-34.cer
+		DOD EMAIL CA-39.cer  to  44.cer
+		DOD EMAIL CA-49.cer  to  52.cer
+		DOD EMAIL CA-59.cer
+		
+		DOD ID CA-33.cer  to  34
+		DOD ID CA-39.cer  to  44.cer
+		DOD ID CA-49.cer  to  52.cer
+		DOD ID CA-59.cer
+
+		DOD ID SW CA-35.cer  to  38
+		DOD ID SW CA-45.cer  to  48.cer
+
+        DODRoot2.cer - DoDRoot5.cer
+
+        DOD SW CA-53.cer to DOD SW CA-58.cer
+        DOD SW CA-60.cer to DOD SW CA-61.cer
+
+
+
+ 9. Verify your browser works with CAC support
+    a. Using firefox, go to http://www.us.army.mil/
+    b. You should be prompted to use your CAC
+       -- Select your CAC
+    c. You should see a message saying
+       Your account has been successfully authenticated
+
+
