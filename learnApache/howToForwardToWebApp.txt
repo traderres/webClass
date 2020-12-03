@@ -1,0 +1,79 @@
+How to Forward Request to a Web App
+-----------------------------------
+Problem:  My web app is listening on localhost:8080/app1
+          I want users to connect to http://localhost    to forward to http://localhost:8080/app1
+          
+          
+Procedure
+---------
+ 1. Make sure your httpd daemon is *allowed* to make outgoing calls
+    a. Find out if httpd can make outgoing calls
+       unix> /usr/sbin/getsebool httpd_can_network_connect
+       httpd_can_network_connect --> off
+       
+       If you see "Off", then your httpd is *NOT* allowed to make outgoing calls
+    
+    b. Change httpd so it *can* make outgoing calls
+       unix> sudo /usr/sbin/setsebool httpd_can_network_connect 1
+       
+    c. Verify that you can make outgoing calls
+       unix> /usr/sbin/getsebool httpd_can_network_connect
+       httpd_can_network_connect --> on
+       
+       
+2. Edit your httpd.conf file  
+   unix> sudo vi /etc/httpd/conf/httpd.conf
+   
+   <VirtualHost *:80>
+     RewriteEngine  on
+     RewriteRule ^/$  http://localhost/app1
+     ServerName localhost
+     ProxyPass        /app1 http://localhost:8080/app1
+     ProxyPassReverse /app1 http://localhost:8080/app1
+   </VirtualHost>
+
+   *OR*
+   
+  <VirtualHost *:80>
+    RewriteEngine on
+    RewriteRule ^/$ http://localhost/app1
+
+    ServerName localhost
+    ProxyPass        /app1    http://localhost:8080/app1
+    ProxyPassReverse /app1    http://localhost:8080/app1
+    RewriteEngine    on
+    RewriteCond %{​​​​​SERVER_NAME}​​​​​ =localhost
+    RewriteRule ^ https://%{​​​​​SERVER_NAME}​​​​​%{​​​​​REQUEST_URI}​​​​​ [END,NE,R=permanent]
+</VirtualHost>
+
+3. If using ssl, then add a second virtual host to listen on 443:
+    <IfModule mod_ssl.c>
+     <VirtualHost *:443>
+        RewriteEngine on
+        RewriteRule ^/$ http://localhost/app1
+        ServerName localhost
+        ProxyPass /app1 http://localhost:8080/app1
+        ProxyPassReverse /app1 http://localhost:8080/app1
+
+        SSLCertificateFile /etc/letsencrypt/live/my-compsci.com/cert.pem
+        SSLCertificateKeyFile /etc/letsencrypt/live/my-compsci.com/privkey.pem
+        Include /etc/letsencrypt/options-ssl-apache.conf
+        SSLCertificateChainFile /etc/letsencrypt/live/my-compsci.com/chain.pem
+     </VirtualHost>
+    </IfModule>
+
+4. View your httpd log (to see if there are any errors on startup)
+   unix> sudo systemctl -fu httpd
+   
+5. Restart your httpd daemon
+   unix> sudo systemctl restart httpd
+
+6. Startup your other webapp listening on http://localhost:8080/app1
+
+7. Verify it works
+   a. Connect to http://localhost      --> should take you in
+   b. Connect to http://localhost/app1 --> Should take you in
+   
+   
+
+   
