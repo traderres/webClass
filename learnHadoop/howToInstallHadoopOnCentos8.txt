@@ -1,0 +1,459 @@
+How to Install Hadoop on CentOS 8
+---------------------------------
+
+Assumptions:
+ A) You are root
+ B) Your operating system is CentOS 8
+ C) You want to setup Hadoop on the computer
+ D) You want your hadoop to run out of this directory:  /home/hadoop/hadooptmpdata
+ E) You want hadoop to use 4 cores and up to 4 GB of RAM
+ F) You have Java 1.8 JDK installed
+ 
+References
+----------
+https://linuxconfig.org/how-to-install-hadoop-on-redhat-8-linux
+
+ 
+Procedures
+----------
+ 1. Veirfy that you have Java 1.8
+    unix> java -versoin
+    java version "1.8.0_261"
+    Java(TM) SE Runtime Environment (build 1.8.0_261-b12)
+    Java HotSpot(TM) 64-Bit Server VM (build 25.261-b12, mixed mode)
+
+             
+ 2. Create a hadoop account so it can ssh to localhost [without prompting for password]
+    a. Create a new user:  hadoop
+       unix> sudo adduser --home /home/hadoop --create-home --system hadoop
+
+
+    b. Setup the hadoop account so it can ssh to localhost [without prompting for password]\
+       unix> sudo su - hadoop
+   
+       unix> ssh-keygen -t rsa
+             Enter file in which to save the key (/home/hadoop/.ssh/id_rsa):   <press enter>
+             
+             Enter passphrase (empty for no passphrase):    <press enter>
+             Enter same passphrase again:                   <press enter>
+ 
+       unix> cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+       unix> chmod 0600 ~/.ssh/authorized_keys
+ 
+ 
+    c. Verify that hadoop can ssh to localhost without prompting for a password
+       NOTE:  This ssh command should *not*  ask for password but first time it will prompt for adding RSA to the list of known hosts.
+       unix> ssh localhost
+       
+       The authenticity of host 'localhost (::1)' can't be established.
+       RSA key fingerprint is 9b:35:ab:51:bc:6e:92:ff:a5:4f:2d:a9:11:d5:36:ae.
+       Are you sure you want to continue connecting (yes/no)?                    yes
+     
+
+
+ 3. Download & Install Hadoop 2.9.2 binaries for CentOS
+    a. Download & Install Hadoop
+       unix> sudo -s
+       unix> cd /opt
+       unix> wget https://archive.apache.org/dist/hadoop/common/hadoop-2.9.2/hadoop-2.9.2.tar.gz
+       unix> tar zxvf hadoop-2.9.2.tar.gz
+       unix> rm -f hadoop-2.9.2.tar.gz
+       unix> chown hadoop:hadoop -R /opt/hadoop-2.9.2    
+       unix> exit
+       
+    
+    b. Make sure the hadoop account has permission to write to /opt/hadoop-2.9.2 and that there is a logs directory
+       unix> sudo -s
+       unix> mkdir -p /opt/hadoop-2.9.2/logs
+       unix> chown hadoop:hadoop -R /opt/hadoop-2.9.2  
+       unix> exit
+       
+       
+    c. Setup environment variables for your unix account
+       unix> vi ~/.bashrc
+       
+       NOTE:  Add these to your ~/.bashrc
+
+       export HADOOP_HOME=/opt/hadoop-2.9.2
+       export HADOOP_INSTALL=$HADOOP_HOME
+       export HADOOP_MAPRED_HOME=$HADOOP_HOME
+       export HADOOP_COMMON_HOME=$HADOOP_HOME
+       export HADOOP_HDFS_HOME=$HADOOP_HOME
+       export YARN_HOME=$HADOOP_HOME
+       export HADOOP_COMMON_LIB_NATIVE_DIR=$HADOOP_HOME/lib/native
+       export PATH=$PATH:$HADOOP_HOME/sbin:$HADOOP_HOME/bin
+       export HADOOP_OPTS="-Djava.library.path=$HADOOP_HOME/lib/native"
+    
+    
+    d. Setup environment variables for your hadoop account
+       unix> sudo su - hadoop
+       unix> vi ~/.bashrc
+       
+       # Add JAVA_HOME and add the JAVA_HOME/bin to the PATH
+       export JAVA_HOME=/usr/java/jdk1.8.0_261-amd64
+       export PATH=${JAVA_HOME}/bin:$PATH
+
+       # Add HADOOP environment variables
+       export HADOOP_HOME=/opt/hadoop-2.9.2
+       export HADOOP_INSTALL=$HADOOP_HOME
+       export HADOOP_MAPRED_HOME=$HADOOP_HOME
+       export HADOOP_COMMON_HOME=$HADOOP_HOME
+       export HADOOP_HDFS_HOME=$HADOOP_HOME
+       export YARN_HOME=$HADOOP_HOME
+       export HADOOP_COMMON_LIB_NATIVE_DIR=$HADOOP_HOME/lib/native
+       export PATH=$PATH:$HADOOP_HOME/sbin:$HADOOP_HOME/bin
+       export HADOOP_OPTS="-Djava.library.path=$HADOOP_HOME/lib/native"
+       
+    
+    d. Verify that the hadoop command is found in your PATH
+       1) Open a new terminal
+          unix> hadoop version
+            Hadoop 2.9.2
+            Subversion https://git-wip-us.apache.org/repos/asf/hadoop.git -r 826afbeae31ca687bc2f8471dc841b66ed2c6704
+            Compiled by ajisaka on 2018-11-13T12:42Z
+            Compiled with protoc 2.5.0
+            From source with checksum 3a9939967262218aa556c684d107985
+            This command was run using /opt/hadoop-2.9.2/share/hadoop/common/hadoop-common-2.9.2.jar
+
+
+
+ 4. Create the hadoop directories
+    unix> sudo su - hadoop
+    unix> cd /home/hadoop
+    unix> rm -rf hadooptmpdata datanode namenode
+    unix> mkdir  hadooptmpdata datanode namenode
+    unix> exit
+  
+  
+ 5. Configure Hadoop to run in pseudo-distributed mode and set that temp directory
+    NOTE:  We are setting hadoop's temp directory
+    
+    a. Create this file:  core-site.xml
+       unix> cd /opt/hadoop-2.9.2/etc/hadoop
+       unix> sudo vi core-site.xml
+      
+        <?xml version="1.0" encoding="UTF-8"?>
+        <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>        
+            <configuration>
+                <property>
+                    <name>fs.defaultFS</name>
+                    <value>hdfs://localhost:9000</value>
+                </property>
+                <property>
+                    <name>hadoop.tmp.dir</name>
+                    <value>/home/hadoop/hadooptmpdata</value>
+                </property>
+            </configuration>
+   
+     
+    b. Edit this file:  hdfs-site.xml
+       Note:  Create namenode and datanode directory under /home/hadoop/hadooptmpdata
+       Note:  Set the datanode to listen on port 50001
+ 
+       unix> sudo su - hadoop
+       unix> vi /opt/hadoop-2.9.2/etc/hadoop/hdfs-site.xml
+      
+           
+       <?xml version="1.0" encoding="UTF-8"?>
+       <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+            <configuration>
+                <property>
+                    <name>dfs.replication</name>
+                    <value>1</value>
+                </property>
+                
+                <property>
+                    <name>dfs.name.dir</name>
+                    <value>file:///home/hadoop/namenode</value>
+                </property>
+
+                <property>
+                 <name>dfs.data.dir</name>
+                    <value>file:///home/hadoop/datanode</value>
+                </property>
+                
+                <property>
+                    <name>dfs.datanode.address</name>
+                    <value>localhost:50001</value>
+                </property>
+                
+            </configuration>
+      
+      
+    c. Edit this file:  mapred-site.xml
+       unix> sudo su - hadoop
+       unix> cd /opt/hadoop-2.9.2/etc/hadoop
+       unix> cp mapred-site.xml.template mapred-site.xml
+       unix> vi mapred-site.xml
+       
+             <?xml version="1.0"?>
+             <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+             
+             <configuration>
+                <property>
+                   <name>mapreduce.framework.name</name>
+                   <value>yarn</value>
+                </property>
+                <property>
+                   <name>yarn.app.mapreduce.am.staging-dir</name>
+                   <value>/user</value>
+                   <description>The staging dir (inside HDFS) that is  used while submitting jobs.</description>
+                </property>
+             </configuration>    
+    
+      
+    d. Edit this file:  yarn-site.xml
+       NOTE:  yarn.nodemanager.resource.memory-mb=4096 MB (or 4 GB) -- that is a ceiling on how much memory hadoop will use
+       NOTE:  yarn.nodemanager.resource.cpu-vcores=4  (to use 4 of the total 4 cores)
+       NOTE:  yarn.scheduler.minimum-allocation-mb=1024 so that Hadoop only allocates 4 vcores (4096/4 = 1024)
+       
+       unix> sudo su - hadoop
+       unix> cd /opt/hadoop-2.9.2/etc/hadoop
+       unix> vi yarn-site.xml
+
+        <?xml version="1.0"?>
+         <configuration>
+            <property>
+               <name>yarn.nodemanager.aux-services</name>
+               <value>mapreduce_shuffle</value>
+            </property>
+            <property>
+               <name>yarn.nodemanager.aux-services.mapreduce.shuffle.class</name>
+               <value>org.apache.hadoop.mapred.ShuffleHandler</value>
+            </property>
+           <property>
+               <name>yarn.nodemanager.resource.memory-mb</name>
+               <value>4096</value>
+            </property>
+            <property>
+               <name>yarn.scheduler.minimum-allocation-mb</name>
+               <value>1024</value>
+            </property>
+            <property>
+               <name>yarn.scheduler.maximum-allocation-mb</name>
+               <value>4096</value>
+            </property>
+            <property>
+               <name>yarn.nodemanager.resource.cpu-vcores</name>
+               <value>4</value>
+            </property>
+            <property>
+               <name>yarn.scheduler.minimum-allocation-vcores</name>
+               <value>1</value>
+            </property>
+            <property>
+               <name>yarn.scheduler.increment-allocation-vcores</name>
+               <value>1</value>
+            </property>
+            <property>
+               <name>yarn.scheduler.maximum-allocation-vcores</name>
+               <value>4</value>
+            </property>
+            <property>
+               <name>yarn.application.classpath</name>
+               <value>
+                    $HADOOP_HOME/etc/hadoop,
+                    $HADOOP_HOME/share/hadoop/common/*,
+                    $HADOOP_HOME/share/hadoop/common/lib/*,
+                    $HADOOP_HOME/share/hadoop/mapreduce/*,
+                    $HADOOP_HOME/share/hadoop/mapreduce/lib/*,
+                    $HADOOP_HOME/share/hadoop/hdfs/*,
+                    $HADOOP_HOME/share/hadoop/hdfs/lib/*,          
+                    $HADOOP_HOME/share/hadoop/yarn/*,
+                    $HADOOP_HOME/share/hadoop/yarn/lib/*
+               </value>
+            </property>
+        </configuration> 
+                 
+
+    
+    e. Create this file:  slaves
+       unix> sudo su - hadoop
+       unix> cd /opt/hadoop-2.9.2/etc/hadoop
+       unix> echo localhost > slaves
+       
+       
+
+
+ 6. Format the Name Node
+    a. Re-create the hadoop directories and format the name node
+       unix> sudo su - hadoop
+       unix> cd /home/hadoop
+       unix> rm -rf hadooptmpdata datanode namenode
+       unix> mkdir  hadooptmpdata datanode namenode
+       unix> hdfs namenode -format
+
+       You should see this:
+        
+        20/12/22 17:38:11 INFO namenode.NameNode: STARTUP_MSG: 
+        /************************************************************
+        STARTUP_MSG: Starting NameNode
+        STARTUP_MSG:   host = localhost/127.0.0.1
+        STARTUP_MSG:   args = [-format]
+        STARTUP_MSG:   version = 2.9.2
+        STARTUP_MSG:   classpath = /opt/hadoop-2.9.2/etc/hadoop:/opt/hadoop-2.9.2/share/hadoop/common/lib/jaxb-impl-2.2.3-1.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/slf4j-log4j12-1.7.25.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/activation-1.1.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/woodstox-core-5.0.3.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/commons-configuration-1.6.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/commons-beanutils-1.7.0.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/xz-1.0.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/htrace-core4-4.1.0-incubating.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/junit-4.11.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/snappy-java-1.0.5.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/stax-api-1.0-2.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/apacheds-i18n-2.0.0-M15.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/jaxb-api-2.2.2.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/mockito-all-1.8.5.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/slf4j-api-1.7.25.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/jackson-jaxrs-1.9.13.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/commons-logging-1.1.3.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/avro-1.7.7.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/curator-recipes-2.7.1.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/jetty-sslengine-6.1.26.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/jersey-json-1.9.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/log4j-1.2.17.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/commons-cli-1.2.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/commons-digester-1.8.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/servlet-api-2.5.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/protobuf-java-2.5.0.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/jcip-annotations-1.0-1.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/xmlenc-0.52.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/jackson-xc-1.9.13.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/jetty-util-6.1.26.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/httpclient-4.5.2.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/guava-11.0.2.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/commons-compress-1.4.1.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/commons-io-2.4.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/jackson-core-asl-1.9.13.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/stax2-api-3.1.4.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/jersey-core-1.9.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/jsp-api-2.1.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/commons-codec-1.4.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/netty-3.6.2.Final.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/jetty-6.1.26.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/commons-beanutils-core-1.8.0.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/jersey-server-1.9.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/java-xmlbuilder-0.4.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/paranamer-2.3.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/zookeeper-3.4.6.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/commons-collections-3.2.2.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/jettison-1.1.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/asm-3.2.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/api-asn1-api-1.0.0-M20.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/apacheds-kerberos-codec-2.0.0-M15.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/hamcrest-core-1.3.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/jsch-0.1.54.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/httpcore-4.4.4.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/json-smart-1.3.1.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/hadoop-annotations-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/api-util-1.0.0-M20.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/curator-framework-2.7.1.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/commons-net-3.1.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/gson-2.2.4.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/jets3t-0.9.0.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/commons-lang-2.6.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/jackson-mapper-asl-1.9.13.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/commons-math3-3.1.1.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/commons-lang3-3.4.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/jsr305-3.0.0.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/nimbus-jose-jwt-4.41.1.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/hadoop-auth-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/common/lib/curator-client-2.7.1.jar:/opt/hadoop-2.9.2/share/hadoop/common/hadoop-common-2.9.2-tests.jar:/opt/hadoop-2.9.2/share/hadoop/common/hadoop-common-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/common/hadoop-nfs-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/htrace-core4-4.1.0-incubating.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/xercesImpl-2.9.1.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/commons-logging-1.1.3.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/jackson-annotations-2.7.8.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/log4j-1.2.17.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/commons-cli-1.2.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/xml-apis-1.3.04.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/servlet-api-2.5.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/protobuf-java-2.5.0.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/xmlenc-0.52.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/jetty-util-6.1.26.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/guava-11.0.2.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/okio-1.6.0.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/commons-io-2.4.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/jackson-core-asl-1.9.13.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/jersey-core-1.9.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/okhttp-2.7.5.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/commons-codec-1.4.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/netty-3.6.2.Final.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/jetty-6.1.26.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/jersey-server-1.9.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/asm-3.2.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/hadoop-hdfs-client-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/commons-lang-2.6.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/leveldbjni-all-1.8.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/jackson-databind-2.7.8.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/jackson-core-2.7.8.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/jackson-mapper-asl-1.9.13.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/netty-all-4.0.23.Final.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/commons-daemon-1.0.13.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/lib/jsr305-3.0.0.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/hadoop-hdfs-2.9.2-tests.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/hadoop-hdfs-nfs-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/hadoop-hdfs-rbf-2.9.2-tests.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/hadoop-hdfs-rbf-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/hadoop-hdfs-native-client-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/hadoop-hdfs-client-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/hadoop-hdfs-native-client-2.9.2-tests.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/hadoop-hdfs-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/hdfs/hadoop-hdfs-client-2.9.2-tests.jar:/opt/hadoop-2.9.2/share/hadoop/yarn:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/jaxb-impl-2.2.3-1.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/activation-1.1.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/woodstox-core-5.0.3.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/aopalliance-1.0.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/commons-configuration-1.6.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/commons-beanutils-1.7.0.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/guice-servlet-3.0.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/xz-1.0.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/htrace-core4-4.1.0-incubating.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/snappy-java-1.0.5.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/stax-api-1.0-2.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/apacheds-i18n-2.0.0-M15.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/java-util-1.9.0.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/jaxb-api-2.2.2.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/jackson-jaxrs-1.9.13.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/commons-logging-1.1.3.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/avro-1.7.7.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/curator-recipes-2.7.1.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/jetty-sslengine-6.1.26.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/geronimo-jcache_1.0_spec-1.0-alpha-1.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/jersey-json-1.9.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/log4j-1.2.17.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/commons-cli-1.2.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/commons-digester-1.8.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/servlet-api-2.5.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/protobuf-java-2.5.0.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/jcip-annotations-1.0-1.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/xmlenc-0.52.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/jackson-xc-1.9.13.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/jetty-util-6.1.26.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/fst-2.50.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/httpclient-4.5.2.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/guava-11.0.2.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/mssql-jdbc-6.2.1.jre7.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/commons-compress-1.4.1.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/commons-io-2.4.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/jackson-core-asl-1.9.13.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/stax2-api-3.1.4.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/jersey-core-1.9.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/jsp-api-2.1.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/commons-codec-1.4.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/netty-3.6.2.Final.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/jetty-6.1.26.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/commons-beanutils-core-1.8.0.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/jersey-server-1.9.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/guice-3.0.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/java-xmlbuilder-0.4.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/metrics-core-3.0.1.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/jersey-client-1.9.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/jersey-guice-1.9.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/paranamer-2.3.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/zookeeper-3.4.6.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/commons-collections-3.2.2.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/jettison-1.1.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/asm-3.2.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/api-asn1-api-1.0.0-M20.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/apacheds-kerberos-codec-2.0.0-M15.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/jsch-0.1.54.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/httpcore-4.4.4.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/ehcache-3.3.1.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/json-smart-1.3.1.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/api-util-1.0.0-M20.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/curator-framework-2.7.1.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/commons-net-3.1.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/gson-2.2.4.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/jets3t-0.9.0.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/commons-lang-2.6.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/HikariCP-java7-2.4.12.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/json-io-2.5.1.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/leveldbjni-all-1.8.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/jackson-mapper-asl-1.9.13.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/commons-math3-3.1.1.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/commons-lang3-3.4.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/javax.inject-1.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/jsr305-3.0.0.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/nimbus-jose-jwt-4.41.1.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/lib/curator-client-2.7.1.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/hadoop-yarn-server-timeline-pluginstorage-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/hadoop-yarn-applications-distributedshell-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/hadoop-yarn-registry-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/hadoop-yarn-server-sharedcachemanager-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/hadoop-yarn-applications-unmanaged-am-launcher-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/hadoop-yarn-server-applicationhistoryservice-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/hadoop-yarn-server-tests-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/hadoop-yarn-api-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/hadoop-yarn-common-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/hadoop-yarn-server-web-proxy-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/hadoop-yarn-server-nodemanager-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/hadoop-yarn-server-resourcemanager-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/hadoop-yarn-server-common-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/hadoop-yarn-server-router-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/yarn/hadoop-yarn-client-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/lib/aopalliance-1.0.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/lib/guice-servlet-3.0.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/lib/xz-1.0.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/lib/junit-4.11.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/lib/snappy-java-1.0.5.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/lib/avro-1.7.7.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/lib/log4j-1.2.17.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/lib/protobuf-java-2.5.0.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/lib/commons-compress-1.4.1.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/lib/commons-io-2.4.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/lib/jackson-core-asl-1.9.13.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/lib/jersey-core-1.9.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/lib/netty-3.6.2.Final.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/lib/jersey-server-1.9.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/lib/guice-3.0.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/lib/jersey-guice-1.9.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/lib/paranamer-2.3.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/lib/asm-3.2.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/lib/hamcrest-core-1.3.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/lib/hadoop-annotations-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/lib/leveldbjni-all-1.8.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/lib/jackson-mapper-asl-1.9.13.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/lib/javax.inject-1.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/hadoop-mapreduce-client-app-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/hadoop-mapreduce-client-hs-plugins-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/hadoop-mapreduce-client-hs-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/hadoop-mapreduce-examples-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/hadoop-mapreduce-client-core-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/hadoop-mapreduce-client-shuffle-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/hadoop-mapreduce-client-common-2.9.2.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/hadoop-mapreduce-client-jobclient-2.9.2-tests.jar:/opt/hadoop-2.9.2/share/hadoop/mapreduce/hadoop-mapreduce-client-jobclient-2.9.2.jar:/opt/hadoop-2.9.2/contrib/capacity-scheduler/*.jar
+        STARTUP_MSG:   build = https://git-wip-us.apache.org/repos/asf/hadoop.git -r 826afbeae31ca687bc2f8471dc841b66ed2c6704; compiled by 'ajisaka' on 2018-11-13T12:42Z
+        STARTUP_MSG:   java = 1.8.0_261
+        ************************************************************/
+        20/12/22 17:38:11 INFO namenode.NameNode: registered UNIX signal handlers for [TERM, HUP, INT]
+        20/12/22 17:38:11 INFO namenode.NameNode: createNameNode [-format]
+        Formatting using clusterid: CID-69df5db3-a501-4a00-a5c5-c01064bcaecc
+        20/12/22 17:38:11 INFO namenode.FSEditLog: Edit logging is async:true
+        20/12/22 17:38:11 INFO namenode.FSNamesystem: KeyProvider: null
+        20/12/22 17:38:11 INFO namenode.FSNamesystem: fsLock is fair: true
+        20/12/22 17:38:11 INFO namenode.FSNamesystem: Detailed lock hold time metrics enabled: false
+        20/12/22 17:38:11 INFO namenode.FSNamesystem: fsOwner             = hadoop (auth:SIMPLE)
+        20/12/22 17:38:11 INFO namenode.FSNamesystem: supergroup          = supergroup
+        20/12/22 17:38:11 INFO namenode.FSNamesystem: isPermissionEnabled = true
+        20/12/22 17:38:11 INFO namenode.FSNamesystem: HA Enabled: false
+        20/12/22 17:38:11 INFO common.Util: dfs.datanode.fileio.profiling.sampling.percentage set to 0. Disabling file IO profiling
+        20/12/22 17:38:11 INFO blockmanagement.DatanodeManager: dfs.block.invalidate.limit: configured=1000, counted=60, effected=1000
+        20/12/22 17:38:11 INFO blockmanagement.DatanodeManager: dfs.namenode.datanode.registration.ip-hostname-check=true
+        20/12/22 17:38:11 INFO blockmanagement.BlockManager: dfs.namenode.startup.delay.block.deletion.sec is set to 000:00:00:00.000
+        20/12/22 17:38:11 INFO blockmanagement.BlockManager: The block deletion will start around 2020 Dec 22 17:38:11
+        20/12/22 17:38:11 INFO util.GSet: Computing capacity for map BlocksMap
+        20/12/22 17:38:11 INFO util.GSet: VM type       = 64-bit
+        20/12/22 17:38:11 INFO util.GSet: 2.0% max memory 889 MB = 17.8 MB
+        20/12/22 17:38:11 INFO util.GSet: capacity      = 2^21 = 2097152 entries
+        20/12/22 17:38:11 INFO blockmanagement.BlockManager: dfs.block.access.token.enable=false
+        20/12/22 17:38:11 WARN conf.Configuration: No unit for dfs.heartbeat.interval(3) assuming SECONDS
+        20/12/22 17:38:11 WARN conf.Configuration: No unit for dfs.namenode.safemode.extension(30000) assuming MILLISECONDS
+        20/12/22 17:38:11 INFO blockmanagement.BlockManagerSafeMode: dfs.namenode.safemode.threshold-pct = 0.9990000128746033
+        20/12/22 17:38:11 INFO blockmanagement.BlockManagerSafeMode: dfs.namenode.safemode.min.datanodes = 0
+        20/12/22 17:38:11 INFO blockmanagement.BlockManagerSafeMode: dfs.namenode.safemode.extension = 30000
+        20/12/22 17:38:11 INFO blockmanagement.BlockManager: defaultReplication         = 1
+        20/12/22 17:38:11 INFO blockmanagement.BlockManager: maxReplication             = 512
+        20/12/22 17:38:11 INFO blockmanagement.BlockManager: minReplication             = 1
+        20/12/22 17:38:11 INFO blockmanagement.BlockManager: maxReplicationStreams      = 2
+        20/12/22 17:38:11 INFO blockmanagement.BlockManager: replicationRecheckInterval = 3000
+        20/12/22 17:38:11 INFO blockmanagement.BlockManager: encryptDataTransfer        = false
+        20/12/22 17:38:11 INFO blockmanagement.BlockManager: maxNumBlocksToLog          = 1000
+        20/12/22 17:38:11 INFO namenode.FSNamesystem: Append Enabled: true
+        20/12/22 17:38:11 INFO namenode.FSDirectory: GLOBAL serial map: bits=24 maxEntries=16777215
+        20/12/22 17:38:11 INFO util.GSet: Computing capacity for map INodeMap
+        20/12/22 17:38:11 INFO util.GSet: VM type       = 64-bit
+        20/12/22 17:38:11 INFO util.GSet: 1.0% max memory 889 MB = 8.9 MB
+        20/12/22 17:38:11 INFO util.GSet: capacity      = 2^20 = 1048576 entries
+        20/12/22 17:38:11 INFO namenode.FSDirectory: ACLs enabled? false
+        20/12/22 17:38:11 INFO namenode.FSDirectory: XAttrs enabled? true
+        20/12/22 17:38:11 INFO namenode.NameNode: Caching file names occurring more than 10 times
+        20/12/22 17:38:11 INFO snapshot.SnapshotManager: Loaded config captureOpenFiles: falseskipCaptureAccessTimeOnlyChange: false
+        20/12/22 17:38:11 INFO util.GSet: Computing capacity for map cachedBlocks
+        20/12/22 17:38:11 INFO util.GSet: VM type       = 64-bit
+        20/12/22 17:38:11 INFO util.GSet: 0.25% max memory 889 MB = 2.2 MB
+        20/12/22 17:38:11 INFO util.GSet: capacity      = 2^18 = 262144 entries
+        20/12/22 17:38:11 INFO metrics.TopMetrics: NNTop conf: dfs.namenode.top.window.num.buckets = 10
+        20/12/22 17:38:11 INFO metrics.TopMetrics: NNTop conf: dfs.namenode.top.num.users = 10
+        20/12/22 17:38:11 INFO metrics.TopMetrics: NNTop conf: dfs.namenode.top.windows.minutes = 1,5,25
+        20/12/22 17:38:11 INFO namenode.FSNamesystem: Retry cache on namenode is enabled
+        20/12/22 17:38:11 INFO namenode.FSNamesystem: Retry cache will use 0.03 of total heap and retry cache entry expiry time is 600000 millis
+        20/12/22 17:38:11 INFO util.GSet: Computing capacity for map NameNodeRetryCache
+        20/12/22 17:38:11 INFO util.GSet: VM type       = 64-bit
+        20/12/22 17:38:11 INFO util.GSet: 0.029999999329447746% max memory 889 MB = 273.1 KB
+        20/12/22 17:38:11 INFO util.GSet: capacity      = 2^15 = 32768 entries
+        20/12/22 17:38:11 INFO namenode.FSImage: Allocated new BlockPoolId: BP-516163606-127.0.0.1-1608676691960
+        20/12/22 17:38:11 INFO common.Storage: Storage directory /home/hadoop/namenode has been successfully formatted.
+        20/12/22 17:38:11 INFO namenode.FSImageFormatProtobuf: Saving image file /home/hadoop/namenode/current/fsimage.ckpt_0000000000000000000 using no compression
+        20/12/22 17:38:12 INFO namenode.FSImageFormatProtobuf: Image file /home/hadoop/namenode/current/fsimage.ckpt_0000000000000000000 of size 325 bytes saved in 0 seconds .
+        20/12/22 17:38:12 INFO namenode.NNStorageRetentionManager: Going to retain 1 images with txid >= 0
+        20/12/22 17:38:12 INFO namenode.NameNode: SHUTDOWN_MSG: 
+        /************************************************************
+        SHUTDOWN_MSG: Shutting down NameNode at localhost/127.0.0.1
+        ************************************************************/
+
+
+
+ 7. Start HDFS (Start the Name Node and Data Node)
+    unix> sudo su - hadoop
+    unix> start-dfs.sh
+
+    You should see this:
+        Starting namenodes on [localhost]
+        localhost: starting namenode, logging to /opt/hadoop-2.9.2/logs/hadoop-hadoop-namenode-mycentos8.out
+        localhost: starting datanode, logging to /opt/hadoop-2.9.2/logs/hadoop-hadoop-datanode-mycentos8.out
+        Starting secondary namenodes [0.0.0.0]
+        The authenticity of host '0.0.0.0 (0.0.0.0)' can't be established.
+        ECDSA key fingerprint is SHA256:nuY0NS7k9PkNKb8eoqwkuqZnEtJT7AxH7UWjHCBCJJc.
+        Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+        0.0.0.0: Warning: Permanently added '0.0.0.0' (ECDSA) to the list of known hosts.
+        0.0.0.0: starting secondarynamenode, logging to /opt/hadoop-2.9.2/logs/hadoop-hadoop-secondarynamenode-mycentos8.out
+
+
+
+11. Start MapReduce aka YARN (Resource Manager and Node Manager)
+    unix> sudo su - hadoop
+    unix> start-yarn.sh
+    
+    You should see this:
+        starting yarn daemons
+        starting resourcemanager, logging to /opt/hadoop-2.9.2/logs/yarn-hadoop-resourcemanager-mycentos8.out
+        localhost: starting nodemanager, logging to /opt/hadoop-2.9.2/logs/yarn-hadoop-nodemanager-mycentos8.out
+
+
+
+
+12. Start the History server [that listens on port 19888]
+    unix> sudo su - hadoop
+    unix> mr-jobhistory-daemon.sh --config $HADOOP_HOME/etc/hadoop start historyserver
+
+
+13. Add your personal unix account to the hadoop grou
+    unix> sudo groupadd (so you can run the hadoop fs commands)
+    
+
+14. Verify it is running
+    a. Go to the NodeManager's url:
+       http://localhost:8042/
+       *OR*
+       unix> telnet localhost 8042    # you should be connected
+       
+    b. Go to the Namenode's website
+       http://localhost:50070  
+       *OR*
+       unix> telnet localhost 50070   # you should be connected
+
+    c. Go to the Hadoop-Application site
+       http://localhost:8088
+       *OR*
+       unix> telnet localhost 8088    # you should be connected
+       
+    d. Verify that you can create a directory within your HDFS
+       1) List what is in your HDFS top directory
+          unix> hadoop fs -ls /    
+                NOTE:  It should display nothing
+         
+       2) Create a directory called /tmp in HDFS
+          unix> hadoop fs -mkdir /tmp
+       
+       3) List what is in your HDFS top directory
+          unix> hadoop fs -ls /
+                Found 1 items
+                drwxr-xr-x   - hdfs supergroup          0 2016-03-28 17:38 /tmp
+
+    e. Verify that you can create a file within your HDFS
+       1) Create a file called c:\temp\stuff.txt
+          unix> echo "Hello There" > /tmp/stuff.txt
+          
+       2) Use the hadoop command-line to insert this file into your HDFS
+          unix> hadoop fs -put /tmp/stuff.txt /tmp/stuff.txt   
+ 
+          unix> hadoop fs -ls /tmp
+                Found 1 items
+                -rw-r--r--   1 hdfs supergroup         12 2016-03-28 17:41 /tmp/stuff.txt
+ 
+       3) Use the hadoop command-line to pull the HDFS file and copt to your local file system
+          unix> hadoop fs -get /tmp/stuff.txt /tmp/stuff2.txt
+          
+          NOTE:  The /tmp/stuff.txt and /tmp/stuff2.txt files should be identical
+          unix> diff /tmp/stuff.txt /tmp/stuff2.txt
+
+       4) Display the content's of a file located in HDFS
+          unix> hadoop fs -cat /tmp/stuff.txt
+
+       5) Delete the /tmp directory located in the HDFS
+          unix> hadoop fs -rm -r -f /tmp
+
+
+       
+           
+ 
