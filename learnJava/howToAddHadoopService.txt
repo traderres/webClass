@@ -1,0 +1,221 @@
+How to Use Hadoop Service in Java
+---------------------------------
+Problem:  You want to use Java code to talk with the Hadoop File System
+Solution: Create your own Hadoop Service
+
+
+Assumptions: 
+ A) You have installed a Hadoop 2.9.2 or later HDFS
+    [see learnHadoop / howToInstallHadoopOnCentos8.txt]
+    
+ B) Your hadoop is running
+    unix> sudo su - hadoop
+    unix> start-dfs.sh && start-yarn.sh
+ 
+ C) The hdfs-site.xml has this setting so that anyone in the "hadoop" group is superuser
+       <property>
+            <name>dfs.permissions.superusergroup</name>
+            <value>hadoop</value>
+        </property>
+
+ D) You have added your unix account to the "hadoop" group
+    a. Grant yourself to the unix group called "hadoop"
+       unix> sudo usermod -a -G hadoop  <YOUR UNIX ACCOUNT NAME>
+    
+    b. Logout and login (for the group change to take effect)
+    
+
+
+Procedure
+---------
+ 1. Add these dependencies to your pom.xml
+        <dependency>
+          <!--  Hadoop Common 2.9 libraries -->
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-common</artifactId>
+          <version>2.9.2</version>
+
+          <exclusions>
+            <!-- Hadoop-common comes with log4j but we will use logback so strip it out -->
+            <exclusion>
+              <groupId>org.slf4j</groupId>
+              <artifactId>slf4j-log4j12</artifactId>
+            </exclusion>
+
+            <exclusion>
+              <groupId>log4j</groupId>
+              <artifactId>log4j</artifactId>
+            </exclusion>
+
+            <exclusion>
+              <groupId>org.slf4j</groupId>
+              <artifactId>slf4j-log4j12</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+
+        <dependency>
+          <!-- Hadoop HDFS   2.9  libraries -->
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-hdfs</artifactId>
+          <version>2.9.2</version>
+
+          <exclusions>
+            <!-- Hadoop-hdfs comes with log4j but we will use logback so strip it out -->
+            <exclusion>
+              <groupId>log4j</groupId>
+              <artifactId>log4j</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+
+
+        <dependency>
+          <!-- Tell log4j to forward its logging to slf4j -->
+          <groupId>org.slf4j</groupId>
+          <artifactId>log4j-over-slf4j</artifactId>
+          <version>1.7.30</version>
+        </dependency>
+
+        <dependency>
+          <!-- Logback Classic -->
+          <groupId>ch.qos.logback</groupId>
+          <artifactId>logback-classic</artifactId>
+          <version>1.2.3</version>
+        </dependency>
+
+        <dependency>
+          <groupId>junit</groupId>
+          <artifactId>junit</artifactId>
+          <version>4.11</version>
+          <scope>test</scope>
+        </dependency>
+
+
+ 2. Add this logback.xml to your /src/main/resources
+        <?xml version="1.0" encoding="UTF-8" ?>
+
+        <configuration debug="false">
+            <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+                <encoder>
+                    <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+                </encoder>
+            </appender>
+
+            <logger name="com.lessons" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+
+            <logger name="org.springframework" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+
+            <root level="DEBUG">
+                <appender-ref ref="CONSOLE"/>
+            </root>
+
+        </configuration>
+        
+        
+ 3. Add this class:  HadoopService
+
+        package com.lessons;
+
+        import org.apache.hadoop.conf.Configuration;
+        import org.apache.hadoop.fs.FileSystem;
+        import org.apache.hadoop.fs.Path;
+        import org.apache.hadoop.io.IOUtils;
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import java.io.InputStream;
+        import java.io.OutputStream;
+
+        public class HadoopService {
+            private static final Logger logger = LoggerFactory.getLogger(HadoopService.class);
+
+            private final Configuration configuration;
+            private final FileSystem    hdfsFileSystem;
+
+
+            public HadoopService(String aDefaultFS) throws Exception {
+                logger.debug("Hadoop init started.");
+                this.configuration = new Configuration();
+                this.configuration.set("fs.defaultFS", aDefaultFS);
+
+                this.hdfsFileSystem = FileSystem.get(configuration);
+
+
+                logger.debug("Hadoop init finished.");
+            }
+
+
+            public boolean doesFileExist(String aFilePath) throws Exception {
+                Path p = new Path(aFilePath);
+                boolean bFileExists = hdfsFileSystem.exists(p);
+
+                logger.debug("doesFileExist()  {} returns {}", aFilePath, bFileExists);
+                return bFileExists;
+            }
+
+
+
+
+            public void addFile(final InputStream aInputStream, final String aDestinationFilePath) throws Exception {
+                logger.debug("addFile() started:  aDestinationFilePath={}", aDestinationFilePath);
+
+                Path path = new Path(aDestinationFilePath);
+
+                // Create and Overwrite the existing file
+                OutputStream os = hdfsFileSystem.create(path, true);
+                IOUtils.copyBytes(aInputStream, os, configuration);
+
+                logger.debug("addFile() finished: aDestinationFilePath={}", aDestinationFilePath);
+            }
+
+
+        }
+
+
+ 4. Replace your App.class with this:
+
+        package com.lessons;
+
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+
+        import java.io.ByteArrayInputStream;
+        import java.io.InputStream;
+
+        import static java.time.LocalDate.now;
+
+        public class App
+        {
+            private static final Logger logger = LoggerFactory.getLogger(App.class);
+
+            public static void main( String[] args ) throws Exception
+            {
+                logger.debug("main() started.");
+
+                String defaultFS = "hdfs://localhost:9000";
+                HadoopService hadoopService = new HadoopService(defaultFS);
+
+                // Verify that a file exists
+                String filePath = "/tmp/stuff.txt";
+                boolean bFileExists = hadoopService.doesFileExist(filePath);
+                logger.debug("This HDFS file {} exists = {}", filePath, bFileExists);
+
+                // Create a new file
+                String newFilePath = "/tmp/newfile.txt";
+                String fileContents = "\nThis is newfile.txt\nThis file was created on " + now() + "\n";
+                InputStream inputStream = new ByteArrayInputStream(fileContents.getBytes());
+                hadoopService.addFile(inputStream, newFilePath);
+
+                // Verify that the new file exists
+                bFileExists = hadoopService.doesFileExist(newFilePath);
+                logger.debug("This file {} exists = {}", newFilePath, bFileExists);
+
+
+                logger.debug("main() finished.");
+            }
+        }
+
