@@ -54,22 +54,44 @@ Procedure
  1. Create the mapping file
     unix> vi /tmp/mapping.json
 
-        {
-          "settings": {
-            "analysis": {
-              "normalizer": {
-                "case_insensitive_normalizer": {
-                  "type": "custom",
-                  "char_filter": [],
-                  "filter": [
-                    "lowercase",
-                    "asciifolding"
-                  ]
-                }
-              }
-            },
-            "refresh_interval": "5s"
-          },
+		{
+		  "settings": {
+			"analysis": {
+			  "analyzer" : {
+				"my_ngram_analyzer" : {
+				  "tokenizer" : "my_ngram_tokenizer",
+				  "filter": ["lowercase"]
+				}
+			  },
+			  "tokenizer" : {
+				"my_ngram_tokenizer" : {
+				  "type" : "ngram",
+				  "min_gram" : "1",
+				  "max_gram" : "25",
+				  "token_chars": [ ]
+				}
+			  },
+			  "normalizer": {
+				"case_insensitive_normalizer": {
+				  "type": "custom",
+				  "char_filter": [],
+				  "filter": [ "lowercase", "asciifolding" ]
+				}
+			  }
+			},
+			"max_result_window": 500000,
+			"refresh_interval": "2s"
+		  },
+		  "security": {
+			"_meta": {
+			  "acl": {
+				"data_read":      "role:ES_WRITER|role:ES_READER",
+				"data_write":     "role:ES_WRITER",
+				"metadata_read":  "role:ES_WRITER|role:ES_READER",
+				"metadata_write": "role:ES_WRITER"
+			  }
+			}
+		  },
           "mappings": {
               "security": {
                   "_meta": {
@@ -180,3 +202,95 @@ Procedure
 
  5. Run a search against the index
     unix> curl -XPOST "http://localhost:9200/stuff/_search"
+
+
+
+Example 2
+---------
+{
+  "settings": {
+    "analysis": {
+      "analyzer" : {
+        "my_ngram_analyzer" : {
+          "tokenizer" : "my_ngram_tokenizer",
+          "filter": ["lowercase"]
+        }
+      },
+      "tokenizer" : {
+        "my_ngram_tokenizer" : {
+          "type" : "ngram",
+          "min_gram" : "1",
+          "max_gram" : "25",
+          "token_chars": [ ]
+        }
+      },
+      "normalizer": {
+        "case_insensitive_normalizer": {
+          "type": "custom",
+          "char_filter": [],
+          "filter": [ "lowercase", "asciifolding" ]
+        }
+      }
+    },
+    "max_result_window": 500000,
+    "refresh_interval": "2s"
+  },
+  "security": {
+    "_meta": {
+      "acl": {
+        "data_read":      "role:ES_WRITER|role:ES_READER",
+        "data_write":     "role:ES_WRITER",
+        "metadata_read":  "role:ES_WRITER|role:ES_READER",
+        "metadata_write": "role:ES_WRITER"
+      }
+    }
+  },
+  "mappings": {
+    "record": {
+      "dynamic": "strict",
+      "properties": {
+
+        "id": {
+          "type": "integer",
+          "ignore_malformed": false
+        },
+
+        "company_name": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
+        },
+
+        "status": {
+          "type": "keyword",
+          "normalizer": "case_insensitive_normalizer",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
+        },
+
+        "ingest_date": {
+          "type": "date",
+          "format": "MM/dd/yy||MM/dd/YYYY||yyyy-MM-dd||epoch_millis||epoch_second||yyyy/MM/dd HH:mm:ss.SSS||yyyy-MM-dd HH:mm:ss.SSS||yyyy/MM/dd HH:mm:ss||yyyy-MM-dd HH:mm:ss.SSSZ||yyyy-MM-dd'T'HH:mm:ss||yyyy-MM-dd'T'HH:mm:ssZ||yyyy-MM-dd HH:mm:ss||yyyy-MM-dd HH:mm:ssZ||yyyy/MM/dd||S",
+          "ignore_malformed": true
+        },
+
+        "ingest_user": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
+        }
+
+      }
+    }
+  }
+}
+
