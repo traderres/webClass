@@ -166,4 +166,59 @@ Procedure
   A) Spring will automatically run flyway if it can find a DataSource object
   B) The DataSourceConfig creates the DataSource Spring Bean (so flyway runs on startup)
   C) If you do not want flyway to run, change spring.flyway.enabled to false
-     
+
+
+How to manually run flyway-migrate on startup (using java code)
+---------------------------------------------------------------
+ 1. Edit the backend/src/main/resources/application.yaml
+    Add these properties:
+        spring.flyway.enabled: false
+		
+		
+ 2. Edit the DataSourceConfig class
+    a. Add the schema name value annotation
+	
+     	@Value("${app.datasource.schema}")
+    	private String schemaName;
+	
+	
+	b. Change your DataSourceConfig.dataSource() method by *ADDING* these lines to it:
+ 
+        // Use the dataSource to initialize the flyway object
+        Flyway flyway = Flyway.configure()
+                .dataSource(dataSource)
+                .schemas(schemaName)
+                .load();
+
+        // Use the flyway object to do a migrate on webapp startup
+        flyway.migrate();
+
+
+   So, your method should look like this:
+            @Bean
+            public DataSource dataSource() {
+                HikariConfig hikariConfig = new HikariConfig();
+
+                hikariConfig.setDriverClassName(this.driverClassName);
+                hikariConfig.setJdbcUrl(this.url);
+                hikariConfig.setUsername(this.username);
+                hikariConfig.setPassword(this.password);
+                hikariConfig.setMaximumPoolSize(this.maxPoolSize);
+                hikariConfig.setConnectionTestQuery("SELECT 1");
+                hikariConfig.setPoolName("app1_jdbc_connection_pool");
+
+                HikariDataSource dataSource = new HikariDataSource(hikariConfig);
+				
+
+				// Use the dataSource to initialize the flyway object
+				Flyway flyway = Flyway.configure()
+						.dataSource(dataSource)
+						.schemas(schemaName)
+						.load();
+
+				// Use the flyway object to do a migrate on webapp startup
+				flyway.migrate();
+				
+				
+                return dataSource;
+            }
