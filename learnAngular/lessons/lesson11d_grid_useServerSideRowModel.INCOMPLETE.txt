@@ -1,0 +1,98 @@
+Setup the Ag-grid enterprise to use the "Server Side Row Model"
+---------------------------------------------------------------
+The ag-grid supports 4 row models
+ 1. Client-side:  Aall data in the browser
+    + Simply to implement
+    - Fails when you have millions of records
+ 
+ 2. Infinite:     The grid does lazy-load rows based on the scroll position.
+                  The more the user scroll downs, the more rows get loaded
+    
+ 3. Server-side:  Infinite model with additional features (such as grouping data and aggregates)
+                  If you're going to do a server-side model, then this is what you want to use
+
+ 4. Viewport:     The grid will inform the serveer exactly what data is displaying and server provides it
+                  This is useful for updates in very large datastreams where the server only sends updates to client
+                  
+    
+
+In this lesson, we will use the "Server Side Row Model" with ElasticSearch
+--------------------------------------------------------------------------
+
+To enable server-side row model
+  gridOptions.rowModelType = 'serverSide';
+  
+
+The application is required to implement a datasource that confirms to IServerSideDatasource
+    interface IServerSideDatasource {
+        // grid calls this to get rows
+        getRows(params: IServerSideGetRowsParams): void;
+
+        // optional destroy method, if your datasource has state it needs to clean up
+        destroy?(): void;
+    }
+
+Each time the grid requires more rows, it will call the getRows( )method and pass-in the params
+
+interface IServerSideGetRowsParams {
+    // details for the request, simple object, can be converted to JSON
+    request: IServerSideGetRowsRequest;
+
+    // the parent row node. is the RootNode (level -1) if request is top level.
+    // this is NOT part of the request as it cannot be serialised to JSON (a rowNode has methods)
+    parentNode: RowNode;
+
+    // success callback
+    success(params: LoadSuccessParams): void;
+
+    // fail callback, tell the grid the call failed so it can adjust its state
+    fail(): void;
+
+    // grid API
+    api: GridApi;
+
+    // column API
+    columnApi: ColumnApi;
+}
+
+
+interface IServerSideGetRowsRequest {
+    // for Infinite Scroll (i.e. Partial Store) only, first row requested
+   startRow: number;
+
+   // for Infinite Scroll (i.e. Partial Store) only, last row requested
+   endRow: number;
+
+   // row group columns
+   rowGroupCols: ColumnVO[];
+
+   // value columns
+   valueCols: ColumnVO[];
+
+   // pivot columns
+   pivotCols: ColumnVO[];
+
+   // true if pivot mode is one, otherwise false
+   pivotMode: boolean;
+
+   // what groups the user is viewing
+   groupKeys: string[];
+
+   // if filtering, what the filter model is
+   filterModel: any;
+
+   // if sorting, what the sort model is
+   sortModel: any;
+}
+
+// we pass a VO (Value Object) of the column and not the column itself,
+// so the data can be converted to a JSON string and passed to server-side
+interface ColumnVO {
+    id: string;
+    displayName: string;
+    field: string;
+    aggFunc: string;
+}
+
+
+
