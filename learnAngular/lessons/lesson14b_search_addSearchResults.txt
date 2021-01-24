@@ -1,0 +1,109 @@
+Add a Search Results Page
+-------------------------
+When the user runs a search from the app-searchbar, we will redirect the user to the search results page
+
+Design Question:
+ a) Should the SearchBoxComponent.runSearch() method invoke the REST call to run the search?  *OR*
+ b) Should the SearchResultsComponent.init()  method invoke the REST call to run the search
+                  
+My preference is for the SearchResultsComponent to do it
+
+
+
+Procedure
+---------
+ 1. Create a search results page
+    unix> cd ~/intellijProject/angularApp1/frontend
+    unix> ng generate component search/searchResults
+ 
+ 
+ 2. Tell the app.module.ts that /page/search/results corresponds to the SearchResultsComponent
+    a. Edit app.module.ts
+    b. Add this route
+            { path: 'page/searchResults',   component: SearchResultsComponent },
+            
+       When completed, your appRoutes object should look something like this:
+          const appRoutes: Routes = [
+            { path: 'page/addReport',       component: AddReportComponent },
+            { path: 'page/longReport',      component: LongReportComponent },
+            { path: 'page/viewReports',     component: ViewReportsComponent },
+            { path: 'page/searchResults',   component: SearchResultsComponent },
+            { path: '',    redirectTo: 'page/viewReports', pathMatch: 'full' }, // By default, redirect the user to this page (url does change)
+            { path: '**',                   component: NotFoundComponent}        // No routes match, so take the user to the "NotFoundComponent"
+          ];       
+       
+ 
+ 3. Have the Search Results page *shows* what the user searched for
+    NOTE:  The search results page will look for a parameter called "query"
+    a. Edit the search-results.component.ts to get the "query"
+    b. Replace it with this:
+
+        import { Component, OnInit } from '@angular/core';
+        import {ActivatedRoute} from "@angular/router";
+
+        @Component({
+          selector: 'app-search-results',
+          templateUrl: './search-results.component.html',
+          styleUrls: ['./search-results.component.css']
+        })
+        export class SearchResultsComponent implements OnInit {
+
+          public query: string;
+
+          constructor(private route: ActivatedRoute) { }
+
+          ngOnInit(): void {
+            this.route.queryParams.subscribe(params => {
+              // Get the passed-in query=
+              this.query = params["query"];
+
+              console.log('this.query={}', this.query);
+            });
+          }
+
+        }
+
+    
+    
+ 4. Have the SearchBoxComponent.runSearch() pass-in the search and change the page view (to show the search results)
+    a. Edit search-box.component.ts
+    b. Replace it with this:
+
+        import { Component, OnInit } from '@angular/core';
+        import {FormControl} from "@angular/forms";
+        import {NavigationExtras, Router} from "@angular/router";
+
+        @Component({
+          selector: 'app-search-box',
+          templateUrl: './search-box.component.html',
+          styleUrls: ['./search-box.component.css']
+        })
+        export class SearchBoxComponent implements OnInit {
+
+          public searchTextBox: FormControl = new FormControl();
+
+          constructor(private router: Router) { }
+
+          ngOnInit(): void {
+          }
+
+          runSearch() {
+
+            const searchQuery: string = this.searchTextBox.value;
+
+            let navigationExtras: NavigationExtras = {
+              queryParams: {
+                "query": searchQuery
+              }
+            };
+
+            // We have to call navigateByUrl and
+            this.router.navigateByUrl('/', {skipLocationChange: true}).then(()=> {
+              // This is needed to ensure that the search results page gets reloaded (if needed)
+              this.router.navigate(['/page/searchResults'], navigationExtras).then(() =>{} )
+            });
+          }
+        }
+
+
+
