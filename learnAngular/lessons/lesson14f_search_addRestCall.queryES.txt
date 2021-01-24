@@ -174,5 +174,156 @@ Procedure
  
  
  6. Edit the ElasticSearchService.runSearchGetMatches() to run a real search and pull results
- 
- 
+    a. Edit ElasticSearchService.java
+	
+	b. Add the ObjectMapper to the top of the class
+			 import com.fasterxml.jackson.databind.ObjectMapper;
+				
+	         
+			 private ObjectMapper objectMapper;
+
+
+    c. Change the @PostConstruct init() method so that it initializes the objectMapper
+			@PostConstruct
+			public void init() {
+				logger.debug("init() started.");
+
+				// In order to make outgoing calls to ElasticSearch you need 2 things:
+				//   1) The elastic search url -- e.g., "http://localhost:9201"
+				//   2) The initialiaed AsyncHttpClient object
+				this.elasticSearchUrl = elasticSearchResources.getElasticSearchUrl();
+				this.asyncHttpClient = elasticSearchResources.getAsyncHttpClient();
+
+				// Initialize the objectMapper  (this is an expensive call)
+				this.objectMapper = new ObjectMapper();
+
+				logger.debug("init() finished.  elasticSearchUrl={}", this.elasticSearchUrl);
+			}
+	
+
+	d. Remove the old runSearchGetMatches() method
+	
+	e. Add these methods:
+
+			private String generateSearchJson(SearchQueryDTO aSearchQueryDTO) {
+				String cleanedQuery = cleanupRawQuery( aSearchQueryDTO.getRawQuery() );
+
+				// Convert the cleaned query to lowercaes (which is required as all ngrams are lowercase)
+				cleanedQuery = cleanedQuery.toLowerCase();
+
+				String jsonRequest =
+						"{" +
+								"  \"query\": {\n" +
+								"    \"query_string\": {\n" +
+								"      \"query\": \"" + cleanedQuery + "\"\n" +
+								"    }" +
+								"  }," +
+								"  \"size\": " + aSearchQueryDTO.getSize()  +
+								"}";
+
+				return jsonRequest;
+			}
+
+
+			/**
+			 * @param aRawQuery holds the raw query
+			 * @return a cleaned-up string
+			 */
+			private String cleanupRawQuery(String aRawQuery) {
+				String cleanedQuery = aRawQuery;
+
+				if (cleanedQuery == null) {
+					cleanedQuery = "";
+				}
+
+				return cleanedQuery;
+			}
+
+
+			/**
+			 * Run an ElasticSearch and return a list of SearchResultDTO objects
+			 *
+			 *  1. Construct the JSON query
+			 *  2. Invoke the REST call to ElasticSearch
+			 *  3. If the response is invalid, then throw a RuntimeException
+			 *  4. Else loop through the results
+			 *       Add matches to the list of matches
+			 * @param aSearchQueryDTO holds the DTO with the search criteria
+			 * @return a list of SearchResultDTO objects
+			 */
+			public List<SearchResultDTO> runSearchGetMatches(SearchQueryDTO aSearchQueryDTO) throws Exception {
+
+				// Construct the search query (as a json string)
+				String jsonSearchQuery = generateSearchJson(aSearchQueryDTO);
+
+				// Make a synchronous POST call to execute a search
+				Response response = this.asyncHttpClient.prepareGet(this.elasticSearchUrl + "/" + aSearchQueryDTO.getIndexName() + "/_search")
+						.setRequestTimeout(this.ES_REQUEST_TIMEOUT_IN_MILLISECS)
+						.setHeader("accept", "application/json")
+						.setHeader("Content-Type", "application/json")
+						.setBody(jsonSearchQuery)
+						.execute()
+						.get();
+
+
+				if (response.getStatusCode() != 200) {
+					throw new RuntimeException("Critical error in runSearchGetMatches():  ElasticSearch returned a response status code of " +
+							response.getStatusCode() + ".  Response message is " + response.getResponseBody() + "\n\n" + response.getResponseBody());
+				}
+
+				List<SearchResultDTO> searchResults = new ArrayList<>();
+
+
+				// Convert the response JSON string into a map and examine it to see if the request really worked
+				Map<String, Object> mapResponse = objectMapper.readValue(response.getResponseBody(), new TypeReference<Map<String, Object>>() {});
+
+				Map<String, Object> outerHits = (Map<String, Object>) mapResponse.get("hits");
+				if (outerHits == null) {
+					throw new RuntimeException("Error in runSearchGetMatches():  The outer hits value was not found in the JSON response");
+				}
+
+				List<Map<String, Object>> innerHits = (List<Map<String, Object>>) outerHits.get("hits");
+				if (innerHits == null) {
+					throw new RuntimeException("Error in runSearchGetMatches():  The inner hits value was not found in the JSON response");
+				}
+
+				if (innerHits.size() > 0) {
+					for (Map<String, Object> hit: innerHits) {
+						Map<String, Object> sourceMap = (Map<String, Object>) hit.get("_source");
+						if (sourceMap == null) {
+							throw new RuntimeException("Error in runSearchGetMatches():  The source map was null in the JSON response");
+						}
+
+						// Create one SearchResultDTO object
+						SearchResultDTO searchResult = new SearchResultDTO();
+
+						Integer id = (Integer) sourceMap.get("id");
+						searchResult.setId(id);
+
+						String name = (String) sourceMap.get("name");
+						searchResult.setName(name);
+
+						String priority = (String) sourceMap.get("priority");
+						searchResult.setPriority(priority);
+
+						Integer startYear = (Integer) sourceMap.get("start_year");
+						searchResult.setStartYear(startYear);
+
+						String startDate = (String) sourceMap.get("start_date");
+						searchResult.setStartDate(startDate);
+
+						// Add this one SearchResultDTO object to the list
+						searchResults.add(searchResult);
+					}
+				}
+
+				// Return a list of SearchResultDTO objects
+				return searchResults;
+			}
+
+
+ 7. Verify it works
+    a. Activate the debugger
+	b. Run a search for "reports" -- you should find 3 matches
+	
+	
