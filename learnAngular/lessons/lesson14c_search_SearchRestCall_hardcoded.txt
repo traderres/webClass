@@ -1,0 +1,178 @@
+Lesson:  Have the Search Results page invoke a hard-coded REST call to get details
+-----------------------------------------------------------------------------------
+While the search is running, we want to show a spinnre
+Once the search has come back, we want to show the results in a grid
+
+
+
+
+Procedure
+---------
+ 1. Create the front-end SearchQueryDTO (that holds the parameters that are passed-in)
+    a. Create the SearchQueryDTO class
+       unix> cd ~/intellijProjects/angularApp1/frontend
+       unix> ng generate class models/SearchQueryDTO --skipTests
+    
+    b. Add the fields.  Update it so it looks like this:
+        export class SearchQueryDTO {
+              raw_query: string;
+              size: number;
+              index_name: string;
+        }
+
+
+ 2. Create the front-end SearchResultDTO (that holds one matching record that is found)
+    a. Create the SearchResultDTO class
+       unix> cd ~/intellijProjects/angularApp1/frontend
+       unix> ng generate class models/SearchResultDTO --skipTests
+    
+    b. Add the fields.  Update it so it looks like this:
+        export class SearchResultDTO {
+              id: number;
+              name: string;
+              country: string;
+              priority: string;
+              start_year: number;
+              start_date: string;
+        } 
+
+
+ 3. Create your elasticsearch.service.ts  (if it does not already exist)
+    a. Create the ElasticSearch Service
+       unix> cd ~/intellijProjects/angularApp1/frontend
+       unix> ng generate service services/elasticsearch
+    
+    b. Replace its contents with this:
+        import { Injectable } from '@angular/core';
+        import {HttpClient} from "@angular/common/http";
+        import {Observable, of} from "rxjs";
+        import {SearchQueryDTO} from "../models/search-query-dto";
+        import {SearchResultDTO} from "../models/search-result-dto";
+        import {environment} from "../../environments/environment";
+
+        @Injectable({
+          providedIn: 'root'
+        })
+        export class ElasticsearchService {
+
+          constructor(private httpClient: HttpClient) { }
+
+
+          /*
+          * This method returns an observable to a list of hard-coded SearchResultDTO objects
+          */
+          public runSearchHardCoded(aSearchQueryDTO: SearchQueryDTO) : Observable<SearchResultDTO[]> {
+
+            if (aSearchQueryDTO.raw_query == '') {
+              // The user is searching for an empty string.  SO, return an empty list (and do not invoke the REST call)
+              return of([]);
+            }
+
+            let result1: SearchResultDTO = new SearchResultDTO();
+            result1.id = 1;
+            result1.name = "report 1";
+            result1.country = "USA";
+            result1.start_year = 2010;
+            result1.start_date = "01/05/2010";
+
+            let result2: SearchResultDTO = new SearchResultDTO();
+            result2.id = 1;
+            result2.name = "report 2";
+            result2.country = "USA";
+            result2.start_year = 2011;
+            result2.start_date = "02/11/2011";
+
+            // Return an observable with the list of hard-coded results
+            return of( [result1, result2] );
+          }
+
+
+          /*
+           * This method returns an observable to a list of SearchResultDTO objects
+           * NOTE:  You must subscribe to this observable to activate the REST call
+           */
+          public runSearch(aSearchQueryDTO: SearchQueryDTO) : Observable<SearchResultDTO[]> {
+
+            if (aSearchQueryDTO.raw_query == '') {
+              // The user is searching for an empty string.  SO, return an empty list (and do not invoke the REST call)
+              return of([]);
+            }
+
+
+            const restUrl = environment.baseUrl + '/api/search';
+
+            // Return an observable that holds a list of AutoCompleteMatchDTO objects
+            return this.httpClient.post <SearchResultDTO[]>(restUrl, aSearchQueryDTO);
+          }
+
+        }
+
+
+ 4. Have the SearchResultsComponent run the search in the ngOnInit()
+    a. Edit search-results.component.ts
+    b. Replace it with this:
+
+        import { Component, OnInit } from '@angular/core';
+        import {ActivatedRoute} from "@angular/router";
+        import {SearchResultDTO} from "../../models/search-result-dto";
+        import {ElasticsearchService} from "../../services/elasticsearch.service";
+        import {SearchQueryDTO} from "../../models/search-query-dto";
+        import {Observable} from "rxjs";
+
+        @Component({
+          selector: 'app-search-results',
+          templateUrl: './search-results.component.html',
+          styleUrls: ['./search-results.component.css']
+        })
+        export class SearchResultsComponent implements OnInit {
+
+          public query: string;
+
+          public searchResultsObs: Observable<SearchResultDTO[]>;
+
+          constructor(private route: ActivatedRoute,
+                      private elasticSearchService: ElasticsearchService) { }
+
+
+          ngOnInit(): void {
+            this.route.queryParams.subscribe(params => {
+              // Get the passed-in query=
+              this.query = params["query"];
+
+              // Build a searchQueryDTO object
+              let searchQueryDTO = new SearchQueryDTO();
+              searchQueryDTO.index_name = "reports";
+              searchQueryDTO.raw_query = this.query;
+              searchQueryDTO.size = 20;
+
+              // Get an observable with the matching search results
+              // NOTE:  The AsyncPipe will subscribe and unsubscribe from this observable
+              this.searchResultsObs = this.elasticSearchService.runSearchHardCoded(searchQueryDTO);
+            });
+          }
+
+        }
+
+ 
+  5. Edit the search-results.component.html to show search results
+        <ng-template #searchInProgress>
+          <!-- Seaching in progress.  Show a spinner-->
+          <p style="margin-top: 20px"><i class="fa fa-spin fa-spinner"></i>&nbsp;&nbsp;Searching for {{this.query}}...</p>
+        </ng-template>
+
+        <ng-container *ngIf="(this.searchResultsObs | async) as searchResults; else searchInProgress">
+          <!-- Searching has finished.  Show the results -->
+          Finished searching for {{this.query}}
+          <br/>
+          Total Results found is {{searchResults.length}}
+          <br/>
+          Search Results is {{searchResults | json }}
+        </ng-container>
+  
+  
+ 6.  Verify it works by activating the debugger
+     a. Activate the debugger
+     b. Type-in something in the search box
+     c. Verify that it shows in the results
+     
+ 
