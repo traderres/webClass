@@ -1,0 +1,178 @@
+Change the SearchController so that it runs a real search against ElasticSearch
+-------------------------------------------------------------------------------
+The back-end REST call in SearchController.runSearch() returns hard-coded data
+Now, we want it to query against our ElasticSearch and return real results
+
+
+Assumptions:
+ A) You have Kibana running locally on localhost:5601
+ B) You have the ElasticSearchResults, ElasticSearchResultsConfig classes configured
+ C) You have elastic search settings in your application.yaml
+ 
+
+Procedure
+---------
+ 1. Create an ElasticSearch Index called "reports" and populate it with data
+    a. Open your browser and connect to your kibana by going to http://localhost:5601
+    b. Click on DevTools
+    c. In the console, run these commands:
+        GET _search
+        {
+          "query": {
+            "match_all": {}
+          }
+        }
+
+
+        # Delete the reports mapping and all data
+        DELETE reports
+
+        # Create a new reports mapping
+        PUT reports
+        {
+                  "settings": {
+                    "analysis": {
+                      "analyzer" : {
+                        "my_ngram_analyzer" : {
+                          "tokenizer" : "my_ngram_tokenizer",
+                          "filter": ["lowercase"]
+                        }
+                      },
+                      "tokenizer" : {
+                        "my_ngram_tokenizer" : {
+                          "type" : "ngram",
+                          "min_gram" : "1",
+                          "max_gram" : "25",
+                          "token_chars": [ ]
+                        }
+                      },
+                      "normalizer": {
+                        "case_insensitive_normalizer": {
+                          "type": "custom",
+                          "char_filter": [],
+                          "filter": [ "lowercase", "asciifolding" ]
+                        }
+                      }
+                    },
+                    "max_result_window": 500000,
+                    "refresh_interval": "2s"
+                  },
+
+              "mappings": {
+
+                    "record": {
+                      "dynamic": "strict",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+
+                        "name": {
+                          "type": "text",
+                          "fields": {
+                            "raw": {
+                              "type": "keyword"
+                            }
+                          }
+                        },
+
+                        "priority": {
+                          "type": "text",
+                          "fields": {
+                            "raw": {
+                              "type": "keyword"
+                            }
+                          }
+                        },
+
+
+                        "start_year": {
+                          "type": "integer"
+                        },
+
+
+                        "start_date": {
+                          "type": "date",
+                          "ignore_malformed": true,
+                          "format": "epoch_millis||epoch_second||yyyy/MM/dd HH:mm:ss.SSS||yyyy-MM-dd HH:mm:ss.SSS||yyyy/MM/dd HH:mm:ss||yyyy-MM-dd HH:mm:ss.SSSZ||yyyy-MM-dd'T'HH:mm:ss||yyyy-MM-dd'T'HH:mm:ssZ||yyyy-MM-dd HH:mm:ss||yyyy-MM-dd HH:mm:ssZ||yyyy/MM/dd||S"
+                        }
+
+                      }
+                    }
+                  }
+                }
+
+
+        # Populate the index by setting these records
+        POST _bulk
+            { "index": { "_index": "reports", "_type": "record", "_id": 1 }}
+            { "id": 1,  "priority": "low", "name": "Report 1", "start_year": 2010, "start_date": "01/05/2010" }
+            { "index": { "_index": "reports", "_type": "record", "_id": 2 }}
+            { "id": 2,  "priority": "low", "name": "Report 2", "start_year": 2011, "start_date": "02/01/2011" }
+            { "index": { "_index": "reports", "_type": "record", "_id": 3 }}
+            { "id": 3,  "priority": "high", "name": "Report 3", "start_year": 2011, "start_date": "02/02/2011" }
+
+
+       
+         
+ 
+ 2. Create this method:  ElasticSearchService.runSearchGetMatches()
+    a. Edit ElasticSearchService.java
+    b. Add this empty method:
+        public List<SearchResultDTO> runSearchGetMatches(SearchQueryDTO aSearchQueryDTO) {
+            // Return an empty list
+            List<SearchResultDTO> searchResults = new ArrayList<>();
+            return searchResults;
+        }
+ 
+ 
+ 3. Change your SearchController so that it injects your ElasticSearchService
+    a. Edit SearchController.java
+    b. Inject your ElasticSearchService using this:
+          @Resource
+          private ElasticSearchService elasticSearchService; 
+          
+          
+ 4. Change your SearchController so that it calls your ElasticSearchService runSearchGetmatches() method
+    a. Edit SearchController.java
+    b. Replace the runSearch() method with this:
+        /**
+         * REST endpoint /api/search
+         * @return
+         * @throws Exception
+         */
+        @RequestMapping(value = "/api/search", method = RequestMethod.POST, produces = "application/json")
+        public ResponseEntity<?> runSearch(@RequestBody SearchQueryDTO aSearchQueryDTO) throws Exception {
+
+            logger.debug("runSearch() started.");
+
+            if (StringUtils.isBlank( aSearchQueryDTO.getIndexName() )) {
+                // The index name was not specified
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .body("The index_name field is required.");
+            }
+            else if (aSearchQueryDTO.getSize() <= 0) {
+                // The size must be greater than 1
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .body("The size field must be greater than 1.");
+            }
+
+            // Run a search
+            List<SearchResultDTO> searchResults = elasticSearchService.runSearchGetMatches(aSearchQueryDTO);
+
+            // Return a response with the hard-coded results
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(searchResults);
+        }
+
+
+
+ 5. Verify it works and returns an empty result
+ 
+ 
+ 6. Edit the ElasticSearchService.runSearchGetMatches() to run a real search and pull results
+ 
+ 
