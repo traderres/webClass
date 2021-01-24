@@ -66,7 +66,9 @@ Procedure
             url: jdbc:postgresql://localhost:5432/app1_db
             username: app1_user
             password: secret
-            maxPoolSize: 10
+            schema: app1_db
+			maxPoolSize: 10
+			
 
 
        NOTE:  Make sure there are no leading spaces in front of app.datasource
@@ -107,6 +109,9 @@ Procedure
             @Value("${app.datasource.maxPoolSize:20}")
             private int maxPoolSize;
 
+    		@Value("${app.datasource.schema}")
+    		private String schemaName;
+	
             @Bean
             public DataSource dataSource() {
                 HikariConfig hikariConfig = new HikariConfig();
@@ -136,10 +141,87 @@ Procedure
     a. Edit the backend/src/main/resources/application.yaml
     
     b. Add these properties:
-        spring.flyway.enabled: true
-        spring.flyway.schemas: app1_db
-        spring.flyway.baseline-on-migrate: true
+	    # Tell Spring to not use the automatic flyway integration (it is broken in different versions of spring)
+        spring.flyway.enabled: false
     
+	c. Edit the DataSourceConfig class and run flyway manually *immediately* after creating the data source
+	   a) Edit DataSourceConfig.java
+	   b) Add this to the end of the public dataSource() method
+
+        // Initialize the flyway object by setting the data source and schema name
+        Flyway flyway = Flyway.configure()
+                .dataSource(dataSource)
+                .schemas(schemaName)
+                .load();
+
+        // Use the flyway object to do a migrate on webapp startup
+        flyway.migrate();
+	
+	
+	When finished, the DataSourceConfig class should look like this:
+		package com.lessons.config;
+
+		import com.zaxxer.hikari.HikariConfig;
+		import com.zaxxer.hikari.HikariDataSource;
+		import org.flywaydb.core.Flyway;
+		import org.springframework.beans.factory.annotation.Value;
+		import org.springframework.context.annotation.Bean;
+		import org.springframework.context.annotation.Configuration;
+
+		import javax.sql.DataSource;
+
+		@Configuration
+		public class DataSourceConfig {
+
+			@Value("${app.datasource.driver-class-name}")
+			private String driverClassName;
+
+			@Value("${app.datasource.url}")
+			private String url;
+
+			@Value("${app.datasource.username}")
+			private String username;
+
+			@Value("${app.datasource.password}")
+			private String password;
+
+			@Value("${app.datasource.maxPoolSize:20}")
+			private int maxPoolSize;
+
+			@Value("${app.datasource.schema}")
+			private String schemaName;
+
+			@Bean
+			public DataSource dataSource() {
+				HikariConfig hikariConfig = new HikariConfig();
+
+				hikariConfig.setDriverClassName(this.driverClassName);
+				hikariConfig.setJdbcUrl(this.url);
+				hikariConfig.setUsername(this.username);
+				hikariConfig.setPassword(this.password);
+				hikariConfig.setMaximumPoolSize(this.maxPoolSize);
+				hikariConfig.setConnectionTestQuery("SELECT 1");
+				hikariConfig.setPoolName("app1_jdbc_connection_pool");
+
+				HikariDataSource dataSource = new HikariDataSource(hikariConfig);
+
+
+				// Use the dataSource to initialize the flyway object
+				Flyway flyway = Flyway.configure()
+						.dataSource(dataSource)
+						.schemas(schemaName)
+						.load();
+
+				// Use the flyway object to do a migrate on webapp startup
+				flyway.migrate();
+
+
+				return dataSource;
+			}
+
+		}
+
+	
 	
  7. Verify that the backend runs flyway everytime on startup
     a. Empty your database
@@ -163,9 +245,13 @@ Procedure
 
       
  NOTES:
-  A) Spring will automatically run flyway if it can find a DataSource object
-  B) The DataSourceConfig creates the DataSource Spring Bean (so flyway runs on startup)
-  C) If you do not want flyway to run, change spring.flyway.enabled to false
+  A) Spring will *NOT* automatically run flyway if it can find a DataSource object
+  B) The DataSourceConfig creates the DataSource Spring Bean 
+  C) The DataSourceConfig method runs flyway migrate
+  C) If you do not want flyway to run, then remove this code or put a property to block it
+
+
+
 
 
 How to manually run flyway-migrate on startup (using java code)
