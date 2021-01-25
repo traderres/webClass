@@ -1,0 +1,221 @@
+How to Create Java Hadoop Service that talks With Hadoop
+--------------------------------------------------------
+
+
+Assumption:
+ A) You are using Spring to ingest property values
+ B) You have a local hadoop setup with configuration files located in ${HADOOP_HOME}/etc/hadoop
+
+
+Procedure
+---------
+ 1. Add the hadoop client dependencies to your pom.xml
+ 
+        <dependency>
+            <!--  Hadoop Common libraries -->
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-common</artifactId>
+            <version>2.9.2</version>
+
+            <exclusions>
+                <!-- Hadoop-common comes with log4j but we will use logback so strip it out -->
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-log4j12</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>log4j</groupId>
+                    <artifactId>log4j</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-log4j12</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <!-- Hadoop HDFS libraries -->
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-hdfs</artifactId>
+            <version>2.9.2</version>
+            <exclusions>
+                <!-- Hadoop-hdfs comes with log4j but we will use logback so strip it out -->
+                <exclusion>
+                    <groupId>log4j</groupId>
+                    <artifactId>log4j</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        
+        
+        
+        
+ 2. Add the hadoop property values to your application.yaml
+        ##########################################################
+        # Hadoop Settings
+        ##########################################################
+        hdfs.enabled:                    false
+        hdfs.hadoop.conf.dir:            ${HADOOP_HOME}/etc/hadoop
+
+
+ 3. Create your HadoopService
+
+        package gov.dcsa.services;
+
+        import gov.dcsa.utilities.FileUtilities;
+        import org.apache.commons.lang3.StringUtils;
+        import org.apache.hadoop.conf.Configuration;
+        import org.apache.hadoop.fs.FileSystem;
+        import org.apache.hadoop.fs.Path;
+        import org.apache.hadoop.io.IOUtils;
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
+        import org.springframework.beans.factory.annotation.Value;
+        import org.springframework.stereotype.Service;
+
+        import javax.annotation.PostConstruct;
+        import java.io.InputStream;
+        import java.io.OutputStream;
+
+
+        @Service
+        public class HadoopService {
+            private static final Logger logger = LoggerFactory.getLogger(HadoopService.class);
+
+            private Configuration configuration;
+            private FileSystem    hdfsFileSystem;
+
+            @Value("${hdfs.enabled}")
+            private boolean isHadoopEnabled;
+
+            @Value("${hdfs.hadoop.conf.dir::}")
+            private String hadoopConfDir;
+
+
+            @PostConstruct
+            public void init() throws Exception {
+                logger.debug("Hadoop init started.  hdfs.enabled={}   hdfs.hadoop.conf.dir={}", this.isHadoopEnabled, this.hadoopConfDir);
+
+                if (! isHadoopEnabled) {
+                    logger.warn("Warning in HadoopService.init():  The HadoopService is disabled.");
+
+                    // HDFS is disabled.  So, stop initializing
+                    return;
+                }
+
+                if (StringUtils.isBlank(this.hadoopConfDir)) {
+                    // Hadoop is enabled, but the hadoop conf dir is empty
+                    throw new RuntimeException("Error in HadoopService.init():  The property 'hdfs.enabled' holds true but 'hdfs.hadoop.conf.dir' property is not set.");
+                }
+                else if (! FileUtilities.doesDirectoryExist(this.hadoopConfDir)) {
+                    // The hadoop conf directory was not found
+                    throw new RuntimeException("Error in HadoopService.init():  The property 'hdfs.enabled' holds true but 'hdfs.hadoop.conf.dir' property set to a directory that does not exist: " + this.hadoopConfDir);
+                }
+
+
+                this.configuration = new Configuration();
+                configuration.addResource(new Path(hadoopConfDir, "core-site.xml"));
+                configuration.addResource(new Path(hadoopConfDir, "hdfs-site.xml"));
+                this.hdfsFileSystem = FileSystem.get(configuration);
+
+
+
+                logger.debug("Hadoop init finished successfully.");
+            }
+
+
+
+            /**
+             * @param aFilePath holds the path of the HDFS file to examine
+             * @return true if the HDFS file exists
+             * @throws Exception if something goes wrong
+             */
+            public boolean doesPathExist(String aFilePath) throws Exception {
+                Path p = new Path(aFilePath);
+                boolean bFileExists = hdfsFileSystem.exists(p);
+
+                return bFileExists;
+            }
+
+
+            /**
+             * Add a new file to HDFS
+             * NOTE:  This will overwrite an existing file
+             *
+             * @param aInputStream holds the InputStream of the new file to be created
+             * @param aDestinationFilePath holds the destination path
+             * @throws Exception if something goes wrong
+             */
+            public void addFile(final InputStream aInputStream, final String aDestinationFilePath) throws Exception {
+                logger.debug("addFile() started:  aDestinationFilePath={}", aDestinationFilePath);
+
+                Path path = new Path(aDestinationFilePath);
+
+                // Create and Overwrite the existing file
+                OutputStream os = hdfsFileSystem.create(path, true);
+                IOUtils.copyBytes(aInputStream, os, configuration);
+
+                logger.debug("addFile() finished: aDestinationFilePath={}", aDestinationFilePath);
+            }
+
+
+
+            public InputStream getInputStreamForHdfsFile(String aHadoopFilePath) throws Exception
+            {
+                logger.debug("getInputStreamForHdfsFile() started.  aHadoopFilePath={}", aHadoopFilePath);
+
+                if (StringUtils.isBlank(aHadoopFilePath)) {
+                    throw new RuntimeException("Error in getInputStreamFromHDFS():  The passed-in aHadoopFilePath is either null or empty.");
+                }
+
+                String completeHdfsFilEPath = "hdfs://" + aHadoopFilePath;
+                logger.debug("Looking in HDFS for this:  {}", completeHdfsFilEPath);
+
+                // Connect to the HDFS and get an InputStream for this file
+                // NOTE:  Please be sure that you close this InputStream when you're done with it.
+                InputStream in = hdfsFileSystem.open(new Path(completeHdfsFilEPath));
+
+                logger.debug("getInputStreamForHdfsFile() finished.");
+                return in;
+            }
+
+
+            public boolean isHadoopEnabled() {
+                return isHadoopEnabled;
+            }
+        }
+
+
+ 4. Inject your HadoopService and use it to write files
+    
+        @Resource
+        private HadoopService hadoopService;
+
+
+         /**
+         * Write the passed-in File object to HDFS
+         *  1. Construct the path of long-term storage
+         *  2. Write the inputStrema to HDFS
+         */
+        private void writeFileToHdfs(File aSourceFile, String aHdfsDestFilePath) throws Exception {
+
+            logger.debug("writeFileToHdfs() started for aHdfsDestFilePath={}", aHdfsDestFilePath);
+
+
+            if (! this.hadoopService.isHadoopEnabled() ) {
+                logger.warn("Hadoop is disabled.  So, not writing the file to long-term storage");
+                return;
+            }
+
+            // Construct the destination HDFS file path
+            String destHdfsPath = aHdfsDestFilePath;
+
+            // Write the file to HDFS
+            InputStream inputStream = new BufferedInputStream(new FileInputStream(aSourceFile));
+            this.hadoopService.addFile(inputStream, destHdfsPath);
+
+            logger.debug("writeFileToHdfs() finished for jobId={}", this.jobId);
+        }
+        
+        
