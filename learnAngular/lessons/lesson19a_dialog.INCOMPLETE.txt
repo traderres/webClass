@@ -3,11 +3,17 @@ Add a Popup Angular Material Dialog to the Web App
 Problem:  I want to popup a dialog to answer a few questions and then save the info
 
 
+
 The one design question is which page will save the information?
   In Approach 1, the main page saves the information.  The dialog box simply returns info.
   In Approach 2, the dialog box saves the info.  The dialog box simply returns true/false flags.
 
 **I prefer Approach 1**  (but either way works)
+
+
+References
+----------
+https://stackoverflow.com/questions/51488241/ag-grid-how-to-save-and-reload-column-order
 
 
 
@@ -49,12 +55,255 @@ Approach 2:  The dialog box saves the data
 
 Procedure (using Approach 1)
 ----------------------------
- 1. Create a main page that pulls a few detals from ES
+ 1. Create a database table called user_searches
+    a. Add another flyway migration script
+	b. Create this file:  backend/src/main/resources/db/migration/V1.4__user_searches.sql
+
+		create table user_searches
+			(
+			   userid              integer      not null,
+			   page_name           varchar(50)  not null,
+			   display_name        varchar(256) not null,
+			   is_default_search   boolean      not null,
+			   grid_state          text          null
+			);
+
+    c. Run flyway migrate from command-line
+	   unix> cd ~/intellijProjects/angularApp1/backend
+	   unix> mvn flyway:migrate
+	   
+	   
+ 2. Create this class: AddUserSearchDTO
+    NOTE:  This method does not hold the userid  (the back-end will get it from the UserInfo object)
+	
+		package com.lessons.models;
+
+		import com.fasterxml.jackson.annotation.JsonProperty;
+
+		public class AddUserSearchDTO {
+
+			@JsonProperty("page_name")
+			private String pageName;
+
+			@JsonProperty("display_name")
+			private String displayName;
+
+			@JsonProperty("is_default_search")
+			private boolean isDefaultSearch;
+
+			@JsonProperty("grid_state")
+			private String gridState;
+
+			// -------------- Getters & Setters ---------------
+
+
+			public String getPageName() {
+				return pageName;
+			}
+
+			public void setPageName(String pageName) {
+				this.pageName = pageName;
+			}
+
+			public String getDisplayName() {
+				return displayName;
+			}
+
+			public void setDisplayName(String displayName) {
+				this.displayName = displayName;
+			}
+
+			public boolean getIsDefaultSearch() {
+				return isDefaultSearch;
+			}
+
+			public void setIsDefaultSearch(boolean defaultSearch) {
+				isDefaultSearch = defaultSearch;
+			}
+
+			public String getGridState() {
+				return gridState;
+			}
+
+			public void setGridState(String gridState) {
+				this.gridState = gridState;
+			}
+		}
+
+
+ 3. Create a UserService (that returns the user's logged-in username and userid
+	package com.lessons.services;
+
+	import com.lessons.security.UserInfo;
+	import org.slf4j.Logger;
+	import org.slf4j.LoggerFactory;
+	import org.springframework.security.core.Authentication;
+	import org.springframework.security.core.context.SecurityContext;
+	import org.springframework.security.core.context.SecurityContextHolder;
+	import org.springframework.stereotype.Service;
+
+	@Service("com.lessons.services.UserService")
+	public class UserService {
+		private static final Logger logger = LoggerFactory.getLogger(UserService.class);
+
+		public UserInfo getUserInfo() {
+			// Get the UserInfo object from Spring Security
+			SecurityContext securityContext = SecurityContextHolder.getContext();
+			if (securityContext == null) {
+				throw new RuntimeException("Error in getUserInfoFromSecurity():  SecurityContext is null.  This should never happen.");
+			}
+
+			Authentication auth = securityContext.getAuthentication();
+			if (auth == null) {
+				throw new RuntimeException("Error in getUserInfoFromSecurity():  Authentication is null.  This should never happen.");
+			}
+
+			UserInfo userInfo = (UserInfo) auth.getPrincipal();
+			if (userInfo == null) {
+				throw new RuntimeException("Error in getUserInfoFromSecurity():  UserInfo is null.  This should never happen.");
+			}
+
+			return userInfo;
+		}
+
+
+		public String getLoggedInUserName() {
+			UserInfo userinfo = getUserInfo();
+
+			return userinfo.getUsername();
+		}
+
+
+		public Integer getLoggedInUserId() {
+			UserInfo userInfo = getUserInfo();
+			return userInfo.getId();
+		}
+	}
  
- 2. Create a popup (that returns data)
  
- 3. Integrate main page and popup page
  
+
+ 4. Create a DatabaseService.addSearch() method that will save this to the database
+    a. Edit the DatabaseService
+	
+	b. Inject the UserService  (we need the userService to get the logged-in userid)
+		@Resource
+		private UserService userService;	
+
+    c. Add this method:  DatabaseService.addSearch()
+		public void addSearch(AddUserSearchDTO aAddUserSearchDTO) {
+
+			// Get the userid of the logged-in userid
+			Integer userid = userService.getLoggedInUserId();
+
+			// Construct the SQL to add this record to the datanbase
+			// NOTE:  The userid should be pulled from security
+			String sql = "insert into user_searches(userid, page_name, display_name, is_default_search, grid_state) " +
+						 "values(:userid, :page_name, :display_name, :is_default_search, :grid_state )";
+
+			// Create a parameter map that holds all of the values
+			Map<String, Object> paramMap = new HashMap<>();
+			paramMap.put("userid",            userid);
+			paramMap.put("page_name",         aAddUserSearchDTO.getPageName() );
+			paramMap.put("display_name",      aAddUserSearchDTO.getDisplayName() );
+			paramMap.put("is_default_search", aAddUserSearchDTO.getIsDefaultSearch() );
+			paramMap.put("grid_state",        aAddUserSearchDTO.getGridState() );
+
+
+			NamedParameterJdbcTemplate np = new NamedParameterJdbcTemplate(this.dataSource);
+
+			// Execute the SQL to add this record to the database
+			int rowsAdded = np.update(sql, paramMap);
+
+			if (rowsAdded != 1) {
+				throw new RuntimeException("Error in addSearch():  I expected to add one database record.  Instead, I added " + rowsAdded + " records.");
+			}
+		}	
+ 
+ 
+ 5. Create a REST call to save a user's search to the back-end
+    POST /api/user/search
+	-- This REST call saves the AddUserSearchDTO to the database
+	-- Nothing is returned except for 200 status code
+
+    a. Edit the SearchController
+	   
+	   
+    b. Inject the DatabaseService
+	    @Resource
+	    private DatabaseService databaseService;
+
+
+	c. Add this method:
+		/**
+		 * REST endpoint /api/user/search
+		 * @return 200 status OK if everything works (but no json body)
+		 */
+		@RequestMapping(value = "/api/user/search", method = RequestMethod.POST)
+		public ResponseEntity<?> addSearch(@RequestBody AddUserSearchDTO aAddUserSearchDTO)  {
+
+			logger.debug("addSearch() started.");
+
+			if (StringUtils.isBlank(aAddUserSearchDTO.getDisplayName() )) {
+				return ResponseEntity
+						.status(HttpStatus.BAD_REQUEST)
+						.contentType(MediaType.TEXT_PLAIN)
+						.body("The passed-in display name is blank");
+			}
+			else if (StringUtils.isBlank(aAddUserSearchDTO.getPageName() )) {
+				return ResponseEntity
+						.status(HttpStatus.BAD_REQUEST)
+						.contentType(MediaType.TEXT_PLAIN)
+						.body("The passed-in page name is blank");
+			}
+
+			// Save the information to the database
+			this.databaseService.addSearch(aAddUserSearchDTO);
+
+			// Return an empty string and 200 status
+			return ResponseEntity
+					.status(HttpStatus.OK)
+					.body("");
+		}
+
+
+ 
+ 6. Create save-search dialog box that prompts the user to answer some questions
+          Name of Search:
+		  Default Search:  yes/no 
+		  "Cancel"  "Save"
+		  
+    a. Create the save-search dialog box
+	   unix> cd ~/intellijProjects/angularApp1/frontend
+       unix> ng generate component dialogs/save-search-dialog
+	
+    b. Edit the save-search-dialog.component.html
+	
+	
+	
+ 7. Add a "Save Search" button to the search results page (that opens the dialog box)
+ 
+ 
+ 8. Gve it a shot
+    a. Set a breakpoint in your backend REST call SearchController.addSearch()
+    b. Active the debugger for 'Full WebApp'
+	c. Run a search
+	d. In the search results page
+	e. press "Save Search"
+	f. Enter some information and press "Save"
+	   -- You should hit your breakpoint
+	   -- The front-end should be showing the progress bar lighting-up
+	 
+	g. Press F9 to resume saving the record
+	h. The progress bar should disappear
+	i. Verify that a new record was added to the user_searches database table
+	   Run this in your database console
+	      select * from user_searches
+	   -- You should see your saved-search
+	  
+	 
+	
+
  
  
  
