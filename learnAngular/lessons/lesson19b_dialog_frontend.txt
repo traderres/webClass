@@ -1,0 +1,526 @@
+Dialog Box Front-End
+--------------------
+
+
+Procedure
+---------
+ 1. Create save-search dialog box that prompts the user to answer some questions
+    a. Create the save-search dialog box
+   	   unix> cd ~/intellijProjects/angularApp1/frontend
+       unix> ng generate component dialogs/save-search-dialog
+	
+    b. Fill-in the SaveSearchDialogComponent.ts
+		import {Component, Inject, OnInit} from '@angular/core';
+		import {NgForm} from "@angular/forms";
+		import {MAT_DIALOG_DATA, MatDialogRef} from "@angular/material/dialog";
+		import {SearchResultsComponent} from "../../search/search-results/search-results.component";
+
+
+		// This class holds the form data (that will be returned
+		export class SaveSearchDialogFormData {
+		  name: string;
+		  is_default: boolean;
+		}
+
+
+		@Component({
+		  selector: 'app-save-search-dialog',
+		  templateUrl: './save-search-dialog.component.html',
+		  styleUrls: ['./save-search-dialog.component.css']
+		})
+		export class SaveSearchDialogComponent implements OnInit {
+
+		  constructor(private dialogRef: MatDialogRef<SearchResultsComponent>,
+					  @Inject(MAT_DIALOG_DATA) public data: SaveSearchDialogFormData) {}
+
+		  ngOnInit(): void {
+		  }
+
+
+		  public onCancelClick(): void {
+			// Close the dialog box and return nothing
+			this.dialogRef.close();
+		  }
+
+
+		  public onSubmitClick(aForm: NgForm): void {
+			// Make all form fields as touched -- so that error validation displays
+			aForm.form.markAllAsTouched();
+
+			if (! aForm.form.valid) {
+			  // The form is not valid -- so stop here
+			  return;
+			}
+
+			// Validation psased.  Close the form and return the data
+			this.dialogRef.close(this.data);
+		  }
+		}
+	
+	
+	
+    c. Fill-in the SaveSearchDialogComponent.html
+		<form #form="ngForm" novalidate="true">
+		  <h2 mat-dialog-title>Save this Search</h2>
+
+		  <div mat-dialog-content>
+
+			<mat-form-field>
+			  <mat-label>Search Name</mat-label>
+			  <input matInput type="text" name="data.name"  [(ngModel)]="this.data.name" required />
+
+			  <mat-error>
+				<!-- This mat-error tag is displayed if this form field is invalid AND touched -->
+				This search name is required
+			  </mat-error>
+			</mat-form-field>
+
+
+			<mat-form-field>
+			  <mat-label>Is Default Search?</mat-label>
+
+			  <mat-select name="data.is_default" [(ngModel)]="this.data.is_default" required >
+				<mat-option value=true>Yes, show this search by default</mat-option>
+				<mat-option value=false>No, not default</mat-option>
+			  </mat-select>
+
+			  <mat-error>
+				<!-- This mat-error tag is displayed if this form field is invalid AND touched -->
+				This is-default option is required
+			  </mat-error>
+			</mat-form-field>
+
+		  </div>
+
+		  <div mat-dialog-actions>
+			  <!-- Dialog Buttons Placed Here -->
+			  <button mat-button mat-raised-button color="primary" class="button-class"
+					  (click)="this.onCancelClick()">
+				Cancel
+			  </button>
+
+			  <!-- [mat-dialog-close]="data" will close the dialog no matter what value is clicked
+				   The data is an optional result that *might* be returned
+				   If user presses 'No Thanks', then the returned result in afterClosed().subscribe() is undefined
+				   If user presses 'Save,       then the returned result in afterClosed().subscribe() is data object
+			   -->
+			  <button mat-button mat-raised-button color="primary" class="button-class"
+					  (click)="this.onSubmitClick(form)"
+					  ocdkFocusInitial>
+				Save
+			  </button>
+			</div>
+
+		</form>
+
+	
+    d. Fill-in the SaveSearchDialogComponent.css
+		.button-class{
+		  width: 75px!important;
+		  min-width: unset!important;
+		}
+
+		::ng-deep  .mat-dialog-container {
+		  overflow-y: hidden !important;
+		}
+
+
+ 2. Add a front-end search service
+    a. Create the front-end search service
+	   unix> cd ~/intellijProjects/angularApp1/frontend
+	   unix> ng generate service services/search
+	
+	b. Fill-in the SearchService.ts so that it has an addSearch() method
+		import { Injectable } from '@angular/core';
+		import {HttpClient} from "@angular/common/http";
+		import {SaveSearchDialogFormData} from "../dialogs/save-search-dialog/save-search-dialog.component";
+		import {Observable} from "rxjs";
+		import {environment} from "../../environments/environment";
+
+		@Injectable({
+		  providedIn: 'root'
+		})
+		export class SearchService {
+
+		  constructor(private httpClient: HttpClient) { }
+
+
+		  public addSearch(aFormData: SaveSearchDialogFormData): Observable<any> {
+			// Construct the DTO that has the information this REST call needs
+			let addSearchDTO = {
+
+			  page_name:        "Search Results",
+			  display_name:      aFormData.name,
+			  is_default_search: aFormData.is_default,
+			  grid_state:        null
+			}
+
+			const restUrl = environment.baseUrl + '/api/user/search';
+
+			// Return an observable
+			return this.httpClient.post <Response>(restUrl, addSearchDTO);
+		  }
+		}
+
+
+ 3. Verify that you have this front-end MessageService (that uses the snackbar to show popups):
+		import { Injectable } from '@angular/core';
+		import {MatSnackBar} from "@angular/material/snack-bar";
+
+		@Injectable({
+		  providedIn: 'root'
+		})
+		export class MessageService {
+
+		  public constructor(private snackBar: MatSnackBar) { }
+
+
+		  public showSuccessMessage(message: string) {
+
+			this.snackBar.open(message, 'Done',
+			  {
+				duration: 6000,        // Close the popup after 6 seconds
+				verticalPosition: 'bottom',
+				horizontalPosition: 'right',
+				panelClass: ['success-snackbar']
+			  });
+		  }
+
+
+		  public showWarningMessage(message: string) {
+
+			this.snackBar.open(message, 'Done',
+			  {
+				duration: 6000,        // Close the popup after 6 seconds
+				verticalPosition: 'bottom',
+				horizontalPosition: 'right',
+				panelClass: ['warning-snackbar']
+			  });
+		  }
+
+
+		  public showErrorMessage(message: string) {
+
+			this.snackBar.open(message, 'Done',
+			  {
+				duration: 6000,        // Close the popup after 6 seconds
+				verticalPosition: 'bottom',
+				horizontalPosition: 'right',
+				panelClass: ['error-snackbar']
+			  });
+		  }
+
+		}
+
+
+ 4. Verify that these css styles exist in your frontend/src/styles.css
+		.success-snackbar {
+		  background: #2e7d32 !important;
+		  color: white;
+		  white-space: pre-wrap;
+		}
+
+		.warning-snackbar {
+		  background: #ff8f00 !important;
+		  color: white;
+		  white-space: pre-wrap
+		}
+
+		.error-snackbar {
+		  background-color: #c62828 !important;
+		  color: white;
+		  white-space: pre-wrap
+		}
+
+
+ 5. Add a "Save Search" button to the search results page (that opens the dialog box)
+    Edit the search-results.component.ts 
+	a. Inject these 3 services in the constructor
+			  private matDialogService: MatDialog,
+              private messageService: MessageService,
+              private searchService: SearchService
+			  
+	b. Add these public variables:
+	          public showProgressBar: boolean = false;
+			  public saveSearchDialogFormData: SaveSearchDialogFormData = new SaveSearchDialogFormData();
+     
+	c. Add this public method:
+			  /*
+			   * The user wishes to save the search
+			   * 1. Open the save-search-dialog
+			   * 2. Wait for it to close
+			   * 3. When it closes,
+			   *    If no data is returned, then user pressed "Cancel"
+			   *    If data is returned, then invoke the REST call to save the information
+			   */
+			  public openSaveSearchDialog(): void {
+				this.saveSearchDialogFormData.name = '';
+				this.saveSearchDialogFormData.is_default = false;
+
+				// Open the Save-Search-Dialog-Component
+				const dialogRef = this.matDialogService.open(SaveSearchDialogComponent, {
+				  minWidth: '250px',
+				  maxWidth: '250px',
+				  data: this.saveSearchDialogFormData
+				});
+
+
+				dialogRef.afterClosed().subscribe((formData: SaveSearchDialogFormData) => {
+				  // The dialog box has closed
+
+				  if (! formData) {
+					// User pressed cancel or clicked outside of the dialog box
+				  }
+				  else {
+					// User pressed "Save" and got passed validation
+
+					// Show the progress bar
+					this.showProgressBar = true;
+
+					// Invoke REST call to save the search
+					this.searchService.addSearch(formData).subscribe(response => {
+						// REST call to update the record succeeded
+
+						// Show a success message
+						this.messageService.showSuccessMessage('Search was successfully saved.');
+					  },
+					  response => {
+						// REST call failed
+
+						// Show a failure message
+						this.messageService.showErrorMessage('Failed to save this search.  Error is ' + response?.error);
+						console.error('Failed to update this record.  Error is ', response?.error);
+					  }).add( () => {
+					  // REST call Finally block
+					  this.showProgressBar = false;
+					});
+
+				  }
+
+				});
+			  }
+
+	   When finished, the search-results.component.ts should look *something* like this:
+			import { Component, OnInit } from '@angular/core';
+			import {ActivatedRoute} from "@angular/router";
+			import {ElasticsearchService} from "../../services/elasticsearch.service";
+			import {SearchQueryDTO} from "../../models/search-query-dto";
+			import {GridOptions} from "ag-grid-community";
+			import {SaveSearchDialogComponent, SaveSearchDialogFormData } from "../../dialogs/save-search-dialog/save-search-dialog.component";
+			import {MatDialog} from "@angular/material/dialog";
+			import {SearchService} from "../../services/search.service";
+			import {MessageService} from "../../services/message.service";
+
+
+
+			@Component({
+			  selector: 'app-search-results',
+			  templateUrl: './search-results.component.html',
+			  styleUrls: ['./search-results.component.css']
+			})
+			export class SearchResultsComponent implements OnInit {
+
+			  public query: string;
+			  public showProgressBar: boolean = false;
+			  public saveSearchDialogFormData: SaveSearchDialogFormData = new SaveSearchDialogFormData();
+
+			  public gridOptions: GridOptions = {
+				pagination: true,
+				paginationPageSize: 20,
+				rowGroupPanelShow: 'always'    // Possible options are 'never', 'always', and 'onlyWhenGrouping'
+			  };
+
+			  public defaultColDefs: any = {
+				flex: 1,
+				sortable: true,
+				filter: true,
+				floatingFilter: true    // Causes the filter row to appear below column names
+			  };
+
+
+
+			  public columnDefs = [
+				{field: 'id' ,        headerName: 'Id',           filter: 'agNumberColumnFilter'},
+				{field: 'name',       headerName: 'Report Name'},
+				{field: 'country',    headerName: 'Country',    rowGroup: false, enableRowGroup: true},
+				{field: 'priority',   headerName: 'Priority',   rowGroup: false, enableRowGroup: true},
+				{field: 'start_year', headerName: 'Start Year',  filter: 'agNumberColumnFilter',   rowGroup: false, enableRowGroup: true},
+				{field: 'start_date', headerName: 'Start Date',   filter: 'agDateColumnFilter'},
+				{field: 'end_date',   headerName: 'End Date',     sortable: true}
+			  ];
+
+
+			  constructor(private route: ActivatedRoute,
+						  private elasticSearchService: ElasticsearchService,
+						  private matDialogService: MatDialog,
+						  private messageService: MessageService,
+						  private searchService: SearchService) { }
+
+
+
+			  ngOnInit(): void {
+				this.route.queryParams.subscribe(params => {
+				  // Get the passed-in query=
+				  this.query = params["query"];
+
+				  // Build a searchQueryDTO object
+				  let searchQueryDTO = new SearchQueryDTO();
+				  searchQueryDTO.index_name = "reports";
+				  searchQueryDTO.raw_query = this.query;
+				  searchQueryDTO.size = 20;
+
+				  this.gridOptions.onGridReady = () => {
+					// The grid is ready
+
+					this.elasticSearchService.runSearch(searchQueryDTO).subscribe(rowData => {
+					  // The REST call came back.  Now, load the matches into the grid
+
+					  if (this.gridOptions.api) {
+						this.gridOptions.api.setRowData(rowData)
+					  }
+					});
+				  };
+
+				});
+
+			  }  // end of ngOnInit()
+
+
+
+
+
+			  /*
+			   * The user wishes to save the search
+			   * 1. Open the save-search-dialog
+			   * 2. Wait for it to close
+			   * 3. When it closes,
+			   *    If no data is returned, then user pressed "Cancel"
+			   *    If data is returned, then invoke the REST call to save the information
+			   */
+			  public openSaveSearchDialog(): void {
+				this.saveSearchDialogFormData.name = '';
+				this.saveSearchDialogFormData.is_default = false;
+
+				// Open the Save-Search-Dialog-Component
+				const dialogRef = this.matDialogService.open(SaveSearchDialogComponent, {
+				  minWidth: '250px',
+				  maxWidth: '250px',
+				  data: this.saveSearchDialogFormData
+				});
+
+
+				dialogRef.afterClosed().subscribe((formData: SaveSearchDialogFormData) => {
+				  // The dialog box has closed
+
+				  if (! formData) {
+					// User pressed cancel or clicked outside of the dialog box
+				  }
+				  else {
+					// User pressed "Save" and got passed validation
+
+					// Show the progress bar
+					this.showProgressBar = true;
+
+					// Invoke REST call to save the search
+					this.searchService.addSearch(formData).subscribe(response => {
+						// REST call to update the record succeeded
+
+						// Show a success message
+						this.messageService.showSuccessMessage('Search was successfully saved.');
+					  },
+					  response => {
+						// REST call failed
+
+						// Show a failure message
+						this.messageService.showErrorMessage('Failed to save this search.  Error is ' + response?.error);
+						console.error('Failed to update this record.  Error is ', response?.error);
+					  }).add( () => {
+					  // REST call Finally block
+					  this.showProgressBar = false;
+					});
+
+				  }
+
+				});
+			  }
+
+			}
+	   
+	   
+ 6. Edit the search-results.component.html
+	Change it so that there are a few rows *above* the grid
+		<div fxFlexFill fxLayout="column" style="margin: 0; padding: 0;">
+
+		  <div fxFlex fxLayout="row" fxLayoutGap="0" style="margin: 0; padding: 0;">
+
+			<!-- Left Side of the Top Row -->
+			<div fxFlex="45%" fxLayoutAlign="left center" fxLayout="row" fxLayoutGap="0" style="margin:0; border: 0">
+			  Search Results for {{this.query}}
+			</div>
+
+
+			<!-- Center Side of the Top Row -->
+			<div fxFlex="10%" fxLayoutAlign="center center" fxLayout="row" fxLayoutGap="0" style="margin:0; border: 0">
+			  &nbsp;
+			</div>
+
+
+			<!-- Right Side of the Top Row -->
+			<div fxFlex="45%" fxLayoutAlign="end center"  style="margin:0; border: 0">
+
+			  <!-- Save Search Button -->
+			  <button mat-stroked-button color="primary" (click)="this.openSaveSearchDialog()">
+				<i class="fa fa-plus"></i> Save Search
+			  </button>
+
+			</div>
+
+		  </div>  <!-- End of top row -->
+
+
+		  <!-- Start of the second row -->
+		  <div fxFlex fxLayoutGap="0">
+
+			<!-- Progress Bar  (to show for all REST calls on this page)  -->
+			<mat-progress-bar *ngIf="this.showProgressBar" mode="indeterminate"></mat-progress-bar>
+
+		  </div>
+		</div>
+
+		<br/>
+
+		<!-- Set the grid to use the entire height (except for 60px for header and 60px for the content above -->
+		<div style="height: calc(100vh - 120px);">
+
+		  <!-- Angular Grid:  NOTE: Angular flex layout does not work with ag-grid-angular -->
+		  <ag-grid-angular
+			style="width: 100%; height: 100%;"
+			class="ag-theme-alpine-dark"
+			[gridOptions]="this.gridOptions"
+			[defaultColDef]="this.defaultColDefs"
+			[columnDefs]="this.columnDefs">
+		  </ag-grid-angular>
+
+		</div>
+
+
+ 
+ 7. Try it out
+    a. Set a breakpoint in your backend REST call SearchController.addSearch()
+    b. Active the debugger for 'Full WebApp'
+	c. Run a search
+	d. In the search results page
+	e. press "Save Search"
+	f. Enter some information and press "Save"
+	   -- You should hit your breakpoint
+	   -- The front-end should be showing the progress bar lighting-up
+	 
+	g. Press F9 to resume saving the record
+	h. The progress bar should disappear
+	i. Verify that a new record was added to the user_searches database table
+	   Run this in your database console
+	      select * from user_searches
+	   -- You should see your saved-search
+	  
+	 
+ 
