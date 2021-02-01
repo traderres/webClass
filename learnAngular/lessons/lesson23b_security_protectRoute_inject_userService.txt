@@ -1,0 +1,135 @@
+Lesson:  Improve the Page Guard by Injecting the UserService
+
+
+ 
+
+Procedure
+---------
+ 1. Create the UserInfoDTO class
+    a. Create the class
+       unix> cd ~/intellijProjects/angularApp1/frontend
+       unix> ng generate class models/userInfoDTO
+       
+    b. Copy this to your newly-created class:
+        export class UserInfoDTO {
+          name: string;
+          pageRoutes: Map<string, boolean>;
+        }
+  
+
+ 2. Create a UserService that returns an obseravbble
+    a. Create a user service (if you have not already)
+       unix> cd ~/intellijProjects/angularApp1/frontend
+       unix> ng generate service services/user
+       
+    b. Copy this to your newly-created class:
+            import { Injectable } from '@angular/core';
+            import {HttpClient} from "@angular/common/http";
+            import {Observable, of} from "rxjs";
+            import {UserInfoDTO} from "../models/user-info-dto";
+            import {environment} from "../../environments/environment";
+
+            @Injectable({
+              providedIn: 'root'
+            })
+            export class UserService {
+
+              constructor(private httpClient: HttpClient) { }
+
+              /*
+              * Return an observable that holds an object with information about the user -- e.g., user's name, user's role
+              */
+              public getUserInfo(): Observable<UserInfoDTO>  {
+
+                const restUrl = environment.baseUrl + '/api/user/me';
+
+                return this.httpClient.get <UserInfoDTO>(restUrl);
+              }
+
+
+
+              /*
+               * Return an observable that holds an object with information about the user -- e.g., user's name, user's role
+               */
+              public getUserInfoHardCoded(): Observable<UserInfoDTO>  {
+
+                let userInfo: UserInfoDTO = new UserInfoDTO();
+
+                userInfo.name = 'John Smith';
+                userInfo.pageRoutes = new Map<string, boolean>([
+                  ['page/addReport', false],
+                  ['page/longReport', true],
+                  ['page/viewReports', true],
+                  ['page/searchResults', true]
+                 ]);
+
+
+                // Return the hard-coded observable
+                return of(userInfo);
+              }
+            }
+
+  
+    
+ 
+ 3. Adjust the PageGuard so that it uses the userService.getUserInfoHardCoded() to determine if a user can go to a page
+    a. Edit the PageGuard class
+    
+    b. Replace it with this:
+        import { Injectable } from '@angular/core';
+        import {CanActivate, ActivatedRouteSnapshot, RouterStateSnapshot, Router} from '@angular/router';
+        import {Observable} from 'rxjs';
+        import {UserService} from "../services/user.service";
+        import {UserInfoDTO} from "../models/user-info-dto";
+        import {map} from "rxjs/operators";
+
+        @Injectable({
+          providedIn: 'root'
+        })
+        export class PageGuard implements CanActivate {
+
+
+          constructor(private router: Router,
+                      private userService: UserService)
+          { }
+
+
+          /*
+           * Determines if the user proceeds to the next.routeUrl or is redirected to 403
+           */
+          public canActivate(next: ActivatedRouteSnapshot, state: RouterStateSnapshot): Observable<boolean> {
+
+            return this.userService.getUserInfoHardCoded().pipe(
+              map((userInfoDTO: UserInfoDTO) => {
+
+                // Get the next url from the routeConfig
+                let nextUrl: string | undefined = next.routeConfig?.path;
+                if (! nextUrl) {
+                  return false;
+                }
+
+                // Check if the url is allowed
+                let routeAllowed: boolean | undefined = userInfoDTO.pageRoutes.get(nextUrl);
+                if (! routeAllowed) {
+                  this.router.navigate(['page/403']).then();
+
+                  // Return false so that the router will not route the user to the new page
+                  return false;
+                }
+
+
+                // The route is allowed.  So, proceed
+                return true;
+              }));
+
+          }
+
+        }
+ 
+ 
+ 4. Try it out
+    a. Activate the debugger
+    b. Try to go to the Add Reports page.  You should not be allwed
+    c. Try to go to the View Reports page.  You should be allowed
+    
+    
