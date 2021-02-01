@@ -5,26 +5,32 @@ Problem:  We need a REST call that returns information about which routes are gr
 
 
 When protecting front-end elements, the business rules must be stored some where in the project
- 1) You can store the business rules all over the front-end
+Problem:  There could be lots of roles and lots of pages = Lots of relationships
+ 1) Store the business rules all over the front-end
     by adding if statements throughout the front-end
     If (user is granted admin role), then allow this feature to appear or allow this page to be shown
     + Simple
     - Difficult to maintain
     
- 2) You can store the business rules in a database table
+ 2) Store the business rules in a database table
     + More flexible  (if you change the database records, then UI controls can appear/disappear)
+	+ The same map can be used individual UI controls (and not just whole pages)
+	+ If you store this data in a repeatable_migration file, then every time it changes, the webapp will pick it up
     - Still requires if statements in the front-end but they are *simple* if statement
     - More complex: Requires the creating database tables and the back-end to pull those values
      
- 3) You can store the business rules in a separate configuraiton file
-
-
+ 3) Store the business rules in the application.yaml configuraiton file
+    - Store a list of roles there
+	- Store a list of routes there
+	- Store the relationships routes there
+    
+	
 
 Implementation using approach 2
 -------------------------------
- A) Create a database table called "roles"       that holds the roles -- e.g., admin, reader
- B) Create a database table called "routes"      that holds the routes (one route for each page)
- C) Create a database table called "role_routes" that holds the relationships
+ A) Create a database table called "roles"            that holds the roles -- e.g., admin, reader
+ B) Create a database table called "uicontrols"       that holds the routes/controls (one route for each page)
+ C) Create a database table called "roles_uicontrols" that holds the relationships
  D) Change the back-end to grant the user the admin role  
     NOTE:  Normally, this would come from some other service
     
@@ -42,7 +48,70 @@ Implementation using approach 2
 
 Procedure
 ---------
- 
+ 1. Add the database tables to the project
+    a. Add this file:  angularApp1/backend/src/main/resources/db/migration/R__security.sql
+	   NOTE:  It must start with a capital R to be a repeatable migration 
+	   
+	b. Fill-in this file with this:
+			--------------------------------------------------------------------------------
+			-- Filename:  r__security.sql
+			--
+			-- NOTE:  This is a repeatable migration file because this data does not change
+			--        So, if anything changes in this file, this script is re-executed on startup
+			--------------------------------------------------------------------------------
+			drop table if exists roles_uicontrols;
+			drop table if exists uicontrols;
+			drop table if exists roles;
+
+
+			-- Create this table:  roles
+			create table roles (
+			  id   integer not null,
+			  name varchar(50) not null,
+			  primary key(id)
+			);
+
+			comment on table  roles       is 'This table holds all of the application roles used by the web app.';;
+			comment on column roles.id   is 'This number uniquely identifies this role.';
+			comment on column roles.name is 'This identifies the name of the role.';
+
+
+
+			-- Create this table:  uicontrols
+			create table uicontrols (
+			   id   integer not null,
+			   name varchar(50) not null,
+			   primary key(id)
+			);
+
+			comment on table  uicontrols       is 'This table holds all of the application roles used by the web app.';;
+			comment on column uicontrols.id   is 'This number uniquely identifies this UI feature.';
+			comment on column uicontrols.name is 'This identifies the name of the UI feature.';
+
+
+
+
+			-- Create this table:  roles_uicontrols
+			create table roles_uicontrols (
+				roles_id      integer not null,
+				uicontrols_id integer not null
+			);
+			comment on table  roles_uicontrols   is 'This table holds the relationships between the roles and uicontrols tables.';
+
+
+	b. Run flyway migrate
+	   unix> cd ~/intellijProjects/angularApp1/backend
+	   unix> mvn flyway:migrate
+	
+	c. Verify that it worked
+	   1) Open up your Intellij Database Console
+	   2) Refresh the databaes console
+	   3) Look at the database tables
+	      -- You should see roles, roles_uicontrols, and uicontrols as new tables
+		  
+	   
+	
+ 2. 
  
  
  
