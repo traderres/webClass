@@ -86,4 +86,223 @@ Procedure
     c. Navigate to different pages
        -- The REST call should only be invoked *ONCE*
        
+ 
+ 
+ 3. Optimize:  Edit the UserService so that it sets the pageRoutes as a Map *once*
+	a. Edit user.services.ts
+	b. Change the getUserInfo() method so that when the REST call returns, it creates the Map *once*
+
+		  /*
+		   * Return an observable that holds an object with information about the user -- e.g., user's name, user's role
+		   */
+		  public getUserInfo(): Observable<UserInfoDTO>  {
+
+			if (this.cachedObservable != null) {
+			  // This observable is in the cache.  So, return it from the cache
+			  return this.cachedObservable;
+			}
+
+			const restUrl = environment.baseUrl + '/api/users/me';
+
+
+			// Setup this observable so that it calls shareReplay(1) to replay the previous value
+			this.cachedObservable = this.httpClient.get <UserInfoDTO>(restUrl).pipe(
+			  map( (userInfoDTO: UserInfoDTO) => {
+
+				// Convert the userInfoDTO.pageRoutes into a map
+				// So that the PageGuard does not have to do it repeatedly
+				let mapPageRoutes: Map<string, boolean> = new Map(Object.entries(userInfoDTO.pageRoutes));
+				userInfoDTO.pageRoutes = mapPageRoutes;
+				return userInfoDTO;
+			  }),
+			  shareReplay(1),
+			  catchError(err => {
+				console.error('There was an error getting user info.   Error is ', err);
+
+				// Clear the cache
+				this.cachedObservable = null;
+
+				return EMPTY;
+			  }));
+
+			return this.cachedObservable;
+		  }
+		 
+		 
+		 
+	When finished, the user.service.ts looks *something* like this:
+		import { Injectable } from '@angular/core';
+		import {HttpClient} from "@angular/common/http";
+		import {EMPTY, Observable, of} from "rxjs";
+		import {UserInfoDTO} from "../models/user-info-dto";
+		import {environment} from "../../environments/environment";
+		import {catchError, map, shareReplay} from "rxjs/operators";
+
+
+		@Injectable({
+		  providedIn: 'root'
+		})
+		export class UserService {
+
+		  constructor(private httpClient: HttpClient) { }
+
+		  // Internal cache of the userInfo object
+		  private cachedObservable: Observable<UserInfoDTO> | null = null;
+
+		  /*
+		   * Return an observable that holds an object with information about the user -- e.g., user's name, user's role
+		   */
+		  public getUserInfo(): Observable<UserInfoDTO>  {
+
+			if (this.cachedObservable != null) {
+			  // This observable is in the cache.  So, return it from the cache
+			  return this.cachedObservable;
+			}
+
+			const restUrl = environment.baseUrl + '/api/users/me';
+
+
+			// Setup this observable so that it calls shareReplay(1) to replay the previous value
+			this.cachedObservable = this.httpClient.get <UserInfoDTO>(restUrl).pipe(
+			  map( (userInfoDTO: UserInfoDTO) => {
+
+				// Convert the userInfoDTO.pageRoutes into a map
+				// So that the PageGuard does not have to do it repeatedly
+				let mapPageRoutes: Map<string, boolean> = new Map(Object.entries(userInfoDTO.pageRoutes));
+				userInfoDTO.pageRoutes = mapPageRoutes;
+				return userInfoDTO;
+			  }),
+			  shareReplay(1),
+			  catchError(err => {
+				console.error('There was an error getting user info.   Error is ', err);
+
+				// Clear the cache
+				this.cachedObservable = null;
+
+				return EMPTY;
+			  }));
+
+			return this.cachedObservable;
+		  }
+
+
+
+		  /*
+		   * Return an observable that holds an object with information about the user -- e.g., user's name, user's role
+		   */
+		  public getUserInfoHardCoded(): Observable<UserInfoDTO>  {
+
+			let userInfo: UserInfoDTO = new UserInfoDTO();
+
+			userInfo.name = 'John Smith';
+			userInfo.pageRoutes = new Map<string, boolean>([
+			  ['page/addReport', false],
+			  ['page/longReport', true],
+			  ['page/viewReports', true],
+			  ['page/searchResults', true]
+			 ]);
+
+
+			// Return the hard-coded observable
+			return of(userInfo);
+		  }
+		}
+
+
+ 4. Change the PageGuard to *not* convert the userInfoDTO.pageRoutes to a Map every time
+    a. Edit page.guard.ts
+	b. Change the canActivate() method so that it calls userInfoDTO.pageRoutes.get(nextUrl)   
+
+		  /*
+		   * Determines if the user proceeds to the next.routeUrl or is redirected to 403
+		   */
+		  public canActivate(next: ActivatedRouteSnapshot, state: RouterStateSnapshot): Observable<boolean> {
+
+			return this.userService.getUserInfo().pipe(
+			  map((userInfoDTO: UserInfoDTO) => {
+
+				// Get the next url from the routeConfig
+				let nextUrl: string | undefined = next.routeConfig?.path;
+				if (! nextUrl) {
+				  return false;
+				}
+
+				// Check if the url is allowed
+				let routeAllowed: boolean | undefined = userInfoDTO.pageRoutes.get(nextUrl);
+				if (! routeAllowed) {
+				  this.router.navigate(['page/403']).then();
+
+				  // Return false so that the router will not route the user to the new page
+				  return false;
+				}
+
+
+				// The route is allowed.  So, proceed
+				return true;
+			  }));
+
+		  }
+
+
+    When finished, the entire page.guard.ts looks *something* like this:
+		import { Injectable } from '@angular/core';
+		import {CanActivate, ActivatedRouteSnapshot, RouterStateSnapshot, Router} from '@angular/router';
+		import {Observable} from 'rxjs';
+		import {UserService} from "../services/user.service";
+		import {UserInfoDTO} from "../models/user-info-dto";
+		import {map} from "rxjs/operators";
+
+		@Injectable({
+		  providedIn: 'root'
+		})
+		export class PageGuard implements CanActivate {
+
+
+		  constructor(private router: Router,
+					  private userService: UserService)
+		  { }
+
+
+		  /*
+		   * Determines if the user proceeds to the next.routeUrl or is redirected to 403
+		   */
+		  public canActivate(next: ActivatedRouteSnapshot, state: RouterStateSnapshot): Observable<boolean> {
+
+			return this.userService.getUserInfo().pipe(
+			  map((userInfoDTO: UserInfoDTO) => {
+
+				// Get the next url from the routeConfig
+				let nextUrl: string | undefined = next.routeConfig?.path;
+				if (! nextUrl) {
+				  return false;
+				}
+
+				// Check if the url is allowed
+				let routeAllowed: boolean | undefined = userInfoDTO.pageRoutes.get(nextUrl);
+				if (! routeAllowed) {
+				  this.router.navigate(['page/403']).then();
+
+				  // Return false so that the router will not route the user to the new page
+				  return false;
+				}
+
+
+				// The route is allowed.  So, proceed
+				return true;
+			  }));
+
+		  }
+
+		}
+		
+		
+ 5. Verify it works
+    a. Set a breakpoint in your PageGuard.canActivate()
+    b. Startup the 'Full WebApp' in debug mode
+    c. Navigate to different pages
+       -- The REST call should only be invoked *ONCE*
+	   -- The userInfoDTo.pageRoutes should appear as a Map in the debutgger
+	   
+	   
        
+ 
