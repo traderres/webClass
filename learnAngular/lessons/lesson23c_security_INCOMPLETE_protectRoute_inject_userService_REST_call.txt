@@ -36,16 +36,19 @@ Implementation using approach 2
  B) Change the back-end to grant the user the admin role  
     NOTE:  Normally, this would come from some other service
     
- C) Change the back-end UserInfo object so that it includes a map<String, boolean> routesAllowed
-       private Map<String, boolean> routesAllowed;
+ C) Add a map to the back-end UserInfo object (to hold the map of so that it includes a map<String, boolean> routesAllowed
+       private Map<String, Boolean> uiControlAccessMap;
  
- D) Configure the back-end to populate the UserInfo.routesAllowed object on authentication
+ D) Configure the back-end to populate the UserInfo.uiControlAccessMap object on authentication
     -- The key is the route
     -- The value holds true if the user is allowed to see that route.  False otherwise
  
  E) Create a REST call that returns this information back to the front-end
+    GET /api/users/me
+	
  F) Change the front-end UserService to invoke the real REST call
- H) Change the front-end UserService so it caches the data (so it does *NOT* invoke the same REST call multiple itmes)
+ 
+ G) Change the front-end UserService so it caches the data (so it does *NOT* invoke the same REST call multiple itmes)
 
 
 Procedure
@@ -92,6 +95,7 @@ Procedure
 
 
 
+
 		-- Create this table:  roles_uicontrols
 		create table roles_uicontrols (
 			role_id      integer not null,
@@ -103,8 +107,8 @@ Procedure
 		--
 		-- Add the security records
 		--
-		insert into roles(id, name) values (1, 'admin');
-		insert into roles(id, name) values(2, 'reader');
+		insert into roles(id, name) values (1, 'ADMIN');
+		insert into roles(id, name) values(2, 'READER');
 
 
 		--
@@ -143,7 +147,295 @@ Procedure
 		  
 	   
 	
- 2. Grant th
+ 2. Grant the ADMIN role to the hard-coded user
+    a. Edit MyAuthenticationmanager.loadUserDetailsForDevelopment()
+	   Add this line:
+             grantedAuthorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+
+       When completed, the method should look something like this:
+			public UserDetails loadUserDetailsForDevelopment(Authentication authentication) {
+
+				final String userUID = "my_test_user";
+				final String userDN = "3.2.12.144549.1.9.1=#161760312e646576,CN=my_test_user,OU=Hosts,O=ZZTop.Org,C=ZZ";
+
+				// Create a list of granted authorities
+				List<GrantedAuthority> grantedAuthorities = new ArrayList<>();
+				grantedAuthorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+	
+				// Create a bogus UserInfo object
+				// NOTE:  I am hard-coding the user's userid=25
+				UserInfo anonymousUserInfo = new UserInfo()
+						.withId(25)
+						.withUsernameUID(userUID)
+						.withUsernameDn(userDN)
+						.withGrantedAuthorities(grantedAuthorities);
+				return anonymousUserInfo;
+			}
+	   
+	   
+  3. Edit UserInfo.java
+     a. Edd this private class variable:
+	     	private Map<String, Boolean> uiControlAccessMap;
  
+     b. Add this getter:
+			public Map<String, Boolean> getUiControlAccessMap() {
+				return uiControlAccessMap;
+			}
+     
+	 c. Add this with method
+			public UserInfo withUiControlAccessMap(Map<String, Boolean> aAccessMap) {
+				this.uiControlAccessMap = aAccessMap;
+				return this;
+			}
+
+ 4. Add a method to the DatabaseService that will get the map of UI controls
+    a. Edit the DatabaseService.java
+	b. Add this method:
+	
+		public Map<String, Boolean> getUiControlAccessMap(List<GrantedAuthority> aGrantedRoleAuthorities) {
+			// Construct the SQL to get list of all ui-contols with true if allowed and false if not allowed
+			String sql =
+					"-- Get the uicontrols in this role\n" +
+					"select distinct ui.name, true as access\n" +
+					"from uicontrols ui\n" +
+					"         join roles r on (r.name IN ( :roleList ))\n" +
+					"         join roles_uicontrols ru ON (r.id=ru.role_id) AND (ui.id=ru.uicontrol_id)\n" +
+					"\n" +
+					"UNION\n" +
+					"\n" +
+					"-- Get the roles not in this role\n" +
+					"select name, false as access\n" +
+					"from uicontrols ui\n" +
+					"where ui.id NOT IN (\n" +
+					"    select distinct ui.id\n" +
+					"    from uicontrols ui\n" +
+					"        join roles r on (r.name IN (  :roleList ))\n" +
+					"        join roles_uicontrols ru ON (r.id=ru.role_id) AND (ui.id=ru.uicontrol_id)\n" +
+					")";
+
+
+			// Convert the list of granted authority objects into a list of strings (and strip-off the _ROLE)
+			List<String> roleList = aGrantedRoleAuthorities.stream().map(auth -> {
+				String authString = auth.toString();
+				if (authString.startsWith("ROLE_")) {
+					return authString.substring(5);
+				}
+				else {
+					return authString;
+				}
+			}).collect(Collectors.toList());
+
+			// Create a parameter map (required to use bind variables with postgres IN clause)
+			Map<String, Object> paramMap = new HashMap<>();
+			paramMap.put("roleList", roleList);
+
+
+			// Execute the query
+			NamedParameterJdbcTemplate np = new NamedParameterJdbcTemplate(this.dataSource);
+			SqlRowSet rs = np.queryForRowSet(sql, paramMap);
+
+			// Create the map
+			Map<String, Boolean> accessMap = new HashMap<>();
+
+			// Loop through the SqlRowSet, putting the results into a map
+			while (rs.next() ) {
+				accessMap.put( rs.getString("name"), rs.getBoolean("access") );
+			}
+
+			// Return the map
+			return accessMap;
+		}
+			
+			
+ 5. Change the MyAuthenticationManager so it sets this information
+    a. Inject the DatabaseService
+	    @Resource
+    	private DatabaseService databaseService;
+	
+	b. Change this method:  loadUserDetailsForDevelopment() 
+			public UserDetails loadUserDetailsForDevelopment(Authentication authentication) {
+
+				final String userUID = "my_test_user";
+				final String userDN = "3.2.12.144549.1.9.1=#161760312e646576,CN=my_test_user,OU=Hosts,O=ZZTop.Org,C=ZZ";
+
+				// Create a list of granted authorities
+				List<GrantedAuthority> grantedAuthorities = new ArrayList<>();
+				grantedAuthorities.add(new SimpleGrantedAuthority("ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS"));
+				grantedAuthorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+
+				// Get the user's granted access map
+				Map<String, Boolean> uiControlAccesMap = databaseService.getUiControlAccessMap(grantedAuthorities);
+
+				// Create a bogus UserInfo object
+				// NOTE:  I am hard-coding the user's userid=25
+				UserInfo anonymousUserInfo = new UserInfo()
+						.withId(25)
+						.withUsernameUID(userUID)
+						.withUsernameDn(userDN)
+						.withGrantedAuthorities(grantedAuthorities)
+						.withUiControlAccessMap(uiControlAccesMap);
+				return anonymousUserInfo;
+			}
+
+
+	b. Change this method:  loadUserDetailsFromRealSource() 
+
+			private UserDetails loadUserDetailsFromRealSource(Authentication authentication) {
+				logger.debug("loadUserDetailsFromRealSource() started authentication={}", authentication);
+				String userDN;
+				PreAuthenticatedAuthenticationToken token = null;
+
+				if (authentication.getPrincipal() instanceof String) {
+					userDN = authentication.getPrincipal().toString();
+				} else if (authentication.getPrincipal() instanceof UserInfo) {
+					return (UserDetails) authentication.getPrincipal();
+				} else {
+					token = ( PreAuthenticatedAuthenticationToken ) authentication.getPrincipal();
+					userDN = token.getName();
+				}
+
+				logger.debug("userDN={}", userDN);
+
+				// Get the user's UID from the CN=<...>
+				try {
+					String userUID = getCnValueFromLongDnString(userDN);
+
+					// Get the list of roles from the header
+					List<GrantedAuthority> grantedRoleAuthorities = getAuthoritiesFromHeaderValue();
+
+					if ((grantedRoleAuthorities != null) && (grantedRoleAuthorities.size() == 0)) {
+						// This user has no roles so throw a runtime exception
+						throw new RuntimeException("No roles were found for this user: " + userUID);
+					}
+					logger.info("{} successfully logged-in.", userUID);
+
+					// Get the user's userid from the database
+					int userId = 25;
+
+					// Get the user's granted access map
+					Map<String, Boolean> uiControlAccesMap = databaseService.getUiControlAccessMap(grantedRoleAuthorities);
+
+					// Create the UserInfo object (using the database id retrieved)
+					return new UserInfo()
+							.withId(userId)
+							.withUsernameDn(userDN)
+							.withUsernameUID(userUID)
+							.withGrantedAuthorities(grantedRoleAuthorities)
+							.withUiControlAccessMap(uiControlAccesMap);
+				} catch (Exception e) {
+					throw new UsernameNotFoundException("Exception raised in loadUserDetailsFromRealSource():  This user will definitely not login", e);
+				}
+			}
+			
  
- 
+ 6.  Create the back-end DTO object that will hold user information returned back to the front-end
+     a. Right-click on backend/src/main/java/com/lessons/models -> New Class
+	    Class Name:  GetUserInfoDTO
+	 
+	 b. Copy this to your newly-created class:
+		package com.lessons.models;
+
+		import com.fasterxml.jackson.annotation.JsonProperty;
+
+		import java.util.Map;
+
+		public class GetUserInfoDTO {
+			@JsonProperty("name")
+			private final String name;
+
+			@JsonProperty("access_map")
+			private final Map<String, Boolean> accessMap;
+
+
+			public GetUserInfoDTO(String aName, Map<String, Boolean> aAccessMap) {
+				this.name = aName;
+				this.accessMap = aAccessMap;
+			}
+
+			public String getName() {
+				return name;
+			}
+
+			public Map<String, Boolean> getAccessMap() {
+				return accessMap;
+			}
+		}
+
+
+ 7. Create the REST call that will populate this DTO and return it back to the front-end
+    a. Right-click on backend/src/main/java/com/lessons/controllers -> New Class
+	   Class Name:  UserController
+	 
+	 b. Copy this to your newly-created class:
+			package com.lessons.controllers;
+
+			import com.lessons.models.GetUserInfoDTO;
+			import com.lessons.services.UserService;
+			import org.slf4j.Logger;
+			import org.slf4j.LoggerFactory;
+			import org.springframework.http.HttpStatus;
+			import org.springframework.http.ResponseEntity;
+			import org.springframework.stereotype.Controller;
+			import org.springframework.web.bind.annotation.RequestMapping;
+			import org.springframework.web.bind.annotation.RequestMethod;
+
+			import javax.annotation.Resource;
+			import java.util.Map;
+
+			@Controller("com.lessons.controllers.UserController")
+			public class UserController {
+				private static final Logger logger = LoggerFactory.getLogger(UserController.class);
+
+				@Resource
+				private UserService userService;
+
+				/**
+				 * GET /api/users/me REST endpoint that returns information about the user
+				 */
+				@RequestMapping(value = "/api/users/me", method = RequestMethod.GET, produces = "application/json")
+				public ResponseEntity<?> getUserInfo() {
+
+					// Get the user's logged-in name
+					String loggedInUsername = userService.getLoggedInUserName();
+
+					// Get the user's access map
+					Map<String, Boolean> accessMap = userService.getAccessMapForUser();
+
+					// Create the GetUserInfoDTO object
+					GetUserInfoDTO dto = new GetUserInfoDTO(loggedInUsername, accessMap);
+
+					// Return a response of 200 and the DTO object with information
+					return ResponseEntity.status(HttpStatus.OK).body(dto);
+				}
+			}
+
+ 8. Try it out
+    a. Startup the back-end
+	b. Startup Postman
+	c. Invoke a REST call to GET /api/users/me
+	   Headers:  Accept  Application/json
+	   Press "Send"
+	   
+	d. Change the MyAuthenticationManager.loadUserDetailsForDevelopment() so that the user only has the READER role
+	   Change this line:
+	          grantedAuthorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+
+       To this:
+	          grantedAuthorities.add(new SimpleGrantedAuthority("ROLE_READER"));
+			  
+   e. Restart the back-end 
+   f. Press "Send"
+      -- You should get a different access map
+	  -- You should see this:
+			{
+				"name": "my_test_user",
+				"access_map": {
+					"/page/viewReports": true,
+					"/page/longReport": true,
+					"/page/searchResults": true,
+					"/page/addReport": false
+				}
+			}
+	
+	
+	
