@@ -28,22 +28,24 @@ Problem:  There could be lots of roles and lots of pages = Lots of relationships
 
 Implementation using approach 2
 -------------------------------
- A) Create a database table called "roles"            that holds the roles -- e.g., admin, reader
- B) Create a database table called "uicontrols"       that holds the routes/controls (one route for each page)
- C) Create a database table called "roles_uicontrols" that holds the relationships
- D) Change the back-end to grant the user the admin role  
+ A) Create a database tables
+      Create table called "roles"            that holds the roles -- e.g., admin, reader
+      Create table called "uicontrols"       that holds the routes/controls (one route for each page)
+      Create table called "roles_uicontrols" that holds the relationships
+
+ B) Change the back-end to grant the user the admin role  
     NOTE:  Normally, this would come from some other service
     
- E) Change the back-end UserInfo object so that it includes a map<String, boolean> routesAllowed
+ C) Change the back-end UserInfo object so that it includes a map<String, boolean> routesAllowed
        private Map<String, boolean> routesAllowed;
  
- F) Configure the back-end to populate the UserInfo.routesAllowed object on authentication
+ D) Configure the back-end to populate the UserInfo.routesAllowed object on authentication
     -- The key is the route
     -- The value holds true if the user is allowed to see that route.  False otherwise
  
- G) Create a REST call that returns this information back to the front-end
- H) Change the front-end UserService to invoke the real REST call
- I) Change the front-end UserService so it caches the data (so it does *NOT* invoke the same REST call multiple itmes)
+ E) Create a REST call that returns this information back to the front-end
+ F) Change the front-end UserService to invoke the real REST call
+ H) Change the front-end UserService so it caches the data (so it does *NOT* invoke the same REST call multiple itmes)
 
 
 Procedure
@@ -53,50 +55,80 @@ Procedure
 	   NOTE:  It must start with a capital R to be a repeatable migration 
 	   
 	b. Fill-in this file with this:
-			--------------------------------------------------------------------------------
-			-- Filename:  r__security.sql
-			--
-			-- NOTE:  This is a repeatable migration file because this data does not change
-			--        So, if anything changes in this file, this script is re-executed on startup
-			--------------------------------------------------------------------------------
-			drop table if exists roles_uicontrols;
-			drop table if exists uicontrols;
-			drop table if exists roles;
+		--------------------------------------------------------------------------------
+		-- Filename:  r__security.sql
+		--
+		-- NOTE:  This is a repeatable migration file because this data does not change
+		--        So, if anything changes in this file, this script is re-executed on startup
+		--------------------------------------------------------------------------------
+		drop table if exists roles_uicontrols;
+		drop table if exists uicontrols;
+		drop table if exists roles;
 
 
-			-- Create this table:  roles
-			create table roles (
-			  id   integer not null,
-			  name varchar(50) not null,
-			  primary key(id)
-			);
+		-- Create this table:  roles
+		create table roles (
+		  id   integer not null,
+		  name varchar(50) not null,
+		  primary key(id)
+		);
 
-			comment on table  roles       is 'This table holds all of the application roles used by the web app.';;
-			comment on column roles.id   is 'This number uniquely identifies this role.';
-			comment on column roles.name is 'This identifies the name of the role.';
-
-
-
-			-- Create this table:  uicontrols
-			create table uicontrols (
-			   id   integer not null,
-			   name varchar(50) not null,
-			   primary key(id)
-			);
-
-			comment on table  uicontrols       is 'This table holds all of the application roles used by the web app.';;
-			comment on column uicontrols.id   is 'This number uniquely identifies this UI feature.';
-			comment on column uicontrols.name is 'This identifies the name of the UI feature.';
+		comment on table  roles       is 'This table holds all of the application roles used by the web app.';;
+		comment on column roles.id   is 'This number uniquely identifies this role.';
+		comment on column roles.name is 'This identifies the name of the role.';
 
 
 
+		-- Create this table:  uicontrols
+		create table uicontrols (
+		   id   integer not null,
+		   name varchar(50) not null,
+		   primary key(id)
+		);
 
-			-- Create this table:  roles_uicontrols
-			create table roles_uicontrols (
-				roles_id      integer not null,
-				uicontrols_id integer not null
-			);
-			comment on table  roles_uicontrols   is 'This table holds the relationships between the roles and uicontrols tables.';
+		comment on table  uicontrols       is 'This table holds all of the application roles used by the web app.';;
+		comment on column uicontrols.id   is 'This number uniquely identifies this UI feature.';
+		comment on column uicontrols.name is 'This identifies the name of the UI feature.';
+
+
+
+		-- Create this table:  roles_uicontrols
+		create table roles_uicontrols (
+			role_id      integer not null,
+			uicontrol_id integer not null
+		);
+		comment on table  roles_uicontrols   is 'This table holds the relationships between the roles and uicontrols tables.';
+
+
+		--
+		-- Add the security records
+		--
+		insert into roles(id, name) values (1, 'admin');
+		insert into roles(id, name) values(2, 'reader');
+
+
+		--
+		-- Add the uicontrols records
+		--
+		insert into uicontrols(id, name) values(1001, '/page/viewReports');
+		insert into uicontrols(id, name) values(1002, '/page/addReport');
+		insert into uicontrols(id, name) values(1003, '/page/longReport');
+		insert into uicontrols(id, name) values(1004, '/page/searchResults');
+
+
+		-- Assign ui controls for the 'admin' role
+		insert into roles_uicontrols(role_id, uicontrol_id) values(1, 1001);
+		insert into roles_uicontrols(role_id, uicontrol_id) values(1, 1002);
+		insert into roles_uicontrols(role_id, uicontrol_id) values(1, 1003);
+		insert into roles_uicontrols(role_id, uicontrol_id) values(1, 1004);
+
+
+		-- Assign ui controls for the 'reader' role  (cannot get to addReport)
+		insert into roles_uicontrols(role_id, uicontrol_id) values(2, 1001);
+		insert into roles_uicontrols(role_id, uicontrol_id) values(2, 1003);
+		insert into roles_uicontrols(role_id, uicontrol_id) values(2, 1004);
+
+
 
 
 	b. Run flyway migrate
@@ -111,7 +143,7 @@ Procedure
 		  
 	   
 	
- 2. 
+ 2. Grant th
  
  
  
