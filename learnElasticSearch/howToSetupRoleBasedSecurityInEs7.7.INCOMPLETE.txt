@@ -1,0 +1,83 @@
+How to setup Free Role-Based Security with ElasticSearch 7.7
+------------------------------------------------------------
++ Available for free starting with ES 6.8
+
+
+Assumptions
+ A) You have ElasticSearch 7.7 installed
+    NOTE:  On Centos Linux, it would be installed to here:  /usr/share/elasticsearch 
+
+ B) You have Kibana 7.7 installed
+    NOTE:  On Centos Linux, it would be installed to here:  /usr/share/kibana
+
+
+References
+----------
+https://www.elastic.co/blog/getting-started-with-elasticsearch-security
+https://asynchttpclient.github.io/async-http-client/auth.html
+https://www.elastic.co/blog/attribute-based-access-control-with-xpack
+
+
+
+
+Procedure
+---------
+ 1. Configure ElasticSearch to turn on xpack security and TLS
+    NOTE:  This requires that xpack.security.transport.ssl is enabled
+
+    a. Create the certificate
+       unix> /usr/share/elasticsearch 
+       unix> sudo  bin/elasticsearch-certutil cert -out config/elastic-certificates.p12 -pass ""
+
+       Directory /usr/share/elasticsearch/config does not exist. Do you want to create it?   Y
+    
+       -- This should have created the certificates here:
+               /usr/share/elasticsearch/config/elastic-certificates.p12
+
+   b. Copy the file to the /etc/elasticsearch/elastic-certificate.p12
+      unix> sudo cp /usr/share/elasticsearch/config/elastic-certificates.p12  /etc/elasticsearch/elastic-certificate.p12
+ 
+   c. Grant permissions so your service can see the file
+      unix> sudo chmod ugo+rw  /etc/elasticsearch/elastic-certificate.p12
+      unix> sudo chmod ugo+x /etc/elasticsearch
+
+
+
+2. Edit your ElasticSearch yml file by turning on security and setting the p12 certificate path
+   unix> sudo vi /etc/elasticsearch/elasticsearch.yml
+
+	# Turn on basic xpack security
+	xpack.security.enabled: true
+	xpack.security.transport.ssl.enabled: true
+	xpack.security.transport.ssl.verification_mode: certificate
+	xpack.security.transport.ssl.keystore.path: /etc/elasticsearch/elastic-certificate.p12
+	xpack.security.transport.ssl.truststore.path: /etc/elasticsearch/elastic-certificate.p12
+
+
+
+3. Restart your elasticsearch service
+   unix> sudo systemctl restart elasticsearch
+
+
+4. Verify that security is set to basic
+   unix> sudo tail -2000f /var/log/elasticsearch/elasticsearch.log
+
+   You should see the line that says "Security is enabled"
+
+	[2021-02-10T11:22:07,621][INFO ][o.e.h.AbstractHttpServerTransport] [mycentos8] publish_address {10.1.200.3:9201}, bound_addresses {[::]:9201}
+	[2021-02-10T11:22:07,621][INFO ][o.e.n.Node               ] [mycentos8] started
+	[2021-02-10T11:22:07,775][INFO ][o.e.l.LicenseService     ] [mycentos8] license [ec4feaf3-c054-4235-b166-ac86fd2a13ff] mode [basic] - valid
+	[2021-02-10T11:22:07,776][INFO ][o.e.x.s.s.SecurityStatusChangeListener] [mycentos8] Active license is now [BASIC]; Security is enabled
+	[2021-02-10T11:22:07,782][INFO ][o.e.g.GatewayService     ] [mycentos8] recovered [4] indices into cluster_state
+	[2021-02-10T11:22:08,108][INFO ][o.e.c.r.a.AllocationService] [mycentos8] Cluster health status changed from [RED] to [GREEN] (reason: [shards started [[.kibana_task_manager_1][0], [.kibana_1][0]]]).
+
+
+
+
+1. Install ES   
+   a. In the elasticsearch.yaml
+        xpack.security.enabled: true
+
+
+2. Install Kibana
+
