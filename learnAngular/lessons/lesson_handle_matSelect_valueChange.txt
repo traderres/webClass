@@ -1,0 +1,95 @@
+How to Handle a Value Change in a mat-select Drop Down
+------------------------------------------------------
+Problem:  I want to run some typescript code when a user clicks in my mat-select box
+Solution: There are multiple approaches
+
+
+
+Suppose your HTML looks like this
+---------------------------------
+  <form #form="ngForm" novalidate>
+
+        <mat-form-field appearance="fill" style="width: 90%">
+            <mat-label>Select Rule</mat-label>
+
+            <mat-select name="ruleid" [(ngModel)]="this.data.ruleId" required>
+              <mat-option [value]=null>-Rule-</mat-option>
+              <mat-option [value]="1">Rule 1</mat-option>
+              <mat-option [value]="2">Rule 2</mat-option>
+              <mat-option [value]="3">Rule 3</mat-option>
+              <mat-option [value]="4">Rule 4</mat-option>
+            </mat-select>
+      </mat-form-field>
+
+   </form>
+
+
+You want this method to be called when a user chages the ruleId
+---------------------------------------------------------------
+  public ruleSelected(aSelectedValue: any): void {
+    console.log('ruleSelected()  event=', aSelectedValue);
+  }
+  
+
+
+
+Approach 1: Use Template Driven Approach by setting (valueChange) event handler
+-------------------------------------------------------------------------------
+ 1. Add this to your mat-select tag:
+          (valueChange)="this.ruleSelected($event)"
+    
+    So, your <mat-select> tag is changed to this:
+          <mat-select name="ruleid" [(ngModel)]="this.data.ruleId" required (valueChange)="this.ruleSelected($event)">
+          
+
+
+
+Approach 2: Use Reactive Approach by listening for valueChanges
+---------------------------------------------------------------
+ 1. Change your <form> tag so it has [formGroup]="form"
+        <form [formGroup]="form" novalidate>
+        
+        
+ 2. Change your mat-select control so it has formControlName="ruleId">
+    NOTE:  We also remove the required tag
+    
+         <mat-select name="ruleid" formControlName="ruleId">
+            <mat-option [value]=null>-Rule-</mat-option>
+            <mat-option [value]="1">Rule 1</mat-option>
+            <mat-option [value]="2">Rule 2</mat-option>
+            <mat-option [value]="3">Rule 3</mat-option>
+            <mat-option [value]="4">Rule 4</mat-option>
+        </mat-select>
+ 
+ 
+ 3. In your TypeScript class, add this public form
+        public form = new FormGroup({
+            "ruleId": new FormControl("", Validators.required)
+        });
+ 
+ 
+ 4. Add this private subscription variable
+        private subscription1: Subscription;
+ 
+ 
+ 5. In your ngOnInit() method add this:
+      this.subscription1 = this.form.controls.ruleId.valueChanges.subscribe( value => {
+            // The user selected a different rule
+            this.ruleSelected(value);
+      });
+      
+      
+ 6. Make sure you unsubscribe in the ngOnDestroy():
+      public ngOnDestroy(): void {
+        // Manually unsubscribe from this subscription to avoid memory leaks
+        this.subscription1.unsubscribe();
+      }
+
+
+ 7. Make sure your TypeScript class implements onInit and onDestroy
+        export class MyFormComponent implements OnInit, OnDestroy {
+    
+        }
+
+ 
+ 
