@@ -1,0 +1,114 @@
+How to Cache a Component
+------------------------
+Problem:  User visits a grid page with lots of information
+          User scrolls down in the list
+          User visits details page       
+          User returns to grid page
+          -- Problem: Angular re-creates the grid page when I want Angular to restore the grid page from cache
+
+Solution: Cache the grid page
+
+
+References
+----------
+https://itnext.io/cache-components-with-angular-routereusestrategy-3e4c8b174d5f
+
+
+
+Procedure
+---------
+ 1. Create the cache-route-reuse-strategy class
+    unix> cd ~/intellijProjects/angularApp1/frontend
+    unix> ng generate class utilities/cache-route-reuse-strategy --skipTests
+    
+    
+ 2. Edit the cache-route-reuse-strategy.ts
+    a. Edit frontend/src/app/utilities/cache-route-reuse-strategy.ts
+    
+    b. Replace its contents with this:
+        import {ActivatedRouteSnapshot, DetachedRouteHandle, RouteReuseStrategy} from "@angular/router";
+
+        export class CacheRouteReuseStrategy implements RouteReuseStrategy {
+
+          private storedRouteHandles = new Map<string, DetachedRouteHandle>();
+
+          private searchResultsUrl: string = 'page/search-results';     // Replace with the path of your search results page
+          private searchDetailsUrl: string = 'page/search-details';     // Replace with the path of your details page
+
+
+          private allowRetriveCache : {[key: string]: boolean } = {
+            searchResultsUrl: true
+          };
+
+
+          public shouldReuseRoute(before: ActivatedRouteSnapshot, curr: ActivatedRouteSnapshot): boolean {
+            if ((this.getPath(before) === this.searchDetailsUrl) && (this.getPath(curr) === this.searchResultsUrl)) {
+              // The user is navigating from search-details back to search-results.  So, show the cached page
+              this.allowRetriveCache[this.searchResultsUrl] = true;
+            } else {
+              this.allowRetriveCache[this.searchResultsUrl] = false;
+            }
+            return before.routeConfig === curr.routeConfig;
+          }
+
+          public retrieve(route: ActivatedRouteSnapshot): DetachedRouteHandle | null {
+            return this.storedRouteHandles.get(this.getPath(route)) as DetachedRouteHandle;
+          }
+
+          public shouldAttach(route: ActivatedRouteSnapshot): boolean {
+            const path = this.getPath(route);
+            if (this.allowRetriveCache[path]) {
+              return this.storedRouteHandles.has(this.getPath(route));
+            }
+
+            return false;
+          }
+
+          public shouldDetach(route: ActivatedRouteSnapshot): boolean {
+            const path = this.getPath(route);
+            if (this.allowRetriveCache.hasOwnProperty(path)) {
+              return true;
+            }
+            return false;
+          }
+
+          public store(route: ActivatedRouteSnapshot, detachedTree: DetachedRouteHandle): void {
+            this.storedRouteHandles.set(this.getPath(route), detachedTree);
+          }
+
+          private getPath(route: ActivatedRouteSnapshot): string {
+            if (route.routeConfig !== null && route.routeConfig.path !== null) {
+              return <string>route.routeConfig.path;
+            }
+            return '';
+          }
+
+
+        }
+    
+ 
+ 3. Register your class in app.module.ts as a provider
+    a. Edit app.module.ts
+    
+    b. Change the providers section so it has these
+        providers: [{
+          provide: RouteReuseStrategy,
+          useClass: CacheRouteReuseStrategy
+        }]
+
+    c. Add the imports
+           import {RouteReuseStrategy, RouterModule, Routes} from "@angular/router";
+           import {CacheRouteReuseStrategy} from "./utilities/cache-route-reuse-strategy";
+    
+ 
+ 4. Try it out
+    a. Activate your debugger
+    b. Connect to the your web app
+    c. Go to your search results
+    d. Go to your search details page
+    e. navigate back to search results
+       -- The page should be restored
+       
+       NOTE:  The scrolling is not cached in Angular 9.0.5
+       
+       
