@@ -1,0 +1,134 @@
+Lesson:  Use Custom Validators with the formBuilder
+---------------------------------------------------
+Problem:  We want users to select 1 or 2 items from the multiple-select-authors
+Solutoin: Create a custom validator
+
+
+Procedure
+---------
+ 1. Add some hints to let the user know that they have to select 1 *or 2 authors
+    a. Edit the add-report2.component.html
+
+         
+    b. Add a hint and set it so it only appears when the control is pristine
+        <mat-hint *ngIf="myForm.controls?.authors?.pristine">Hint: Select 1 or 2 authors</mat-hint>     
+   
+    c. Remove the old <mat-error> tag
+    
+    d. Add these 2 <mat-error> tags:
+        <mat-error *ngIf="myForm.controls?.authors?.errors?.required">
+          Authors are required
+        </mat-error>
+
+        <mat-error *ngIf="myForm.controls?.authors?.errors?.custom_error">
+           <!-- Display the custom error set in the custom validator -->
+           {{myForm.controls?.authors?.errors?.custom_error}}
+        </mat-error>
+
+
+      When completed, the multiple-select authors looks like this:
+          <mat-form-field>
+            <mat-label>Choose Authors</mat-label>
+            <mat-hint *ngIf="myForm.controls?.authors?.pristine">Hint: Select 1 or 2 authors</mat-hint>
+
+            <!-- Multiple Select -->
+            <mat-select multiple formControlName="authors">
+              <mat-option [value]=10>Adam</mat-option>
+              <mat-option [value]=11>Ben</mat-option>
+              <mat-option [value]=12>Peter</mat-option>
+              <mat-option [value]=13>Justin</mat-option>
+            </mat-select>
+
+            <mat-error *ngIf="myForm.controls?.authors?.errors?.required">
+              Authors are required
+            </mat-error>
+
+            <mat-error *ngIf="myForm.controls?.authors?.errors?.custom_error">
+              <!-- Display the custom error set in the custom validator -->
+              {{myForm.controls?.authors?.errors?.custom_error}}
+            </mat-error>
+
+          </mat-form-field>
+ 
+
+
+2. Create a custom validator that lets the user know if the user selects more than N items
+     a. Create the validatorUtils
+        unix> cd ~/intellijProjects/angularApp1/frontend
+        unix> ng generate class validators/validatorUtils --skip-tests
+
+     b. Replace validate-utils.ts with this:
+     
+        import {FormControl, ValidatorFn} from "@angular/forms";
+
+        export class ValidatorUtils {
+
+          public static validateMultipleSelect(aMinSelected: number, aMaxSelected: number): ValidatorFn {
+            return (aControl: FormControl) => {
+
+              if (aControl.value == null) {
+                // The user has not selected any values -- so assume everything is valid
+                return null;
+              }
+
+              let totalValuesSelected = aControl.value.length;
+              if (totalValuesSelected < aMinSelected) {
+                return {'custom_error': `You must select atleast ${aMinSelected} entries.`};
+              }
+              else if (totalValuesSelected > aMaxSelected) {
+                return {'custom_error': `You must select at most ${aMaxSelected} entries.`};
+              }
+              else {
+                // The user selected a valid number of values -- so no error is returned
+                return null;
+              }
+
+            }
+          }  // end of static method
+
+        }
+  
+
+ 3. Change the formBuilder.group so that authors checks for required and uses the custom validator:
+    a. Edit add-report2.copmonent.ts
+    
+    b. Adjust the authors section so it looks like this:
+         authors:  ['',
+                      [
+                        Validators.required,
+                        ValidatorUtils.validateMultipleSelect(1,2)
+                      ]]
+       
+       When finished, the ngOnInit() method should look this:
+
+          public ngOnInit() {
+
+            this.myForm = this.formBuilder.group({
+              report_name: [null,
+                [
+                  Validators.required,
+                  Validators.minLength(2),
+                  Validators.maxLength(100)
+                ]],
+
+              source: ['', Validators.required],
+
+              priority:  ['', Validators.required],
+
+              authors:  ['',
+                  [
+                    Validators.required,
+                    ValidatorUtils.validateMultipleSelect(1,2)
+                  ]]
+            });
+
+          }
+  
+  4. Try it out
+     a. Activate the debugger
+     b. In the Add Report 2 page, you should see this behavior:
+        -- The authors hint should only appear if the form is pristine (never been touched)
+        -- Once you click on authors, the hint disappears
+        -- If you select 1 or 2 entries, then the authors field should be valid
+        
+       
