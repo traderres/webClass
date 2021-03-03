@@ -1,0 +1,85 @@
+Lesson:  Passing-in parameters with HttpClient in Angular
+---------------------------------------------------------
+This article describes how to pass-in parameters for GET and POST REST calls
+
+
+
+Problem 1:  When using QueryParams, the HttpClient does *NOT* encode them
+Solution 1: Use the CustomHttpParamEncoder
+-------------------------------------------------------------------------
+ 1. Create this class:
+    a. Create the CustomHttpParamEncoder class
+       unix> cd ~/intellijProjects/angularApp1/frontend
+       unix> ng generate class utilities/CustomHttpParamEncoder 
+   
+   b. Fil-in the class with this:
+   
+        import {HttpParameterCodec} from "@angular/common/http";
+
+        export class CustomHttpParamEncoder implements HttpParameterCodec {
+          public decodeKey(key: string): string {
+            return encodeURIComponent(key);
+          }
+
+          public decodeValue(value: string): string {
+            return encodeURIComponent(value);
+          }
+
+          public encodeKey(key: string): string {
+            return decodeURIComponent(key);
+          }
+
+          public encodeValue(value: string): string {
+            return decodeURIComponent(value);
+          }
+        }
+
+
+ 2. Have your service class pass-in query params
+    a. Add a private customEncoder to the service class:
+          private customEncoder: CustomHttpParamEncoder = new CustomHttpParamEncoder()
+
+
+    b. Make sure your service injects the HttpClient
+         constructor(private httpClient: HttpClient) { }
+
+
+    c. Create a method that passes-in 2 query params -- e.g., "name" and "size"
+
+          public getRestCallWithParam(aName: string, aSize: number): Observable<MyDto[]> {
+
+            // Create an httpParmams object using the customHttpParamEncoder (that will encode parameters for us)
+            // NOTE:  This only works with GET calls (not POST calls)
+            let httpParams: HttpParams = new HttpParams({ encoder: this.customEncoder })
+              .set('name', aName)
+              .set('size', String(aSize));
+
+            // Construct the URL of the REST call
+            const restUrl = environment.baseUrl + '/api/match/stuff';
+
+            // Return an observable
+            return this.httpClient.get <MyDto[]>(restUrl, {params: httpParams} );
+      }
+
+
+
+Problem 2:  How to pass in Post Parameters so that Spring Boot @RequestParam pick them up
+Solution 2: Use the Angular HttpParams
+-------------------------------------------------------------------------
+Here is a some sample code of making a POST REST Call
+
+  public addCountryIdToCoscList(aCountryId: number): Observable<string> {
+    // Construct the URL of the REST call
+    const restUrl = environment.baseUrl + '/api/admin/add';
+
+    let body = new HttpParams({
+      fromObject : {
+        'country_id' : String(aCountryId)
+      }
+    })
+
+    // Return an observable that will make a POST REST Call
+    return this.httpClient.post <string>(restUrl, body );
+  }
+  
+  
