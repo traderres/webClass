@@ -11,8 +11,65 @@ Assumptions:
  B) You have been provided a server cert jks file  (or you created one)
  C) You have been provided a server trust jks file (or you created one)
  
+ 
+Your web application will have different modes based on properties set in application.yaml
+------------------------------------------------------------------------------------------
+ 1) Running in local http mode (using http but get roles from hard-coded principal)
+     	# Use hard-coded security principal
+	 	use.hardcoded.authenticated.principal: true
+
+		# Do not use SSL
+		server.ssl.enabled: false
 
 
+ 2) Running in local https mode (using https but get roles from hard-coded principal)
+     	# Use hard-coded security principal
+	 	use.hardcoded.authenticated.principal: true
+
+		# We are running "prod mode" locally, get the CN info from the PKI cert
+		# On the BDP, we run "prod mode" to get CN info from the header
+		ssl.security.mode: pki
+
+		server:
+			port: 8443
+			ssl:
+				key-store: backend/src/main/dev_resources/myKeystore.jks
+				key-store-password: changeit
+				key-store-type: JKS
+				client-auth: need
+				trust-store: backend/src/main/dev_resources/myTruststore.jks
+				trust-store-password: changeit
+				trust-store-type: JKS
+				enabled: true
+
+
+
+ 3) Running in BDP mode (using https, get roles from headers)
+      	# Use hard-coded security principal
+	 	use.hardcoded.authenticated.principal: false
+
+		# We are running "prod mode" locally, get the CN info from the PKI cert
+		# On the BDP, we run "prod mode" to get CN info from the header
+		ssl.security.mode: header
+
+		server:
+			port: 8443
+			ssl:
+				key-store: backend/src/main/dev_resources/myKeystore.jks
+				key-store-password: changeit
+				key-store-type: JKS
+				client-auth: need
+				trust-store: backend/src/main/dev_resources/myTruststore.jks
+				trust-store-password: changeit
+				trust-store-type: JKS
+				enabled: true
+				
+		# Secure the cookies
+		server.servlet.session.cookie.secure: true
+		server.servlet.session.cookie.http-only: true
+ 
+ 
+ 
 Procedure
 ---------
  1. Import your client p12 certificate into your firefox browser
@@ -271,10 +328,18 @@ Procedure
 	    
 	   Add the prod profile section to the the *END* of your application.yaml 
 		
+		#######################################
+		# Default Profile
+		#######################################
+		
 		# Use hard-coded security principal
 		use.hardcoded.authenticated.principal: true
 
+		# Do not use SSL
+		server.ssl.enabled: false
          
+		 
+		 
 		---
 		#######################################
 		# P R O D        P R O F I L E
@@ -298,6 +363,7 @@ Procedure
 					trust-store: backend/src/main/dev_resources/myTruststore.jks
 					trust-store-password: changeit
 					trust-store-type: JKS
+					enabled: true
 
 		# Secure the cookies
 		server.servlet.session.cookie.secure: true
@@ -469,7 +535,7 @@ Procedure
     a. Right-click on security -> New Java Class
        Class Name:  MyAuthenticationManager
 
-    b Copy this to your new class
+	b. Copy this to your new class
 		package com.lessons.security;
 
 		import org.apache.commons.lang3.StringUtils;
@@ -664,7 +730,7 @@ Procedure
     a. Right-click on security -> New Java Class
        Class Name:  MyRequestHeaderAuthFilter
 
-    b Copy this to your new class
+    b. Copy this to your new class
 
 		package com.lessons.security;
 
@@ -746,13 +812,11 @@ Procedure
 
 		}
 
-
-
 11. Add this java class:  SubjectX509PrincipalExtractor
     a. Right-click on security -> New Java Class
        Class Name:  SubjectX509PrincipalExtractor
 
-    b Copy this to your new class
+    b. Copy this to your new class
 
             package com.lessons.security;
 
@@ -782,7 +846,7 @@ Procedure
     a. Right-click on security -> New Java Class
        Class Name:  SpringSecurityConfig
 
-    b Copy this to your new class
+    b. Copy this to your new class
 
 		package com.lessons.security;
 
@@ -824,6 +888,9 @@ Procedure
 			@Value("${ssl.security.mode:}")
 			private String sslSecurityMode;
 
+			@Value("${server.ssl.enabled}")
+			private boolean sslEnabled;
+
 			@Resource
 			private MyAuthenticationManager myAuthenticationManager;
 
@@ -845,21 +912,23 @@ Procedure
 
 				logger.debug("configureGlobal() finished");
 			}
-
+			
+			
 			@PostConstruct
 			public void init() {
-				if (! useHardcodedAuthenticatedPrincipal) {
-					// Running in prod mode
+				if (sslEnabled) {
+					// Running in SSL mode so verify that sslSecurityMode is set to a valid value
 
 					if (sslSecurityMode == null) {
-						throw new RuntimeException("Critical Error in SpringSecurityConfig:   ssl.security.mode is null.  ssl.security.mode is invalid.  The active profile is prod so ssl.security.mode must be 'pki' or 'header'");
+						throw new RuntimeException("Critical Error in SpringSecurityConfig:  server.ssl.enabled=TRUE but ssl.security.mode is not set.  The ssl.security.mode should be either 'header' or 'pki'");
 					}
 					else if (!(sslSecurityMode.equalsIgnoreCase("header")) && (!(sslSecurityMode.equalsIgnoreCase("pki")))) {
-						throw new RuntimeException("Critical Error in SpringSecurityConfig:   ssl.security.mode is an invalid value.  The active profile is prod so ssl.security.mode must be 'pki' or 'header'");
+						throw new RuntimeException("Critical Error in SpringSecurityConfig:  server.ssl.enabled=TRUE but ssl.security.mode holds an invalid value.  The ssl.security.mode should be either 'header' or 'pki'");
 					}
 				}
 			}
 
+			
 			/*************************************************************************
 			 * configure()
 			 *
@@ -875,8 +944,8 @@ Procedure
 			public void configure(HttpSecurity aHttpSecurity) throws Exception {
 				logger.debug("configure() started.");
 
-				if (! useHardcodedAuthenticatedPrincipal) {
-					// Running in prod mode
+				if (sslEnabled) {
+					// Running in https mode
 					javax.servlet.Filter filter;
 
 					if (sslSecurityMode.equalsIgnoreCase("pki")) {
@@ -893,7 +962,7 @@ Procedure
 					aHttpSecurity.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
 							.and()
 							.authorizeRequests()    // Filters out any URLs that are ignored.  This should be before any authorization filters
-							.antMatchers("/resources/**", "/app1/resources/**", "/error").permitAll()
+							.antMatchers("/resources/**", "/cs/resources/**", "/error").permitAll()
 							.antMatchers("/**").access("hasRole('ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS')")   // All users must have the grantedAuthority called ROLE_UserFoundInLdap to view all pages
 							.and()
 							.requiresChannel().antMatchers("/**").requiresSecure()    // Redirect http to https
@@ -904,11 +973,11 @@ Procedure
 							.anonymous().disable();
 				}
 				else {
-					// Running in non-prod mode
+					// Running in http mode
 					aHttpSecurity.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
 							.and()
 							.authorizeRequests()     // Filters out any URLs that are ignored.  This should be before any authorization filters
-							.antMatchers("/resources/**", "/app1/resources/**", "/app1/error", "/error").permitAll()
+							.antMatchers("/resources/**", "/cs/resources/**", "/cs/error", "/error").permitAll()
 							.antMatchers("/**").access("hasRole('ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS')")   // All users must have the grantedAuthority called ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS to view all pages
 							.anyRequest().authenticated()
 							.and()
