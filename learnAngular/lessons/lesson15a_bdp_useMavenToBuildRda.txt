@@ -111,22 +111,25 @@ Procedure
 
 
 	b. Copy this to the newly-created file:
-		[
-			{
+		[{
 				"type":  "web-service",
 				"name":  "App1",
 				"config": {
 					"container": {
 						"instances": 1,
 						"cores":     1,
-						"memory":    900
+						"memory":    3000
 					},
 					"app": {
-						"command": "java -Xms128m -Xmx1024m -jar webapp/backend-exec.jar --server.port=${HTTPS_PORT}"
-					}
+						"command": "java -Djava.io.tmpdir=./  -jar webapp/backend-exec.jar --server.port=${HTTPS_PORT}"
+					},
+					  "navigatorApps": [{
+						  "name": "App1",
+						  "appPath": "/app1"
+					  }]
 				}
-			}
-		]
+		}]
+
 
 
 
@@ -433,6 +436,71 @@ Procedure
 	---------                     -------
 	 30163349                     6 files
 
+
+11. Change the manifest to allow for the BDP to create the database user and password
+    a. Edit the rda.manifest
+	
+	b. Replace it with this:
+		{
+		"name":        "CTP Web App",
+		"description": "A web application containing....",
+		"appKey":      "app1",
+		"version":     "1.0.0-SNAPSHOT",
+		"components": [
+			{
+				"type": "postgresql",
+				"name": "app1_user",
+				"description": "Create the app1 database and user for the App1 project.",
+				"properties": {
+					"public": {
+						"db.name": "app1_db",
+						"db.username": "{{{ postgresql.username }}}",
+						"db.password": "{{{ postgresql.password }}}"
+					}
+				},
+				"config": {
+					 "databases": [{
+							 "name": "app1_db",
+							 "create": true
+					 }]
+				}
+
+			},
+			{
+				"type": "web-service",
+				"name": "App1 Web App",
+				"description": "Some webapp that does something",
+				"config": {
+					"context": "/app1",
+					"files": [
+						{
+							"src": "webapp"
+						},
+						{
+							"src": "config/application.yaml",
+							"template": true
+						}
+					]
+				}
+
+			}
+		]
+	}
+
+
+   c. Update the config/application.yaml to get the database
+   
+		###########################################################
+		# Database Settings
+		# ASSUMPTION:  The appKey in the rda.manifest is "app1"
+		##########################################################
+		app.datasource:
+		  driver-class-name: org.postgresql.Driver
+		  url: jdbc:postgresql://{{{bdp:postgresql.servers}}}/{{{ app1:db.name }}}
+		  username: {{{ app1:db.username }}}
+		  password: {{{ app1:db.password }}}
+		  schema: public
+		  maxPoolSize: 15
 
 
 
