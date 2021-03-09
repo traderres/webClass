@@ -270,6 +270,9 @@ Procedure
     c. Add a "prod" spring profile that listens on https://localhost:8443/app1 
 	    
 	   Add the prod profile section to the the *END* of your application.yaml 
+		
+		# Use hard-coded security principal
+		use.hardcoded.authenticated.principal: true
 
          
 		---
@@ -278,6 +281,9 @@ Procedure
 		#######################################
 		spring.profiles: prod
 
+  		# Get principal from the PKI certificate
+		use.hardcoded.authenticated.principal: false
+		
 		# We are running "prod mode" locally, get the CN info from the PKI cert
 		# On the BDP, we run "prod mode" to get CN info from the header
 		ssl.security.mode: pki
@@ -307,12 +313,12 @@ Procedure
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-web</artifactId>
-            <version>5.2.1.RELEASE</version>
+            <version>5.2.4.RELEASE</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-config</artifactId>
-            <version>5.2.1.RELEASE</version>
+            <version>5.2.4.RELEASE</version>
         </dependency>
 
 
@@ -469,7 +475,6 @@ Procedure
 		import org.apache.commons.lang3.StringUtils;
 		import org.slf4j.Logger;
 		import org.slf4j.LoggerFactory;
-		import org.springframework.beans.factory.annotation.Autowired;
 		import org.springframework.beans.factory.annotation.Value;
 		import org.springframework.security.authentication.AuthenticationManager;
 		import org.springframework.security.core.Authentication;
@@ -494,17 +499,13 @@ Procedure
 			private static final Logger logger = LoggerFactory.getLogger(MyAuthenticationManager.class);
 
 			private static final Pattern patExtractCN = Pattern.compile("cn=(.*?)(?:,|/|\\z)", Pattern.CASE_INSENSITIVE);
-            private static final Pattern patMatchRole = Pattern.compile("ROLE:(.*?)(?:;|\\z)", Pattern.CASE_INSENSITIVE);
-			
+			private static final Pattern patMatchRole = Pattern.compile("ROLE:(.*?)(?:;|\\z)", Pattern.CASE_INSENSITIVE);
+
 			@Resource
 			private HttpServletRequest httpServletRequest;
 
-			@Value("${spring.profiles.active:}")             // If not found, then holds an empty string
-			private String activeProfileName;
-
-			@Value("${ssl.security.mode:}")
-			private String sslSecurityMode;
-
+			@Value("${use.hardcoded.authenticated.principal}")
+			private boolean useHardcodedAuthenticatedPrincipal;
 
 			@Override
 			public Authentication authenticate(Authentication authentication) throws AuthenticationException {
@@ -517,7 +518,7 @@ Procedure
 
 				UserDetails userDetails;
 
-				if (  (activeProfileName.equalsIgnoreCase("prod")) && (sslSecurityMode.equalsIgnoreCase("header"))) {
+				if (! useHardcodedAuthenticatedPrincipal) {
 					// We are in production mode and we are getting information from headers
 					// -- So get the roles from a real source -- e.g., ActiveDirectory, Database, or BDP headers
 					userDetails = loadUserDetailsFromRealSource(authentication);
@@ -538,7 +539,7 @@ Procedure
 			private UserDetails loadUserDetailsFromRealSource(Authentication authentication) {
 				logger.debug("loadUserDetailsFromRealSource() started authentication={}", authentication);
 				String userDN;
-				PreAuthenticatedAuthenticationToken token = null;
+				PreAuthenticatedAuthenticationToken token;
 
 				if (authentication.getPrincipal() instanceof String) {
 					userDN = authentication.getPrincipal().toString();
@@ -642,7 +643,7 @@ Procedure
 
 
 			private static String getCnValueFromLongDnString(String userDN) {
-				logger.debug("getCnValueFromLongDnString()  userDN={}");
+				logger.debug("getCnValueFromLongDnString()  userDN={}", userDN);
 				String cnValue = null;
 				// Use the regular expression pattern to getByUserId the value part of "CN=value"
 				Matcher matcher = patExtractCN.matcher(userDN);
@@ -686,17 +687,8 @@ Procedure
 			@Resource
 			private MyAuthenticationManager myAuthenticationManager;
 
-			/**
-			 * The authorization mode being
-			 * Possible values:  pki    (if user is sending PKI certificate directly to the spring boot webapp)
-			 *                   header (if a proxy is sending the PKI certificate info as headers to the spring boot webapp)
-			 *                   null   (if not using ssl)
-			 */
-			@Value("${ssl.security.mode:}")
-			private String sslSecurityMode;
-
-			@Value("${spring.profiles.active}")
-			private String activeProfileName;
+			@Value("${use.hardcoded.authenticated.principal}")
+			private boolean useHardcodedAuthenticatedPrincipal;
 
 			@PostConstruct
 			public void init() {
@@ -719,12 +711,12 @@ Procedure
 				logger.debug("getPreAuthenticatedPrincipal() called");
 
 				// Get the principal from the header
-				String userDnFromHeader = (String) request.getHeader("SSL_CLIENT_S_DN");
+				String userDnFromHeader = request.getHeader("SSL_CLIENT_S_DN");
 				logger.debug("userDnFromHeader from header -->{}<---", userDnFromHeader);
 
 				if (userDnFromHeader == null) {
-					if ((activeProfileName.equalsIgnoreCase("dev")) ||
-						((activeProfileName.equalsIgnoreCase("prod" )) && (sslSecurityMode.equalsIgnoreCase("pki")))) {
+
+					if (useHardcodedAuthenticatedPrincipal) {
 						// No header was found, but I am in dev mode or "local prod" mode.  So, set a hard-coded user name
 						logger.debug("No header was found, so husing hard-dcoded header 'Bogus_user'");
 						userDnFromHeader = "Bogus_user";
@@ -820,8 +812,8 @@ Procedure
 			private static final Logger logger = LoggerFactory.getLogger(SpringSecurityConfig.class);
 
 
-			@Value("${spring.profiles.active}")
-			private String activeProfileName;
+			@Value("${use.hardcoded.authenticated.principal}")
+			private boolean useHardcodedAuthenticatedPrincipal;
 
 			/**
 			 * The authorization mode being
@@ -856,7 +848,9 @@ Procedure
 
 			@PostConstruct
 			public void init() {
-				if (activeProfileName.equalsIgnoreCase("prod")) {
+				if (! useHardcodedAuthenticatedPrincipal) {
+					// Running in prod mode
+
 					if (sslSecurityMode == null) {
 						throw new RuntimeException("Critical Error in SpringSecurityConfig:   ssl.security.mode is null.  ssl.security.mode is invalid.  The active profile is prod so ssl.security.mode must be 'pki' or 'header'");
 					}
@@ -881,9 +875,9 @@ Procedure
 			public void configure(HttpSecurity aHttpSecurity) throws Exception {
 				logger.debug("configure() started.");
 
-				if (activeProfileName.equalsIgnoreCase("prod")) {
+				if (! useHardcodedAuthenticatedPrincipal) {
 					// Running in prod mode
-					javax.servlet.Filter filter = null;
+					javax.servlet.Filter filter;
 
 					if (sslSecurityMode.equalsIgnoreCase("pki")) {
 						// Running in "prod" mode with sslSecurityMode="pki" so, get the CN information from the user's x509 pki cert
