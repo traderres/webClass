@@ -9,42 +9,45 @@ Solution: Setup a LoadingWrapper class that will handle the catchError() for us
 
 Procedure
 ---------
- 1. Add a new type script file:  loading.wrapper.ts
-    a. Right-click on frontend/src/app/services -> New -> TypeScript File
-	   Filename:  loading.wrapper.ts
-	
-	b. Copy this to the newly-created file:
+ 1. Add a new type script file:  loading.wrapper.ts 
+    a. Create the loading wrapper class
+	   unix> cd ~/intellijProjects/angularApp1/frontend
+	   unix> ng generate class utilities/loadingWrapper --skipTests 
+
+    b. Replace loading-wrapper.ts with this:
+
 		import {Observable, of, Subject} from "rxjs";
 		import {catchError, shareReplay} from "rxjs/operators";
 
 		export class LoadingWrapper<T> {
-			private readonly _errorLoadingObs = new Subject<boolean>();
+		  private readonly _errorLoadingObs = new Subject<boolean>();
 
-			public readonly errorLoadingObs: Observable<boolean> = this._errorLoadingObs.pipe(
-			  shareReplay(1)
+		  public readonly errorLoadingObs: Observable<boolean> = this._errorLoadingObs.pipe(
+			shareReplay(1)
+		  );
+
+		  readonly dataObs: Observable<T | null>;
+
+		  public constructor(aData: Observable<T>) {
+			this.dataObs = aData.pipe(
+			  shareReplay(1),
+			  catchError(error => {
+				// Log an error in the console here  (otherwise you will NOT see an error in the console)
+				console.log(error);
+
+				// Emit a "truthy" value for errorLoadingObs
+				this._errorLoadingObs.next(true);
+
+				// Recover the observable and give it a "falsy" value of null
+				return of(null);
+			  })
 			);
-
-			readonly dataObs: Observable<T | null>;
-
-			public constructor(aData: Observable<T>) {
-				this.dataObs = aData.pipe(
-					shareReplay(1),
-					catchError(error => {
-						// Log an error in the console here  (otherwise you will NOT see an error in the console)
-						console.log(error);
-
-						// Emit a "truthy" value for errorLoadingObs
-						this._errorLoadingObs.next(true);
-
-						// Recover the observable and give it a "falsy" value of null
-						return of(null);
-					})
-				);
-			}
+		  }
 
 		}
 
-
+	
+	   
  2. Use the LoadingWrapper in the add-report.component.ts
     a. Remove loadingPriorityErrorObs 
 	
