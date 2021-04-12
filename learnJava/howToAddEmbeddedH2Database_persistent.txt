@@ -46,24 +46,8 @@ Create an Embedded Database (that you *CAN* connect it from IntelliJ Databsae Co
 
                 String tempDirectory = System.getProperty("java.io.tmpdir");
 
-                // Check if someone else is already connected to this database
-                f = new File(tempDirectory + "/h2.lock.db");
-                if (f.exists() ) {
-                    throw new RuntimeException("Someone else is already connected to the database.  Disconnect the other client.");
-                }
-
-                // Delete the local database files (so the database starts out empty)
-                f = new File(tempDirectory + "/h2.mv.db");
-                if (f.exists() ) {
-                    f.delete();
-                }
-
-                f = new File(tempDirectory + "/h2.trace.db");
-                if (f.exists() ) {
-                    f.delete();
-                }
-
-
+                deleteFiles();
+				
                 // Intellij can connect to this embedded database using this url: 
 				//    Linux:     jdbc:h2:file:/tmp/h2;TRACE_LEVEL_FILE=4;DB_CLOSE_ON_EXIT=FALSE;AUTO_SERVER=TRUE;MODE=PostgreSQL
                 //    Windows:   jdbc:h2:file:c:\\users\\WINDOWS-ACCOUNT-NAME\\ApDdata\\Local\\Temp\\h2;TRACE_LEVEL_FILE=4;DB_CLOSE_ON_EXIT=FALSE;AUTO_SERVER=TRUE;MODE=PostgreSQL
@@ -82,6 +66,36 @@ Create an Embedded Database (that you *CAN* connect it from IntelliJ Databsae Co
                 this.dataSource = jdbcDataSource;
             }
 
+
+            public void deleteFiles() {
+			
+				String tempDirectory = System.getProperty("java.io.tmpdir");
+
+				// Create a list of the 3 temporary filenames
+                List<String> filesToDelete = Arrays.asList("h2.lock.db", "h2.mv.db", "h2.trace.db");
+				
+				for (String filenameToDelete: filesToDelete) {
+				
+				  // Construct the filepath of this file
+                  String filePath = tempDirectory + "/" + filenameToDelete;
+				  
+				  f = new File(filepath);
+				  if (f.exists() ) {
+				     
+					 	// Attempt to delete the file
+						boolean deleteWorked = f.delete();
+					
+						if (! deleteWorked) {
+							// I could not delete this h2 file.  Perhaps, you need to shutdown the database with
+							//     connection.createStatement().execute("SHUTDOWN");
+                    		throw new RuntimeException("I failed to delete this h2 file: " + filePath);
+						}
+					}
+					
+				}   // end of looping through all the files
+			}
+			
+			
 
             public DataSource getDataSource() {
                 return this.dataSource;
@@ -150,3 +164,11 @@ Create an Embedded Database (that you *CAN* connect it from IntelliJ Databsae Co
     
   
  
+How to manually shutdown the database from code
+------------------------------------------------
+  // Shutdown the database
+  connection.createStatement().execute("SHUTDOWN");
+
+
+  // Then you can delete the files
+  inMemoryDatabase.deleteFiles();
