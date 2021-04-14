@@ -1,0 +1,287 @@
+Lesson:  How to do Anti-Virus Scanning with Clam AV from Spring-Boot Web App
+----------------------------------------------------------------------------
+
+Problem:  I want to use Clam AntiVirus to scan my uploaded file
+Solution: Use qlack-util-clam-av to add a service to your webapp
+
+
+
+Procedure
+---------
+ 1. Make sure your clamAV is listening on localhost port 3310
+    unix> sudo -s
+    unix> vi /etc/clamd.d/scan.conf
+    
+        # TCP port address. 
+        # Default: no
+        TCPSocket 3310
+
+        # TCP address.
+        # By default we bind to INADDR_ANY, probably not wise.
+        # Enable the following to provide some degree of protection
+        # from the outside world. This option can be specified multiple
+        # times if you want to listen on multiple IPs. IPv6 is now supported.
+        # Default: no
+        TCPAddr 127.0.0.1
+
+ 2. If you changed your clamav service, then restart it
+    On Centos8: It is a service called clamd
+    unix> systemctl restart clamd
+ 
+     
+ 3. Add the qlack maven dependency to your pom.xml:
+    NOTE:  I exclude a lot of extra stuff (as the qlack-util library comes with lots of extra stuff that I do not need)
+    
+     <dependency>
+          <!-- Add wrapper to invoke virus-scanning with clamAV -->
+          <groupId>com.eurodyn.qlack.util</groupId>
+          <artifactId>qlack-util-clam-av</artifactId>
+          <version>3.5.3</version>
+
+          <exclusions>
+            <!-- The qlack-util-clam-av dependency comes with lots of stuff we do not need -->
+            <exclusion>
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-configuration-processor</artifactId>
+            </exclusion>
+
+            <exclusion>
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-starter</artifactId>
+            </exclusion>
+
+            <exclusion>
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-starter-data-jpa</artifactId>
+            </exclusion>
+
+            <exclusion>
+              <groupId>org.hibernate</groupId>
+              <artifactId>hibernate-core</artifactId>
+            </exclusion>
+
+            <exclusion>
+              <groupId>org.jboss.logging</groupId>
+              <artifactId>jboss-logging</artifactId>
+            </exclusion>
+
+            <exclusion>
+              <groupId>com.zaxxer</groupId>
+              <artifactId>HikariCP</artifactId>
+            </exclusion>
+
+            <exclusion>
+              <groupId>org.springframework</groupId>
+              <artifactId>spring-jdbc</artifactId>
+            </exclusion>
+
+            <exclusion>
+              <groupId>org.springframework</groupId>
+              <artifactId>spring-aop</artifactId>
+            </exclusion>
+
+            <exclusion>
+              <groupId>commons-codec</groupId>
+              <artifactId>commons-codec</artifactId>
+            </exclusion>
+
+            <exclusion>
+              <groupId>com.querydsl</groupId>
+              <artifactId>querydsl-core</artifactId>
+            </exclusion>
+
+          </exclusions>
+    </dependency>
+    
+    
+ 4. Problem:  The com.eurodyn.qlack.util library sends logigng to Java Util Logger.  but, I use logback
+    So, add this depdendency so that the library's logger goes to my logback
+ 
+     <dependency>
+          <!-- Send logging from Java Util Logging to SLF4J -->
+          <groupId>org.slf4j</groupId>
+          <artifactId>jul-to-slf4j</artifactId>
+          <version>1.7.30</version>
+    </dependency>
+ 
+ 
+ 5. Update your logback.xml to get logging from the new library
+    a. Edit src/main/resources/logback.xml
+    
+    b. Make sure you have this entry
+        <logger name="com.eurodyn.qlack" level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+         </logger>
+         
+         
+       So, the entire logback.xml looks something like this:
+            <?xml version="1.0" encoding="UTF-8" ?>
+            <configuration debug="false">
+                <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+                    <encoder>
+                        <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+                    </encoder>
+                </appender>
+
+                <logger name="org.springframework" level="INFO" additivity="false">
+                    <appender-ref ref="CONSOLE"/>
+                </logger>
+
+                <logger name="com.eurodyn.qlack" level="DEBUG" additivity="false">
+                    <appender-ref ref="CONSOLE"/>
+                </logger>
+
+                <logger name="com.lessons" level="DEBUG" additivity="false">
+                    <appender-ref ref="CONSOLE"/>
+                </logger>
+
+                <root level="INFO">
+                    <appender-ref ref="CONSOLE"/>
+                </root>
+            </configuration>
+
+ 6. Add the properites to my application.yaml:
+    NOTE:  By default ClamAV listens on localhost:3310
+    
+      # Virus scanning settings
+      virus-scanning.enabled: true
+      qlack.util.clamav.host: localhost
+      qlack.util.clamav.port: 3310
+      qlack.util.clamav.socket.timeout: 100000
+ 
+ 
+ 7. Tell your Application class to look for additional services
+    a. Edit your Application.java
+    
+    b. After @SpringBootApplication, add this:
+            @ComponentScan(basePackages = {
+                "com.lessons",
+                "com.eurodyn.qlack.util.clamav"    // So, spring boot can load the anti-virus libraries
+            })
+
+
+       When completed, your Application.java looks something like this:
+       
+            package com.lessons;
+
+            import org.slf4j.Logger;
+            import org.slf4j.LoggerFactory;
+            import org.springframework.boot.Banner;
+            import org.springframework.boot.SpringApplication;
+            import org.springframework.boot.autoconfigure.SpringBootApplication;
+            import org.springframework.context.annotation.ComponentScan;
+
+            /**
+             * Main Application
+             **/
+            @SpringBootApplication
+            @ComponentScan(basePackages = {
+                    "com.lessons",
+                    "com.eurodyn.qlack.util.clamav"    // So, spring boot can load the anti-virus libraries
+            })
+            public class Application
+            {
+                private static final Logger logger = LoggerFactory.getLogger(Application.class);
+
+
+                /**
+                 * Web Application Starts Here
+                 **/
+                public static void main( String[] args )
+                {
+                    logger.debug("main() started.");
+
+                    // Start up Spring Boot but disable the banner
+                    SpringApplication app = new SpringApplication(Application.class);
+                    app.setBannerMode(Banner.Mode.OFF);
+                    app.run(args);
+
+                    logger.debug("WebApp is Up.");
+                }
+            }
+
+
+  8. Modify your UploadController so it injects the properties and the AntiVirus Service
+        @Resource
+        private AvService antiVirusService;          // This is the anti-virus service (provided from the library)
+
+        @Value("${max.upload.size.bytes}")
+        private long maxUploadSizeInBytes;
+
+        @Value("${virus-scanning.enabled}")
+        private boolean isVirusScanningEnabled;
+
+        @Value("${qlack.util.clamav.host:@null}")
+        private String virusScanningHost;
+
+        @Value("${qlack.util.clamav.port:#{null}}")
+        private Integer virusScanningPort;
+
+        @PostConstruct
+        public void init() {
+            logger.debug("init() started.  isVirusScanningEnabled={}  virusScanningHost={}  virusScanningPort={}", isVirusScanningEnabled, virusScanningHost, virusScanningPort);
+
+            if (isVirusScanningEnabled) {
+                // Verify that the anti-virus scanner is available on application start up
+                boolean isVirusScanningUp = this.antiVirusService.hostIsAvailable(virusScanningHost, virusScanningPort);
+
+                if (!isVirusScanningUp) {
+                    throw new RuntimeException("Error in init():  The virus scanner is not responding at host " + virusScanningHost + " port " + virusScanningPort);
+                }
+            }
+            logger.debug("init() finished successfully.");
+        }
+
+
+ 9. Have your UploadController use the AntiVirus Scanner
+    In your method that handles the file upload, add this to the top of the method:
+    
+    
+        if (isVirusScanningEnabled) {
+            // Virus-Scan the uploaded file
+            byte[] uploadedFileAsBytes = aMultipartFile.getBytes();
+            VirusScanDTO result = this.antiVirusService.virusScan(uploadedFileAsBytes);
+
+            if (!result.isVirusFree()) {
+                // Malware was found.  So, reject the uploaded file
+                logger.error("Virus was found for the uploaded file called {} and ClamAV returned this message: {}", aMultipartFile.getOriginalFilename(), result.getVirusScanDescription());
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .body("Your uploaded file is infected with malware.");
+            }
+           
+        }
+        
+     
+     So, you Upload REST endpoint looks something like this:
+
+        @RequestMapping(value = "/api/uploads/add", method = RequestMethod.POST,  consumes = "multipart/form-data")
+        public ResponseEntity<?> uploadFile(@RequestParam(value="file") MultipartFile aMultipartFile,
+                                            @RequestParam(value="applicationId") Integer aApplicationId,
+                                            @RequestParam(value="questionId") Integer aQuestionId) throws Exception
+        {
+            logger.debug("uploadFile() started. ");
+
+            if (isVirusScanningEnabled) {
+                // Virus-Scan the uploaded file
+                byte[] uploadedFileAsBytes = aMultipartFile.getBytes();
+                VirusScanDTO result = this.antiVirusService.virusScan(uploadedFileAsBytes);
+
+                if (!result.isVirusFree()) {
+                    // Malware was found.  So, reject the uploaded file
+                    logger.error("Virus was found for the uploaded file called {} and ClamAV returned this message: {}", aMultipartFile.getOriginalFilename(), result.getVirusScanDescription());
+                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .contentType(MediaType.TEXT_PLAIN)
+                            .body("Your uploaded file is infected with malware.");
+                }
+            }
+
+
+            // Add the file to the system
+            this.uploadService.addFile(aApplicationId, aQuestionId, aMultipartFile);
+
+            return ResponseEntity.status(HttpStatus.OK)
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .body("");
+
+         }
