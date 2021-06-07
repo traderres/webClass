@@ -1,0 +1,45 @@
+How to Convert Java POJO to Json for a Bulk Index Request
+---------------------------------------------------------
+Problem:  I have a large java object and want to bulk index into my ELS
+Solution: Use the ObjectMapper to convert it to JSON and create a bulk index request
+
+
+Procedure
+---------
+ 1. Add the sample code (that prints out the bulk index request
+ 2. Open your Kibana Console at http://localhost:5601 and click on "Console"
+ 3. Add this to your Kibana Console
+       POST _bulk
+       <paste console logging>
+       
+       
+Sample Code
+-----------
+    /**
+     * Print the DTO object as a single record as a bulk request
+     *
+     * @param aCtpFormDTO holds the DTO object (with all of the parsed fields)
+     * @throws Exception if something goes wrong
+     */
+    private void printDtoAsBulkIndex(SF328FormDTO aDTO) throws Exception {
+
+        // Initialize the objectMapper
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        // Tell the object mapper to convert Objects to snake case
+        // For example.  object.getPersonName --> "person_name" in the json
+        objectMapper.setPropertyNamingStrategy(PropertyNamingStrategy.SNAKE_CASE);
+
+        // Escape non-nulls
+        objectMapper.getFactory().configure(JsonGenerator.Feature.ESCAPE_NON_ASCII, true);
+
+        // Convert the CtpFormDTO object into a JSON string
+        // NOTE:  The CtpFormDTO has getters that correspond to the ES mapping fields
+        //        So, the generated JSON can be sent directly to ElasticSearch
+        String jsonData = objectMapper.writeValueAsString(aDTO);
+
+        // Append this JSON string to the bulkdJsonRequest
+        String bulkJsonRequest = "{ \"index\": { \"_index\": \"MY_INDEX_NAME\" }}\n" + jsonData + "\n";
+
+        logger.debug("\n\n{}\n\n", bulkJsonRequest);
+    }
