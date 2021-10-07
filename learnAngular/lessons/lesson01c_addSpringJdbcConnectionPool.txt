@@ -39,19 +39,26 @@ Procedure
         </dependency>
 
 
- 2. Verify that this dependency exists in the backend/pom.xml (for the database driveR) 
+ 2. Verify that this dependency exists in the backend/pom.xml (for the database driveR)
         <dependency>
             <!-- Add the dependency for your postgreSQL JDBC driver -->
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <version>42.2.18</version>
         </dependency>
-       
- 
+
+        <dependency>
+            <!-- Flyway is used to set database versions -->
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+            <version>5.2.4</version>
+        </dependency>
+
+
  3. Load your maven dependencies
     Right-click within your backend/pom.xml -> Maven -> Reload Project
-	
- 
+
+
  4. Add the database properties to your application.yaml
     a. Edit backend/src/main/resources/application.yaml
 
@@ -73,7 +80,7 @@ Procedure
             password: secret
             schema: app1_db
 			maxPoolSize: 10
-			
+
 
 
        NOTE:  Make sure there are no leading spaces in front of app.datasource
@@ -83,7 +90,7 @@ Procedure
  5. Create this class:  DataSourceConfig
     a. Right-click on backend/src/main/java/com/lessons/config -> New Java Class
        Name:  DataSourceConfig
-       
+
     b. Copy this to your new class
 
         package com.lessons.config;
@@ -116,7 +123,7 @@ Procedure
 
     		@Value("${app.datasource.schema}")
     		private String schemaName;
-	
+
             @Bean
             public DataSource dataSource() {
                 HikariConfig hikariConfig = new HikariConfig();
@@ -144,11 +151,11 @@ Procedure
 
  6. Configure the backend so that it will run flyway on startup
     a. Edit the backend/src/main/resources/application.yaml
-    
+
     b. Add these properties:
 	    # Tell Spring to not use the automatic flyway integration (it is broken in different versions of spring)
         spring.flyway.enabled: false
-    
+
 	c. Edit the DataSourceConfig class and run flyway manually *immediately* after creating the data source
 	   a) Edit DataSourceConfig.java
 	   b) Add this to the end of the public dataSource() method
@@ -161,8 +168,8 @@ Procedure
 
         // Use the flyway object to do a migrate on webapp startup
         flyway.migrate();
-	
-	
+
+
 	When finished, the DataSourceConfig class should look like this:
 		package com.lessons.config;
 
@@ -226,20 +233,20 @@ Procedure
 
 		}
 
-	
-	
+
+
  7. Verify that the backend runs flyway everytime on startup
     a. Empty your database
        unix> cd ~/intellijProjects/angularApp1/backend
        unix> mvn flyway:clean
-      
+
     b. Start-up the backend (Spring should automatically run flyway:migrate)
        In IntelliJ, Select Backend -> Run
-       
+
     c. Empty your database using mvn flyway:clean
        unix> cd ~/intellijProjects/angularApp1/backend
        unix> mvn flyway:info
-       
+
        You should see this:
        +-----------+---------+------------------------------+--------+---------------------+---------+
        | Category  | Version | Description                  | Type   | Installed On        | State   |
@@ -248,10 +255,10 @@ Procedure
        | Versioned | 1.1     | baseline                     | SQL    | 2020-06-07 18:33:25 | Success |
        +-----------+---------+------------------------------+--------+---------------------+---------+
 
-      
+
  NOTES:
   A) Spring will *NOT* automatically run flyway if it can find a DataSource object
-  B) The DataSourceConfig creates the DataSource Spring Bean 
+  B) The DataSourceConfig creates the DataSource Spring Bean
   C) The DataSourceConfig method runs flyway migrate
   C) If you do not want flyway to run, then remove this code or put a property to block it
 
@@ -264,17 +271,17 @@ How to manually run flyway-migrate on startup (using java code)
  1. Edit the backend/src/main/resources/application.yaml
     Add these properties:
         spring.flyway.enabled: false
-		
-		
+
+
  2. Edit the DataSourceConfig class
     a. Add the schema name value annotation
-	
+
      	@Value("${app.datasource.schema}")
     	private String schemaName;
-	
-	
+
+
 	b. Change your DataSourceConfig.dataSource() method by *ADDING* these lines to it:
- 
+
         // Use the dataSource to initialize the flyway object
         Flyway flyway = Flyway.configure()
                 .dataSource(dataSource)
@@ -299,7 +306,7 @@ How to manually run flyway-migrate on startup (using java code)
                 hikariConfig.setPoolName("app1_jdbc_connection_pool");
 
                 HikariDataSource dataSource = new HikariDataSource(hikariConfig);
-				
+
 
 				// Use the dataSource to initialize the flyway object
 				Flyway flyway = Flyway.configure()
@@ -309,7 +316,7 @@ How to manually run flyway-migrate on startup (using java code)
 
 				// Use the flyway object to do a migrate on webapp startup
 				flyway.migrate();
-				
-				
+
+
                 return dataSource;
             }
