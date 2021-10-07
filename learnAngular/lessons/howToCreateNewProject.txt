@@ -1,0 +1,345 @@
+How to Create a New Project (w/header, navbar, RDAs, and add to Gitlab)
+-----------------------------------------------------------------------
+Problem:  I need to setup a new webapp and add it to Gitlab
+          The webapp needs to be able to talk to Postgres
+          The webapp needs to be able to deploy to an RDA
+          
+
+Assumptions:
+ A) You have npm installed
+ B) You have intellij ultimate installed
+ C) You have a Java JDK 1.8 installed
+ D) You have a postgres database installed
+ E) You have git
+
+
+
+Procedure
+---------
+ 1. Install the Angular Command Line 9.0.6
+    unix> npm uninstall  @angular/cli                  # uninstall local angular CLI
+    unix> npm uninstall -g @angular/cli                # uninstall global angular CLI
+    unix> npm install -g @angular/cli@9.0.6        # install angular CLI 9.0.6
+
+
+ 2. Setup project structure by cloning AngularApp1 lesson6f
+
+    a. Clone the project
+	   unix> git clone https://github.com/traderres/angularApp1Lessons.git    myProject
+	   unix> cd myProject
+
+    b. Checkout the branch of lesson 6f (as it has a basic navbar)
+       unix> git checkout lesson6f/add-gradient-to-header
+
+  
+    c. Compile the project (into an executable JAR)
+       unix> mvn clean package -Pprod
+
+
+    d. Run the executable jar from command-line
+       unix> java -jar ./backend/target/backend-1.0-SNAPSHOT-exec.jar
+
+    e. Connect to the webapp at http://localhost:8080/app1
+
+    f. Stop the web app by pressing Control-C
+
+
+
+ 3. Add flyway & SpringJDBC Connection Pool to it
+    ASSUMPTIONS:  database name is app1_db
+                  database user is app1_user
+                  database pw   is secret
+
+    a. Create a local database
+       unix> psql -U postgres -h localhost
+       
+      create database app1_db;
+      create user app1_user with password 'secret';
+      grant all privileges on database app1_db to app1_user;
+      alter database app1_db     SET search_path=app1_db;
+      alter role     app1_user   SET search_path=app1_db;
+      \q
+
+
+
+    b. Add Flyway
+       https://github.com/traderres/webClass/blob/master/learnAngular/lessons/lesson01b_setupFlyway.txt
+
+    c. Add Spring-JDBC connection pool
+       https://github.com/traderres/webClass/blob/master/learnAngular/lessons/lesson01c_addSpringJdbcConnectionPool.txt
+
+    
+    d. Change your database name & database user
+       1) Create a new database user and database password (using the psql command)
+       2) Update all 3 places so that they have the correct postgres username/password/database name:
+   		    a) In src/main/resources/application.yaml   (for developer use)
+     		b) In database console (you typed it in)
+     		c) maven flyway plugin (which gets its credentials from db-migrations/pom.xml)
+  
+
+
+ 4. Add the MyExceptionHandler
+    a. You'll find the code here:
+       https://github.com/traderres/angularApp1Lessons/blob/lesson27c/history/add-dark-mode/backend/src/main/java/com/lessons/utilities/MyExceptionHandler.java
+   
+    b. Add this to your backend/src/main/resources/application.yaml
+     
+		# Show Exception info to local developers
+		exception_handler.return_dev_info: true
+
+
+
+ 5. Add the security database tables / security classes / PKI authentication  
+    a. Add these dependencies to the backend/pom.xml
+
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-web</artifactId>
+			<version>5.2.1.RELEASE</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-config</artifactId>
+			<version>5.2.1.RELEASE</version>
+		</dependency>
+
+
+    a. Copy the 7 security java classes over to your project  (if making outgoing SSL calls to ElasticSearch
+       -- You can find them here 
+             https://github.com/traderres/angularApp1Lessons/tree/lesson27c/history/add-dark-mode/backend/src/main/java/com/lessons/security
+
+
+    b. Update the application.yaml
+			
+		# Use hard-coded security principal
+		use.hardcoded.authenticated.principal: true
+
+		# Do not use SSL
+		server.ssl.enabled: false
+
+    c. Copy the UserService, DatabaseService
+       -- You can find them here:
+             https://github.com/traderres/angularApp1Lessons/tree/lesson27c/history/add-dark-mode/backend/src/main/java/com/lessons/services
+
+    d. Copy R__security.sql
+       https://github.com/traderres/angularApp1Lessons/blob/lesson27c/history/add-dark-mode/backend/src/main/resources/db/migration/R__security.sql
+
+
+    e. Added users tables to the V1.1__baseline.sql
+       https://github.com/traderres/angularApp1Lessons/blob/lesson27c/history/add-dark-mode/backend/src/main/resources/db/migration/V1.6__user_preferences.sql
+
+
+    f. Added Constants.java
+			public static final int SQL_TRANSACTION_TIMEOUT_SECS = 60;
+
+
+ 6. Verify that the webapp starts-up using the debugger
+    Verify that the webapp starts-up from command-line
+
+
+ 7. Add PKI authentication and the Maven module to build the RDA
+    NOTE:  If making outgoing SSL calls to ElasticSearch or any other outside service, follow step 21a
+              https://docs.google.com/document/d/1MbxOKOU0hx-sWAduFQ7xgFsPPrzInyCOT59cEt6Y2uw/edit
+
+           If not making outgoing SSL calls, then follow step 22b
+              https://docs.google.com/document/d/1-fnKeIfVPqzqTEeSlxmUyDlu5y_l3gwMdr30QGuaAQ0/edit
+    
+
+    b. Change the rda.manifest.txt db.name value to the new database name
+    b. Build the RDA
+    c. Deploy the RDA
+    d. Verify that the RDA works
+
+
+
+ 8. Add the DCSA logo to the upper left corner
+    a. Change header.component.html to user the logo w/layout gap of 15px
+
+			<!-- Left Side of the Header -->
+			<div fxFlex fxLayoutAlign="left center" fxLayout="row" fxLayoutGap="15px">
+
+			  <!-- DCSA Logo Image -->
+			  <img class="appLogo clickable" [routerLink]="'/'" src="./assets/images/seal_transparent.png" height="75px" alt="Defense Counterintelligence and Security Agency" title="Defense Counterintelligence and Security Agency">
+
+			  <!-- App Navbar Toggle -->
+			  <a  class="button" (click)="toggleAppNavbar()" title="Show/Hide Main Nav Bar">
+				<i class="fa fa-bars"></i>
+			  </a>
+
+			  <!-- Home Icon -->
+			  <a  class="button" [routerLink]="'/'" title="Link to the Home Page">
+				<i class="fas fa-home"></i>
+			  </a>
+			</div>
+
+    b. Add the css to header.component.css:
+			.appLogo {
+			  color: #fff;
+			  margin: 0;
+			  text-decoration: none;
+			  font-size: 1.7em;
+			  font-weight: 400;
+			  font-family: Roboto, "Helvetica Neue", sans-serif;
+
+			  /* Outline of zero gets rid of the annoying box around the link */
+			  outline: 0;
+
+			  /* Do not wrap the page title (for screens that are have high magnification */
+			  white-space: nowrap;
+			}
+   
+    c. Create the frontend/src/assets/images/ directory
+    d. Add the image to frontend/src/assets/images/ directory
+    
+    e. Change the header size from 60px to 90px high by editing app.component.html
+
+    f. Build the webapp
+       unix> mvn clean package -Pprod
+
+    g. Verify that you see the logo
+       a. Activate the debugger
+   
+
+
+ 9. Change maven artifact, webapp title, webapp tabl title 
+    a. Set the webapp title by changing the header.component.html with a new name
+    b. Set the browser table title by changing the index.dev.html and index.prod.html
+        Change the <title> tag 
+
+    c. Change the backend/pom.xml:     Search for angularApp1 and change it to your name
+    d. Change the frontend/pom.xml:    Search for angularApp1 and change it to your name
+    e. Change the install-bdp/pom.xml: Search for angularApp1 and change it to your name
+    f. Change the pom.xml              Search for angularApp1 and change it to your name
+    g. Build from command-line:
+       unix> mvn clean package -Pprod
+ 
+
+    h. Pull Build -> Rebuild Project
+    i. Right-click on paremt pom.xml -> Maven -> Reload Project
+    j. Activate the debugger on "Full WebApp" to verify it still works
+       -- Look at your webapp title (it should not be angularApp1)
+       -- Look at your browser table title (it should not be angularApp1)
+     
+    k. Remove appTitle from app.component.ts  (it's not being used)
+
+
+    l. Change the appKey
+       1) Edit rda.manifest.txt
+          Change the appKey from angularApp1 to a new app key
+ 
+       2) Change the production application.yaml to use your short abbreviation mname
+           Search for "AngluarApp1:" and change it to your new app key
+           
+    m. Change the RDA labels to your new webapp (so the RDA deployer shows the correct project name)
+       1) Edit rda.manifest.txt
+       2) Search for AngularApp1 and replace with the longer project name
+
+
+    n. Change the name of the generated RDA from "webapp.rda.zip" to "<short-name>.webapp.rda.zip"
+       1) Edit the install-bdp/pom.xml
+       2) Search for webapp.rda and replace it with <short-name>-webapp.rda
+             
+			<finalName>myShortName.webapp.rda</finalName>
+
+
+    o. Verify that the RDA shows the new labels
+       build the RDA using mvn clean package -Pprod -PbuildRda
+       Upload the RDA
+       Deploy the RDA
+       Start the RDA
+       -- WARNING:  You might have to copy the startup command from the initial.config text file
+
+       -- Verify that the RDA deployer shows the correct name
+       -- Verify that the web app starts up
+
+   p. In Intellij, right-click on the parent of the project directory tree -> Refactor -> Rename Module
+       Enter new module name:  <new-short-name>
+ 
+
+
+10. Change the url:   /app1  to  /newUrlHere
+    a. Change the web app url 
+       1) Edit frontend/package.json,  search for /app1 and replace it the new url
+			"build": "ng build --base-href /newUrlHere/ ",
+            "buildProd": "ng build --base-href /newUrlHere/ --prod --optimization --aot ",
+
+       2) Edit backend/src/main/resources/application.yaml, 
+	        name: newUrlHere                    # no leading slash -- can be anything     
+			server.servlet.context-path: /newUrlHere
+             
+
+       3) Edit install-bdp/src/main/assembly/config/application.yaml 
+	        name: newUrlHere                  # no leading slash -- can be anything     
+			server.servlet.context-path: /
+
+  
+       4) Edit initial.config
+ 			 "appPath": "/newUrlHere" 
+
+
+       5) Edit rda.manifest
+			  "context": "/newUrlHere"
+
+
+       6) Change HomeController.java  (changed comments)
+
+       7) Change environment.ts
+				baseUrl: 'http://localhost:8080/newUrlHere'
+
+       8) Change frontend/pom.xml   (changed comments)
+
+    b. Pull Build -> Rebuild Project    
+
+    c. Build and run locally
+       unix> mvn clean package -Pprod
+       unix> java -jar ./backend/target/backend-1.0-SNAPSHOT-exec.jar
+       Open a browser and connect to http://localhost:8080/newUrlHere
+
+       
+    d. Press Control-C to stop the local webapp
+
+    e. Build the RDA
+       unix> mvn clean package -Pprod -PbuildRda
+
+	f. Upload the RDA
+	g. Deploy the RDA
+	h. Start the webapp
+		-- Verify that the webapp works with the new url
+
+
+
+
+11. Add the project to Gitlab
+    a. In gitlab create repository
+       -- Gitlab will give the procedures for how to push an EXISTING project
+
+    b. Delete the existing .git directory
+       cd ~/intellijProjects/new-project-name
+       rd /s /q .git
+
+    c. Run mvn clean
+       mvn clean
+
+    c. Follow the procedures (provided by gitlab)
+       git init 
+       git remote add origin git@gitlab.rbr-tech.com:RBR-Dev-Team/my-project.git  # this will be provided
+       git add .
+       git commit -m "Initial commit" 
+       git push --set-upstream origin master
+
+
+    
+
+12. Verify that you can clone the repo from gitlab, build the webapp, and run it locally
+    Open a terminal
+    cd c:\temp
+    git clone .....  stuff
+    cd stuff
+    mvn clean package -Pprod
+    java -jar ./backend/target/backend-1.0-SNAPSHOT-exec.jar
+    Open a browser and connect to http://localhost:8080/newUrlHere
+
+
+
+
