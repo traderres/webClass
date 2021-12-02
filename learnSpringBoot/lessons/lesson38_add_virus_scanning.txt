@@ -11,8 +11,8 @@ Procedure
  1. Make sure your clamAV is listening on localhost port 3310
     unix> sudo -s
     unix> vi /etc/clamd.d/scan.conf
-    
-        # TCP port address. 
+
+        # TCP port address.
         # Default: no
         TCPSocket 3310
 
@@ -27,11 +27,11 @@ Procedure
  2. If you changed your clamav service, then restart it
     On Centos8: It is a service called clamd
     unix> systemctl restart clamd
- 
-     
+
+
  3. Add the qlack maven dependency to your pom.xml:
     NOTE:  I exclude a lot of extra stuff (as the qlack-util library comes with lots of extra stuff that I do not need)
-    
+
      <dependency>
           <!-- Add wrapper to invoke virus-scanning with clamAV -->
           <groupId>com.eurodyn.qlack.util</groupId>
@@ -92,28 +92,28 @@ Procedure
 
           </exclusions>
     </dependency>
-    
-    
+
+
  4. Problem:  The com.eurodyn.qlack.util library sends logigng to Java Util Logger.  but, I use logback
     So, add this depdendency so that the library's logger goes to my logback
- 
+
      <dependency>
           <!-- Send logging from Java Util Logging to SLF4J -->
           <groupId>org.slf4j</groupId>
           <artifactId>jul-to-slf4j</artifactId>
           <version>1.7.30</version>
     </dependency>
- 
- 
+
+
  5. Update your logback.xml to get logging from the new library
     a. Edit src/main/resources/logback.xml
-    
+
     b. Make sure you have this entry
         <logger name="com.eurodyn.qlack" level="DEBUG" additivity="false">
             <appender-ref ref="CONSOLE"/>
          </logger>
-         
-         
+
+
        So, the entire logback.xml looks something like this:
             <?xml version="1.0" encoding="UTF-8" ?>
             <configuration debug="false">
@@ -140,19 +140,22 @@ Procedure
                 </root>
             </configuration>
 
+
+
  6. Add the properites to my application.yaml:
     NOTE:  By default ClamAV listens on localhost:3310
-    
+
       # Virus scanning settings
       virus-scanning.enabled: true
       qlack.util.clamav.host: localhost
       qlack.util.clamav.port: 3310
       qlack.util.clamav.socket.timeout: 100000
- 
- 
+
+
+
  7. Tell your Application class to look for additional services
     a. Edit your Application.java
-    
+
     b. After @SpringBootApplication, add this:
             @ComponentScan(basePackages = {
                 "com.lessons",
@@ -161,7 +164,7 @@ Procedure
 
 
        When completed, your Application.java looks something like this:
-       
+
             package com.lessons;
 
             import org.slf4j.Logger;
@@ -201,46 +204,106 @@ Procedure
             }
 
 
-  8. Modify your UploadController so it injects the properties and the AntiVirus Service
-        @Resource
-        private AvService antiVirusService;          // This is the anti-virus service (provided from the library)
+  8. Create a VirusScanning Service:
+		  package com.lessons.services;
+
+		  import com.eurodyn.qlack.util.av.api.dto.VirusScanDTO;
+		  import com.eurodyn.qlack.util.av.api.service.AvService;
+		  import org.slf4j.Logger;
+		  import org.slf4j.LoggerFactory;
+		  import org.springframework.beans.factory.annotation.Value;
+		  import org.springframework.stereotype.Service;
+
+		  import javax.annotation.PostConstruct;
+		  import javax.annotation.Resource;
+
+		  @Service
+		  public class VirusScanningService {
+			  private static final Logger logger = LoggerFactory.getLogger(VirusScanningService.class);
+
+			  @Resource
+			  private AvService antiVirusService;          // This is the anti-virus service (provided from the library)
+
+
+			  @Value("${virus-scanning.enabled}")
+			  private boolean isVirusScanningEnabled;
+
+			  @Value("${qlack.util.clamav.host:@null}")
+			  private String virusScanningHost;
+
+			  @Value("${qlack.util.clamav.port:#{null}}")
+			  private Integer virusScanningPort;
+
+
+			  @PostConstruct
+			  public void init() {
+				  logger.debug("init() started.  isVirusScanningEnabled={}  virusScanningHost={}  virusScanningPort={}", isVirusScanningEnabled, virusScanningHost, virusScanningPort);
+
+				  if (isVirusScanningEnabled) {
+					  // Virus Scanning is enabled
+
+					  // Verify that the anti-virus scanner is available on application start up
+					  boolean isVirusScanningUp = this.antiVirusService.hostIsAvailable(virusScanningHost, virusScanningPort);
+
+					  if (!isVirusScanningUp) {
+						  throw new RuntimeException("Error in init():  The virus scanner is not responding at host " + virusScanningHost + " port " + virusScanningPort);
+					  }
+				  }
+				  else {
+					  logger.warn("Virus Scanning is disabled.");
+				  }
+
+				  logger.debug("init() finished successfully.");
+			  }
+
+
+			  /**
+			   * @param aFileInBytes holds the bytes of the file to scan
+			   * @return VirusScanDTO with information about whether viruses were detected or not
+			   */
+			  public VirusScanDTO virusScan(byte[] aFileInBytes) {
+				  VirusScanDTO virusScanDTO;
+
+				  if (isVirusScanningEnabled) {
+					  // Virus Scanning is enabled
+
+					  // Virus Scan the bytes
+					  virusScanDTO = this.antiVirusService.virusScan(aFileInBytes);
+				  }
+				  else {
+					  // Virus Scanning is disabled
+
+					  // Return a hard-coded object that indicates that this file has no viruses
+					  virusScanDTO = new VirusScanDTO();
+					  virusScanDTO.setVirusFree(true);
+				  }
+
+				  return virusScanDTO;
+			  }
+
+		  }
+
+
+
+
+  9. Modify your UploadController to use your VirusScanningService
+
+    	@Resource
+    	private VirusScanningService virusScanningService;
 
         @Value("${max.upload.size.bytes}")
         private long maxUploadSizeInBytes;
 
-        @Value("${virus-scanning.enabled}")
-        private boolean isVirusScanningEnabled;
-
-        @Value("${qlack.util.clamav.host:@null}")
-        private String virusScanningHost;
-
-        @Value("${qlack.util.clamav.port:#{null}}")
-        private Integer virusScanningPort;
-
-        @PostConstruct
-        public void init() {
-            logger.debug("init() started.  isVirusScanningEnabled={}  virusScanningHost={}  virusScanningPort={}", isVirusScanningEnabled, virusScanningHost, virusScanningPort);
-
-            if (isVirusScanningEnabled) {
-                // Verify that the anti-virus scanner is available on application start up
-                boolean isVirusScanningUp = this.antiVirusService.hostIsAvailable(virusScanningHost, virusScanningPort);
-
-                if (!isVirusScanningUp) {
-                    throw new RuntimeException("Error in init():  The virus scanner is not responding at host " + virusScanningHost + " port " + virusScanningPort);
-                }
-            }
-            logger.debug("init() finished successfully.");
-        }
 
 
- 9. Have your UploadController use the AntiVirus Scanner
+10. Adjust your UploadController method use the AntiVirus Scanner
     In your method that handles the file upload, add this to the top of the method:
-    
-    
+
+
         if (isVirusScanningEnabled) {
             // Virus-Scan the uploaded file
             byte[] uploadedFileAsBytes = aMultipartFile.getBytes();
-            VirusScanDTO result = this.antiVirusService.virusScan(uploadedFileAsBytes);
+            VirusScanDTO result = this.virusScanningService.virusScan(uploadedFileAsBytes);
 
             if (!result.isVirusFree()) {
                 // Malware was found.  So, reject the uploaded file
@@ -249,10 +312,10 @@ Procedure
                         .contentType(MediaType.TEXT_PLAIN)
                         .body("Your uploaded file is infected with malware.");
             }
-           
+
         }
-        
-     
+
+
      So, you Upload REST endpoint looks something like this:
 
         @RequestMapping(value = "/api/uploads/add", method = RequestMethod.POST,  consumes = "multipart/form-data")
@@ -265,7 +328,7 @@ Procedure
             if (isVirusScanningEnabled) {
                 // Virus-Scan the uploaded file
                 byte[] uploadedFileAsBytes = aMultipartFile.getBytes();
-                VirusScanDTO result = this.antiVirusService.virusScan(uploadedFileAsBytes);
+          		VirusScanDTO result = this.virusScanningService.virusScan(uploadedFileAsBytes);
 
                 if (!result.isVirusFree()) {
                     // Malware was found.  So, reject the uploaded file
