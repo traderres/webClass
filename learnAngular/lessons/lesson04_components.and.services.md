@@ -1,13 +1,13 @@
 Lesson 4: Using Components & Services
 --------------------------------------
-The Google Drive link is found here:<br>
-   https://docs.google.com/document/d/1vtt0lr6f05gcN642X8saS1D0JB4eNNB6-V7LPu1m95g/edit?usp=sharing
+The Google Drive link is here:<br>
+&nbsp;&nbsp;&nbsp;https://docs.google.com/document/d/1vtt0lr6f05gcN642X8saS1D0JB4eNNB6-V7LPu1m95g/edit?usp=sharing
       
 
 The source code for this lesson is here:<br>
-   https://github.com/traderres/angularApp1Lessons/tree/lesson4/components_and_services
+&nbsp;&nbsp;&nbsp;https://github.com/traderres/angularApp1Lessons/tree/lesson4/components_and_services
 <br>
-  
+<br>
   
 
 
