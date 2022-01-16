@@ -4,8 +4,8 @@ The Google Drive link is here:<br>
 &nbsp;&nbsp;&nbsp;https://docs.google.com/document/d/1TXH5PFoTKe4f3A3vxnTK3jbjCZCsNBVlBZSKvXuf4hU/edit?usp=sharing
       
 
-The source code for this lesson is here:https://github.com/traderres/angularApp1Lessons/tree/lesson6e/left-and-right-animated-navbars<br>
-&nbsp;&nbsp;&nbsp;
+The source code for this lesson is here:<br>
+&nbsp;&nbsp;&nbsp;https://github.com/traderres/angularApp1Lessons/tree/lesson6e/left-and-right-animated-navbars
 <br>
 <br>
 
