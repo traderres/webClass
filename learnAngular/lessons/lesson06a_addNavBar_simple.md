@@ -11,9 +11,9 @@ The source code for this lesson is here:<br>
 
 
 In this lesson, we will create a navigation bar that looks like this:
-
-![](https://lh4.googleusercontent.com/ICgqcVNBbuYhLk3FFimxeEGMvc4lW43mgwCfryLFPs9X4xPzWoveTqiM_Ja1xRtBohNFTkEvyvCjHEM59kd3U9Jd6oJ51bt1aKayL4gfs3LnFoSwh2VBTMqJqGHlHYLlRiJJ5Dv6)
-
+<kbd>
+<img src="https://lh4.googleusercontent.com/ICgqcVNBbuYhLk3FFimxeEGMvc4lW43mgwCfryLFPs9X4xPzWoveTqiM_Ja1xRtBohNFTkEvyvCjHEM59kd3U9Jd6oJ51bt1aKayL4gfs3LnFoSwh2VBTMqJqGHlHYLlRiJJ5Dv6"/>
+</kbd>
 
 
 ```
@@ -209,12 +209,16 @@ Procedure
         a. Pull Run -> Debug 'Full WebApp'
         b. Verify that you see a menubar
 ```
-![](https://lh4.googleusercontent.com/tkzBCf9uixqScE_a0g08NZB4py7ZMKB1ZlwcMkJAfyIb1NHGurFRrSSJ_LfQl4ncXAw0BtxjMyVC1xA4_4LoKgO8P9f7ifiyPKpwSMQ3StpkY1mq1sMw1YVopwLPKC-J2z76c3gq)  
+<kbd>
+<img src="https://lh4.googleusercontent.com/tkzBCf9uixqScE_a0g08NZB4py7ZMKB1ZlwcMkJAfyIb1NHGurFRrSSJ_LfQl4ncXAw0BtxjMyVC1xA4_4LoKgO8P9f7ifiyPKpwSMQ3StpkY1mq1sMw1YVopwLPKC-J2z76c3gq"/>
+</kbd>
 ```
         c. Click on the "Add Report" option (on the top or left side)
             -- You should see the "Add Report" page inside the viewing area
 ```
-![](https://lh3.googleusercontent.com/B-FEQxPowbpZVNAoDK0G76SM32RxlAxEDQDSbeVCthQylCwcU3cmkZGMug-cgcLz9XvXNmFsGU9v6mD05bjqunQbSxFSaBb4mREOtgVzfQ8ieQklqVzCkI7mO3XA79FCSEyACIqN)  
+<kbd>
+<img src="https://lh3.googleusercontent.com/B-FEQxPowbpZVNAoDK0G76SM32RxlAxEDQDSbeVCthQylCwcU3cmkZGMug-cgcLz9XvXNmFsGU9v6mD05bjqunQbSxFSaBb4mREOtgVzfQ8ieQklqVzCkI7mO3XA79FCSEyACIqN"/>
+</kbd>
 ```
 
         d. Click on "View Reports", and you see the "Not Found Component"
@@ -224,7 +228,8 @@ Procedure
 <img src="https://lh5.googleusercontent.com/ymcq3R0mDLh_88Kdkqs0c8oM_Ly1hbiqFIUFPs7SUuP2_2gCOHW1zdFmlXsdoIskibHgPRJ167obI0XIUQfK1vDadXUPv8VnrbuIa2dOB1KJYCSyOcCrO-KE4Wo0IK6tz_PB_Jug"/>
 </kbd>
 ```
-    
+
+
 
  Why is the "Not Found" page displayed?
 
