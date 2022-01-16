@@ -1,5 +1,5 @@
-Lesson X: Add Report Page
--------------------------
+Lesson 5: Add Font Awesome
+--------------------------
 The Google Drive link is here:<br>
 &nbsp;&nbsp;&nbsp;https://docs.google.com/document/d/1knmHYiJz3tDn0u1twBdtLHyWPS_r-25x-GPQU9117Nc/edit?usp=sharing
       
