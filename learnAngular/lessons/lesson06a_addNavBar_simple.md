@@ -215,12 +215,14 @@ Procedure
             -- You should see the "Add Report" page inside the viewing area
 ```
 ![](https://lh3.googleusercontent.com/B-FEQxPowbpZVNAoDK0G76SM32RxlAxEDQDSbeVCthQylCwcU3cmkZGMug-cgcLz9XvXNmFsGU9v6mD05bjqunQbSxFSaBb4mREOtgVzfQ8ieQklqVzCkI7mO3XA79FCSEyACIqN)  
+-
 ```
 
         d. Click on "View Reports", and you see the "Not Found Component"
 
 ```
-<img border="1" src="https://lh5.googleusercontent.com/ymcq3R0mDLh_88Kdkqs0c8oM_Ly1hbiqFIUFPs7SUuP2_2gCOHW1zdFmlXsdoIskibHgPRJ167obI0XIUQfK1vDadXUPv8VnrbuIa2dOB1KJYCSyOcCrO-KE4Wo0IK6tz_PB_Jug"/>
+![](https://lh5.googleusercontent.com/ymcq3R0mDLh_88Kdkqs0c8oM_Ly1hbiqFIUFPs7SUuP2_2gCOHW1zdFmlXsdoIskibHgPRJ167obI0XIUQfK1vDadXUPv8VnrbuIa2dOB1KJYCSyOcCrO-KE4Wo0IK6tz_PB_Jug)
+-
 ```
     
 
