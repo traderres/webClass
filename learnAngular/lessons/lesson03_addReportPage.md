@@ -1,10 +1,14 @@
 Lesson 3: Add Report Page
 -------------------------
+The Google Drive link is here:<br>
+&nbsp;&nbsp;&nbsp;https://docs.google.com/document/d/1WNXCAORdByzjRXo2kI7IuSsbqQMaPHGwMaVbZECkC8A/edit?usp=sharing
+      
 
+The source code for this lesson is here:<br>
+&nbsp;&nbsp;&nbsp;https://github.com/traderres/angularApp1Lessons/tree/lesson3/add-report-page
+<br>
+<br>
 
-The source code for this lesson is here:
-
-<https://github.com/traderres/angularApp1Lessons/tree/lesson3/add-report-page>
 
 
 
