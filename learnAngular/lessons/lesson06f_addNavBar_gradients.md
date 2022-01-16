@@ -152,9 +152,8 @@ Procedure
         c. Examine the results
 ```
 ![](https://lh3.googleusercontent.com/6HYu5tW9zGr4XzgcUuuRLxal_qmP7TmEYNr0q0f8WT9lx95dguTiNvbDtHC5hCV9w7c2OpMqCVMlLZdm7NWIMp5kk6VgG9R_fi53S-bK6EJIuHY1uCvfnaQPNqI2YD8Hx_xh39NS)
-```
 NOTE:  The left-side gradient blends in with the left-side nav bar (but header buttons look bad) 
-        
+```        
 
 
 
@@ -239,10 +238,9 @@ NOTE:  The left-side gradient blends in with the left-side nav bar (but header b
         f. Examine the results:
 ```
 ![](https://lh4.googleusercontent.com/sv1kY16Qi1H7EAwjtayV_EMsgfTB-zj3mW5fq9NKuzl-RuKoFARzJ3O9e_jnEpn3wNOKOGPwSbNE8jKXJ2yqHKLEmnVw4YSk5G1GEqnL3xQ-AN-8KRIfVtaHU430ZPRo8n2xT7bn)
-```
 NOTE:  Now, the header buttons look better -- They also blend in
 -- This looks more professional
-
+```
 
 
 
@@ -292,9 +290,8 @@ NOTE:  Now, the header buttons look better -- They also blend in
         c. Examine the Results	
 ```
 ![](https://lh3.googleusercontent.com/ythhtsNzzLdfOqs1Nv-7y1NEt1chv-EnMR2mA2no0xv9Opo3RFqJMniHa3xcpDqkJwpPfYlLe4sFcmo3Azx4jYGccnwHuVNDmGke6-pAV-C1aVQVVuSOtrabGyCHT1oxVYXKLemj)
-```
 Now, the navbar has a light-dark-light gradient
-
+```
 
 
 
