@@ -208,14 +208,20 @@ Procedure
     7. Activate the debugger to see your new menu
         a. Pull Run -> Debug 'Full WebApp'
         b. Verify that you see a menubar
-
+```
+![](https://lh4.googleusercontent.com/tkzBCf9uixqScE_a0g08NZB4py7ZMKB1ZlwcMkJAfyIb1NHGurFRrSSJ_LfQl4ncXAw0BtxjMyVC1xA4_4LoKgO8P9f7ifiyPKpwSMQ3StpkY1mq1sMw1YVopwLPKC-J2z76c3gq)  
+```
         c. Click on the "Add Report" option (on the top or left side)
             -- You should see the "Add Report" page inside the viewing area
-
+```
+![](https://lh3.googleusercontent.com/B-FEQxPowbpZVNAoDK0G76SM32RxlAxEDQDSbeVCthQylCwcU3cmkZGMug-cgcLz9XvXNmFsGU9v6mD05bjqunQbSxFSaBb4mREOtgVzfQ8ieQklqVzCkI7mO3XA79FCSEyACIqN)  
+```
 
         d. Click on "View Reports", and you see the "Not Found Component"
 
-
+```
+![](https://lh5.googleusercontent.com/ymcq3R0mDLh_88Kdkqs0c8oM_Ly1hbiqFIUFPs7SUuP2_2gCOHW1zdFmlXsdoIskibHgPRJ167obI0XIUQfK1vDadXUPv8VnrbuIa2dOB1KJYCSyOcCrO-KE4Wo0IK6tz_PB_Jug)  
+```
     
 
  Why is the "Not Found" page displayed?
