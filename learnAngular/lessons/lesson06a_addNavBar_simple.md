@@ -220,9 +220,7 @@ Procedure
         d. Click on "View Reports", and you see the "Not Found Component"
 
 ```
-<table border="1"><tr><td>
-<img src="https://lh5.googleusercontent.com/ymcq3R0mDLh_88Kdkqs0c8oM_Ly1hbiqFIUFPs7SUuP2_2gCOHW1zdFmlXsdoIskibHgPRJ167obI0XIUQfK1vDadXUPv8VnrbuIa2dOB1KJYCSyOcCrO-KE4Wo0IK6tz_PB_Jug"/>
-</td></tr></table>
+<img border="1" src="https://lh5.googleusercontent.com/ymcq3R0mDLh_88Kdkqs0c8oM_Ly1hbiqFIUFPs7SUuP2_2gCOHW1zdFmlXsdoIskibHgPRJ167obI0XIUQfK1vDadXUPv8VnrbuIa2dOB1KJYCSyOcCrO-KE4Wo0IK6tz_PB_Jug"/>
 ```
     
 
