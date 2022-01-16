@@ -93,8 +93,9 @@ unix> npm install @fortawesome/fontawesome-free
         a. Pull Run -> Debug 'Full WebApp'
         b. Verify that you see the "Add a Report" page
         c. Verify that you see the pretty icons in the buttons
-
-
+```
+![](https://lh3.googleusercontent.com/bYw5Ng4mdApd-wP99bj4IIf_bNBkafypS8r8kNUfaMje9db5Joxj1WHNGpakN6vyyqGSAkaSKevrFI2wUiCkPMP3gsQ-dWEcOdLCjqnaiOul1YYifidP9HNAQtzOA59cKCU4rgLh)  
+```
 
 
 
