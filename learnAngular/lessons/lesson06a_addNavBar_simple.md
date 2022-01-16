@@ -209,7 +209,9 @@ Procedure
         a. Pull Run -> Debug 'Full WebApp'
         b. Verify that you see a menubar
 ```
+<kbd>
 ![](https://lh4.googleusercontent.com/tkzBCf9uixqScE_a0g08NZB4py7ZMKB1ZlwcMkJAfyIb1NHGurFRrSSJ_LfQl4ncXAw0BtxjMyVC1xA4_4LoKgO8P9f7ifiyPKpwSMQ3StpkY1mq1sMw1YVopwLPKC-J2z76c3gq)  
+</kbd>
 ```
         c. Click on the "Add Report" option (on the top or left side)
             -- You should see the "Add Report" page inside the viewing area
