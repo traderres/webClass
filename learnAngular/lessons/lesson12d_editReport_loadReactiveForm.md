@@ -10,6 +10,8 @@ The source code for this lesson is here:<br>
 <br>
 <br>
 
+<h3> Problem Set </h3>
+
 Problem: I want to use the Async pipe to invoke a REST call and initialize multiple fields  <br>
 Solution: Create an observable and <b>tap into it</b>. The tap lets us listen for the data and run code<br>
 
