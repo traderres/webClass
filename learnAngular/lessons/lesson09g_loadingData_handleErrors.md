@@ -88,7 +88,7 @@ Procedure
         d. Change the ngOnInit() to call code if an error occurs
             
             From this:
-                        this.prioritiesObs = this.lookupService.getLookupWithTypeAndOrder("priority", "display_order");
+                this.prioritiesObs = this.lookupService.getLookupWithTypeAndOrder("priority", "display_order");
             
             To this:
                 this.prioritiesObs = this.lookupService.getLookupWithTypeAndOrder("priority", "display_order").pipe(
@@ -113,58 +113,58 @@ Procedure
         a. Edit the add-report2.component.html priorities section
                   
             Change this:
-                      <ng-container *ngIf="(prioritiesObs | async) as priorities; else loadingPriorities">
-                            <!-- Priorities are fully loaded -->
-                            <mat-form-field style="margin-top: 20px">
-                                <mat-label>Choose Priority</mat-label>
-            
-                                <!-- Priorities Drop Down -->
-                                <mat-select formControlName="priority">
-                                    <mat-option [value]=null>-Select Priority-</mat-option>
-                                    <mat-option *ngFor="let priority of priorities"  value="{{priority.id}}">{{priority.name}}</mat-option>
-                                </mat-select>
-            
-                            </mat-form-field>
-                      </ng-container>
-            
-                      <ng-template #loadingPriorities>
-                            <!-- Priorities are loading message -->
-                            <p style="margin-top: 20px"><i class="fa fa-spin fa-spinner"></i> 
-                                Loading Priorities...
-                            </p>
-                      </ng-template>
-            
-            
-            To this:
-                     <ng-container *ngIf="(prioritiesObs | async) as priorities; else loadingPrioritiesOrError">
+                  <ng-container *ngIf="(prioritiesObs | async) as priorities; else loadingPriorities">
                         <!-- Priorities are fully loaded -->
                         <mat-form-field style="margin-top: 20px">
                             <mat-label>Choose Priority</mat-label>
-            
+        
                             <!-- Priorities Drop Down -->
                             <mat-select formControlName="priority">
                                 <mat-option [value]=null>-Select Priority-</mat-option>
                                 <mat-option *ngFor="let priority of priorities"  value="{{priority.id}}">{{priority.name}}</mat-option>
                             </mat-select>
-            
+        
                         </mat-form-field>
-                     </ng-container>
+                  </ng-container>
+        
+                  <ng-template #loadingPriorities>
+                        <!-- Priorities are loading message -->
+                        <p style="margin-top: 20px"><i class="fa fa-spin fa-spinner"></i> 
+                            Loading Priorities...
+                        </p>
+                  </ng-template>
             
-                    <ng-template #loadingPrioritiesOrError>
-                    <!-- Either the priorities are loading *OR* there is an error -->
             
-                        <div *ngIf="this.loadingPriorityErrorObs | async; else loadingPriorities">
-                            <!-- Priorities Failed to load message -->
-                            Error loading the list of priorities.  Please try again later.
-                        </div>
-            
-                        <ng-template #loadingPriorities>
-                                <!-- Priorities are loading -->
-                                <p style="margin-top: 20px"><i class="fa fa-spin fa-spinner"></i> 
-                                    Loading Priorities...
-                                </p>
-                        </ng-template>
-                    </ng-template>  
+            To this:
+                 <ng-container *ngIf="(prioritiesObs | async) as priorities; else loadingPrioritiesOrError">
+                    <!-- Priorities are fully loaded -->
+                    <mat-form-field style="margin-top: 20px">
+                        <mat-label>Choose Priority</mat-label>
+        
+                        <!-- Priorities Drop Down -->
+                        <mat-select formControlName="priority">
+                            <mat-option [value]=null>-Select Priority-</mat-option>
+                            <mat-option *ngFor="let priority of priorities"  value="{{priority.id}}">{{priority.name}}</mat-option>
+                        </mat-select>
+        
+                    </mat-form-field>
+                 </ng-container>
+        
+                <ng-template #loadingPrioritiesOrError>
+                <!-- Either the priorities are loading *OR* there is an error -->
+        
+                    <div *ngIf="this.loadingPriorityErrorObs | async; else loadingPriorities">
+                        <!-- Priorities Failed to load message -->
+                        Error loading the list of priorities.  Please try again later.
+                    </div>
+        
+                    <ng-template #loadingPriorities>
+                            <!-- Priorities are loading -->
+                            <p style="margin-top: 20px"><i class="fa fa-spin fa-spinner"></i> 
+                                Loading Priorities...
+                            </p>
+                    </ng-template>
+                </ng-template>  
 
     3. Simulate an error
         a. Edit add-report2.component.ts
