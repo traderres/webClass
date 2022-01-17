@@ -9,6 +9,7 @@ The Google Drive link is here:<br>
 
 
 <h5>References</h5>
+
 - https://medium.com/@luukgruijs/understanding-creating-and-subscribing-to-observables-in-angular-426dbf0b04a3
 - https://medium.com/angular-in-depth/angular-question-rxjs-subscribe-vs-async-pipe-in-component-templates-c956c8c0c794
 - https://alligator.io/angular/async-pipe/
