@@ -31,14 +31,7 @@ Solution: Create a single variable called "data" that holds all 3 async pipes<br
       priorities: prioritiesObs | async
    } as data;">
 
-  
-     <!-- Inside here, we have data.report_sources, data.priorities, and data.authors -->
-	 <mat-card>
-
-    	<!-- Existing mat-card code here -->
-
-	 </mat-card>         
-  
+         <!-- Inside here, we have data.report_sources, data.priorities, and data.authors -->
 
   </ng-container>
 ```
