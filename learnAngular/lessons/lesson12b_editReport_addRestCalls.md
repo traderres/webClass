@@ -31,7 +31,9 @@ A. Create a REST call toset info in the database for one report
       ```
 
    4. Use Postman to verify that the update-one-report REST call works  
-    
+
+<br>
+<br>
      
 B. Create a REST call toget info from the database for one report
 
@@ -45,6 +47,8 @@ B. Create a REST call toget info from the database for one report
    4. Use Postman to verify that this get-one-report REST call works  
         
 
+<br>
+<br>
 
 <h3>Notes</h3>
 
