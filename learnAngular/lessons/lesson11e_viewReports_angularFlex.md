@@ -8,7 +8,7 @@ The source code for this lesson is here:<br>
 &nbsp;&nbsp;&nbsp;https://github.com/traderres/angularApp1Lessons/tree/lesson11e/angular-flex
 <br>
 <br>
-
+<br>
 
   
   
