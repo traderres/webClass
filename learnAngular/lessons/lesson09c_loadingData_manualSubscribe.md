@@ -11,9 +11,11 @@ The source code for this lesson is here:<br>
 <br>
 Problem:  I have a dropdown that I want to load from a REST call or some service.<br>
 Solution: Manually subscribe to the data and show a loading flag
-<br>
 
-<u>General Approach</u>
+<br>
+<br>
+<br>
+<h5>General Approach</h5>
 
 1. In ngOnInit, Set the loadingData flag = true (to show a spinner)
 
