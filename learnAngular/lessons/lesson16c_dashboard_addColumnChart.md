@@ -25,7 +25,6 @@ Solution:  Use HighCharts and add a <b>column chart</b><br>
 <br>
 
 ```
-
 Procedure
 ---------
     1. Set the div with an id="chart2" in the 2nd mat-grid-tile
