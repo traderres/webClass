@@ -32,7 +32,7 @@ NOTE: This approach is considered a fucking bad practice
 <br>
 <br>
 <br>
-<h3>Approach 2: Manually subscribe to an Observable within ngOnInit() \[BETTER]</h3>
+<h3>Approach 2: Manually subscribe to an Observable within ngOnInit() [BETTER]</h3>
 In this approach, you would
 1. The add-report.component.ts has a public list of priorities (used by the html page)
 
@@ -64,7 +64,7 @@ In this approach, you would
 <br>
 <br>
 
-<h3>Approach 3: Automatically subscribe to an Observable using Async Pipe**\[BEST]**</h3>
+<h3>Approach 3: Automatically subscribe to an Observable using Async Pipe [BEST]</h3>
 In this approach, there is only one variable in the typescript class:  
   public priorities: Observable\[DTO];
 
