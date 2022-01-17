@@ -19,7 +19,7 @@ Solution:  Add the help.pdf file to your frontend/src/app/asset<br>
 Lesson:  Users can download files directly from your frontend/src/assets/
 
 
-
+<br>
 <br>
 <br>
 
