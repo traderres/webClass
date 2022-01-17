@@ -1,7 +1,7 @@
 Lesson 9a:  Loading Data / Setup LoadingService & Backend REST Call
 -------------------------------------------------------------------
 The Google Drive link is here:<br>
-https://docs.google.com/document/d/18-DOnot2MEBYn86KhhfheO9hwgNgHDsJMrh4ByvQI64/edit?usp=sharing
+&nbsp;&nbsp;&nbsp;https://docs.google.com/document/d/18-DOnot2MEBYn86KhhfheO9hwgNgHDsJMrh4ByvQI64/edit?usp=sharing
       
 
 The source code for this lesson is here:<br>
