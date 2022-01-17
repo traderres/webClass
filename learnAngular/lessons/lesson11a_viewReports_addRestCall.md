@@ -11,6 +11,7 @@ The source code for this lesson is here:<br>
 
 
 <h3>Approach</h3>
+
 - Create GetReportDTO.java (that holds information passed to the front-end)
 
 - Create this method: ReportService.getAllReports() that runs SQL query
