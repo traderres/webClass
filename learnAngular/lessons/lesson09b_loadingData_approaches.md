@@ -6,25 +6,19 @@ The Google Drive link is here:<br>
 
 <br>
 <br>
+
+
+<u>References</u>
+- https://medium.com/@luukgruijs/understanding-creating-and-subscribing-to-observables-in-angular-426dbf0b04a3
+- https://medium.com/angular-in-depth/angular-question-rxjs-subscribe-vs-async-pipe-in-component-templates-c956c8c0c794
+- https://alligator.io/angular/async-pipe/
+- https://www.concretepage.com/angular-2/angular-2-async-pipe-example
+
+  
+  
+
 <br>
-
-  
-
-
-References
-
-https&#x3A;//medium.com/@luukgruijs/understanding-creating-and-subscribing-to-observables-in-angular-426dbf0b04a3
-
-https&#x3A;//medium.com/angular-in-depth/angular-question-rxjs-subscribe-vs-async-pipe-in-component-templates-c956c8c0c794
-
-https&#x3A;//alligator.io/angular/async-pipe/
-
-https&#x3A;//www.concretepage.com/angular-2/angular-2-async-pipe-example
-
-  
-  
-
-
+<br>
 <h3>Approach 1: Use routes to make the lookup call \*\*synchronous\*\* \[BAD PRACTICE]</h3>
 The idea is that the entire page does not show until \*ALL\* data is loaded
 - The REST call is synchronous
