@@ -27,6 +27,7 @@ Solution: Manually subscribe to the data and show a loading flag
 <br>
 <br>
 <br>
+
 ```
 Procedure
     1. Edit add-report2.component.ts
