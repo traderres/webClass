@@ -38,10 +38,9 @@ Click on "Back to Main Chart" to return to the original chart
 1. Add a navigation icon for "page/bar-drill-down"  
 
 1. Setup the page layout using Angular Flex
-
    1. Add the page-container css class
    1. Add Angular flex with 2 rows
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/lesson16j_image1.png)
+      ![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/lesson16j_image1.png)
 
 1. Fill-in the chart-drill-down.component.ts class
 
