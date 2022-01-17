@@ -30,6 +30,7 @@ Solution: Create a database table, create a DTO to hold the passed-in data, run 
 ```
 
 Procedure
+---------
     1. Add a Reports table to the database by adding this file:  V1.3__reports.sql
         a. Right-click on backend/src/main/resources/db/migration -> New File
            Filename:  V1.3__reports.sql
