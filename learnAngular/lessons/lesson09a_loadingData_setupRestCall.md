@@ -31,10 +31,7 @@ For these lessons, we need to setup a few things on the back-end:
 
 <br>
 <br>
-At this point, you have:
-- Database tables that hold lookup info
-- A backend REST call that returns lookup values
+At this point, you have:<br>
+- Database tables that hold lookup info<br>
+- A backend REST call that returns lookup values<br>
 - A frontend lookupService that invokes the REST call
-
-
-
