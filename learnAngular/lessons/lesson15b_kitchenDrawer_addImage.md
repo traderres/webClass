@@ -12,14 +12,14 @@ The source code for this lesson is here:<br>
 
 <h3> Problem Set </h3>
 Problem: I want to add a logo image file to the webapp (that I can show in the header)<br>
-Solution: Add the image to the frontend/src/assets<br>
+Solution: Add the image to the frontend/src/assets and reference it with a regular img tag.<br>
 
 <br>
 <br>
 
 ![](https://lh4.googleusercontent.com/0lEFsaz-4qvgZ1hpy7oAzbLzWYrvu0qkpMNatLAByNHevsbMIGi_KqW9-UcuyQqiCFLbyU9bDVmJdh51nkCM7jl-baq79wra8JP4-45eSa4TcGUnFGe0j_Hzz7Xvx782CdiwEK85)
 
-NOTE:  The A logo in the upper left corner is an image file<br>
+NOTE:  The "A" logo in the upper left corner is an image file<br>
 
 <br>
 <br>
