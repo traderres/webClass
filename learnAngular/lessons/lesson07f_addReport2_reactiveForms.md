@@ -25,6 +25,7 @@ Reactive forms give you a few advantages
 <br>
 Here is what the form looks like on page load:
 ![](https://lh4.googleusercontent.com/B9rjTi4MpRG0H6m5_ZPEeN5tu2cS4UQzwup6hsNIkycAKydTqVm079oorKtkUhmAchsSmfsb8E5TX-XoEuRwsXMvdHEtdhcDP14MRxyflgjrFHhTYo7OaTWAqYJ_h7tUcxOQ2mkj)
+
 <br>
 <br>
 <br>
