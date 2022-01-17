@@ -1,0 +1,180 @@
+Lesson:  Add a Lookup Service (that returns hard-coded data)
+------------------------------------------------------------
+Problem: We have lots of dropdowns that need lookup values
+Solution: Create a LookupService that returns a hard-coded list of DTOs
+
+
+Procedure
+---------
+ 1. Add a Lookup class
+    a. Generate the lookupDTO.ts c lass
+	   unix> cd ~/intellijProjects/angularApp1/frontend
+	   unix> ng generate class models/lookupDTO --skipTests
+	   
+    b. Edit lookupDTO.ts
+	
+	c. Replace its contents with this:
+
+         /*
+          * Define the LookupDTO class
+          */
+         export class LookupDTO {
+           id: number;
+           name: string;
+
+           constructor(aId: number, aName: string) {
+             this.id = aId;
+             this.name = aName;
+           }
+         }
+
+
+
+ 2. Add a hard-coded list of priorities to add-report2.component.ts
+    a. Edit frontend/src/app/reports/add-report2/add-report2.component.ts
+
+    b. Add this to the top of add-report2.component.ts
+          public priorities: LookupDTO[] =
+            [
+              {
+                id: 1,
+                name: 'Low (from add-report.component2.ts)'
+              },
+              {
+                id: 2,
+                name: 'Medium'
+              },
+              {
+                id: 3,
+                name: 'High'
+              },
+              {
+                id: 4,
+                name: 'Critical'
+              }
+            ];
+
+
+ 3. Change the add-report2.component.html to loop through the list of priorities
+    -- The value holds the "id" field
+    -- The displayed label holds the "name" field
+
+    a. Change this dropdow
+          <mat-select formControlName="priority">
+            <mat-option [value]=null>-Select Priority-</mat-option>
+            <mat-option [value]=1>Low</mat-option>
+            <mat-option [value]=2>Medium</mat-option>
+            <mat-option [value]=3>High</mat-option>
+            <mat-option [value]=4>Critical</mat-option>
+          </mat-select>
+
+       To this:
+          <mat-select formControlName="priority">
+            <mat-option [value]=null>-Select Priority-</mat-option>
+            <mat-option *ngFor="let priority of this.priorities"  value="{{priority.id}}">{{priority.name}}</mat-option>
+          </mat-select>
+
+
+ 4. Verify the priorities dropdown shows the 4 values
+    a. Pull Run -> Debug 'Full WebApp'
+       -- This should open a browser connected to http://localhost:4200
+    b. Go to the "Add a Report 2" page
+    c. Verify that you see the priorities (including the low priority with the label)
+
+
+
+ 5. Generate the Lookup Service
+    unix> cd ~/intellijProjects/angularApp1/frontend
+    unix> ng generate service services/lookup
+          -- Creates src/app/services/lookup.service.ts
+          -- Creates src/app/services/lookup.service.spec.ts
+
+
+ 6. Replace the lookup.service.ts with this:
+		import { Injectable } from '@angular/core';
+		import {LookupDTO} from "../models/lookup-dto";
+
+		@Injectable({
+		  providedIn: 'root'
+		})
+		export class LookupService {
+
+		  constructor() { }
+
+		  /*
+		   * Return a list of LookupDTO objects that correspond to the passed-in type name -- e.g, 'priority'
+		   */
+		  public getLookupWithType(aType: string): LookupDTO[]  {
+
+			// Return a hard-coded array of LookupDTO objects
+			let listOfDtos: LookupDTO[];
+
+			listOfDtos = [
+			  {
+				id: 1,
+				name: 'Low (from lookup.service.ts)'
+			  },
+			  {
+				id: 2,
+				name: 'Medium'
+			  },
+			  {
+				id: 3,
+				name: 'High'
+			  },
+			  {
+				id: 4,
+				name: 'Critical'
+			  }];
+
+			return listOfDtos;
+		  }
+		}
+
+
+ 5. Edit the add-report2.component.ts to use the LookupService
+    a. Inject the LookupService by *ADDING IT* to your constructor
+          constructor(private lookupService: LookupService,
+		  						...) { }
+  
+       When finished, the constructor should now look SOMETHING like this:
+         constructor(private lookupService: LookupService,
+		 			 private messageService: MessageService,
+					 private formBuilder: FormBuilder)
+           { }
+  
+  
+    b. Remove the hard-coded list of priorities
+          public priorities:  LookupDTO[] =
+                 [
+                   {
+                     id: 1,
+                     name: 'Low (from add-report.component.ts)'
+                   },
+                   {
+                     id: 2,
+                     name: 'Medium'
+                   },
+                   {
+                     id: 3,
+                     name: 'High'
+                   },
+                   {
+                     id: 4,
+                     name: 'Critical'
+                   }];
+
+    c. Insert a variable called priorities
+          public priorities: LookupDTO[];
+
+    d. Change the ngOnInit() to load the list of priorities
+          ngOnInit() {
+            // Get the lookup values from the LookupService
+            this.priorities = this.lookupService.getLookupWithType("priority");
+          }
+
+ 6. Try it out and see if it works
+    a. Pull Run -> Debug 'Full WebApp'
+    b. Click on "Add Report 2"
+       -- Verify that the priorities dropdown shows this option  "Low (from lookup.service.ts)"
+

@@ -17,15 +17,15 @@ For these lessons, we need to setup a few things on the back-end:
 
 2. Add a Spring-JDBC Connection pool to your backend:  
    [https://github.com/traderres/webClass/blob/master/learnAngular/lessons/lesson01c_addSpringJdbcConnectionPool.txt](https://github.com/traderres/webClass/blob/master/learnAngular/lessons/lesson01c_addSpringJdbcConnectionPool.txt)
-
+    
 3. Create a front-end lookup service that returns hard-coded data:  
-   [https://github.com/traderres/webClass/blob/master/learnAngular/lessons/lesson08a_lookupService_hardcodedData.txt](https://github.com/traderres/webClass/blob/master/learnAngular/lessons/lesson08a_lookupService_hardcodedData.txt)
+   [https://github.com/traderres/webClass/blob/master/learnAngular/lessons/lesson09a_lookupData_notes1_hardcodedData.txt](lesson09a_lookupData_notes1_hardcodedData.txt)
 
 4. Create a backend REST call that will return real data:  
-   [https://github.com/traderres/webClass/blob/master/learnAngular/lessons/lesson08b_lookupService_restEndpoint.txt](https://github.com/traderres/webClass/blob/master/learnAngular/lessons/lesson08b_lookupService_restEndpoint.txt)
+   [https://github.com/traderres/webClass/blob/master/learnAngular/lessons/lesson09a_lookupData_notes2_invokeRestCall.txt](lesson09a_lookupData_notes2_invokeRestCall.txt)
 
 5. Change your front-end lookup service to invoke the real REST endpoint  
-   [https://github.com/traderres/webClass/blob/master/learnAngular/lessons/lesson08c_lookupService_invokeRestCall.txt](https://github.com/traderres/webClass/blob/master/learnAngular/lessons/lesson08c_lookupService_invokeRestCall.txt)
+   [https://github.com/traderres/webClass/blob/master/learnAngular/lessons/lesson09a_lookupData_notes3_restEndpoint.txt](lesson09a_lookupData_notes3_restEndpoint.txt)
 
 
 
