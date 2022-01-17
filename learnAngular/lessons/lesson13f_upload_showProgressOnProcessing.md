@@ -13,6 +13,7 @@ The source code for this lesson is here:<br>
 <h3> Problem Set </h3>
 
 Problem: It may take 60-120 seconds to finish processing the uploaded file<br>
+Solution: Show progress by <b>polling on the front-end</b> against the jobStatus record<br>
 
 - On the back-end, the upload REST call adds a new record to the jobs database table, launches a background thread to process the file, and immediately returns the jobId to the front-end
 - On the front-end, the web page polls on the status of the jobID
