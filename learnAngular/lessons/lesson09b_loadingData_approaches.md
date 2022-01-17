@@ -32,7 +32,7 @@ NOTE: This approach is considered a fucking bad practice
 <br>
 <br>
 <br>
-<h3>Approach 2: Manually subscribe to an Observable within ngOnInit() [BETTER]</h3>
+<h3>Approach 2: Manually subscribe to an Observable within ngOnInit() [BETTER PRACTICE]</h3>
 In this approach, you would
 1. The add-report.component.ts has a public list of priorities (used by the html page)
 
@@ -43,7 +43,7 @@ In this approach, you would
    1. Add a flag indicating the REST call is running
    1. Clear the flag when the REST call finishes
 
-1. Add a method in ngOnDestroy() to cleanup
+1. Add a method in ngOnDestroy() to clean up
 
 <br>
 <br>
@@ -64,7 +64,7 @@ In this approach, you would
 <br>
 <br>
 
-<h3>Approach 3: Automatically subscribe to an Observable using Async Pipe [BEST]</h3>
+<h3>Approach 3: Automatically subscribe to an Observable using Async Pipe [BEST PRACTICE]</h3>
 In this approach, there is only one variable in the typescript class:  
   public priorities: Observable\[DTO];
 
