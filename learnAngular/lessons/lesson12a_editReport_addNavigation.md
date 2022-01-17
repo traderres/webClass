@@ -1,7 +1,7 @@
 Lesson 12a:  Edit Report / Add Front-End Page & Navigation
 ----------------------------------------------------------
 The Google Drive link is here:<br>
-https://docs.google.com/document/d/1inEHreMvluu0-rdXtqBu_34xaCLMK8ThONbZ11g9j04/edit?usp=sharing
+&nbsp;&nbsp;&nbsp;https://docs.google.com/document/d/1inEHreMvluu0-rdXtqBu_34xaCLMK8ThONbZ11g9j04/edit?usp=sharing
       
 
 The source code for this lesson is here:<br>
