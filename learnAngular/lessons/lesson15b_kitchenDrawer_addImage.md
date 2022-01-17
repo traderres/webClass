@@ -38,12 +38,15 @@ Procedure
 Procedure
     1. Create this directory:  angularApp1/frontend/src/assets/images
 
+
     2. Download the logo from my github site:
        https://github.com/traderres/webClass/blob/master/learnAngular/lessons/logo.png
+
 
     3. Save the file to the new images directory
        Now, you have this file:
             frontend/src/assets/images/logo.png
+
 
     4. Edit header.component.html
 
