@@ -17,7 +17,7 @@ Most web applications have only 3 kinds of messages:<br>
 So, let's have the messageService have 3 methods that would display the messages differently
 <br>
 <br>
-  
+<br>
 
 
 ![](https://lh5.googleusercontent.com/BC2v9eCHlWodEhV1V2KZyY1Ufb-Ac2xQcwejYHxSjsUcYURCrMf5biIJ_UyO7HCpZapxWNZb4qrWxFG-NFUSNdFcWZLkemSxWScC_aDRrbMr5sanFDFTocNTUh0ibH-r8-5EEjsq)
@@ -47,6 +47,7 @@ The error message appears in all red.
 
 ```
 Procedure
+---------
     1. Add additional methods to the messageService
         a. Edit message.service.ts
 
