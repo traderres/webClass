@@ -19,11 +19,11 @@ Solution: Create a database table, create a DTO to hold the passed-in data, run 
 <br>
 <h3>Approach</h3>
 
-1. Use flyway to add a reports tableDefines the new database table
-1. Add a AddReportDTO objectHolds information passed-in from front-end
-1. Add a ReportController to the backendActs as the REST endpoint
-1. Add a ReportServiceRuns the SQL to insert a record
-1. Add a DatabaseServiceGenerate the unique report ID
+1. Use flyway to add the reports table   (Defines the new database table)
+1. Add a AddReportDTO object             (Holds information passed-in from front-end)
+1. Add a ReportController to the backend (Acts as the REST endpoint)
+1. Add a ReportService                   (Runs the SQL to insert a record)
+1. Add a DatabaseService                 (Generate the unique report ID)
 
 
 
