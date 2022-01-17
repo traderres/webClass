@@ -9,7 +9,7 @@ The source code for this lesson is here:<br>
 <br>
 <br>
 
-###Form Validation Approaches
+<h3>Form Validation Approaches</h3>
 1\. Using HTML Templates
 + Requires the <b>FormsModule</b> (in the app.module.ts)
 + It's familiar
