@@ -74,6 +74,7 @@ In this approach, there is only one variable in the typescript class:
 <br>
 
 <h5>Advantages</h5> 
+
 - The REST call is asynchronous
 - We can show a spinner (if needed)
 - Automatically clean-up: No need to unsubscribe
