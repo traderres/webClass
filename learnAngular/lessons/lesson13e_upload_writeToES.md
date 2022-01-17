@@ -15,12 +15,12 @@ Problem: I want to create a REST endpoint that writes data to ElasticSearch
 
 <br>
 <br>
+
 <h3> Assumptions </h3>
 
 - You have ElasticSearch 6.8 or later installed and running
 - You have ElasticSearch listening on port 9201
 
-<br>
 <br>
 <h3> Back-End Design </h3>
 
