@@ -48,8 +48,6 @@ Big advantage of Async Pipes: There is a lot less code.
 1. The async pipe subscribes to the observable  
    -- So, the REST call is invoked (we start waiting 5 seconds)  
 
-1. The HTML page invokes the "loadingPriorities" section  
-
 1. The REST call comes back (after 5 seconds)  
    -- The block of the &lt;ng-container> is now invoked and priorities holds an array of LookupDTO objects  
    -- The user now sees the priorities (returned from the REST call)  
