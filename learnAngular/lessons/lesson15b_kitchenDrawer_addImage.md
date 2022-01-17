@@ -35,7 +35,6 @@ NOTE:  The "A" logo in the upper left corner is an image file<br>
 ```
 Procedure
 ---------
-Procedure
     1. Create this directory:  angularApp1/frontend/src/assets/images
 
 
