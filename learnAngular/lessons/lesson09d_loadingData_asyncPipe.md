@@ -53,7 +53,7 @@ Big advantage of Async Pipes: There is a lot less code.
    -- The user now sees the priorities (returned from the REST call)  
 
 1. The user leaves the page  
-   -- The Async pipe automatically unsubscribes from the observable (so there is no memory leak
+   -- The Async pipe automatically unsubscribes from the observable (so there is no memory leak)
 
 <br>
 <br>
