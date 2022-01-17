@@ -9,6 +9,9 @@ The source code for this lesson is here:<br>
 <br>
 <br>
 <br>
+
+<h3> Problem Set </h3>
+
 Problem:  How to show if a form field is valid/invalid without having to press the Submit button<br>
 Solution:  One approach is to use different CSS classes for valid and invalid form-fields
 <br>

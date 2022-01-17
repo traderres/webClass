@@ -8,6 +8,9 @@ The source code for this lesson is here:<br>
 &nbsp;&nbsp;&nbsp;https://github.com/traderres/angularApp1Lessons/tree/lesson9d/async-pipe
 <br>
 <br>
+<br>
+
+<h3> Problem Set </h3>
 
 Problem: I have a dropdown that I want to load from a REST call or some service.<br>
 Solution: Use an Async Pipe

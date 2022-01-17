@@ -8,8 +8,9 @@ The source code for this lesson is here:<br>
 &nbsp;&nbsp;&nbsp;https://github.com/traderres/angularApp1Lessons/tree/lesson9e/multiple-async-pipes-simple
 <br>
 <br>
+<br>
 
-
+<h3> Problem Set </h3>
 
 Problem:  I have multiple form controls that I want to load from multiple REST calls.<br>
 Solution: Use a multiple Async Pipe calls

@@ -9,6 +9,9 @@ The source code for this lesson is here:<br>
 <br>
 <br>
 <br>
+
+<h3> Problem Set </h3>
+
 Problem:  I have a dropdown that I want to load from a REST call or some service.<br>
 Solution: Manually subscribe to the data and show a loading flag
 

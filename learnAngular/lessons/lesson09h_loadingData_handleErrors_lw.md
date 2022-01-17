@@ -8,7 +8,9 @@ The source code for this lesson is here:<br>
 &nbsp;&nbsp;&nbsp;https://github.com/traderres/angularApp1Lessons/tree/lesson9h/async-pipe-handle-errors2
 <br>
 <br>
+<br>
 
+<h3> Problem Set </h3>
 
 Problem: We don't want to have a catchError() on every subscriber call<br>
 Solution: Setup a LoadingWrapper class that will handle the catchError() for us

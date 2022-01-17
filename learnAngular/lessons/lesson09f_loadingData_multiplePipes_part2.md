@@ -8,7 +8,9 @@ The source code for this lesson is here:<br>
 &nbsp;&nbsp;&nbsp;https://github.com/traderres/angularApp1Lessons/tree/lesson9f/multiple-async-pipes-complex
 <br>
 <br>
+<br>
 
+<h3> Problem Set </h3>
 
 Problem: We have multiple async pipe variables all over the add-report2.component.html
 

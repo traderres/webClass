@@ -8,6 +8,9 @@ The source code for this lesson is here:<br>
 &nbsp;&nbsp;&nbsp;https://github.com/traderres/angularApp1Lessons/tree/lesson7g/reactive-forms-custom-validator
 <br>
 <br>
+<br>
+
+<h3> Problem Set </h3>
 
 Problem: We want to require uses to select ONE or TWO authors from the multiple-select-authors<br>
 Solution: Create a custom validator

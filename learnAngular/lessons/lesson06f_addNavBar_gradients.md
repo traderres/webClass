@@ -8,6 +8,10 @@ The source code for this lesson is here:<br>
 &nbsp;&nbsp;&nbsp;https://github.com/traderres/angularApp1Lessons/tree/lesson6f/add-gradient-to-header
 <br>
 <br>
+<br>
+
+<h3> Problem Set </h3>
+
 Problem:  I'm not a graphics artist but I want the nav bars to look professional<br>
 Solution:  Use gradients
 <br>
