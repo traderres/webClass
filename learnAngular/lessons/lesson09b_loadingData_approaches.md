@@ -8,7 +8,7 @@ The Google Drive link is here:<br>
 <br>
 
 
-<u>References</u>
+<h5>References</h5>
 - https://medium.com/@luukgruijs/understanding-creating-and-subscribing-to-observables-in-angular-426dbf0b04a3
 - https://medium.com/angular-in-depth/angular-question-rxjs-subscribe-vs-async-pipe-in-component-templates-c956c8c0c794
 - https://alligator.io/angular/async-pipe/
@@ -47,13 +47,13 @@ In this approach, you would
 
 <br>
 <br>
-<u>Advantages to Approach 2</u>
+<h5>Advantages to Approach 2</h5>
 
 - The REST call is asynchronous
 - We can show a spinner while the REST call is running
 
 <br>
-<u>Disadvantages to Approach 2</u>
+<h5>Disadvantages to Approach 2</h5>
 
 - Need to unsubscribe from the observable at the end of the component life-cycle to avoid memory leaks
 - Subscribing to an observable manually in ngOnInit() does not work with OnPush change detection \[out of the box]
@@ -73,7 +73,7 @@ In this approach, there is only one variable in the typescript class:
 
 <br>
 
-<u>Advantages</u> 
+<h5>Advantages</h5> 
 - The REST call is asynchronous
 - We can show a spinner (if needed)
 - Automatically clean-up: No need to unsubscribe
