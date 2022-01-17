@@ -13,7 +13,7 @@ The source code for this lesson is here:<br>
 
 
 
-<u>Reactive Forms (also known as Model Based Forms)</u>
+###Reactive Forms (also known as Model Based Forms)
 Reactive forms give you a few advantages
  + Less HTML code
  + You can use built-in validators 
