@@ -48,7 +48,6 @@ B. Create a REST call toget info from the database for one report
         
 
 <br>
-<br>
 
 <h3>Notes</h3>
 
