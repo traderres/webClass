@@ -15,7 +15,7 @@ The source code for this lesson is here:<br>
 Problem:  I need a front-end page with an upload button<br>
 Solution: Add a page that has an upload file button
 
-
+![](https://lh3.googleusercontent.com/PVICpadIFtRi-Qe1s6j_SqOBp4SxrJsaeb0sqIXTaF4vQQsv2wdtgTL9yLSeI0fApqbTHwicPFiU0sjV1chgMHYBO2_JcK1CJv5VxUyb2-v_OZV7pGC4BoediKBvOjopLL-BRLPN)
 
 
 <br>
