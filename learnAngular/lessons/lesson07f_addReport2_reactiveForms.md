@@ -23,13 +23,12 @@ Reactive forms give you a few advantages
 <br>
 <br>
 <br>
-Here is what the form looks like on page load:
+Here is what the form looks like on page load:<br>
 ![](https://lh4.googleusercontent.com/B9rjTi4MpRG0H6m5_ZPEeN5tu2cS4UQzwup6hsNIkycAKydTqVm079oorKtkUhmAchsSmfsb8E5TX-XoEuRwsXMvdHEtdhcDP14MRxyflgjrFHhTYo7OaTWAqYJ_h7tUcxOQ2mkj)
-
 <br>
 <br>
 <br>
-Here is what the form looks like when user presses "Save"
+Here is what the form looks like when user presses "Save"<br>
 ![](https://lh6.googleusercontent.com/aeM1YxlIiOlufex1ijgSTI6iOiMuC1NnXYj-O2WhbNAYTcOdStHsNyfBVC1obf0B9sKdvYM5Z6AGWGJ6Hn4JU-v4MCPba84x9CqP4BrRXFYaHebzqHFn1HdUFLLIyOg1hfTwi4fB)
 NOTE:  The Source field is not required
 <br>
