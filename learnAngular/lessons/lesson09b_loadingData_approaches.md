@@ -26,7 +26,7 @@ The idea is that the entire page does not show until *ALL* data is loaded
 - The entire page view \*WAITS\* for the REST call to resolve
 - No spinner
 <br>
-NOTE: This approach is considered a fucking bad practice
+NOTE: This approach is a really fucking bad practice
 
   
 <br>
