@@ -22,7 +22,6 @@ Reactive forms give you a few advantages
  + Moving the validation logic from HTML to TypeScript gives you more power
 <br>
 <br>
-
 <br>
 <br>
 <br>
