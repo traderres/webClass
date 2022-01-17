@@ -42,8 +42,7 @@ Solution 2 has some advantages, so when in doubt, cache the observable (not the 
 <br>
 
 <h5>References</h5>
-- https&#x3A;//medium.com/better-programming/how-to-create-a-caching-service-for-angular-bfad6cbe82b0
-
+- https://medium.com/better-programming/how-to-create-a-caching-service-for-angular-bfad6cbe82b0
   
 <br>
 <br>
