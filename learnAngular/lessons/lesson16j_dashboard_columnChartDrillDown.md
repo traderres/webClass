@@ -57,10 +57,8 @@ Click on "Back to Main Chart" to return to the original chart
 <br>
 
 ```
-
 Procedure
 ---------
-Procedure
     1. Add a new component called "ChartDrillDown"
 
     2. Add a route such that "page/chart-drill-down" takes users to the ChartDrillDown component
