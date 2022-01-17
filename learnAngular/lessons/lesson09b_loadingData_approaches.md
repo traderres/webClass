@@ -51,6 +51,7 @@ In this approach, you would
 - The REST call is asynchronous
 - We can show a spinner while the REST call is running
 
+<br>
 <u>Disadvantages to Approach 2</u>
 
 - Need to unsubscribe from the observable at the end of the component life-cycle to avoid memory leaks
