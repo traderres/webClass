@@ -28,7 +28,8 @@ Problem: I want to create a REST endpoint that writes data to ElasticSearch
    (which allows our spring-boot app to make \*OUTGOING\* REST calls)  
      
 1. Create an ElasticSearchResources class has the url and the AsyncHttpClient  
-   1. If you have the url -- e.g., http:localhost:9201 and the AsyncHttpClient then you can make any \*OUTGOING\* call to ElasticSearch  
+   - This is a wrapper DTO that holds two things (the ElasticSearch url and the AsyncHttpClient object)
+   - If you have these two things, then java can talk to ElasticSearch
 
 1. Create an ElasticSearchResourcesConfig class
 
