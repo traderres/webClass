@@ -19,8 +19,9 @@ The Google Drive link is here:<br>
 
 <br>
 <br>
-<h3>Approach 1: Use routes to make the lookup call \*\*synchronous\*\* \[BAD PRACTICE]</h3>
-The idea is that the entire page does not show until \*ALL\* data is loaded
+<h3>Approach 1: Use routes to make the lookup call **synchronous** [BAD PRACTICE]</h3>
+The idea is that the entire page does not show until *ALL* data is loaded
+
 - The REST call is synchronous
 - The entire page view \*WAITS\* for the REST call to resolve
 - No spinner
