@@ -29,7 +29,7 @@ Solution:  Use an Auto-Complete
      
    \*OR\*  
 
-1. Create a separate component and add it to the header
+1. Create a separate component and add it to the header  (this lesson uses this approach)
 
   
 <br>
