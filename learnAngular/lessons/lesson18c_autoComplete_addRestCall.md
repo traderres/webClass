@@ -12,7 +12,7 @@ The source code for this lesson is here:<br>
 
 <h3> Design Question:  What is being auto-completed? </h3>
 
-- Approach 1: Auto-complete on the user's <b>search criteria</b>
+- Approach 1: Auto-complete on the user's <b>search criteria</b><br>
   NOTE: This requires tracking the user's searches (Google does this)  
   Keep track of user's searches and auto-complete based on what the user has searched for  
 
