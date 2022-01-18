@@ -33,7 +33,7 @@ Solution:<bR>
 
 ```
 Part 1:  Create the Back-end REST Calls to Get and Set Preferences
----------
+------------------------------------------------------------------
     1. Create the preferences database table
         a. Right-click on backend/src/main/resources/db/migration -> New File
            Filename:  V1.5__preferences.sql
@@ -80,6 +80,7 @@ Part 1:  Create the Back-end REST Calls to Get and Set Preferences
         d. Migrate the database
            unix> cd ~/intellijProjects/angularApp1/backend
            unix> mvn flyway:migrate
+
 
         e. Verify that flyway sees v1.5 as success
            unix> cd ~/intellijProjects/angularApp1/backend
