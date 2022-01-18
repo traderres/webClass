@@ -61,7 +61,7 @@ The source code for this lesson is here:<br>
 <h3> Auto-Complete Implementations with ElasticSearch </h3>
 
 - Use prefix query
-  - Matching is supported only at thebeginning of the term. One cannot match the query in the middle of the text
+  - Matching is supported only at the <b>beginning</b> of the term. One cannot match the query in the middle of the text
   - Not optimized for large data set
   - Since this is a query, duplicate results won't be filtered out  
     (workaround is to use an aggregate query to group results and then filter the results)  
@@ -81,7 +81,7 @@ The source code for this lesson is here:<br>
   - ElasticSearch comes with a built-in solution called the Completion Suggester
   - NOTE: The auto-completed fields have type="completion" in the mapping
   - Storing all of the terms in lowercase helps in the case-insensitive match
-  - (Bad) Matching always starts at thebeginning of the text.
+  - (Bad) Matching always starts at the <b>beginning</b> of the text.
   - (Bad) No sorting mechanism is available. The only way to sort suggestions is via weights  
     This creates a problem when any custom sorting like alphabetical sort or sort by context is required)
 
