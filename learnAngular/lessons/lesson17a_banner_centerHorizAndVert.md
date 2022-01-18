@@ -103,29 +103,37 @@ Pop Quiz:  How can I get a second line of text centered horizontally?
 
 
 
+
+
+
+
+
+
+
 Approach 1:  Answer for Single Row
 ----------------------------------
 
-  <div fxFlex="50px" style="width: 100%; line-height: 50px; font-family: Roboto; font-size: 12px !important; 
-                                        font-weight: 500; text-align: center; background-color: #159818; color: white">
-	Demo Web App
-  </div>
+      <div fxFlex="50px" style="width: 100%; line-height: 50px; font-family: Roboto; font-size: 12px !important; 
+                                            font-weight: 500; text-align: center; background-color: #159818; color: white">
+        Demo Web App
+      </div>
+
+
+
 
 
 Problem:  This banner has only 1 line of text.  This will not work with 2 lines of text.
 
 How do we get this to work with 2 lines of text?    [use two divs]
-
-
 Since this div technique only works with one line of text, then we can replace one 50px div with two 25px divs
 
-  <div fxFlex="25px" style="width: 100%; line-height: 25px; font-family: Roboto; font-size: 12px !important; font-weight: 500; text-align: center; background-color: #159818; color: white">
-	Demo Web App
-  </div>
-
-  <div fxFlex="25px" style="width: 100%; line-height: 25px; font-family: Roboto; font-size: 12px !important; font-weight: 500; text-align: center; background-color: #159818; color: white">
-	You really should be aware
-  </div>
+      <div fxFlex="25px" style="width: 100%; line-height: 25px; font-family: Roboto; font-size: 12px !important; font-weight: 500; text-align: center; background-color: #159818; color: white">
+        Demo Web App
+      </div>
+    
+      <div fxFlex="25px" style="width: 100%; line-height: 25px; font-family: Roboto; font-size: 12px !important; font-weight: 500; text-align: center; background-color: #159818; color: white">
+        You really should be aware
+      </div>
 
 
 
