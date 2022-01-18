@@ -23,7 +23,7 @@ Problem:  I really hate banners (as they take precious vertical space)<br>
 
 <br>
 
-![](https://lh4.googleusercontent.com/K5Nf-SC7IG5dfoazLPjk_ef_eO1yBwKUObTSRfumtLBHYAIQqMPj-OFYruxnXH9Ye5yiK1r3hH3Vrr3U2Ech0l7PqVq0JShyDf1z2TPP_XEmLBeUWtHk4mT_lT4maC6i8emwsHbF)
+![](https://lh4.googleusercontent.com/K5Nf-SC7IG5dfoazLPjk_ef_eO1yBwKUObTSRfumtLBHYAIQqMPj-OFYruxnXH9Ye5yiK1r3hH3Vrr3U2Ech0l7PqVq0JShyDf1z2TPP_XEmLBeUWtHk4mT_lT4maC6i8emwsHbF) <br>
 We will add a "Hide" hyperlink that lets users hide the banner
 <br>
 <br>
