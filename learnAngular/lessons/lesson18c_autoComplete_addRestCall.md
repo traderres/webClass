@@ -10,7 +10,7 @@ The source code for this lesson is here:<br>
 <br>
 <br>
 
-<h3> Design Question:  What is being auto-completed? </h3>
+<h3> Design Decision:  What is being auto-completed? </h3>
 
 - Approach 1: Auto-complete on the user's <b>search criteria</b><br>
   NOTE: This requires tracking the user's searches (Google does this)  
