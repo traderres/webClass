@@ -117,6 +117,9 @@ Procedure
 ```
 NOTE:  The banner is visible so give users the "Hide Banner" option
 
+
+
+
 ```
 ![](https://lh4.googleusercontent.com/VoNHcpUcxLjWJsGvgPjH3PrthDl73Ycx2os04dEuj4Gk0GJfURBurRlX40jYiwXNORr6gnskPI_L8_JGjGVQApp2QsluqxLpwBuUBDmuJhDg7C63mv7HwFawia5fK9cDVudxtpcv)
 ```
