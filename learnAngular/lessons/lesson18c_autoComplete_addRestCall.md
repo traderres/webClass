@@ -92,6 +92,7 @@ The source code for this lesson is here:<br>
 <h3> Author's Opinions </h3>
 
 - When in doubt, do an auto-complete on a *SINGLE* field.  
+- I like using the ngram approach as it matches anywhere in the string
 - In our case, we already have an ngram on the display_name.filtered field.  So, we'll use that.
 - The user can type-in any part of a report.display_name and the entire display name will appear in the auto-complete.
 
