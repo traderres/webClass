@@ -138,8 +138,6 @@ Since this div technique only works with one line of text, then we can replace o
 
 
 
-
-
 Approach 2:  Use div & span
 ---------------------------
     1. Edit app.component.html
@@ -183,9 +181,6 @@ Approach 3:  Use Angular Flex and put content in a Single Div
     6. Activate the debugger
        -- You should see the "Demo Web App" centered 
        -- Change the banner height to 100px and verify that the banner is centered horizontally and vertically
-
-
-
 
 
 
