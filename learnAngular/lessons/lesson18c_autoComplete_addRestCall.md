@@ -65,7 +65,8 @@ The source code for this lesson is here:<br>
   - Not optimized for large data set
   - Since this is a query, duplicate results won't be filtered out  
     (workaround is to use an aggregate query to group results and then filter the results)  
-
+<br>
+<br>
       
 - Use ngrams
   - This approach uses different analyzers at index and search time
@@ -73,7 +74,8 @@ The source code for this lesson is here:<br>
   - At search time, standard analyzer can be applied
   - (Good)Matches any character (including spaces and special punctuation)
   - (Bad) Makes the ES index use more disk space (but disk space is cheap)  
-      
+<br>
+<br>    
       
 - Use Completion Suggester
   - ElasticSearch comes with a built-in solution called the Completion Suggester
