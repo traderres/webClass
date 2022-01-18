@@ -34,7 +34,7 @@ Problem: We want to show a dialog box if any REST call fails
    - Inject the ErrorService into the new Interceptor
    - If an error is found in a REST call, then call errorService.addError()  
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/lesson09i_image1.png)
+![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson09i_image1.png)
 
 
 <br>

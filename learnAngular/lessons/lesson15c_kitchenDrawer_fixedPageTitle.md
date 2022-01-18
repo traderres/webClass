@@ -18,7 +18,7 @@ Solution: The Outer Long View Report Component has its scroll bar hidden (far ri
 - The Inner Long View Component has its scroll bar visible
 - This keeps the top of the page fixed and scrolls the lower part
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/lesson15c_image1.png)
+![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson15c_image1.png)
 
 
 <br>

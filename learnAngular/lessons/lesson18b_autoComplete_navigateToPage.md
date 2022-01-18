@@ -125,7 +125,7 @@ NOTE:  When an option is selected, you are passing in the entire match object
 
         c. Add a 2 column layout
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/lesson18b_image1.png)
+![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson18b_image1.png)
 ```
 
 

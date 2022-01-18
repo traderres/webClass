@@ -17,7 +17,7 @@ Solution:  Add right-side menu options that let users show/hide the banner<br>
 <br>
 <br>
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/lesson17c_image1.png)
+![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson17c_image1.png)
 
 <br>
 <br>
@@ -44,7 +44,7 @@ The Hide Banner / Show Banner will be placed in the right-side navbar
    1. Add two navbar options:  
       "Hide Banner" which calls this.bannerService.hideBanner() (show if bannerIsVisible==true)  
       "Show Banner" which calls this.bannerService.showBanner() (show if bannerIsVisible==false)
-      ![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/lesson17c_image2.png)
+      ![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson17c_image2.png)
 
 <br>
 <br>

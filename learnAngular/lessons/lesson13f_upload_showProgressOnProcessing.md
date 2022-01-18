@@ -21,7 +21,7 @@ Solution: Show progress by <b>polling on the front-end</b> against the jobStatus
 
 <br>
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/lesson13f_image1.png)
+![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson13f_image1.png)
 
 <br>
 <br>

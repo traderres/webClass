@@ -19,7 +19,7 @@ Problem:  I really hate banners (as they take precious vertical space)<br>
 <br>
 <br>
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/lesson17b_image1.png)
+![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson17b_image1.png)
 
 <br>
 
@@ -56,7 +56,7 @@ We will add a "Hide" hyperlink that lets users hide the banner
 
 1. Change the App.Component so it will listen for message (to show/hide banner)
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/lesson17b_image2.png)
+![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson17b_image2.png)
 
 <br>
 <br>
@@ -92,7 +92,7 @@ Procedure
         b. Change the 2nd row so that it has a left, center, and right rows
            Hint:  Take a look at header.component.html  (as it has a left, center, and right parts)
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/lesson17b_image3.png)
+![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson17b_image3.png)
 ```
         c. The left part will be blank
 
