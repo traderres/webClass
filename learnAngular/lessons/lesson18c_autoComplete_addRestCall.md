@@ -40,6 +40,7 @@ The source code for this lesson is here:<br>
 <br>
 
 <h3>Approach</h3>
+
 1. Create a REST call with this contract
    ```
        POST /api/search/autocomplete
