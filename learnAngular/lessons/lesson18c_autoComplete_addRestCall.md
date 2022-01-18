@@ -72,7 +72,7 @@ The source code for this lesson is here:<br>
   - This approach uses different analyzers at index and search time
   - When indexing, a custom analyzer with an edge n-gram filter is applied.
   - At search time, standard analyzer can be applied
-  - (Good)Matches any character (including spaces and special punctuation)
+  - (Good) <b>Matches any character</b> (including spaces and special punctuation)
   - (Bad) Makes the ES index use more disk space (but disk space is cheap)  
 <br>
 <br>    
