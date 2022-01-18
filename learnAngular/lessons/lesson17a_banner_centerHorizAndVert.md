@@ -64,48 +64,6 @@ Approach 1:  Use a single div and set line-height and height to the same  (does 
         -- You should see the "Demo Web App" centered 
 
 
-Pop Quiz:  How can I get a second line of text centered horizontally?
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
