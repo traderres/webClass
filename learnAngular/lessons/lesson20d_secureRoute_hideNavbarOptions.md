@@ -1,5 +1,5 @@
-Lesson X: TITLE
--------------------------
+Lesson 20d:  Secure Routes /  Hide Navbar Options
+-------------------------------------------------
 The Google Drive link is here:<br>
 &nbsp;&nbsp;&nbsp;https://docs.google.com/document/d/1KEeZd9Psakev1mKMlUh500k_Zz1mWt-YhMd4jgzkTqM/edit?usp=sharing
       
