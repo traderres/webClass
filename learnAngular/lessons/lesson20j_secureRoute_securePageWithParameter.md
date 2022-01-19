@@ -69,19 +69,19 @@ export class PageGuard implements CanActivate {
     	// Get the next url from the next variable
     	let nextUrl: string | undefined = next.routeConfig?.path;
     	if (! nextUrl) {
-      	// The user is going so an undefined page.  So, return an observable<false> so the router does not proceed
-      	return false;
+            // The user is going so an undefined page.  So, return an observable<false> so the router does not proceed
+            return false;
     	}
 
     	// Check if the url is allowed
     	let routeAllowed: boolean | undefined = userInfoDTO.pageRoutes.get(nextUrl);
 
     	if (! routeAllowed) {
-      	// The route was not found in the map or holds False.  So, redirect the user to the Forbidden Page
-      	this.router.navigate([Constants.FORBIDDEN_ROUTE]).then();
-
-      	// Return false so that the router will not route the user to the new page
-      	return false;
+            // The route was not found in the map or holds False.  So, redirect the user to the Forbidden Page
+            this.router.navigate([Constants.FORBIDDEN_ROUTE]).then();
+    
+            // Return false so that the router will not route the user to the new page
+            return false;
     	}
 
     	// The route was allowed.  So, return an observable holding true
