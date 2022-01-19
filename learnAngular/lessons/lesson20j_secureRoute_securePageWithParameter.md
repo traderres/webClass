@@ -17,9 +17,11 @@ Solution:  Store the :id in the R__security.sql<br>
 
 1. In the **R\_\_security.sql**  
    insert into uicontrols(id, name) values(1011, 'page/reports/edit/:id');  
+   <br>
 
 1. In the **constants.ts**  
    EDIT_REPORT_ROUTE = "page/reports/edit/", // This route has a required id  
+   <br>
 
 1. In the **app.module.ts**  
      
@@ -27,10 +29,11 @@ Solution:  Store the :id in the R__security.sql<br>
                 component: EditReportComponent , canActivate: [PageGuard] },
 
             NOTE:  It must have ':id'   (The colon is IMPORTANT!!!))  
-
+   <br>
+   
 1. In the**page.guard.ts****  
    -- Do not strip-out anything from url
-
+   <br>
 
 
 <br>
