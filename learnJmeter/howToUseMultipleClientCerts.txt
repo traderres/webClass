@@ -1,0 +1,98 @@
+How to Use Multiple Client Certs
+--------------------------------
+Problem:  My nginx load balancer looks at the source IP address and userid so all requests to go the *same* app server
+          I want JMeter to send difference source IPs so requests go to *different* username
+
+
+
+Reference
+---------
+https://stackoverflow.com/questions/37953441/jmeter-setting-javax-net-ssl-keystore-and-javax-net-ssl-keystorepassword-based
+https://stackoverflow.com/questions/70624433/jmeter-https-keystorestartindex-not-working
+https://jmeter.apache.org/usermanual/component_reference.html#Keystore_Configuration
+
+
+Procedure
+---------
+ 1. Combine your p12 files into a single JDKS
+    unix> cd /path/to/where/p12-files-are-located
+    unix> keytool -importkeystore -srckeystore CLIENT_FILE_1.p12 -srcstoretype PKCS12 -srcstorepass bdppassword1 -keystore jmeter.special.jks -storepass  bdppassword1
+    unix> keytool -importkeystore -srckeystore CLIENT_FILE_2.p12 -srcstoretype PKCS12 -srcstorepass bdppassword1 -keystore jmeter.special.jks -storepass bdppassword1
+    unix> keytool -importkeystore -srckeystore CLIENT_FILE_3.p12 -srcstoretype PKCS12 -srcstorepass bdppassword1 -keystore jmeter.special.jks -storepass  bdppassword1
+
+
+ 2. Tell jmeter to use these files
+    unix> cd  ~/apache-jmeter-5.4.3/bin
+    unix> vi jmeter.properties
+
+		https.use.cached.ssl.context=false
+
+		#
+		# Reset HTTP State when starting a new Thread Group iteration which means:
+		# true means next iteration is associated to a new user
+		# false means next iteration is associated to same user
+		# true involves:
+		# - Closing opened connection
+		# - resetting SSL State
+		httpclient.reset_state_on_thread_group_iteration=true
+
+		# Start and end index to be used with keystores with many entries
+		# The default is to use entry 0, i.e. the first
+		https.keyStoreStartIndex=0
+		https.keyStoreEndIndex=-1
+
+
+
+ 3. Edit system.properties  (holds all javax properties)
+    unix> vi system.properties
+
+		javax.net.ssl.keyStore=/home/adam/certificates/lab_special_bdp/jmeter.special.jks
+		javax.net.ssl.keyStorePassword=bdppassword1
+
+
+
+ 4. Startup Jmeter
+    unix> cd  ~/apache-jmeter-5.4.3/bin
+    unix> export JVM_ARGS=" -Xms2g -Xmx2g"; jmeter.sh
+
+
+ 5. Create a CSV file holding all of the aliases in your p12 files
+    a. Get your aliases from your jks file
+       unix> keytool -list -v -keystore /home/adam/certificates/lab_special_bdp/jmeter.special.jks | grep -i alias
+
+       Alias name: aresnick
+       Alias name: jsmith
+       Alias name: mcapone
+
+    b. Take the aliases and insert them into a simple csv file
+       unix> vi /tmp/aliases.csv
+
+       aresnick
+       jsmith
+       mcapone
+
+
+ 6. Right-click on Test Plan -> Add -> Config -> CSV Data Set Config
+    In the page
+       	Filename:  		 		/tmp/aliases.csv
+       	Variable Names:   		certAlias
+		Ignore First line:		False
+		Delimiter:				,
+		Allow quoted data:		False
+		Recye on EOF			True
+		Stop thread on EOF:		False
+		Sharing mode:			All threads
+
+
+ 7. Right-click on Test Plan -> Add -> Config -> Keystore Configuration
+    NOTE:  The variable name here *MUST* be the same variable set in the previous step
+		Preload: 								  True
+		Variable name holding certificate alias:  certAlias
+		Alias Start Index						  0
+		Alias End Index							  -1       (which means use all)
+
+ 8. Start your test
+    -- Now, webapp is receiving different certs
+
+
+
