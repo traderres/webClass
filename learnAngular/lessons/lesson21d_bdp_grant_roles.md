@@ -18,13 +18,12 @@ If your BDP account is not granted the READER or ADMIN role, then you cannot get
 <br>
 <br>
 If you have <u>enabled</u> the whitelabel error page, then you would see this:<br>
-```
 ![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson21c_image1.png)
 
 <br>
 <br>
 <br>
-If you have <u>disabled</u> the whitelabel error page, then you would see this:
+If you have <u>disabled</u> the whitelabel error page, then you would see this:<br>
 ![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson21c_image1.png)
 <br>
 <br>
