@@ -4,9 +4,6 @@ The Google Drive link is here:<br>
 &nbsp;&nbsp;&nbsp;https://docs.google.com/document/d/1pZ91oZHX_6lHWLgLnP7P-R3jaoUCc3hTWjGklkeoF-0/edit?usp=sharing
       
 
-<br>
-<br>
-<br>
 
 ```
 
