@@ -21,9 +21,9 @@ Solution:  Use the onGridReady event handler to load the data AND to get a refer
 
 <br>
 <br>
-Here are some of ag-grid's documentation  
+Here are some of ag-grid's documentation<bR>
 The url is here:  
-https://www.ag-grid.com/angular-grid/row-selection/ <br>
+&nbsp;&nbsp;&nbsp;https://www.ag-grid.com/angular-grid/row-selection/ <br><br>
 
 ![](https://lh3.googleusercontent.com/MzZ-s0WFUkJW_a_foq6iiwfcNYG1idmCR5yA2zqVTIKo3lAtdC60TKBNF45LSVh-tasRZr3T8VXjIReEAWFX-fo5VNR1tEXEp5iZZ-U1pyzvNw3B2ebX2s1n2OseuGyhvkvqNUn5)
 
