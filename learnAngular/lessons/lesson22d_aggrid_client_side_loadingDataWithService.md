@@ -28,7 +28,7 @@ The url is here:
 ![](https://lh3.googleusercontent.com/MzZ-s0WFUkJW_a_foq6iiwfcNYG1idmCR5yA2zqVTIKo3lAtdC60TKBNF45LSVh-tasRZr3T8VXjIReEAWFX-fo5VNR1tEXEp5iZZ-U1pyzvNw3B2ebX2s1n2OseuGyhvkvqNUn5)
 
 ```
-The api.getSelectedRows() refers to**this.gridApi.getSelectedRows()**in our code
+The api.getSelectedRows() refers to this.gridApi.getSelectedRows() in our code
 
 
 Procedure
