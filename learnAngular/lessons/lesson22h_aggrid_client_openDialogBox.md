@@ -482,7 +482,7 @@ This call will unselect all rows in your grid:
         b. Click on "Report Grid View"
         c. Check off one or more rows
         d. Press the "Update N Entries" button
--- You should see the 4 priority values in the dropdown
+           -- You should see the 4 priority values in the dropdown
 
 
 ```
