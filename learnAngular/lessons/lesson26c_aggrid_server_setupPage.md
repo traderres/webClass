@@ -40,6 +40,8 @@ Approach
     E. Setup the TypeScript to put the grid into server side mode and employ infinity scroll
 
 
+
+
 Procedure
 ---------
     1. Add the front-end model classes
@@ -564,7 +566,7 @@ Procedure
         d. In this page, change the sorting -- and the REST endpoint returns the same 3 rows
         e. In this page, press search -- and the REST endpoint returns the same 3 rows
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson26c_imagec.png)
+![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson26c_image2.png)
 ```
 The grid is running in server side mode, but the REST endpoint always returns the same 3 rows
 
