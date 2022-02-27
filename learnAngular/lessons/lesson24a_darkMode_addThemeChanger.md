@@ -610,11 +610,11 @@ This is our "light mode"
 Light mode should look like this:
 
 
-Dark mode should look like this:
+
 ```
 ![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson24a_image5.png)
 ```
-
+Dark mode should look like this:
 
 
     9. Change the header component so it listens for theme changes
