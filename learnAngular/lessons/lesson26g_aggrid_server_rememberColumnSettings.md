@@ -19,7 +19,8 @@ The source code for this lesson is here:<br>
 3. User returns to the server-side grid<br>
 4. The grid column widths are what they were before (which sucks!!)<br>
 <br>
-Solution:  Have the grid remember column widths and visible columns in the database (so the grid remembers this).  The grid will not remember filtering or sorting.<br>
+Solution:  Have the grid remember column widths and visible columns in the database (so the grid remembers this).<br>
+NOTE: The grid will not remember filtering or sorting.<br>
 
 
 
