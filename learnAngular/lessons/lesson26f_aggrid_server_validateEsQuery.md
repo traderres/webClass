@@ -29,6 +29,8 @@ The search box turns red if the user enters an invalid query (in light mode)<br>
 
 <br>
 <br>
+<br>
+<br>
 
 ![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson26f_image2.png)
 
