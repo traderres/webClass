@@ -1124,6 +1124,11 @@ Tab Group v14:  v8 with gold hover effect
 Tab Group v14:  Similar to v8 but when hovering over tabs, a gold border appears
 See https://github.com/traderres/angularApp1Lessons/tree/lesson25/tab-groups14
 
+
+
+```
+![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson25_image16.png)
+```
 Tab Group v14:  On hover, the other tabs show a thin gold border
 
 
