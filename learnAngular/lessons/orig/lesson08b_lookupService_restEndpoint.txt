@@ -1,0 +1,357 @@
+Lesson:  Add a REST call to get Lookups from back-end
+-----------------------------------------------------
+Problem:  Lots of pages needs to get lookup values
+Solution: Create a REST endpoint that will get lookup values
+
+   Contract will be:  GET /api/lookups/{lookup_type}/{order by}
+
+
+Approach
+ 1) Add flyway script to load lookup tables into the database (in the backend) 
+ 2) Run flyway:migrate from command-line
+ 3) Add a Java LookupDTO class
+ 4) Add a Java LookupService class (that queries the database)
+ 5) Add a Java LookupController class
+ 6) Verify the REST call works
+ 
+
+Procedure
+---------
+ 1. Add this file to the backend/src/main/resources/db/migration:   V1.2__lookup_tables.sql
+    a. Right-click on backend/src/main/resources/db/migration -> New File
+       Filename:  V1.2__lookup_tables.sql
+    
+	b. Copy this to the newly-created file
+		--------------------------------------------------------------
+		-- Filename:  V1.2__lookup_tables.sql
+		--------------------------------------------------------------
+
+		-- Create this table:  LookupType
+		create table lookup_type
+		(
+			id            integer      not null,
+			version       integer      not null,
+			name          varchar(256) not null,
+			primary key (id),
+			constraint lookup_type_name_uniq UNIQUE(name) -- Each lookup type name must be unique
+		);
+		comment on table  lookup_type      is 'This lookup_type table holds all of the lookup type names.  Every lookup must have a type';
+		comment on column lookup_type.name is 'Lookup_type.name holds the name or category of this lookup -- e.g., priority.';
+
+		-- Create this table:  Lookup
+		create table lookup
+		(
+			id            integer      not null,
+			version       integer      not null,
+			lookup_type   integer      not null,
+			name          varchar(256) not null,
+			display_order integer      null,
+			primary key(id),
+			constraint lookup_name_uniq UNIQUE(lookup_type, name),                           -- Each lookup name and type must be unique
+			constraint lookup_type_fkey FOREIGN KEY(lookup_type) references lookup_type(id)  -- Each lookup type must exist in the lookup_type table
+		);
+		comment on table  lookup               is 'The lookup table holds all of the lookup values';
+		comment on column lookup.name          is 'Lookup.name holds the actual lookup name -- low, medium, high';
+		comment on column lookup.display_order is 'A possible order to display the lookups on the front-end';
+
+
+		-- Insert Starting Lookup Types
+		insert into lookup_type(id, version, name) values(100, 1, 'priority');
+		insert into lookup_type(id, version, name) values(101, 1, 'report_type');
+		insert into lookup_type(id, version, name) values(102, 1, 'author');
+		insert into lookup_type(id, version, name) values(103, 1, 'report_source');
+
+
+		-- Insert Starting Lookup Values for priority
+		insert into lookup(id, version, lookup_type, display_order, name)  values(1, 1,  100, 1, 'low');
+		insert into lookup(id, version, lookup_type, display_order, name)  values(2, 1,  100, 2, 'medium');
+		insert into lookup(id, version, lookup_type, display_order, name)  values(3, 1,  100, 3, 'high');
+		insert into lookup(id, version, lookup_type, display_order, name)  values(4, 1,  100, 4, 'critical');
+
+
+		-- Insert Starting Lookup Values for report_type
+		insert into lookup(id, version, lookup_type, name)  values(5, 1, 101, 'Marketing');
+		insert into lookup(id, version, lookup_type, name)  values(6, 1, 101, 'H&R');
+		insert into lookup(id, version, lookup_type, name)  values(7, 1, 101, 'CEO');
+
+
+		-- Insert Starting Lookup Values for author
+		insert into lookup(id, version, lookup_type, name)  values(2000, 1, 102, 'Adam');
+		insert into lookup(id, version, lookup_type, name)  values(2001, 1, 102, 'Ben');
+		insert into lookup(id, version, lookup_type, name)  values(2002, 1, 102, 'Peter');
+		insert into lookup(id, version, lookup_type, name)  values(2003, 1, 102, 'Justin');
+		insert into lookup(id, version, lookup_type, name)  values(2004, 1, 102, 'Josh');
+		insert into lookup(id, version, lookup_type, name)  values(2005, 1, 102, 'Suzanne');
+
+
+		-- Insert Starting Lookup Values for report_source
+		insert into lookup(id, version, lookup_type, name)  values(1000, 1, 103, 'Israel');
+		insert into lookup(id, version, lookup_type, name)  values(1001, 1, 103, 'United Kingdom');
+		insert into lookup(id, version, lookup_type, name)  values(1002, 1, 103, 'United States');
+
+
+
+
+ 2. Run flyway (from command-line)
+    a. Compile everything
+       unix> cd ~/intellijProjects/angularApp1
+       unix> mvn clean install
+    
+    b. Run flyway to empty and migrate the database
+       unix> cd backend
+       unix> mvn flyway:clean    --offline
+       unix> mvn flyway:migrate  --offline
+    
+    c. Verify flyway ran 
+       unix> mvn flyway:info  --offline
+       -- You should see this:
+		+-----------+---------+------------------------------+--------+---------------------+---------+
+		| Category  | Version | Description                  | Type   | Installed On        | State   |
+		+-----------+---------+------------------------------+--------+---------------------+---------+
+		|           |         | << Flyway Schema Creation >> | SCHEMA | 2020-06-19 16:36:22 | Success |
+		| Versioned | 1.1     | baseline                     | SQL    | 2020-06-19 16:36:22 | Success |
+		| Versioned | 1.2     | lookup tables                | SQL    | 2020-06-19 16:36:22 | Success |
+		+-----------+---------+------------------------------+--------+---------------------+---------+
+
+
+
+ 3. Add this class:  LookupDTO
+    a. Right-click on backend/src/main/java/com/lessons -> New Package
+       Package Name: com.lessons.models
+       
+    a. Right-click on backend/src/main/java/com/lessons/models -> New Java Class
+       Class Name:  LookupDTO
+
+    b. Copy this to your newly-created class
+
+            package com.lessons.models;
+
+            public class LookupDTO {
+                private int id;
+                private String name;
+
+                public int getId() {
+                    return id;
+                }
+
+                public void setId(int id) {
+                    this.id = id;
+                }
+
+                public String getName() {
+                    return name;
+                }
+
+                public void setName(String name) {
+                    this.name = name;
+                }
+            }
+
+
+ 4. Add the Apache Commons-lang3 dependency to the back-end
+  	a. Edit the backend/pom.xml
+	
+	b. Add this dependency:
+         <dependency>
+            <!-- StringUtils Dependency -->
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.5</version>
+        </dependency>
+    
+	c. Right-click on the pom.xml -> Maven -> Reload Project
+	
+
+ 5. Add this class:  LookupService
+    a. Right-click on backend/src/main/java/com/lessons -> New Package
+       Package Name:  com.lessons.services
+       
+    b. Right-click on backend/src/main/java/com/lessons/services -> New Java Class
+       Class Name:  LookupService
+
+    b. Copy this to your newly-created class
+
+            package com.lessons.services;
+
+            import com.lessons.models.LookupDTO;
+            import org.apache.commons.lang3.StringUtils;
+            import org.slf4j.Logger;
+            import org.slf4j.LoggerFactory;
+            import org.springframework.jdbc.core.BeanPropertyRowMapper;
+            import org.springframework.jdbc.core.JdbcTemplate;
+            import org.springframework.jdbc.support.rowset.SqlRowSet;
+            import org.springframework.stereotype.Service;
+
+            import javax.annotation.Resource;
+            import javax.sql.DataSource;
+            import java.util.List;
+
+            @Service("com.lessons.services.LookupService")
+            public class LookupService {
+                private static final Logger logger = LoggerFactory.getLogger(LookupService.class);
+
+                @Resource
+                private DataSource dataSource;
+
+
+                /**
+                 * @param aLookupType holds the name of the lookup type
+                 * @return true if found in the lookup_type table.  False otherwise
+                 */
+                public boolean doesLookupTypeExist(String aLookupType) {
+                    // Construct the sql to see if this lookup type is found in the lookup_type table
+                    String sql = "Select id from lookup_type where name=?";
+
+                    // Execute the SQL
+                    JdbcTemplate jt = new JdbcTemplate(this.dataSource);
+                    SqlRowSet rs = jt.queryForRowSet(sql, aLookupType);
+
+                    // Returns true if the lookup name is found, false otherwise
+                    return rs.next();
+                }
+
+                /**
+                 * @param aLookupType holds a string with a lookup type name
+                 * @return list of LookupDTO objects that hold information about all lookups with this lookup type name
+                 */
+                public List<LookupDTO> getLookupsWithType(String aLookupType, String aOrderBy) {
+                    String sql = "select l.id, l.name\n" +
+                                "from lookup l\n" +
+                                "join lookup_type lt on (lt.id=l.lookup_type)\n" +
+                                "where lt.name=? ";
+
+                    if (StringUtils.isNotEmpty(aOrderBy)) {
+                        // Append the order by string
+                        sql = sql + "order by " + aOrderBy;
+                    }
+
+					BeanPropertyRowMapper<LookupDTO> rowMapper = new BeanPropertyRowMapper<>(LookupDTO.class);
+					JdbcTemplate jt = new JdbcTemplate(this.dataSource);
+
+					// Execute the SQL, generating a list of LookupDTO objects
+					// NOTE:  If no lookup records are found, then returns an empty list
+					List<LookupDTO> lookups = jt.query(sql, rowMapper, aLookupType);
+
+                    // Return the list of LookupDTO objects (or empty list)
+                    return lookups;
+                }
+            }
+
+
+ 6. Add this class:  LookupController
+    a. Right-click on backend/src/main/java/com/lessons/controllers -> New Java Class
+       Class Name:  LookupController
+
+    b. Copy this to your newly-created class
+
+            package com.lessons.controllers;
+
+            import com.lessons.models.LookupDTO;
+            import com.lessons.services.LookupService;
+            import org.slf4j.Logger;
+            import org.slf4j.LoggerFactory;
+            import org.springframework.http.HttpStatus;
+            import org.springframework.http.MediaType;
+            import org.springframework.http.ResponseEntity;
+            import org.springframework.stereotype.Controller;
+            import org.springframework.web.bind.annotation.PathVariable;
+            import org.springframework.web.bind.annotation.RequestMapping;
+            import org.springframework.web.bind.annotation.RequestMethod;
+
+            import javax.annotation.Resource;
+            import java.util.List;
+
+            @Controller("com.lessons.controllers.LookupController")
+            public class LookupController {
+                private static final Logger logger = LoggerFactory.getLogger(LookupController.class);
+
+                @Resource
+                private LookupService lookupService;
+				
+				
+                /**
+                 * Lookup REST endpoints
+                 *   GET  /api/lookups/{lookupType}/{orderBy}
+                 *   GET  /api/lookups/{lookupType}
+                 * @param aLookupType holds the required lookup type
+                 * @param aOrderBy    holds the optional orderby Field
+                 * @return a list of LookupDTO objects and a 200 status code
+                 */
+                @RequestMapping(value = {"/api/lookups/{lookupType}/{orderBy}",
+                                         "/api/lookups/{lookupType}"}, method = RequestMethod.GET, produces = "application/json")
+                public ResponseEntity<?> getLookupsWithType(@PathVariable(name="lookupType")               String aLookupType,
+                                                            @PathVariable(name="orderBy", required=false)  String aOrderBy) {
+                    logger.debug("getLookupsWithType() started.   aLookupType={}", aLookupType);
+
+                    if (! lookupService.doesLookupTypeExist(aLookupType) ) {
+                        return ResponseEntity
+                                .status(HttpStatus.BAD_REQUEST)
+                                .contentType(MediaType.TEXT_PLAIN)
+                                .body("The pass-in lookup type does not exist: " + aLookupType);
+                    }
+
+                    List<LookupDTO> lookupDTOS = lookupService.getLookupsWithType(aLookupType, aOrderBy);
+
+                    // Return the list of LookupDTO objects back to the front-end
+                    return ResponseEntity
+                            .status(HttpStatus.OK)
+                            .body(lookupDTOS);
+                }
+            }
+
+
+
+
+ 8. Verify the REST call works
+    a. Pull Run -> Debug 'backend'
+    b. Use Postman to verify that the REST call works
+       1) Make a GET call to http://localhost:8080/app1/api/lookups/priority
+          Headers:  
+             Accept   application/json
+             
+          -- You should get a list of maps back
+          [
+             {
+                 "id": 4,
+                 "name": "critical"
+             },
+             {
+                 "id": 3,
+                 "name": "high"
+             },
+             {
+                 "id": 1,
+                 "name": "low"
+             },
+             {
+                 "id": 2,
+                 "name": "medium"
+             }
+          ]
+          
+       2) Make a GET call to http://localhost:8080/app1/api/lookups/priority/id
+          Headers:
+             Accept   application/json
+          
+          -- You should get a list of maps back (sorted by id)
+          [
+             {
+                 "id": 1,
+                 "name": "low"
+             },
+             {
+                 "id": 2,
+                 "name": "medium"
+             },
+             {
+                 "id": 3,
+                 "name": "high"
+             },
+             {
+                 "id": 4,
+                 "name": "critical"
+             }
+          ]
+
+
+
