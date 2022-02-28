@@ -12,7 +12,7 @@ The source code for this lesson is here:<br>
 
 <h3> Problem Set </h3>
 Problem:  I want to create a page that has a tab group with 2 tabs<br>
-    Tab 1 holds "Priority Reports" showing a server-side grid limited to critical reports<br>
+    Tab 1 holds "Critical Reports" showing a server-side grid limited to critical reports<br>
     Tab 2 holds "All Reports" showing a server-side grid<br>
 <br>
 
