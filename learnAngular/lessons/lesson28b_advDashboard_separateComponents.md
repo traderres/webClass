@@ -5,7 +5,7 @@ The Google Drive link is here:<br>
       
 
 The source code for this lesson is here:<br>
-&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;https://github.com/traderres/angularApp1Lessons/tree/lesson28b/dashboard/drag-and-drop/separate
 <br>
 <br>
 <br>
