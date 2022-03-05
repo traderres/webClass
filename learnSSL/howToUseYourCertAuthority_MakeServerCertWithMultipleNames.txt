@@ -1,32 +1,32 @@
 How to Use Your Certificate Authority to Make a Server Cert with Multiple Names
 -------------------------------------------------------------------------------
-With a Multiple Domain Certificates you can secure many domains with only one certificate. 
-Subject Alternative Names are a X509 Version 3 (RFC 2459) extension 
-that allow an SSL certificate to specify multiple names that the certificate should match. 
+With a Multiple Domain Certificates you can secure many domains with only one certificate.
+Subject Alternative Names are a X509 Version 3 (RFC 2459) extension
+that allow an SSL certificate to specify multiple names that the certificate should match.
 
-SubjectAltName can contain email addresses, IP addresses, regular DNS host names, etc. 
+SubjectAltName can contain email addresses, IP addresses, regular DNS host names, etc.
 This uses an SSL feature called SubjectAlternativeName (or SAN, for short).
 
 
 
 Assumptions:
- A) You already have a Root Certificate Authority Created 
+ A) You already have a Root Certificate Authority Created
     [see howToUseYourCertAuthority_InitialSetup.txt]
  B) You want to create your own self-signed client certificate in .p12 format
  C) You want your server certificate to have *MULTIPLE* names
  D) You have Java JDK 7 or later
- 
+
 
 References
 ----------
 http://apetec.com/support/GenerateSAN-CSR.htm
- 
+
 
 
 Procedures
 ----------
  1. Verify that you are running a Java JDK 7 or later
-    DOS> java -version    
+    DOS> java -version
     java version "1.8.0_91"
     Java(TM) SE Runtime Environment (build 1.8.0_91-b15)
     Java HotSpot(TM) 64-Bit Server VM (build 25.91-b15, mixed mode)
@@ -38,69 +38,69 @@ Procedures
     a. Make a backup of your c:\tools\root-ca\conf\openssl.cnf
        DOS> cd  c:\tools\root-ca\conf
        DOS> copy openssl.cnf  openssl.cnf.ORIG
-       
+
     b. Make a few changes to your openssl.cnf
        1) enable the extensions by adding this to the [req] section
           [ req ]
           req_extensions = v3_req
-  
-       2) Add this v3_req section 
+
+       2) Add this v3_req section
           [ v3_req ]
           basicConstraints = CA:FALSE
-          keyUsage = digitalSignature, nonRepudiation, keyEncipherment    
-    
+          keyUsage = digitalSignature, nonRepudiation, keyEncipherment
+
        3) Add this entry   (which will pull its value from the $SAN environment variable at runtime)
           [ san_env ]
           subjectAltName=${ENV::SAN}
 
- 
- 
+
+
  3. Setup an environment variable that will hold your subject-alternative-names
     NOTE:  Your subject-alternative-names can be DNS entries, IP address or both:
 
     If you want to use multiple DNS entries
         On Windows,
         DOS> set SAN=DNS:www.myserver10.com,DNS:www.myserver20.com,DNS:www.myserver30.com
-        
+
         On Unix,
         unix> export SAN=DNS:www.myserver1.com,DNS:www.myserver2.com,DNS:www.myserver3.com
 
     If you want to use multiple IP address entries
         On Windows,
         DOS> set SAN=IP:63.88.83.105,IP:10.254.31.1,IP:10.254.33.1
-        
+
         On Unix,
         unix> export SAN=IP:63.88.83.105,IP:10.254.31.1,IP:10.254.33.1
-        
-     
+
+
     NOTE:  The remaining commands use this $SAN environment variable
-           The openssl commands also uses this $SAN environment variable when you add this:   -extensions san_env  
-      
-      
+           The openssl commands also uses this $SAN environment variable when you add this:   -extensions san_env
+
+
  4. Generated the keyfile *WITH* subject alternative names of www.myserver1.com, www.myserver2.com, and www.myserver3.com
     a. Open a DOS window by pressing <Start><Run>CMD
-    b. In the DOS window, type-in these commands: 
+    b. In the DOS window, type-in these commands:
        DOS> rd /s /q c:\temp\server_cert_multiple
        DOS> mkdir c:\temp\server_cert_multiple
        DOS> cd /d c:\temp\server_cert_multiple
        DOS> set ALIAS=devKeystore
-       DOS> keytool -genkey -v  -ext san=%SAN% -alias %ALIAS%  -dname "cn=whatever, ou=Components, ou=whatever, c=US"  -keysize 2048 -keyalg RSA -sigalg MD5withRSA  -keystore myKeystore.jks -validity 1095
+       DOS> keytool -genkey -v  -ext san=%SAN% -alias %ALIAS%  -dname "cn=whatever, ou=Components, ou=whatever, c=US"  -keysize 2048 -keyalg RSA -sigalg MD5withRSA  -keystore myKeystore.jks -validity 3600
              Enter keystore password:  changeit
              Re-enter new password:    changeit
              Enter key password for <devKeystore>   <press Enter>
-         
+
         -- Now, you have created myKeystore.jks
-        
-        
+
+
  5. Generate a certificate signing request (for your server cert)
     a. Open a DOS window by pressing <Start><Run>CMD
-    b. In the DOS window, type-in these commands: 
-       DOS> keytool -certreq -v  -ext san=%SAN%  -alias %ALIAS%  -keyalg RSA -sigalg MD5withRSA -keystore myKeystore.jks  -file myKeystore.csr  -validity 1095
+    b. In the DOS window, type-in these commands:
+       DOS> keytool -certreq -v  -ext san=%SAN%  -alias %ALIAS%  -keyalg RSA -sigalg MD5withRSA -keystore myKeystore.jks  -file myKeystore.csr  -validity 3600
        Enter keystore password:      changeit
-       
+
         -- Now, you have created myKeystore.csr
-        
- 
+
+
  6. Verify that your certificate signing requests has the subject alternative names
     DOS> openssl req -noout -text -in myKeystore.csr
 
@@ -110,15 +110,15 @@ Procedures
               DNS:www.myserver10.com, DNS:www.myserver20.com, DNS:www.myserver30.com
           X509v3 Subject Key Identifier:
               66:7E:97:27:AD:AC:69:D1:31:92:99:F3:BA:3E:C3:D1:B3:2C:09:C3
-              
-                            
-                             
+
+
+
  7. Sign the certificate signing requests (generate server.cert.notes)
     NOTE:  The end of this openssl command uses the "san_env" section of the openssl.cnf file
      DOS> cd /d c:\tools\root-ca
      DOS> erase c:\temp\server_cert_multiple\server.cert.notes
-     DOS> openssl ca -batch -config conf/openssl.cnf -in c:\temp\server_cert_multiple\myKeystore.csr -out c:\temp\server_cert_multiple\server.cert.notes -days 1095  -extensions san_env 
-        
+     DOS> openssl ca -batch -config conf/openssl.cnf -in c:\temp\server_cert_multiple\myKeystore.csr -out c:\temp\server_cert_multiple\server.cert.notes -days 1095  -extensions san_env
+
      You should see this:
         Using configuration from conf/openssl.cnf
         Loading 'screen' into random state - done
@@ -138,33 +138,33 @@ Procedures
                     X509v3 Subject Alternative Name:
                         DNS:www.myserver10.com, DNS:www.myserver20.com, DNS:www.myserver30.com
         Certificate is to be certified until Jun 18 03:49:40 2017 GMT (365 days)
-        
+
         Write out database with 1 new entries
         Data Base Updated
         unable to write 'random state'
-        
-        
-        
- 8. Extract the signed server certificate from the c:\temp\server_cert_multiple\server.cert.notes              
-    a. Open this file with notepad:  c:\temp\server_cert_multiple\server.cert.notes    
-    b. Highlight the section between  
+
+
+
+ 8. Extract the signed server certificate from the c:\temp\server_cert_multiple\server.cert.notes
+    a. Open this file with notepad:  c:\temp\server_cert_multiple\server.cert.notes
+    b. Highlight the section between
           -----BEGIN CERTIFICATE-----
-          
+
           -----END CERTIFICATE-----
-          
+
     c. Copy + Paste it into this file:  c:\temp\server_cert_multiple\server.cert
-    
-    
-   
+
+
+
  9. Import the public CA file into myTruststore.jks
     DOS> keytool -import -v -file c:\tools\root-ca\public\root.pem  -trustcacerts -alias ca -keystore c:\temp\server_cert_multiple\myTruststore.jks -storepass changeit
 
     When prompted to "Trust this certificate?" --> enter "yes"
- 
+
     -- Now, you have created c:\temp\server_cert_multiple\myTruststore.jks
-    
- 
- 
+
+
+
 10. Import the public CA file into myKeystore.jks
     DOS> keytool -import -v -file c:\tools\root-ca\public\root.pem -trustcacerts -alias ca -keystore c:\temp\server_cert_multiple\myKeystore.jks -storepass changeit
     When prompted to "Trust this certificate?" --> enter "yes"
@@ -172,21 +172,21 @@ Procedures
 
 
 11. Import the signed server certificate into myKeystore.jks
-    DOS> keytool -import -v -file c:\temp\server_cert_multiple\server.cert -alias %ALIAS% -keystore c:\temp\server_cert_multiple\myKeystore.jks  
+    DOS> keytool -import -v -file c:\temp\server_cert_multiple\server.cert -alias %ALIAS% -keystore c:\temp\server_cert_multiple\myKeystore.jks
     --> enter password:  changeit
- 
+
     Now, you should have these files:
-       C:\temp\server_cert_multiple\myTruststore.jks   
+       C:\temp\server_cert_multiple\myTruststore.jks
        C:\temp\server_cert_multiple\myKeystore.jks
 
 
 12. View the contents of myKeystore.jks
     DOS> keytool -list -v -keystore  C:\temp\server_cert_multiple\myKeystore.jks
     --> enter password:  changeit
-    
+
     You should see this:
         . . .
-        
+
         Alias name: devkeystore
         Creation date: Jun 17, 2016
         Entry type: PrivateKeyEntry
@@ -202,31 +202,31 @@ Procedures
                  SHA256: 0C:AF:49:89:96:09:EC:BE:71:CD:DA:BB:44:5A:CC:DF:F1:C1:50:00:39:73:20:E4:C6:AE:CE:E9:68:DF:55:50
                  Signature algorithm name: SHA1withRSA
                  Version: 3
-        
+
         Extensions:
-        
+
         #1: ObjectId: 2.5.29.17 Criticality=false
         SubjectAlternativeName [
           DNSName: www.myserver10.com
           DNSName: www.myserver20.com
           DNSName: www.myserver30.com
         ]
-           
-           
-                 
-   
+
+
+
+
     Now, you should be able to use this for your Tomcat connector
     WARNING:  keyAlias should match the ALIAS you set at the top of this file
-    
-             <Connector port="8443" 
+
+             <Connector port="8443"
                  protocol="org.apache.coyote.http11.Http11Protocol"
-                 maxThreads="150" 
-                 SSLEnabled="true" 
-                 scheme="https" 
+                 maxThreads="150"
+                 SSLEnabled="true"
+                 scheme="https"
                  secure="true"
-                 clientAuth="true" 
-                 sslProtocol="TLS" 
-                 keystoreFile="c:/temp/server_cert_multiple/myKeystore.jks" 
+                 clientAuth="true"
+                 sslProtocol="TLS"
+                 keystoreFile="c:/temp/server_cert_multiple/myKeystore.jks"
                  keystorePass="changeit"
                  keystoreType="JKS"
                  truststoreFile="c:/temp/server_cert_multiple /myTruststore.jks"
@@ -234,5 +234,5 @@ Procedures
                  truststoreType="JKS"
                  keyAlias="devKeystore"
             />
-         
-                       
+
+
