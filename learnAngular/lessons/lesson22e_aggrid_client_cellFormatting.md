@@ -26,7 +26,7 @@ Solution:   Make a custom cell renderer<br>
 <br>
 Custom Cell Renderer that displays the priority in a colorful rounded box.
 
-![](https://github.com/traderres/webClass/raw/master/learnAngular/lessons/images/lesson21e_image1.png)
+![](https://github.com/traderres/webClass/raw/master/learnAngular/lessons/images/lesson22e_image1.png)
 
 ```
 What is a Custom Cell?
