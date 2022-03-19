@@ -26,7 +26,7 @@ Solution:   Make a custom cell renderer<br>
 <br>
 Custom Cell Renderer that displays the priority in a colorful rounded box.
 
-![](https://github.com/traderres/webClass/raw/master/learnAngular/lessons/images/lesson22e_image1.png)
+![](./images/lesson22e_image1.png)
 
 ```
 What is a Custom Cell?
@@ -196,7 +196,7 @@ Procedure:  Create a Custom Cell that Shows Different Colors
         a. Activate your Debugger on "Full WebApp"
         b. Click on "Report Grid View"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22e_image2.png)
+![](./images/lesson22e_image2.png)
 ```
 Priority Cell V1:  Notice the bottom part of the cells is cut off   (that sucks!)
 
@@ -223,7 +223,7 @@ Priority Cell V1:  Notice the bottom part of the cells is cut off   (that sucks!
 
 
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22e_image3.png)
+![](./images/lesson22e_image3.png)
 ```
 Priority Cell V2:  The priority cell looks good but the other cells are not vertically centered  
 (we fixed one problem and created another.....Sucks again!!)
@@ -260,7 +260,7 @@ Priority Cell V2:  The priority cell looks good but the other cells are not vert
         a. Activate your Debugger on "Full WebApp"
         b. Click on "Report Grid View"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22e_image4.png)
+![](./images/lesson22e_image4.png)
 ```
 Priority Cell V3:  Well that sucks!!  The fix did not work!!  This is known bug in ag-grid 25
 
@@ -329,7 +329,7 @@ Priority Cell V3:  Well that sucks!!  The fix did not work!!  This is known bug 
         a. Activate your Debugger on "Full WebApp"
         b. Click on "Report Grid View"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22e_image5.png)
+![](./images/lesson22e_image5.png)
 ```
 Priority Cell V4:  Much better!  But, we will have to remove the CSS fix at some point
 
