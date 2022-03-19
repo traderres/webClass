@@ -15,7 +15,7 @@ The source code for this lesson is here:<br>
 Problem: I want to add 1 million records to ElasticSearch in under 60 seconds (I hate waiting)<br>
 Solution: Have that one back end thread spin off 100 threads to process the CSV file in parallel<br>
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson13g_image1.png)
+![](./images/lesson13g_image1.png)
 <br>
 <br>
 <br>

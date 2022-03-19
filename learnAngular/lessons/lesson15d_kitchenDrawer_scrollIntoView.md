@@ -18,7 +18,7 @@ Solution:  Assign each section a CSS id and create an internal nav section that 
 <br>
 <br>
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson15d_image1.png)
+![](./images/lesson15d_image1.png)
 
 The "Fixed Nav" uses CSS properties to keep it fixed (so it's always visible even as the user scrolls down)
 

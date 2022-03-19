@@ -18,7 +18,7 @@ NOTE:  timeline.component.css is the parent that has all of the CSS
 <br>
 
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson27a_image1.png)
+![](./images/lesson27a_image1.png)
 
 ```
 <timeline> tag is used for the parent component  (holds the CSS for the timeline)<br>

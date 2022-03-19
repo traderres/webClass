@@ -23,7 +23,7 @@ Solution:     Make a custom cell renderer that has a button inside of it<br>
 <br>
 Custom Cell Renderer that shows "Edit" and "Delete" icon buttons in the id column.<br>
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22f_image1.png)
+![](./images/lesson22f_image1.png)
 ```
 
 Procedure:  Create a Custom Cell that has Buttons
@@ -135,7 +135,7 @@ Procedure:  Create a Custom Cell that has Buttons
        a. Activate your Debugger on "Full WebApp"
        b. Click on "Report Grid View"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22f_image2.png)
+![](./images/lesson22f_image2.png)
 ```
 ActionCellRender V1:  We have buttons.  But, the cell has a box around it when we click on it.
 
@@ -174,7 +174,7 @@ ActionCellRender V1:  We have buttons.  But, the cell has a box around it when w
         a. Activate your Debugger on "Full WebApp"
         b. Click on "Report Grid View"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22f_image3.png)
+![](./images/lesson22f_image3.png)
 ```
 ActionCellRender V3:  The buttons are bigger and clicking on the cell does not show the box.
 
@@ -197,7 +197,7 @@ But, why do we let the user sort and filter the id column!?!?  We shouldn't.....
         a. Activate your Debugger on "Full WebApp"
         b. Click on "Report Grid View"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22f_image4.png)
+![](./images/lesson22f_image4.png)
 ```
 ActionCellRender V4:  The header and filter have been removed from the 'id' column
   

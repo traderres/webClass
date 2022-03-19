@@ -103,7 +103,7 @@ Procedure
 
         f. Press "Send" button
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson13a_image1.png)
+![](./images/lesson13a_image1.png)
 ```
 You should hit your java breakpoint after pressing "Send"
 

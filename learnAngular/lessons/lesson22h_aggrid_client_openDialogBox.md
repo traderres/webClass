@@ -17,7 +17,7 @@ Solution:  Have the user select those rows and open a popup<br>
 
 
 Example Angular Material Dialog Component <br>
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22h_image1.png)
+![](./images/lesson22h_image1.png)
 
 <br>
 
@@ -81,7 +81,7 @@ Approach for Opening a Dialog Box that Updates Records
 Dialog Box HTML Structure
 The dialog box HTML has 3 main elements:
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22h_image2.png)
+![](./images/lesson22h_image2.png)
 ```
 
 
@@ -341,7 +341,7 @@ Procedure
         c. Check off one or more rows
         d. Press the "Update N Entries" button
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22h_image3.png)
+![](./images/lesson22h_image3.png)
 ```
 NOTE:  Press OK in the modal dialog should simulate reloading the page.
 But, there is a problem:   "Update N Entries" is not reset
@@ -446,7 +446,7 @@ This call will unselect all rows in your grid:
         e. In the popup, click OK    (without selecting a priority)
            -- You should see the "Priority is required" message
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22h_image4.png)
+![](./images/lesson22h_image4.png)
 ```
 
 

@@ -20,7 +20,7 @@ Solution:      Setup a responsive layout <br>
 <br>
 Layout of the page using 3 columns  (if browser has sufficient width)
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson16a_image1.png)
+![](./images/lesson16a_image1.png)
 
 NOTE:  If the browser cannot fit 3-tiles wide, we will adjust <mat-grid-list cols=" "> to be 2 or 1 column wide. 
 <br>
@@ -28,7 +28,7 @@ NOTE:  If the browser cannot fit 3-tiles wide, we will adjust <mat-grid-list col
 <br>
 Layout of the page using 2 columns  (if browser has sufficient width)
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson16a_image2.png)
+![](./images/lesson16a_image2.png)
 
 <br>
 <br>

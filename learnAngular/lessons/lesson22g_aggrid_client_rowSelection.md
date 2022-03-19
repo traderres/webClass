@@ -20,7 +20,7 @@ Solution:<br>
 - Use the gridApi to get a list of selectedRows<br>
 <br>
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22g_image1.png)
+![](./images/lesson22g_image1.png)
 
 ```
 Procedure:  Add Row Selection to your Grid
@@ -72,7 +72,7 @@ Procedure:  Add Row Selection to your Grid
         a. Activate the debugger on "Full WebApp"
         b. Click on "Report Grid View"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22g_image2.png)
+![](./images/lesson22g_image2.png)
 ```     
            NOTE:  Users can check multiple checkboxes.  
            If you press & hold shift while clicking, the grid will check all checkboxes in between
@@ -122,7 +122,7 @@ Procedure:  Add Row Selection to your Grid
         a. Activate the debugger on "Full WebApp"
         b. Click on "Report Grid View"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22g_image3.png)
+![](./images/lesson22g_image3.png)
 ```
 The "Update" button appears above the grid.  And, the page has 1 vertical scrollbar (not two!)
 
@@ -187,14 +187,14 @@ The "Update" button appears above the grid.  And, the page has 1 vertical scroll
         b. Click on "Report Grid View"
         c. On page load, the "Update" button should be disabled  (as totalRowsSelected == 0)
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22g_image4.png)
+![](./images/lesson22g_image4.png)
 ```
 
 
 
         d. Check off one or more rows and the "Update" button should be enabled
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22g_image5.png)
+![](./images/lesson22g_image5.png)
 ```
 
 
@@ -227,12 +227,12 @@ The "Update" button appears above the grid.  And, the page has 1 vertical scroll
         b. Click on "Report Grid View"
         c. On page load, the "Update" button should be disabled  (as totalRowsSelected == 0)
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22g_image6.png)
+![](./images/lesson22g_image6.png)
 ```
 
         d. Check off a few rows and make sure the "Update" button has the correct grammar:
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22g_image7.png)
+![](./images/lesson22g_image7.png)
 ```
 
 
@@ -269,18 +269,18 @@ The "Update" button appears above the grid.  And, the page has 1 vertical scroll
         b. Click on "Report Grid View"
         c. On page load, the "Update Entries" button should be disabled  (as totalRowsSelected == 0)
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22g_image8.png)
+![](./images/lesson22g_image8.png)
 ```
 
 
         d. When 1 row  is selected, it shows "Update 1 Entry"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22g_image9.png)
+![](./images/lesson22g_image9.png)
 ```
 
 
 
         e. When multiple rows are selected, it shows "Update N Entries"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22g_image10.png)
+![](./images/lesson22g_image10.png)
 

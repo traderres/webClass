@@ -1314,13 +1314,13 @@ Part 2:  Update the Front End
         c. Change the width of a column
         d. Remove some of the columns by dragging the columns up
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22i_image1.png)
+![](./images/lesson22i_image1.png)
 ```
 
         e. Press the "Reset" button
            -- The grid should return to default settings
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22i_image2.png)
+![](./images/lesson22i_image2.png)
 ```
 
 

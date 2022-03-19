@@ -51,7 +51,7 @@ Procedure
             iii. Set the pageRoutes to be a new Map that holds this information
             iv.  Return the hard-coded observable such that pageRoutes hold this:
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson20b_image1.png)
+![](./images/lesson20b_image1.png)
 ```
 	
 
@@ -118,7 +118,7 @@ Procedure
         b. Activate the Debugger on "Full WebApp"
         c. Click on each of these routes.  Follow the breakpoints
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson20b_image2.png)
+![](./images/lesson20b_image2.png)
 ```
 
 

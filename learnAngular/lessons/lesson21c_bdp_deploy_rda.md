@@ -28,7 +28,7 @@ Assumptions
 Why You Need a Tunnel to Reach the RDA Deployer
 ------------------------------------------------
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson21c_image1.png)
+![](./images/lesson21c_image1.png)
 ```
 
 
@@ -103,14 +103,14 @@ Procedure
         b. In the Host Name, type-in 10.1.21.100          (this is the puppet master)
             Under Saved Sessions, type-in Lab rda tunnel and socks
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson21c_image2.png)
+![](./images/lesson21c_image2.png)
 ```
 
 
         c. On the left side, browse to Connection --> SSH
             i. Check "Don't start a shell or command at all"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson21c_image3.png)
+![](./images/lesson21c_image3.png)
 ```
 
 
@@ -129,7 +129,7 @@ Procedure
 
         e. When finished, your tunnels should look like this:
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson21c_image4.png)
+![](./images/lesson21c_image4.png)
 ```
 
 
@@ -192,7 +192,7 @@ Press "Finish"
             iii. Set the dropdown to "Custom URLs..."
                  Url:   https://localhost:9998/deployer
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson21c_image5.png)
+![](./images/lesson21c_image5.png)
 ```
 
 
@@ -208,7 +208,7 @@ Check the "SOCKS v5"
 
             v. Check "Proxy DNS when using SOCKS v5"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson21c_image6.png)
+![](./images/lesson21c_image6.png)
 ```
 
         h. Close-up Firefox
@@ -243,7 +243,7 @@ Part 2:  Use the RDA Deployer to Deploy the AngularApp1 Web App
        You should see "AngularApp1 Web App" on the left side
         a. Select the 3 dots and press "Deploy"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson21c_image7.png)
+![](./images/lesson21c_image7.png)
 ```
 
 
@@ -257,7 +257,7 @@ Part 2:  Use the RDA Deployer to Deploy the AngularApp1 Web App
            Press "CONFIGURATION" and look at the command:
 
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson21c_image8.png)
+![](./images/lesson21c_image8.png)
 ```
 
         The command should hold this:
@@ -268,14 +268,14 @@ Part 2:  Use the RDA Deployer to Deploy the AngularApp1 Web App
 
         e. Press the 3 dots next to "STOPPED" and change it to "START"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson21c_image9.png)
+![](./images/lesson21c_image9.png)
 ```
 
         f. Verify that the web app started (by examining the backend log file)
            Press "RUNS/LOGS"
            Keep pressing "Refresh" until you see 2 containers:
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson21c_image10.png)
+![](./images/lesson21c_image10.png)
 ```
 
 
@@ -283,7 +283,7 @@ Part 2:  Use the RDA Deployer to Deploy the AngularApp1 Web App
 
         h. Keep refreshing the web browser (by pressing F5) until you see slider-service.log
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson21c_image11.png)
+![](./images/lesson21c_image11.png)
 ```
 
         i. Click on slider-service.log   (this holds all of the back-end logging output)
@@ -292,7 +292,7 @@ Part 2:  Use the RDA Deployer to Deploy the AngularApp1 Web App
 
         j. Verify that you see the "WebApp is Up." message
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson21c_image12.png)
+![](./images/lesson21c_image12.png)
 ```
         The "WebApp is Up" message is present.  So, the angularApp1 web app is up.
 

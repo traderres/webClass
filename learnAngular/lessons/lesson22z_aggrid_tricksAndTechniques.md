@@ -441,7 +441,7 @@ Tricks & Techniques
 
         g. Verify it works.  Your grid filter should be a regular 
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22z_image1.png)
+![](./images/lesson22z_image1.png)
 ```
 The "Is Locked?" filter is a dropdown with 3 options:  Locked, Unlocked, and (All Values)
 

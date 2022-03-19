@@ -14,7 +14,7 @@ The source code for this lesson is here:<br>
 Problem:  My web app needs pages that show a grid and I need it to be fast<br>
 Solution:  Add ag-grid to the project and configure it.
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22a_image1.png)
+![](./images/lesson22a_image1.png)
 
 
 <br>
@@ -163,7 +163,7 @@ Procedure
         b. Verify that you see "Report Grid View"
         c. Verify that clicking on it shows a page
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22a_image2.png)
+![](./images/lesson22a_image2.png)
 ```
             You should see "Report Grid View" on the left
 
@@ -249,7 +249,7 @@ Procedure
         a. Activate your Debugger on "Full WebApp"
         b. Go to the "Reports Grid View"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22a_image3.png)
+![](./images/lesson22a_image3.png)
 ```
 V1:  Simple grid with hard-coded data using the "alpine theme"
 
@@ -269,7 +269,7 @@ NOTE:  If it does not, then you need a wrapper-div in the mat-card-content that 
 
         d. Look at the grid in your debugger
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22a_image4.png)
+![](./images/lesson22a_image4.png)
 ```
 Verify that your scrollbar fits inside the grid -- so that the column headers are always visible
 
@@ -307,13 +307,13 @@ Verify that your scrollbar fits inside the grid -- so that the column headers ar
         a. Activate the Debugger on "Full WebApp"     (NOTE:  You must restart the debugger)
         b. Click on "Report Grid View"
  ```
- ![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22a_image5.png)
+ ![](./images/lesson22a_image5.png)
  ```
 
 
 NOTE:  Your grid comes with a number of provided themes including:
 ```
- ![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson22a_image6.png)
+ ![](./images/lesson22a_image6.png)
  ```
 
 Try a different theme and see which one you like.

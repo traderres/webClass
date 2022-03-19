@@ -18,7 +18,7 @@ Solution:  Install the Quill Markdown Editor (ngx-quill)<br>
 <br>
 Example Markdown Editor<br>
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson23a_image1.png)
+![](./images/lesson23a_image1.png)
 ```
 
 Procedure
@@ -188,7 +188,7 @@ Procedure
         b. Click on "Report Submit Markdown"
            -- You should see an empty page
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson23a_image2.png)
+![](./images/lesson23a_image2.png)
 ```
 
 
@@ -272,7 +272,7 @@ Procedure
         a. Activate the Debugger on "Full WebApp"
         b. Click on "Report Submit Markdown"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson23a_image3.png)
+![](./images/lesson23a_image3.png)
 ```
 
 

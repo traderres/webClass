@@ -17,7 +17,7 @@ Solution: There are multiple approaches<br>
 <br>
 <br>
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson17a_image1.png)
+![](./images/lesson17a_image1.png)
 
 <br>
 <br>
