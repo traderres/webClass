@@ -12,7 +12,7 @@ The source code for this lesson is here:<br>
 
 In this lesson, we will create a navigation bar that looks like this:
 
-![](https://lh4.googleusercontent.com/ICgqcVNBbuYhLk3FFimxeEGMvc4lW43mgwCfryLFPs9X4xPzWoveTqiM_Ja1xRtBohNFTkEvyvCjHEM59kd3U9Jd6oJ51bt1aKayL4gfs3LnFoSwh2VBTMqJqGHlHYLlRiJJ5Dv6)
+![](./images/lesson06a_image1.png)
 
 
 
