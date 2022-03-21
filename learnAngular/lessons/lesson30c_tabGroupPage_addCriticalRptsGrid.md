@@ -16,7 +16,7 @@ The "Critical Reports" tab will show a server side grid that is limited to repor
 The "All Reports" tab will show all reports<br>
 <br>
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson30c_image1.png)
+![](./images/lesson30c_image1.png)
 
 
 
@@ -773,7 +773,7 @@ Procedure
        a. Activate the debugger on "Full WebApp"
        b. Click on "Critical Reports" on the left-side navbar
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson30c_image2.png)
+![](./images/lesson30c_image2.png)
 ```
 The server-side grid now appears in the "Critical Reports" tab
 

@@ -17,11 +17,11 @@ Solution:  Add a theme changer<br>
 <br>
 The Theme Changer is the popup in the upper right corner with the "Light Mode" and "Dark Mode" options
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson24a_image1.png)
+![](./images/lesson24a_image1.png)
 <br>
 <br>
 <br>
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson24a_image2.png)
+![](./images/lesson24a_image2.png)
 <br>
 <br>
 <br>
@@ -212,7 +212,7 @@ Procedure
             i. Activate the Debugger on "Full WebApp"
             ii. Verify that the page looks like this:
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson24a_image3.png)
+![](./images/lesson24a_image3.png)
 ```
 This is our "light mode"
 
@@ -612,7 +612,7 @@ Light mode should look like this:
 
 
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson24a_image5.png)
+![](./images/lesson24a_image5.png)
 ```
 Dark mode should look like this:
 
@@ -800,12 +800,12 @@ Dark mode should look like this:
 
 In Light Mode, the header is a dark-blue to light-blue gradient
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson24a_image6.png)
+![](./images/lesson24a_image6.png)
 ```
 
 In Dark Mode, the header is a light-grey-to-black-light-grey gradient
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson24a_image7.png)
+![](./images/lesson24a_image7.png)
 ```
 
 
@@ -1030,7 +1030,7 @@ In Dark Mode, the header is a light-grey-to-black-light-grey gradient
             i. Activate the debugger on "Full WebApp"
             ii. Click on the light mode/dark mode button
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson24a_image8.png)
+![](./images/lesson24a_image8.png)
 ```
 Navbar in light mode
 
@@ -1039,7 +1039,7 @@ Navbar in light mode
 
 
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson24a_image9.png)
+![](./images/lesson24a_image9.png)
 ```
 Navbar in dark mode
 
@@ -1102,13 +1102,13 @@ Navbar in dark mode
             iii. Select Light Mode / Dark Mode
 
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson24a_image10.png)
+![](./images/lesson24a_image10.png)
 ```
 PDF Viewer Page in Light Mode
 
 
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson24a_image11.png)
+![](./images/lesson24a_image11.png)
 ```
 PDF Viewer Page in Dark Mode
 
@@ -1207,13 +1207,13 @@ PDF Viewer Page in Dark Mode
             ii. Click on "Report Grid View" in the navbar
 
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson24a_image12.png)
+![](./images/lesson24a_image12.png)
 ```
 The Report Grid View in Light Mode
 
 
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson24a_image13.png)
+![](./images/lesson24a_image13.png)
 ```
 The Report Grid View in Dark Mode
 
@@ -1252,13 +1252,13 @@ The Report Grid View in Dark Mode
             iii. Turn on Dark Mode
             iv.  Press the "Save" button
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson24a_image14.png)
+![](./images/lesson24a_image14.png)
 ```
 Add Report Page in Light Mode
 
 
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson24a_image15.png)
+![](./images/lesson24a_image15.png)
 ```
 Add Report Page in Dark Mode   (the error is a bright orange now)
 
@@ -1402,14 +1402,14 @@ Add Report Page in Dark Mode   (the error is a bright orange now)
            ii.  Click on "Report Submit Markdown"
            iii. Switch from Light Mode to Dark Mode
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson24a_image16.png)
+![](./images/lesson24a_image16.png)
 ```
 Report Submit Markdown Page in Light Mode
 
 
 
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson24a_image17.png)
+![](./images/lesson24a_image17.png)
 ```
 Report Submit Markdown Page in Dark Mode
 
@@ -1698,13 +1698,13 @@ Report Submit Markdown Page in Dark Mode
             ii. Click on Analytics / Dashboard
             iii. Look at the dashboard page in light mode and dark mode
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson24a_image18.png)
+![](./images/lesson24a_image18.png)
 ```
 Dashboard Page in Light Mode
 
 
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson24a_image19.png)
+![](./images/lesson24a_image19.png)
 ```
 Dashboard Page in Dark Mode
 

@@ -20,7 +20,7 @@ Solution:
  3. Setup the page with 2 modes: (a) drag & drop grids and (b) drag & drop columns in a grid<BR>
 
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson28a_image1.png)
+![](./images/lesson28a_image1.png)
 
 The "Drag & Drop Mode" gives the user 2 options:<BR>
  1) Drag & Drop Charts -- which lets users drag & drop charts up/down<br>
@@ -28,7 +28,7 @@ The "Drag & Drop Mode" gives the user 2 options:<BR>
  <br>
  <br>
  
- ![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson28a_image2.png)
+ ![](./images/lesson28a_image2.png)
  
 
 <br>
@@ -61,7 +61,7 @@ Procedure
 
     2. Setup the layout for the welcome page as
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson28a_image3.png)
+![](./images/lesson28a_image3.png)
 ```
        a. Edit welcome.component.html
 
@@ -106,7 +106,7 @@ Procedure
 
        c. Activate the debugger on "Full WebApp" and verify the page looks like this:
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson28a_image4.png)
+![](./images/lesson28a_image4.png)
 ```
 
 
@@ -258,7 +258,7 @@ Procedure
 
        g. Activate the debugger on "Full WebApp" and verify the page looks like this:
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson28a_image5.png)
+![](./images/lesson28a_image5.png)
 ```
 
 
@@ -380,7 +380,7 @@ Procedure
 
        c. Activate the debugger on "Full WebApp" and verify the page looks like this:
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson28a_image6.png)
+![](./images/lesson28a_image6.png)
 ```
 
 
@@ -533,7 +533,7 @@ Procedure
 
        e. Activate the debugger on "Full WebApp" and verify the page looks like this:
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson28a_image7.png)
+![](./images/lesson28a_image7.png)
 ```
 NOTE:  The chart height is set by the [rowHeight]=400 in the <mat-grid-list> tag
 
@@ -621,7 +621,7 @@ NOTE:  The chart height is set by the [rowHeight]=400 in the <mat-grid-list> tag
 
        g. Activate the debugger on "Full WebApp" and verify the page now lets you drag & drop:
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson28a_image8.png)
+![](./images/lesson28a_image8.png)
 ```
 NOTE:  We can now drag & drop these large <mat-card> tags up and down
 
@@ -687,7 +687,7 @@ NOTE:  We can now drag & drop these large <mat-card> tags up and down
 
        e. Activate the debugger on "Full WebApp" and verify the page now lets you drag & drop:
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson28a_image9.png)
+![](./images/lesson28a_image9.png)
 ```
 Drag and drop the 3rd chart to the top of the page
 Press Drag & Drop Mode -> Choose "Enable Grid Column Drag & Drop"
@@ -1031,7 +1031,7 @@ Drag and drop the columns in this grid from left to right
 
        d. Activate the debugger on "Full WebApp" and verify that you see 2 charts:
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson28a_image10.png)
+![](./images/lesson28a_image10.png)
 ```
 Now, you can drag & drop the charts and drag & drop the grids!!
 
@@ -1090,7 +1090,7 @@ Now, you can drag & drop the charts and drag & drop the grids!!
 
        g. Activate the debugger on "Full WebApp" and verify that you see 2 charts:
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson28a_image11.png)
+![](./images/lesson28a_image11.png)
 ```
 NOTE:  Now, if you show/hide the left-side navbar, the charts resize to use the space correctly
 
@@ -1320,5 +1320,5 @@ NOTE:  Now, if you show/hide the left-side navbar, the charts resize to use the 
 
         c. Activate the debugger on "Full WebApp" and verify that you see 3 gauge charts:
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson28a_image12.png)
+![](./images/lesson28a_image12.png)
 

@@ -17,7 +17,7 @@ Solution:  Install the Extended PDF Viewer<br>
 <br>
 Screen Shot of the Extended PDF Viewer<br>
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson23b_image1.png)
+![](./images/lesson23b_image1.png)
 
 <br>
 <br>
@@ -211,7 +211,7 @@ Procedure
 
         c. Verify that the page layout has the right/left setup
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson23b_image2.png)
+![](./images/lesson23b_image2.png)
 ```
 
 
@@ -234,7 +234,7 @@ Procedure
 
         c. Verify that the left/right side rows uses the full page
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson23b_image3.png)
+![](./images/lesson23b_image3.png)
 ```
 NOTE:  As you resize your web browser, the height adjusts accordingly
 
@@ -349,7 +349,7 @@ NOTE:  As you resize your web browser, the height adjusts accordingly
         a. Activate the Debugger on "Full WebApp"
         b. Click on "PDF Viewer"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson23b_image4.png)
+![](./images/lesson23b_image4.png)
 ```
 V1:  The PDF Viewer is loaded but not showing any files
 
@@ -386,7 +386,7 @@ V1:  The PDF Viewer is loaded but not showing any files
         b. Click on "PDF Viewer"
         c. Press "Cool Kid"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson23b_image5.png)
+![](./images/lesson23b_image5.png)
 ```
 
 

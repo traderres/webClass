@@ -21,7 +21,7 @@ Solution:  Use CSS to make them look great<br>
 <br>
 In this lesson, we generate 14 different looks for the Angular Material Tab Groups
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson25_image1.png)
+![](./images/lesson25_image1.png)
 
 This is Tab Group v14
 
@@ -207,7 +207,7 @@ Procedure
             i. Activate the Debugger on "Full WebApp"
             ii. Click on "Tab Group"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson25_image2.png)
+![](./images/lesson25_image2.png)
 ```
 Tab Group v1:  No CSS
 See https://github.com/traderres/angularApp1Lessons/tree/lesson25/tab-groups1
@@ -301,7 +301,7 @@ Tab Group v2:  Add color to the background and selected tab has green vertical g
 Tab Group v2:  Using CSS to set active tab with a vertical gradient
 See https://github.com/traderres/angularApp1Lessons/tree/lesson25/tab-groups2
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson25_image3.png)
+![](./images/lesson25_image3.png)
 ```
 
 
@@ -463,7 +463,7 @@ Tab Group v4:  Orange-to-Yellow gradient for the active tab w/Open Sans font
         a. Activate the Debugger on "Full WebApp"
         b. Click on "Tab Group"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson25_image5.png)
+![](./images/lesson25_image5.png)
 ```
 Tab Group v4:  Added "Open Sans" font and activate tab has yellow-to-orange gradient
 See https://github.com/traderres/angularApp1Lessons/tree/lesson25/tab-groups4
@@ -522,7 +522,7 @@ Tab Group v5:  Round off the edges of the selected tab
         a. Activate the Debugger on "Full WebApp"
         b. Click on "Tab Group"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson25_image6.png)
+![](./images/lesson25_image6.png)
 ```
 Tab Group v5:  Selected Tab has border-radius of 20px (giving it the rounded edges)
 See https://github.com/traderres/angularApp1Lessons/tree/lesson25/tab-groups5
@@ -580,7 +580,7 @@ Tab Group v6:  Selected Tab has gradient, is rounded, and has a thick gold borde
         a. Activate the Debugger on "Full WebApp"
         b. Click on "Tab Group"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson25_image7.png)
+![](./images/lesson25_image7.png)
 ```
 Tab Group v6:  Selected Tab has gradient, is rounded, and has a thick gold border
 See https://github.com/traderres/angularApp1Lessons/tree/lesson25/tab-groups6
@@ -716,7 +716,7 @@ Tab Group v8:  Selected Tab has multi-color gradient w/o border
         a. Activate the Debugger on "Full WebApp"
         b. Click on "Tab Group"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson25_image9.png)
+![](./images/lesson25_image9.png)
 ```
 Tab Group v8:  Selected Tab has a multi-color gradient, is rounded, and w/o a border
 See https://github.com/traderres/angularApp1Lessons/tree/lesson25/tab-groups8
@@ -784,7 +784,7 @@ Tab Group v9:  Selected Tab has multi-color gradient (richer colors diagonal goi
         a. Activate the Debugger on "Full WebApp"
         b. Click on "Tab Group"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson25_image10.png)
+![](./images/lesson25_image10.png)
 ```
 Tab Group v9:  Selected Tab has a multi-color gradient (richer colors diagonal going other way)
 See https://github.com/traderres/angularApp1Lessons/tree/lesson25/tab-groups9
@@ -851,7 +851,7 @@ Tab Group v10:  Selected Tab has a radial gradient
         a. Activate the Debugger on "Full WebApp"
         b. Click on "Tab Group"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson25_image11.png)
+![](./images/lesson25_image11.png)
 ```
 Tab Group v10:  Selected Tab has a radial gradient
 See https://github.com/traderres/angularApp1Lessons/tree/lesson25/tab-groups10
@@ -976,7 +976,7 @@ https://colorzilla.com/gradient-editor/#2a2a72+20,f1ca0a+22,f1ca0a+22,1876ab+24,
         a. Activate the Debugger on "Full WebApp"
         b. Click on "Tab Group"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson25_image13.png)
+![](./images/lesson25_image13.png)
 ```
 Tab Group v12:  Selected Tab has a sharp-edge gradient
 See https://github.com/traderres/angularApp1Lessons/tree/lesson25/tab-groups12
@@ -1042,7 +1042,7 @@ Tab Group v13:  Selected Tab has a diagonal gradient with light-colored edges w/
         a. Activate the Debugger on "Full WebApp"
         b. Click on "Tab Group"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson25_image14.png)
+![](./images/lesson25_image14.png)
 ```
 Tab Group v13:  Selected Tab has a sharp-edge gradient
 See https://github.com/traderres/angularApp1Lessons/tree/lesson25/tab-groups13
@@ -1127,7 +1127,7 @@ See https://github.com/traderres/angularApp1Lessons/tree/lesson25/tab-groups14
 
 
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson25_image16.png)
+![](./images/lesson25_image16.png)
 ```
 Tab Group v14:  On hover, the other tabs show a thin gold border
 

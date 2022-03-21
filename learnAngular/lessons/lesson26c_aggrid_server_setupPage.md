@@ -20,7 +20,7 @@ We have a REST endpoint.  Now, let's setup the ag-grid in server-side mode so it
 <br>
 At the end of the lesson, we will have a grid but it will always return hard-coded data<bR>
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson26c_image1.png)
+![](./images/lesson26c_image1.png)
 
 <br>
 <br>
@@ -566,7 +566,7 @@ Procedure
         d. In this page, change the sorting -- and the REST endpoint returns the same 3 rows
         e. In this page, press search -- and the REST endpoint returns the same 3 rows
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson26c_image2.png)
+![](./images/lesson26c_image2.png)
 ```
 The grid is running in server side mode, but the REST endpoint always returns the same 3 rows
 

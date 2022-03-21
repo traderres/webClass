@@ -15,7 +15,7 @@ Problem:  I want my users to acknowledge a popup message before using any pages<
 Solution:  Create a guard and assign it to all routes<br>
 <br>
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson29_image1.png)
+![](./images/lesson29_image1.png)
 
 <br>
 <br>
@@ -426,7 +426,7 @@ Procedure
 
            You should see the popup on page load
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson29_image2.png)
+![](./images/lesson29_image2.png)
 ```
 After you have acknowledged the popup, it stays in the session
 -- If you open additional tabs in this browser, then you do NOT have to acknowledge again

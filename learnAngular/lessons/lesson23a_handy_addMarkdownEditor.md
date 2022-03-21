@@ -306,7 +306,7 @@ Procedure
        a. Activate the Debugger on "Full WebApp"
        b. Click on "Report Submit Markdown"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson23a_image4.png)
+![](./images/lesson23a_image4.png)
 ```
 
 
@@ -327,7 +327,7 @@ Procedure
         a. Activate the Debugger on "Full WebApp"
         b. Click on "Report Submit Markdown"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson23a_image5.png)
+![](./images/lesson23a_image5.png)
 ```
 
 
@@ -372,7 +372,7 @@ Procedure
         a. Activate the Debugger on "Full WebApp"
         b. Click on "Report Submit Markdown"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson23a_image6.png)
+![](./images/lesson23a_image6.png)
 ```
 Notice that there are fewer formatting options now.
 

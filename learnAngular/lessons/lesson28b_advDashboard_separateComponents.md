@@ -139,7 +139,7 @@ Procedure
 
     5. Setup the layout for the dashboard-welcome page as
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson28b_image1.png)
+![](./images/lesson28b_image1.png)
 ```
 
        a. Edit dashboard-layout.component.html
@@ -181,7 +181,7 @@ Procedure
 
         c. Activate the debugger on "Full WebApp" and verify the page looks like this:
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson28b_image2.png)
+![](./images/lesson28b_image2.png)
 ```
 
 
@@ -328,7 +328,7 @@ Procedure
 
        g. Activate the debugger on "Full WebApp" and verify the page looks like this:
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson28b_image3.png)
+![](./images/lesson28b_image3.png)
 ```
 
 
@@ -438,7 +438,7 @@ Procedure
 
         c. Activate the debugger on "Full WebApp" and verify the page looks like this:
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson28b_image4.png)
+![](./images/lesson28b_image4.png)
 ```
 
 
@@ -583,7 +583,7 @@ Procedure
 
        e. Activate the debugger on "Full WebApp" and verify the page looks like this:
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson28b_image5.png)
+![](./images/lesson28b_image5.png)
 ```
 NOTE:  The chart height is set by the [rowHeight]=400 in the <mat-grid-list> tag
 
@@ -672,7 +672,7 @@ NOTE:  The chart height is set by the [rowHeight]=400 in the <mat-grid-list> tag
 
        g. Activate the debugger on "Full WebApp" and verify the page now lets you drag & drop:
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson28b_image6.png)
+![](./images/lesson28b_image6.png)
 ```
 NOTE:  We can now drag & drop these large <mat-card> tags up and down
 
@@ -769,7 +769,7 @@ NOTE:  We can now drag & drop these large <mat-card> tags up and down
 
         d. Activate the debugger on "Full WebApp" and verify the page now lets you drag & drop:
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson28b_image7.png)
+![](./images/lesson28b_image7.png)
 ```
 NOTE:  The drag & drop only works when the "Drag & Drop Mode" is set on the 1st option
 
@@ -1044,7 +1044,7 @@ NOTE:  The drag & drop only works when the "Drag & Drop Mode" is set on the 1st 
 
         f. Activate the debugger on "Full WebApp" and verify the grid appears in the dashboard
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson28b_image8.png)
+![](./images/lesson28b_image8.png)
 ```
 You should be able to drag & drop the dashboard up and down
 Press Drag & Drop Mode -> Enable Grid Column Drag & Drop
@@ -1301,7 +1301,7 @@ If you double-click on the little grid, it should take you to the big grid
         b. Double-click on the small grid (in the dashboard)
         c. You should see this page
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson28b_image9.png)
+![](./lessons/images/lesson28b_image9.png)
 ```
 
 
@@ -1585,7 +1585,7 @@ If you double-click on the little grid, it should take you to the big grid
         b. Verify that the bar chart appears
         c. Verify that double-clicking on the chart takes you to the (empty) big chart page
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson28b_image10.png)
+![](./images/lesson28b_image10.png)
 ```
 
 
@@ -1695,7 +1695,7 @@ If you double-click on the little grid, it should take you to the big grid
         c. Press the hamburger button to restore the left-side navbar
            -- The chart and ag-grid should resize
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson28b_image11.png)
+![](./images/lesson28b_image11.png)
 ```
 
 
@@ -1975,7 +1975,7 @@ If you double-click on the little grid, it should take you to the big grid
         b. Double-click on the bar chart
            -- Verify that you see the big chart
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson28b_image12.png)
+![](./images/lesson28b_image12.png)
 ```
 
 
@@ -2255,7 +2255,7 @@ If you double-click on the little grid, it should take you to the big grid
         a. Activate the Debugger on Full WebApp
            -- Verify that you see the USA map at the top:
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson28b_image13.png)
+![](./images/lesson28b_image13.png)
 ```
 
 
@@ -2555,7 +2555,7 @@ If you double-click on the little grid, it should take you to the big grid
         a. Activate the Debugger on Full WebApp
         b. Double-click on the USA Map
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson28b_image14.png)
+![](./images/lesson28b_image14.png)
 ```
 NOTE:  In this map, we show the legend on the bottom (as there is more space)
 

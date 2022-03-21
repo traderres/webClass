@@ -17,7 +17,7 @@ Solution:  Add a drag & drop divider<br>
 <br>
 Screen Shot of the Extended PDF Viewer w/draggable column sizer<br>
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson23c_image1.png)
+![](./images/lesson23c_image1.png)
 <br>
 NOTE:  The scrollbar can be dragged to the left or right
 <br>
@@ -493,7 +493,7 @@ Part 2:  Stop the User from Dragging too far Right or Left
         c. Attempt to scroll to far left or right
            -- Those scrolling attempts should be canceled
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson23c_image2.png)
+![](./images/lesson23c_image2.png)
 ```
 If you scroll too far to the left, the drag & drop is canceled
 

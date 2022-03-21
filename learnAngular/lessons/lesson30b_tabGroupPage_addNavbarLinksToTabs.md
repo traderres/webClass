@@ -178,12 +178,12 @@ Procedure
        a. Activate the debugger on Full WebApp
        b. Click on "Critical Reports" in the navbar  (and the "Critical Reports" tab should be visible)
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson30b_image1.png)
+![](./images/lesson30b_image1.png)
 ```
 
 
 
        c. Click on "All Reports" in the navbar (and the "All Reports" tab should be visible)
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson30b_image2.png)
+![](./images/lesson30b_image2.png)
 

@@ -13,7 +13,7 @@ The source code for this lesson is here:<br>
 <h3> Problem Set </h3>
 In this lesson, we will make sure the grid and search box look good in dark mode.<br>
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson26d_image1.png)
+![](./images/lesson26d_image1.png)
 
 
 <br>
@@ -227,7 +227,7 @@ Procedure
        c. Switch from light mode to dark mode
 
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson26d_image2.png)
+![](./images/lesson26d_image2.png)
 ```
 Server Side Grid Page in Light Mode
 
@@ -235,7 +235,7 @@ Server Side Grid Page in Light Mode
 
 
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson26d_image3.png)
+![](./images/lesson26d_image3.png)
 ```
 Server Side Grid Page in Dark Mode
 

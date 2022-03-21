@@ -16,12 +16,12 @@ Problem:  I have an "Edit Report" page that has a LOT of fields<br>
     -- I want another "Save" button on the top (that stays visible all of the time)<br>
 <br>
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson30e_image1.png)
+![](./images/lesson30e_image1.png)
 
 <br>
 <br>
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson30e_image2.png)
+![](./images/lesson30e_image2.png)
 
 As the user scrolls down, the page title, breadcrumbs, and "Save" button is ALWAYS visible
 
@@ -208,7 +208,7 @@ Procedure
        a. Activate the debugger on "Full WebApp"
        b. Go to http://localhost:4200/page/reports/edit-details/25
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson30e_image3.png)
+![](./images/lesson30e_image3.png)
 ```
 NOTE:  As the user scrolls, the page title, breadcrumbs, and "Save" button are ALWAYS visible.
 
@@ -459,7 +459,7 @@ NOTE:  As the user scrolls, the page title, breadcrumbs, and "Save" button are A
        a. Activate the Debugger on "Full WebApp"
        b. Go to http://localhost:4200/page/reports/edit-details/25
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson30e_image4.png)
+![](./images/lesson30e_image4.png)
 ```
 As you scroll down, the title and "Save" button are always visible  (so the top row is FIXED)
 
@@ -599,7 +599,7 @@ As you scroll down, the title and "Save" button are always visible  (so the top 
         a. Activate the Debugger on "Full WebApp"
         b. Click on "Critical Reports"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson30e_image5.png)
+![](./images/lesson30e_image5.png)
 ```
 Now, clicking on the "Edit" icon will take you to the "Edit Report" page
 

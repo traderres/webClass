@@ -106,4 +106,4 @@ Procedure
             ii. Click on the "Server Side Grid Page" page  (in the navbar)
                 -- You should see an empty page
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson26a_image1.png)
+![](./images/lesson26a_image1.png)

@@ -16,7 +16,7 @@ Problem:  I want to create a page that has a tab group with 2 tabs<br>
     Tab 2 holds "All Reports" showing a server-side grid<br>
 <br>
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson30a_image1.png)
+![](./images/lesson30a_image1.png)
 
 <br>
 <br>
@@ -143,7 +143,7 @@ Procedure
        a. Activate the debugger on "Full Web App"
        b. Click on "Grid Tab Group Page"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson30a_image2.png)
+![](./images/lesson30a_image2.png)
 ```
 This is our empty Grid Tab Group Page     
 
@@ -222,5 +222,5 @@ This is our empty Grid Tab Group Page
        a. Activate the debugger on "Full Web App"
        b. Click on "Grid Tab Group Page"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson30a_image3.png)
+![](./images/lesson30a_image3.png)
 

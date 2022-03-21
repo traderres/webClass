@@ -15,7 +15,7 @@ In this lesson, we will add the <b>server-side grids</b> to the page<br>
 The "Critical Reports" tab will show a server side grid that is limited to reports with priority=critical<br>
 The "All Reports" tab will show all reports<br>
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson30d_image1.png)
+![](./images/lesson30d_image1.png)
 
 
 
@@ -756,5 +756,5 @@ Procedure
 
 The server-side grid now appears in the "All Reports" tab
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson30d_image2.png)
+![](./images/lesson30d_image2.png)
 

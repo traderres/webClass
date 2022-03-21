@@ -14,7 +14,7 @@ The source code for this lesson is here:<br>
 Problem: I want the timeline to look good in dark mode.<br>
 Solution: Have the tab listen for light-mode/dark-mode changes and apply different CSS<BR>
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson27c_image1.png)
+![](./images/lesson27c_image1.png)
 
 History Tab in Dark Mode
 
@@ -163,7 +163,7 @@ History Tab in Light Mode
 
 
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson27c_image3.png)
+![](./images/lesson27c_image3.png)
 ```
 History Tab in Dark Mode
 

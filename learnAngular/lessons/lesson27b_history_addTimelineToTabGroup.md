@@ -14,7 +14,7 @@ The source code for this lesson is here:<br>
 Problem:  I want the timeline to show up in the "History" tab
 Solution: Use the the new timeline component to create a series of material cards tags.
 
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson27b_image1.png)
+![](./images/lesson27b_image1.png)
 
 
 
@@ -349,14 +349,14 @@ Procedure
        a. Activate the Debugger on "Full WebApp"
        b. Click on "Tab Group"
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson27b_image2.png)
+![](./images/lesson27b_image2.png)
 ```
 History Tab on a wider browser
 
 
        c. Narrow the browser so it's not as wide
 ```
-![](https://github.com/traderres/webClass/raw/angularAppLessons/learnAngular/lessons/images/lesson27b_image3.png)
+![](./images/lesson27b_image3.png)
 ```
 History Tab when the browser is narrowed to 1200px or less
 NOTE:  This can be adjusted by editing the max-width: 1200px in timeline.component.css
