@@ -10,8 +10,7 @@ The source code for this lesson is here:<br>
 <br>
 
 
-In this lesson, we will create a navigation bar that looks like this:
-
+In this lesson, we will create a navigation bar that looks like this:<br>
 ![](./images/lesson06a_image1.png)
 
 
@@ -209,12 +208,12 @@ Procedure
         a. Pull Run -> Debug 'Full WebApp'
         b. Verify that you see a menubar
 ```
-![](https://lh4.googleusercontent.com/tkzBCf9uixqScE_a0g08NZB4py7ZMKB1ZlwcMkJAfyIb1NHGurFRrSSJ_LfQl4ncXAw0BtxjMyVC1xA4_4LoKgO8P9f7ifiyPKpwSMQ3StpkY1mq1sMw1YVopwLPKC-J2z76c3gq)  
+![](./images/lesson06a_image2.png)  
 ```
         c. Click on the "Add Report" option (on the top or left side)
             -- You should see the "Add Report" page inside the viewing area
 ```
-![](https://lh3.googleusercontent.com/B-FEQxPowbpZVNAoDK0G76SM32RxlAxEDQDSbeVCthQylCwcU3cmkZGMug-cgcLz9XvXNmFsGU9v6mD05bjqunQbSxFSaBb4mREOtgVzfQ8ieQklqVzCkI7mO3XA79FCSEyACIqN)  
+![](./images/lesson06a_image3.png)  
 ```
 
         d. Click on "View Reports", and you see the "Not Found Component"
