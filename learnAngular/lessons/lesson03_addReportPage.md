@@ -23,8 +23,10 @@ Agenda
 
 
 
-In this lesson, we will build this page:
+In this lesson, we will build this page:<br>
 ![](./images/lesson03_image1.png)
+
+
 ```
 Procedure
     1. Generate a component called add-report
