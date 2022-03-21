@@ -24,7 +24,7 @@ Agenda
 
 
 In this lesson, we will build this page:
-![](https://lh3.googleusercontent.com/JcyEfQ6XzNw9rMwwcL-Bd49TZ9JrA8sI9fkan_W8Vd3gzkVdigslDOFZhkFbPZ0qGKlW3fjEixn2fHwxpbRCZAlaDHTrSX6-BnpsaM2CsKGg5NlSFxKXQ_wNBt95WNkf0HhFO2px)
+![](./images/lesson03_image1.png)
 ```
 Procedure
     1. Generate a component called add-report
