@@ -1,0 +1,471 @@
+How to use the new Audit Manager
+--------------------------------
+Most SQL insert, update, or deletes need to be audited
+
+
+The Problem
+-----------
+ A. We need add audit records for every insert, update, or delete operation
+
+ B. There are 6 cases:
+        Inserting one record
+		Inserting multiple records
+
+		Updating one record
+		Updating multiple records
+
+		Deleting one record
+		Deleting multiple records
+
+
+
+Approaches
+----------
+ A. Add audit records manually  (sucks)
+ B. Add audit records automatically using the with statement
+
+
+
+
+
+
+
+
+
+
+
+
+The Approach
+------------
+ 1. When you call new AuditManager() it will get a new transactionId
+ 2. When you call auditManager.runSqlInsertOne()
+
+    -- It will wrap your SQL inside a *WITH* statement
+    -- It will get all of the columns for the passed-in audit table
+
+ 3. It's fast
+ 4. It works for inserting one record or 1 million records	
+
+
+
+
+
+
+With Statement
+--------------
+
+	Oroginal SQL Insert
+	-------------------
+		INSERT INTO COMMENTS(id, version, ...)
+		values(this, that, other thing, ....)
+
+
+
+	SQL Insert & Add 1 Audit Record
+	-------------------------------
+     with insert_set as (
+			INSERT INTO COMMENTS(id, version, ...)            
+			values(this, that, other thing, ....)   RETURNING *
+	 )
+	 insert into comemnts_audid(id, version, ...., timestamp, username, audit_type, transaction_id)
+     ( 
+		select id, version, ...., timestamp, username, audit_type, transaction_i
+		from insert_set
+     )
+
+
+	
+
+
+
+Insert One Record Before    (no audit record is created)
+--------------------------------------------------------
+        // Get the next unique id
+        Integer noteId = databaseService.getNextTableId();
+
+        // Construct the SQL to get these columns of data
+        String sql = "insert into comments (id, version, application_id, question_id, text, created_date, created_userid, updated_date, updated_userid)\n" +
+                     "values (:noteId, 1, :applicationId, :questionid, :commentText, now(), :createdUserId, now(), :createdUserId)";
+
+		// Build the parameter map
+        Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("noteId", noteId);
+        paramMap.put("applicationId", aNewCommentDto.getApplicationId());
+        paramMap.put("questionid", aNewCommentDto.getQuestionId());
+        paramMap.put("commentText", aNewCommentDto.getCommentText());
+        paramMap.put("createdUserId",aLoggedInUserId);
+
+        NamedParameterJdbcTemplate np = new NamedParameterJdbcTemplate(dataSource);
+
+        // Executing SQL to insert the notes record
+        int totalRowsInserted = np.update(sql, paramMap);
+
+        if (totalRowsInserted != 1) {
+            throw new RuntimeException("Error in addComment(). I expected to insert 1 record but I actually inserted " + totalRowsInserted);
+        }
+
+
+
+Insert One Record After    (audit record is created)
+----------------------------------------------------
+   		// Get the next unique id
+        Integer noteId = databaseService.getNextTableId();
+
+        // Construct the SQL to insert a comments record
+        String sql = "insert into comments (id, version, application_id, question_id, text, created_date, created_userid, updated_date, updated_userid)\n" +
+                     "values (:noteId, 1, :applicationId, :questionid, :commentText, now(), :createdUserId, now(), :createdUserId)";
+
+        Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("noteId", noteId);
+        paramMap.put("applicationId", aNewCommentDto.getApplicationId());
+        paramMap.put("questionid", aNewCommentDto.getQuestionId());
+        paramMap.put("commentText", aNewCommentDto.getCommentText());
+        paramMap.put("createdUserId",aLoggedInUserId);
+
+        // Insert the comments record and add an audit record      (throws an exception if one record is NOT inserted)
+        auditManager.runSqlInsertOne(sql, paramMap, "comments_aud");
+
+
+
+
+
+
+Update N Records Before    (no audit records are created)
+---------------------------------------------------------
+        // Construct the SQL to get these columns of data
+        String sql = "update applications " +
+                     "set state=:newState, assigned_userid=:newEntityManagerId " +
+                     "where id in (:ticketIds)";
+
+        Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("newState", Constants.ASSIGNED_TO_EM_APPLICATION_STATE);
+        paramMap.put("newEntityManagerId", aReassignApplicationsDTO.getNewEntityManagerId());
+        paramMap.put("ticketIds", aReassignApplicationsDTO.getApplicationIdList());
+
+        NamedParameterJdbcTemplate np = new NamedParameterJdbcTemplate(dataSource);
+
+        int totalRowsUpdated = np.update(sql, paramMap);
+
+
+
+Update N Records After    (N audit records are created)
+---------------------------------------------------------
+        // Construct the SQL to update these application records
+        String sql = "update applications " +
+                     "set state=:newState, assigned_userid=:newEntityManagerId " +
+                     "where id in (:ticketIds)";
+
+        Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("newState", Constants.ASSIGNED_TO_EM_APPLICATION_STATE);
+        paramMap.put("newEntityManagerId", aReassignApplicationsDTO.getNewEntityManagerId());
+        paramMap.put("ticketIds", aReassignApplicationsDTO.getApplicationIdList());
+
+        // Execute the SQL to update these records  (and add N audit records)
+        int totalRowsUpdated = auditManager.runSqlUpdateMany(sql, paramMap, "applications_aud");
+
+
+
+
+Audit Manager Class
+-------------------
+
+package gov.dcsa.common.utilities;
+
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+
+import javax.sql.DataSource;
+import java.util.Map;
+
+/**
+ * Class to help make Audit entry generation easier
+ */
+public class AuditManager {
+
+    private final DataSource   dataSource;
+    private final Integer      transactionId;
+    private final String       loggedInUserName;
+    private final JdbcTemplate jt;
+
+    public AuditManager(DataSource dataSource, String userName) {
+        this.dataSource = dataSource;
+        this.loggedInUserName = userName;
+        this.jt = new JdbcTemplate(this.dataSource);
+
+        this.transactionId = getNextTransactionId();
+    }
+
+    /**
+     * @return unique number to audit transactions
+     */
+    private Integer getNextTransactionId() {
+        String sql = "select nextval('seq_transaction_ids')";
+        Integer nextId = jt.queryForObject(sql, Integer.class);
+        return nextId;
+    }
+
+
+    /**
+     * Run the SQL and audit the INSERT operation (throw an exception if 1 record is not inesrted)
+     *
+     * @param aSqlInsert SQL command that has a single insert
+     * @param aAuditTableName Name of the audit table
+     */
+    public void runSqlInsertOne(String aSqlInsert, String aAuditTableName) {
+        int totalRowsAffected = runBatchSql(aSqlInsert, aAuditTableName, Constants.ADD_AUDIT_TYPE);
+
+        if (totalRowsAffected != 1) {
+            throw new RuntimeException("Error in runSqlInsertOne():  I expected 1 record to be inserted but " + totalRowsAffected + " records were inserted instead.");
+        }
+    }
+
+
+    /**
+     * Run the SQL and audit the INSERT operation (throw an exception if 1 record is not inesrted)
+     *
+     * @param aSqlInsert SQL command that has a single insert
+     * @param aAuditTableName Name of the audit table
+     */
+    public void runSqlInsertOne(String aSqlInsert, Map<String, Object> aParamMap, String aAuditTableName) {
+        int totalRowsAffected = runBatchSqlWithParamMap(aSqlInsert,  aParamMap, aAuditTableName,Constants.ADD_AUDIT_TYPE);
+
+        if (totalRowsAffected != 1) {
+            throw new RuntimeException("Error in runSqlInsertOne():  I expected 1 record to be inserted but " + totalRowsAffected + " records were inserted instead.");
+        }
+    }
+
+
+    /**
+     * Run the SQL and audit the insert operation (for a single insert)
+     *
+     * @param aSqlInsert SQL command that has a single insert
+     * @param aAuditTableName Name of the audit table
+     */
+    public void runSqlInsertMany(String aSqlInsert, String aAuditTableName) {
+        runBatchSql(aSqlInsert, aAuditTableName, Constants.ADD_AUDIT_TYPE);
+    }
+
+
+    /**
+     * Run the SQL and audit the insert operation (for a single insert)
+     *
+     * @param aSqlInsert SQL command that has a single insert
+     * @param aAuditTableName Name of the audit table
+     */
+    public void runSqlInsertMany(String aSqlInsert, Map<String, Object> aParamMap, String aAuditTableName) {
+        runBatchSqlWithParamMap(aSqlInsert,  aParamMap, aAuditTableName,Constants.ADD_AUDIT_TYPE);
+    }
+
+
+
+
+    /**
+     * Run the SQL and audit the UPDATE operation (throw an exception if 1 record is not updated)
+     *
+     * @param aSqlUpdate SQL command that has a single update
+     * @param aAuditTableName Name of the audit table
+     */
+    public void runSqlUpdateOne(String aSqlUpdate, String aAuditTableName) {
+        int totalRowsAffected = runBatchSql(aSqlUpdate, aAuditTableName, Constants.UPDATE_AUDIT_TYPE);
+
+        if (totalRowsAffected != 1) {
+            throw new RuntimeException("Error in runSqlUpdateOne():  I expected 1 record to be updated but " + totalRowsAffected + " records were updated instead.");
+        }
+    }
+
+
+    /**
+     * Run the SQL and audit the UPDATE operation (throw an exception if 1 record is not updated)
+     *
+     * @param aSqlUpdate SQL command that has a single update
+     * @param aAuditTableName Name of the audit table
+     */
+    public void runSqlUpdateOne(String aSqlUpdate, Map<String, Object> aParamMap, String aAuditTableName) {
+        int totalRowsAffected = runBatchSqlWithParamMap(aSqlUpdate,  aParamMap, aAuditTableName,Constants.UPDATE_AUDIT_TYPE);
+
+        if (totalRowsAffected != 1) {
+            throw new RuntimeException("Error in runSqlUpdateOne():  I expected 1 record to be inserted but " + totalRowsAffected + " records were inserted instead.");
+        }
+    }
+
+
+    /**
+     * Run the SQL and audit the Update operation
+     *
+     * @param aSqlUpdate SQL command that has a single update
+     * @param aAuditTableName Name of the audit table
+     */
+    public int runSqlUpdateMany(String aSqlUpdate, String aAuditTableName) {
+        int totalRowsUpdated = runBatchSql(aSqlUpdate, aAuditTableName, Constants.UPDATE_AUDIT_TYPE);
+        return totalRowsUpdated;
+    }
+
+
+    /**
+     * Run the SQL and audit the update operation
+     *
+     * @param aSqlUpdate SQL command that has a SQL update
+     * @param aParamMap holds the parameter map
+     * @param aAuditTableName Name of the audit table
+     */
+    public int runSqlUpdateMany(String aSqlUpdate, Map<String, Object> aParamMap, String aAuditTableName) {
+        int totalRowsUpdated = runBatchSqlWithParamMap(aSqlUpdate,  aParamMap, aAuditTableName,Constants.UPDATE_AUDIT_TYPE);
+        return totalRowsUpdated;
+    }
+
+
+
+
+
+    /**
+     * Run the SQL and audit the DELETE operation  (throw an exception if 1 record is not deleted)
+     *
+     * @param aSqlDelete SQL command that has a single delete
+     * @param aAuditTableName Name of the audit table
+     */
+    public void runSqlDeleteOne(String aSqlDelete, String aAuditTableName) {
+        int totalRowsAffected = runBatchSql(aSqlDelete, aAuditTableName, Constants.DELETE_AUDIT_TYPE);
+
+        if (totalRowsAffected != 1) {
+            throw new RuntimeException("Error in runSqlDeleteOne():  I expected 1 record to be deleted but " + totalRowsAffected + " records were deleted instead.");
+        }
+    }
+
+
+    /**
+     * Run the SQL and audit the DELETE operation (throw an exception if 1 record is not deleted)
+     *
+     * @param aSqlDelete SQL command that has a single insert
+     * @param aAuditTableName Name of the audit table
+     */
+    public void runSqlDeleteOne(String aSqlDelete, Map<String, Object> aParamMap, String aAuditTableName) {
+        int totalRowsAffected = runBatchSqlWithParamMap(aSqlDelete,  aParamMap, aAuditTableName,Constants.DELETE_AUDIT_TYPE);
+
+        if (totalRowsAffected != 1) {
+            throw new RuntimeException("Error in runSqlDeleteOne():  I expected 1 record to be deleted but " + totalRowsAffected + " records were deleted instead.");
+        }
+    }
+
+
+    /**
+     * Run the SQL and audit the DELETE operation
+     *
+     * @param aSqlDelete SQL command that has a single insert
+     * @param aAuditTableName Name of the audit table
+     */
+    public int runSqlDeleteMany(String aSqlDelete, String aAuditTableName) {
+        int totalRowsDeleted = runBatchSql(aSqlDelete, aAuditTableName, Constants.DELETE_AUDIT_TYPE);
+        return totalRowsDeleted;
+    }
+
+
+    /**
+     * Run the SQL and audit the DELETE operation
+     *
+     * @param aSqlDelete SQL command that has a single insert
+     * @param aAuditTableName Name of the audit table
+     */
+    public int runSqlDeleteMany(String aSqlDelete, Map<String, Object> aParamMap, String aAuditTableName) {
+        int totalRowsDeleted = runBatchSqlWithParamMap(aSqlDelete,  aParamMap, aAuditTableName,Constants.DELETE_AUDIT_TYPE);
+        return totalRowsDeleted;
+    }
+
+
+
+
+    /**
+     * Run the SQL and audit the batch insert/update/delete operatio
+     *
+     * @param aSql holds the insert/update/delete SQL call
+     * @param aAuditTableName holds the audit table name
+     * @param aAuditType holds the audit type  (0 for create, 1 for update, 2 for delete)
+     * @return total number of rows affected
+     */
+    private int runBatchSql(String aSql, String aAuditTableName, Integer aAuditType) {
+
+        // Get the regular table from (by removing the last 4 chars off of the audit tabl ename
+        String regularTableName = aAuditTableName.substring(0, aAuditTableName.length() - 4);
+
+        // Get a csv of column names for this table
+        String csvRegularColumnNames = getCsvOfColumnNamesFromTableName(regularTableName);
+
+        // Construct the SQL for the 4 additional audit columns
+        String auditColumnsSql = ", now() as timestamp, "
+                + "'" + loggedInUserName + "' as username, "
+                + aAuditType + " as audit_type, "
+                + transactionId + " as transaction_id";
+
+        // Construct the SQL that will perform an insert *AND* add audit records (if any records are inserted)
+        String sql =
+                "with insert_set as ( " +
+                        aSql + " returning * " +
+                ") " +
+                "insert into " + aAuditTableName + "(" + csvRegularColumnNames + ",timestamp,username,audit_type,transaction_id)" +
+                "( select " + csvRegularColumnNames + auditColumnsSql +
+                " from insert_set " +
+                ")";
+
+        // Execute the SQL (and add audit records)
+        int totalRowsAffected = jt.update(sql);
+
+        return totalRowsAffected;
+    }
+
+
+    /**
+     * Run the SQL and audit the batch insert/update/delete operatio
+     *
+     * @param aSql holds the insert/update/delete SQL call
+     * @param aParamMap holds the parameter Map
+     * @param aAuditTableName holds the audit table name
+     * @param aAuditType holds the audit type  (0 for create, 1 for update, 2 for delete)
+     * @return total number of rows affected
+     */
+    private int runBatchSqlWithParamMap(String aSql, Map<String, Object> aParamMap, String aAuditTableName, Integer aAuditType) {
+
+        // Get the regular table from (by removing the last 4 chars off of the audit tabl ename
+        String regularTableName = aAuditTableName.substring(0, aAuditTableName.length() - 4);
+
+        // Get a csv of column names for this table
+        String csvRegularColumnNames = getCsvOfColumnNamesFromTableName(regularTableName);
+
+        // Construct the SQL for the 4 additional audit columns
+        String auditColumnsSql = ", now() as timestamp, "
+                                 + "'" + loggedInUserName + "' as username, "
+                                 + aAuditType + " as audit_type, "
+                                 + transactionId + " as transaction_id";
+
+
+        // Construct the SQL that will perform an insert *AND* add audit records (if any records are inserted)
+        String sql = "with insert_set as ( " +
+                        aSql + " returning * " +
+                      ") " +
+                      "insert into " + aAuditTableName + "(" + csvRegularColumnNames + ",timestamp,username,audit_type,transaction_id)" +
+                      "( select " + csvRegularColumnNames + auditColumnsSql +
+                        " from insert_set " +
+                      ")";
+
+        // Execute the SQL (and add audit records)
+        NamedParameterJdbcTemplate np = new NamedParameterJdbcTemplate(this.dataSource);
+        int totalRowsAffected = np.update(sql, aParamMap);
+
+        return totalRowsAffected;
+    }
+
+
+    private String getCsvOfColumnNamesFromTableName(String aTableName) {
+        // Construct the SQL to get a csv string of column names for the passed-in table
+        String sql = "SELECT string_agg(column_name::text, ',')\n" +
+                     "FROM information_schema.columns\n" +
+                     "WHERE lower(table_name) = ?";
+
+        String csvColumnNames = this.jt.queryForObject(sql, String.class, aTableName.toLowerCase());
+        return csvColumnNames;
+    }
+
+    public Integer getCurrentTransactionId() {
+        return this.transactionId;
+    }
+
+}
+

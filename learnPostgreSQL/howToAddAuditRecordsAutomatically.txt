@@ -1,0 +1,84 @@
+----------------------------------------------------------------
+-- Create this table:  persons
+----------------------------------------------------------------
+drop table if exists persons;
+create table persons
+(
+    id               integer      not null,
+    full_name        varchar(100) not null,
+    total_sick_days  integer      not null,
+    primary key(id)
+);
+
+----------------------------------------------------------------
+-- Create this table:  persons_aud
+-- The audit tables have all columns as the *original* column and 4 more columns
+----------------------------------------------------------------
+drop table if exists persons_aud ;
+create table persons_aud
+(
+    id                 integer             null,
+    full_name          varchar(100)        null,
+    total_sick_days   integer              null,
+
+    timestamp          timestamp       not null,
+    username           varchar(100)    not null,
+    audit_type         integer         not null,  --0 create, 1 update, 2 delete
+    transaction_id     integer         not null
+);
+
+
+-- Insert 1st person record and add an audit record
+with insert_set as (
+
+    -- Original Insert to add 2nd person record
+    insert into persons(id, total_sick_days, full_name) values(1, 5, 'John Smith')  RETURNING *
+
+)
+insert into persons_aud(id, full_name, total_sick_days, timestamp, username, audit_type, transaction_id)
+(
+        select id, full_name, total_sick_days, now() as timestamp, 'user-who-did-change' as username, 0 as audit_type, 1000 as transaction_id
+        from insert_set
+);
+
+
+
+
+-- Insert 2nd person record and add an audit record
+with insert_set as (
+
+    -- Original Insert to add 2nd person record
+    insert into persons(id, total_sick_days, full_name) values(2, 4, 'Jane Smith')  RETURNING *
+
+)
+insert into persons_aud(id, full_name, total_sick_days, timestamp, username, audit_type, transaction_id)
+(
+        select id, full_name, total_sick_days, now() as timestamp, 'user-who-did-change' as username, 0 as audit_type, 1000 as transaction_id
+        from insert_set
+);
+
+
+
+
+
+
+-- Update **MULTIPLE** records and add an audit record for every update
+--   If    0 records are updated, then    0 audit records are added
+--   If 1000 records are updated, then 1000 audit records are added
+with insert_set as (
+
+    -- Update both records and give everyone one more sick day
+    update persons set total_sick_days = total_sick_days + 1 RETURNING *
+
+)
+insert into persons_aud(id, full_name, total_sick_days, timestamp, username, audit_type, transaction_id)
+(
+        select id, full_name, total_sick_days, now() as timestamp, 'user-who-did-change' as username, 1 as audit_type, 1001 as transaction_id
+        from insert_set
+);
+
+
+-- After updating the records, take a look at persons_aud (to see that 2 audit records were added)
+select * from persons_aud;
+
+
