@@ -1,0 +1,171 @@
+How to Boost the Score of Certain Matches
+-----------------------------------------
+Problem:  I want matches that have related_userid:1000 to have a higher score in the search
+Solution: Use function_score to change the weird of certain records
+
+
+Example ES Code
+---------------
+
+# Delete the existing mapping
+DELETE test
+
+# Create a new mapping
+PUT test
+{
+  "settings": {
+    "analysis": {
+      "analyzer" : {
+        "my_ngram_analyzer" : {
+          "tokenizer" : "my_ngram_tokenizer",
+          "filter": ["lowercase"]
+        }
+      },
+      "tokenizer" : {
+        "my_ngram_tokenizer" : {
+          "type" : "ngram",
+          "min_gram" : "1",
+          "max_gram" : "25",
+          "token_chars": [ ]
+        }
+      },
+      "normalizer": {
+        "case_insensitive_normalizer": {
+          "type": "custom",
+          "char_filter": [],
+          "filter": [ "lowercase", "asciifolding" ]
+        }
+      }
+    },
+    "max_result_window": 500000,
+    "refresh_interval": "1s",
+    "max_ngram_diff": "25"
+  },
+
+
+  "mappings": {
+    "dynamic": "strict",
+    "properties": {
+
+      "id": {
+        "type": "integer",
+        "ignore_malformed": false,
+        "fields": {
+          "raw": {
+            "type": "keyword"
+          },
+          "sort": {
+            "type": "keyword",
+            "normalizer": "case_insensitive_normalizer"
+          },
+          "filtered": {
+            "type": "text",
+            "analyzer": "my_ngram_analyzer"
+          }
+        }
+      },
+
+
+
+      "related_userid": {
+        "type": "integer",
+        "ignore_malformed": false
+      },
+
+
+       "primary_org": {
+        "type": "integer",
+        "ignore_malformed": false
+      },
+
+    "secondary_org": {
+        "type": "integer",
+        "ignore_malformed": false
+      },
+
+
+      "business_name": {
+        "type": "text",
+        "fields": {
+          "raw": {
+            "type": "keyword"
+          },
+          "sort": {
+            "type": "keyword",
+            "normalizer": "case_insensitive_normalizer"
+          },
+          "filtered": {
+            "type": "text",
+            "analyzer": "my_ngram_analyzer"
+          }
+        }
+      }
+
+    }
+  }
+}
+
+
+# Replace the existing records with this
+POST _bulk
+{ "index": { "_index": "test", "_id": 1 }}
+{ "id": 1, "related_userid": [1000,1001,1002], "primary_org": 25, "secondary_org": 12, "business_name": "SAIC"}
+{ "index": { "_index": "test", "_id": 2 }}
+{ "id": 2, "related_userid": [1003,1004,1005], "primary_org": 25, "secondary_org": 12, "business_name": "Amazon"}
+{ "index": { "_index": "test", "_id": 3 }}
+{ "id": 3, "related_userid": [1006,1007,1008], "primary_org": 25, "secondary_org": 12, "business_name": "Google"}
+{ "index": { "_index": "test", "_id": 4 }}
+{ "id": 4, "related_userid": [1000,1007,1009], "primary_org": 25, "secondary_org": 12, "business_name": "RBR"}
+{ "index": { "_index": "test", "_id": 5 }}
+{ "id": 5, "related_userid": [1100,1101,1102], "primary_org": 25, "secondary_org": 12, "business_name": "HII"}
+{ "index": { "_index": "test", "_id": 6 }}
+{ "id": 6, "related_userid": [1100,1101,1102], "primary_org": 13, "secondary_org": 16, "business_name": "Losers, Inc"}
+
+
+# Search all records
+POST test/_search
+
+
+
+# Run the search to limit to the 5 records that have primary_org=25 and secondary_org=12
+POST test/_search
+{
+  "query": {
+    "query_string": {
+      "default_field": "FIELD",
+      "query": "primary_org:25 AND secondary_org:12"
+    }
+  }
+}
+
+
+
+# Run the search to limit to the 5 records that have primary_org=25 and secondary_org=12 AND show related records at the TOP
+POST test/_search
+{
+   "query": {
+      "function_score": {
+        "query": {
+          "query_string": {
+            "query": "primary_org:25 AND secondary_org:12"
+          }
+        },
+         "functions": [
+            {
+               "filter": {
+                  "term": {
+                     "related_userid": 1000
+                  }
+               },
+               "weight": 10
+            }
+         ],
+         "boost_mode": "sum",
+         "score_mode": "sum"
+      }
+   }
+}
+
+
+
+
