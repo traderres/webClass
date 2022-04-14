@@ -1,0 +1,10 @@
+keytool -importkeystore -srckeystore load_tester1.p12 -srcstoretype PKCS12 -srcstorepass bdppassword1 -keystore jmeter.special.jks -storepass  bdppassword1
+keytool -importkeystore -srckeystore load_tester2.p12 -srcstoretype PKCS12 -srcstorepass bdppassword1 -keystore jmeter.special.jks -storepass  bdppassword1
+keytool -importkeystore -srckeystore load_tester3.p12 -srcstoretype PKCS12 -srcstorepass bdppassword1 -keystore jmeter.special.jks -storepass  bdppassword1
+keytool -importkeystore -srckeystore heavy_load_tester4.p12 -srcstoretype PKCS12 -srcstorepass bdppassword1 -keystore jmeter.special.jks -storepass  bdppassword1
+keytool -importkeystore -srckeystore heavy_load_tester5.p12 -srcstoretype PKCS12 -srcstorepass bdppassword1 -keystore jmeter.special.jks -storepass  bdppassword1
+keytool -importkeystore -srckeystore heavy_load_tester6.p12 -srcstoretype PKCS12 -srcstorepass bdppassword1 -keystore jmeter.special.jks -storepass  bdppassword1
+keytool -importkeystore -srckeystore super_load_tester7.p12 -srcstoretype PKCS12 -srcstorepass bdppassword1 -keystore jmeter.special.jks -storepass  bdppassword1
+keytool -importkeystore -srckeystore super_load_tester8.p12 -srcstoretype PKCS12 -srcstorepass bdppassword1 -keystore jmeter.special.jks -storepass  bdppassword1
+keytool -importkeystore -srckeystore super_load_tester9.p12 -srcstoretype PKCS12 -srcstorepass bdppassword1 -keystore jmeter.special.jks -storepass  bdppassword1
+keytool -importkeystore -srckeystore super_load_tester10.p12 -srcstoretype PKCS12 -srcstorepass bdppassword1 -keystore jmeter.special.jks -storepass  bdppassword1
