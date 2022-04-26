@@ -1,0 +1,77 @@
+How to Increase the ElasticSearch Thread Pool Size on BDP 4
+-----------------------------------------------------------
+The NCCS webapp needs a larger thread pool size.  Follow these steps to increase the ES thread pool limits
+
+
+Procedure
+---------
+ 1. Get the current thread pool number
+	unix> ssh to the puppet msater
+	unix> go elastic_masters_primary
+    unix> sudo -s
+	unix> grep -A 7 thread_pool /etc/elasticsearch/primary/elasticsearch.yml
+
+	You should see the current thread pool
+
+	thread_pool:
+	  write:
+		queue_size: 200
+	  search:
+		queue_size: 1000
+	  get:
+		queue_size: 1000
+
+
+
+
+ 2. Set the thread pool values
+ 	unix> ssh to the puppet msater
+	unix> sudo -s
+    unix> vi /etc/puppetlabs/code/modules/bdp_elasticsearch/data/default.yaml
+
+	Change the line so that it looks like this:
+
+	# Thread pools
+    thread_pool:
+      write:
+        queue_size: 20000
+      search:
+        queue_size: 40000
+      get:
+        queue_size: 5000
+
+
+ 3. Update the roles (on the puppet master)
+    unix> /var/bdp/bin/bdp_roles -o
+
+
+ 4. Push-out this change to the nginx server immdiately
+    unix> su - aresnick    # on the puppet master
+    unix> yarcs -r elastic_masters_primary -v   # Run as a non-root account
+    unix> yarcs -r elastic_workers_primary -v   # Run as a non-root account
+
+
+ 5. Verify that the nginx.conf file was updated
+	unix> ssh to the puppet msater
+	unix> go elastic_masters_primary
+    unix> sudo -s
+	unix> grep -A 7 thread_pool /etc/elasticsearch/primary/elasticsearch.yml
+
+	You should see the current thread pool
+
+	# Thread pools
+    thread_pool:
+      write:
+        queue_size: 20000
+      search:
+        queue_size: 40000
+      get:
+        queue_size: 5000
+
+
+ 6. Restart ElasticSearch on all nodes
+    unix> ssh to the puppet master
+    unix> yarcs -r elastic_masters_primary -c "sudo systemctl restart elasticsearch_primary" -v      # Run as a non-root account
+    unix> yarcs -r elastic_workers_primary -c "sudo systemctl restart elasticsearch_primary" -v      # Run as a non-root account
+
+
