@@ -1,0 +1,486 @@
+How to Generate a Password-Encoded Zip File with Java
+-----------------------------------------------------
+
+
+
+Procedure
+---------
+ 1. Create a small project called generateZip
+
+   a. Startup Intellij
+       NOTE:  IF an existing Intellij project appear, then pull File / Close Project
+
+    b. Press "Create New Project"
+       1) In the "New Project" window,
+            a) Select Maven [on the left]
+            b) Next to Project SDK:  Select your Java JDK
+               NOTE:  If you do not see your java JDK, then
+                      Press New
+                      -- Browse to your Java JDK:  /usr/lib/jvm/java-1.8.0-openjdk
+                      -- Press OK
+
+            c) Check "Create from archetype"
+            d) Select maven-archetype-quickstart
+               Press Next
+
+       2) In the next screen
+	      Name:   		generateZip
+		  Location: 	~/intellijProjects/generateZip
+
+		  Under "Artifact Coordinates"
+            GroupId:     com.lessons
+            ArtifactId:  generateZip
+            Version:     1.0-SNAPSHOT
+
+          Press Next
+
+
+       3) In the next screen, make sure you're using your Maven (not the bundled one)
+          Maven home directory:  /opt/apache-maven-3.3.9
+          User settings file:    /home/adam/.m2/settings.xml
+                                 /home/adam/.m2/repository
+          Press Finish
+
+
+          Now, maven has created a simple Java JAR project
+
+
+ 2. Configure Intellij preferences for this project
+    a. Turn off spell-checking
+       1) Pull File / Settings
+       2) Search for spelling
+       3) Single-click on Inspections
+       4) On the right side, you should see Proofreading -> Typo
+	      Uncheck "Typo"
+		  Press OK
+
+
+
+ 3. Setup the Maven test directories for your Intellij project
+
+    Add these directories
+       src/test/resources/             # Holds the logback.xml used by unit test code
+       src/main/resources/             # Holds the logback.xml used by main program
+
+
+    a. Right-click on src/test   -> New -> Directory:    resources
+    b. Right-click on src/main   -> New -> Directory:    resources
+
+
+    Now, you should have this directory structure
+      src/main/java/
+      src/main/resources/               # Holds logback.xml used by java main program
+      src/test/java
+      src/test/resources/               # Holds logback.xml used by unit test code
+
+
+
+
+ 4. Add dependencies for your project
+    Your pom.xml should already have one dependency:
+      <dependencies>
+
+        <dependency>
+          <groupId>junit</groupId>
+          <artifactId>junit</artifactId>
+          <version>4.11</version>
+          <scope>test</scope>
+        </dependency>
+
+      </dependencies>
+
+
+
+    a. Copy and paste these dependencies into your pom.xml
+       NOTE:  Add all of these dependencies should be between these tags:
+        <dependencies>
+         . . .
+         </dependencies>
+
+
+
+		<dependency>
+		  <!-- Logback Classic -->
+		  <groupId>ch.qos.logback</groupId>
+		  <artifactId>logback-classic</artifactId>
+		  <version>1.2.3</version>
+		</dependency>
+
+		<dependency>
+		  <!-- Zip File Library -->
+		  <groupId>net.lingala.zip4j</groupId>
+		  <artifactId>zip4j</artifactId>
+		  <version>2.9.0</version>
+		</dependency>
+
+		<dependency>
+		  <!-- Holds hte FileUtils libraries -->
+		  <groupId>commons-io</groupId>
+		  <artifactId>commons-io</artifactId>
+		  <version>2.11.0</version>
+		</dependency>
+
+		<dependency>
+		  <!-- StringUtils Dependency -->
+		  <groupId>org.apache.commons</groupId>
+		  <artifactId>commons-lang3</artifactId>
+		  <version>3.5</version>
+		</dependency>
+
+
+
+
+
+    b. Reimport maven dependencies
+       Right-click on pom.xml -> Maven -> Reload project
+
+
+
+ 5. Create this file:  logback.xml
+    a. Browse to src/main/resources
+    b. Right-click on classes -> New -> File
+       filename:  logback.xml
+    c. Copy this contents to your logback.xml file
+       WARNING:  You *CANNOT* have leading spaces before <?xml version="1.0"... ?>
+
+        <?xml version="1.0" encoding="UTF-8" ?>
+
+        <configuration debug="false">
+            <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+                <encoder>
+                    <pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %c %m%n</pattern>
+                </encoder>
+            </appender>
+
+            <logger name="com.lessons" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE"/>
+            </logger>
+
+            <root level="DEBUG">
+                <appender-ref ref="CONSOLE"/>
+            </root>
+
+        </configuration>
+
+
+
+ 6. Update the App Class
+    a. Edit App.java
+
+    b. Replace its contents with this:
+
+			package com.lessons;
+
+			import org.slf4j.Logger;
+			import org.slf4j.LoggerFactory;
+
+
+			public class App
+			{
+				private static final Logger logger = LoggerFactory.getLogger(App.class);
+
+				public static void main( String[] args )
+				{
+					logger.debug("main() started.");
+
+					logger.debug("main() finished.");
+				}
+			}
+
+ 7. Verify that logging and the debugger works
+ 	a. Right-click on App -> Debug 'App.main()'
+
+	b. Verify that the debugger works and you see these 2 logger calls in the console:
+
+			04/06/2019 21:24:35 DEBUG com.lessons.App main() started
+			04/06/2019 21:24:35 DEBUG com.lessons.App main() finished
+
+
+
+ 8. Create the ZipFileComponents class   (it's a DTO that holds 2 things)
+     a. Right-click on /src/main/java/com/lessons -> New Class
+        Name:  ZipFileComponents
+
+ 	b. Replace it with this:
+
+		 package com.lessons;
+
+		 import net.lingala.zip4j.ZipFile;
+		 import net.lingala.zip4j.model.ZipParameters;
+
+		 public class ZipFileComponents {
+
+			 private final ZipFile zipFile;
+			 private final ZipParameters zipParameters;
+
+			 // ---------------------- Constructor and Getters -----------------------------
+
+			 public ZipFileComponents(ZipFile zipFile, ZipParameters zipParameters) {
+				 this.zipFile = zipFile;
+				 this.zipParameters = zipParameters;
+			 }
+
+			 public ZipFile getZipFile() {
+				 return zipFile;
+			 }
+
+			 public ZipParameters getZipParameters() {
+				 return zipParameters;
+			 }
+
+
+		 }
+
+
+
+
+ 9. Create a class:  ZipBuilder
+    a. Right-click on /src/main/java/com/lessons -> New Class
+       Name:  ZipBuilder
+
+	b. Replace it with this:
+
+		package com.lessons;
+
+		import net.lingala.zip4j.ZipFile;
+		import net.lingala.zip4j.model.ZipParameters;
+		import net.lingala.zip4j.model.enums.AesKeyStrength;
+		import net.lingala.zip4j.model.enums.EncryptionMethod;
+		import org.apache.commons.io.FileUtils;
+		import org.apache.commons.io.FilenameUtils;
+		import org.apache.commons.lang3.StringUtils;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+
+		import java.io.File;
+		import java.nio.charset.StandardCharsets;
+		import java.nio.file.StandardCopyOption;
+		import java.util.UUID;
+
+
+		public class ZipBuilder {
+			private static final Logger logger = LoggerFactory.getLogger(ZipBuilder.class);
+
+			private final String javaTmpDir = System.getProperty("java.io.tmpdir");
+
+
+			public void createZipFileWithPassword(String aDestinationZipFilePath) throws Exception {
+				logger.debug("createPasswordEncodedZipFile() started   aDestinationFilePath={}", aDestinationZipFilePath);
+
+				// Construct a unique file path to hold the temporary zip file
+				String zipFileTemporaryPathAsString = this.javaTmpDir + "/" + UUID.randomUUID().toString() + ".zip";
+
+				// Create an empty zip file
+				// NOTE:  The passed-in file path should not exist or be an existing zip file
+				ZipFileComponents ZipFileComponents = createEmptyZipFileWithPassword(zipFileTemporaryPathAsString);
+
+				// Take the string, write it to a file, and add that file to the larger zip
+				addStringAsFileContentsToZip(ZipFileComponents, "This is the contents of file1.txt",  "file1.txt");
+				addStringAsFileContentsToZip(ZipFileComponents, "This is the contents of file2.txt",  "file2.txt");
+
+
+				// Move the file from the java.io.tmpdir to its real destination
+				File tmpZipFile = new File(zipFileTemporaryPathAsString);
+				FileUtils.deleteQuietly(new File(aDestinationZipFilePath));
+				FileUtils.moveFile(tmpZipFile, new File(aDestinationZipFilePath), StandardCopyOption.REPLACE_EXISTING);
+
+				logger.debug("createPasswordEncodedZipFile() finished  aDestinationFilePath={}", aDestinationZipFilePath);
+			}
+
+
+			public void createZipFileWithoutPassword(String aDestinationZipFilePath) throws Exception {
+				logger.debug("createNonPasswordEncodedZipFile() started   aDestinationFilePath={}", aDestinationZipFilePath);
+
+				// Construct a unique file path to hold the temporary zip file
+				String zipFileTemporaryPathAsString = this.javaTmpDir + "/" + UUID.randomUUID().toString() + ".zip";
+
+				// Create an empty zip file
+				// NOTE:  The passed-in file path should not exist or be an existing zip file
+				ZipFileComponents ZipFileComponents = createEmptyZipFileWithoutPassword(zipFileTemporaryPathAsString);
+
+				// Take the string, write it to a file, and add that file to the larger zip
+				addStringAsFileContentsToZip(ZipFileComponents, "This is the contents of file1.txt",  "file1.txt");
+				addStringAsFileContentsToZip(ZipFileComponents, "This is the contents of file2.txt",  "file2.txt");
+
+				// Add an existing file to the this zip file
+				addExistingToZip(ZipFileComponents, "/tmp/existing.txt", "existing.txt");
+
+				// Move the file from the java.io.tmpdir to its real destination
+				File tmpZipFile = new File(zipFileTemporaryPathAsString);
+				FileUtils.deleteQuietly(new File(aDestinationZipFilePath));
+				FileUtils.moveFile(tmpZipFile, new File(aDestinationZipFilePath), StandardCopyOption.REPLACE_EXISTING);
+
+
+				logger.debug("createNonPasswordEncodedZipFile() finished  aDestinationFilePath={}", aDestinationZipFilePath);
+			}
+
+
+
+			/**
+			 * Create a file (using the string) and add that file to this zip file
+			 * @param aZipFileComponents holds the ZipFile and ZipParameters objects  (needed to add a file to the bigger zip file)
+			 * @param aFileContents      holds a string of text
+			 * @param aFilePathInZipFile holds the file path of the file in the zip file
+			 */
+			private void addStringAsFileContentsToZip(ZipFileComponents aZipFileComponents, String aFileContents, String aFilePathInZipFile) throws Exception {
+				if (aZipFileComponents == null) {
+					throw new RuntimeException("The passed-in aZipFileComponents is null");
+				}
+				else if (StringUtils.isBlank(aFilePathInZipFile)) {
+					throw new RuntimeException("The passed-in aFilePathToAddToZip is blank");
+				}
+
+				// Write the string to a temporary file (that has the same name as the dest file path)
+				String destFilePath = this.javaTmpDir + "/" + FilenameUtils.getName(aFilePathInZipFile);
+				File destFile = new File(destFilePath);
+				FileUtils.writeStringToFile(destFile, aFileContents, StandardCharsets.UTF_8);
+
+				// Add this temporary file to the bigger zip file
+				ZipFile zipFile = aZipFileComponents.getZipFile();
+				ZipParameters zipParameters = aZipFileComponents.getZipParameters();
+				zipFile.addFile(destFile, zipParameters);
+
+				// Delete the temporary file
+				FileUtils.forceDelete(destFile);
+			}
+
+
+
+			/**
+			 * Add an existing file to this zip file
+			 * @param aZipFileComponents holds the ZipFile and ZipParameters objects  (needed to add a file to the bigger zip file)
+			 * @param aExistingFileToAdd holds the existing file to add to the zip file
+			 * @param aFilePathInZipFile holds the file path of the file in the zip file
+			 */
+			private void addExistingToZip(ZipFileComponents aZipFileComponents, String aExistingFileToAdd, String aFilePathInZipFile) throws Exception {
+				if (aZipFileComponents == null) {
+					throw new RuntimeException("The passed-in aZipFileComponents is null");
+				}
+				else if (StringUtils.isBlank(aFilePathInZipFile)) {
+					throw new RuntimeException("The passed-in aFilePathToAddToZip is blank");
+				}
+
+				// Get a file object that points to the the existing file
+				File destFile = new File(aExistingFileToAdd);
+				if (! destFile.exists()) {
+					throw new RuntimeException("The passed-in aExistingFileToAdd was not found: " + aExistingFileToAdd);
+				}
+
+				// Add this temporary file to the bigger zip file
+				ZipFile zipFile = aZipFileComponents.getZipFile();
+				ZipParameters zipParameters = aZipFileComponents.getZipParameters();
+				zipFile.addFile(destFile, zipParameters);
+
+				// Delete the temporary file
+				FileUtils.forceDelete(destFile);
+			}
+
+
+			/**
+			 * Create an empty zip file and return the ZipFileComponents object    (which is used to add more files to it)
+			 * @param aZipFilePathAsString file path of the zip file
+			 * @return ZipFileComponents object
+			 */
+			private ZipFileComponents createEmptyZipFileWithPassword(String aZipFilePathAsString) {
+				// Delete the file path if it already exists
+				FileUtils.deleteQuietly(new File(aZipFilePathAsString));
+
+				// Generate password for this filename
+				char[] charArrayPassword = getPasswordForZipFile();
+
+				// Create the zip file that has the application.csv, attachment.csv, and attachments
+				net.lingala.zip4j.ZipFile zipFile = new net.lingala.zip4j.ZipFile(aZipFilePathAsString, charArrayPassword);
+
+				// Setup the zipParameters
+				ZipParameters zipParameters = new ZipParameters();
+				zipParameters.setEncryptFiles(true);
+				zipParameters.setEncryptionMethod(EncryptionMethod.AES);
+				zipParameters.setAesKeyStrength(AesKeyStrength.KEY_STRENGTH_256);
+
+				ZipFileComponents ZipFileComponents = new ZipFileComponents(zipFile, zipParameters);
+				return ZipFileComponents;
+			}
+
+
+			/**
+			 * Create an empty zip file and return the ZipFileComponents object    (which is used to add more files to it)
+			 * @param aZipFilePathAsString file path of the zip file
+			 * @return ZipFileComponents object
+			 */
+			private ZipFileComponents createEmptyZipFileWithoutPassword(String aZipFilePathAsString)  {
+				// Delete the file path if it already exists
+				FileUtils.deleteQuietly(new File(aZipFilePathAsString));
+
+				// Create the zip file that has the application.csv, attachment.csv, and attachments
+				net.lingala.zip4j.ZipFile zipFile = new net.lingala.zip4j.ZipFile(aZipFilePathAsString);
+
+				// Setup the zipParameters
+				ZipParameters zipParameters = new ZipParameters();
+				zipParameters.setEncryptFiles(false);
+
+				ZipFileComponents ZipFileComponents = new ZipFileComponents(zipFile, zipParameters);
+				return ZipFileComponents;
+			}
+
+
+			private char[] getPasswordForZipFile() {
+
+				// Create an array of characters that will hold the password
+				char[] password = new char[7];
+				password[0] = '^';
+				password[1] = 'a';
+				password[2] = 'b';
+				password[3] = 'c';
+				password[4] = 'd';
+				password[5] = 'e';
+				password[6] = '$';
+
+				return password;
+			}
+
+
+
+		}
+
+
+
+10. Update the App class so it looks like this:
+    a. Edit App.java
+
+    b. Replace its contents with this:
+
+		package com.lessons;
+
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+
+
+		public class App
+		{
+			private static final Logger logger = LoggerFactory.getLogger(App.class);
+
+			public static void main( String[] args ) throws Exception
+			{
+				logger.debug("main() started.");
+
+				ZipBuilder zipBuilder = new ZipBuilder();
+
+				// Create password encoded zip file
+				zipBuilder.createZipFileWithPassword("/tmp/password-encoded.zip");
+
+				// Create non-password encoded zip file
+				zipBuilder.createZipFileWithoutPassword("/tmp/open.zip");
+
+				logger.debug("main() finished.");
+			}
+		}
+
+
+11. Activate the debugger and try it out
+    NOTE:  You should create this file:  /tmp/existing.txt and put some text in it
+
+
+
+
+
+
