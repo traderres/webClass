@@ -26,7 +26,6 @@ Solution 2:  Hide the angular version from users<br>
 <br>
 
 ```
-
 Procedure
 ---------
      1. Compile the web app to run from command line
@@ -42,8 +41,9 @@ Procedure
         a. Startup Chrome
         b. Connect to http://localhost:8080/app1
         c. Press F12 to open the developer tools (in Chrome)
+
 ```
-![](./images/lesson32_image1.png)
+  ![](./images/lesson32_image1.png)
 ```
 You should see ng-version="9.0.6"
 
