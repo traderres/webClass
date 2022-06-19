@@ -7,37 +7,37 @@ Suppose you want to create an exception handler that will do two things:
        then set a status to 500 and return the message
     Otherwise
        Forward the user to an error.jsp page
- 
- 
+
+
 Procedure
 ---------
- 1. Setup a MyExceptionHandler class 
+ 1. Setup a MyExceptionHandler class
     a. Right-click on src/main/java/app1/utilities -> New -> Java Class
        Name:  MyExceptionHandler
 
 
     b. Copy this to your new MyExceptionHandler class
-    
+
         package app1.utilities;
-        
+
         import org.slf4j.Logger;
         import org.slf4j.LoggerFactory;
         import org.springframework.web.bind.annotation.ControllerAdvice;
         import org.springframework.web.bind.annotation.ExceptionHandler;
-        
+
         import javax.servlet.ServletException;
         import javax.servlet.http.HttpServletRequest;
         import javax.servlet.http.HttpServletResponse;
         import java.io.IOException;
-        
+
         /**
-         * Created by adam on 11/7/2015.
+         * Exception Handler Class
          */
         @ControllerAdvice
         public class MyExceptionHandler
         {
             private static final Logger logger = LoggerFactory.getLogger(MyExceptionHandler.class);
-        
+
             /************************************************************************
              * handleException()
              *
@@ -57,39 +57,39 @@ Procedure
 
                 // Log the error
                 logger.error("Exception raised", aException);
-        
+
                 if (isThisRequestFromAnAjaxCall(aRequest))
                 {
                     // A J A X     C A L L    F A I L E D
-        
+
                     // set content type to XML
                     aResponse.setContentType("text/xml");
-        
+
                     // Set the status to internal server error
                     aResponse.setStatus( HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-        
+
                     // Write the exception message to the output stream
                     aResponse.getOutputStream().print( aException.getMessage() );
                 }
                 else
                 {
                     // H T M L    C A L L     F A I L E D
- 
+
                     // Construct the error message
-                    String sErrorMessage = 
+                    String sErrorMessage =
                          "Message: " + aException.getMessage() + "<br/>" +
                          "Cause: "   + aException.getCause() + "<br/><br/>" +
                          getStackTraceAsString(aException, "<br/>");
- 
+
                     // Set the ${message} so that it will be displayed in error.jsp
                     aRequest.setAttribute( "message", sErrorMessage );
-                    
+
                     // Forward the user to the error.jsp
                     aRequest.getRequestDispatcher( "/WEB-INF/jsp/error.jsp").forward(aRequest, aResponse);
                 }
             }
-        
-        
+
+
             /************************************************************************
              * isThisRequestFromAnAjaxCall()
              *
@@ -102,19 +102,19 @@ Procedure
             private boolean isThisRequestFromAnAjaxCall(HttpServletRequest aRequest)
             {
                 boolean bRequestIsAjaxCall = false;
-        
+
                 String sxRequestedHeaderValue = aRequest.getHeader("X-Requested-With");
-        
+
                 if ((sxRequestedHeaderValue != null) && (sxRequestedHeaderValue.equalsIgnoreCase("XMLHttpRequest")))
                 {
                     // This is an AJAX call
                     bRequestIsAjaxCall = true;
                 }
-        
+
                 return(bRequestIsAjaxCall);
             }
-            
-            
+
+
             /***************************************************************************
              * getStackTraceAsString()
              ****************************************************************************/
@@ -128,59 +128,59 @@ Procedure
                 }
                 return sb.toString();
             }
-                    
-        
+
+
         }
 
 
-    
+
     ASSUMPTION:
     You have a stdjspIncludes.jsp that looks like this
         <%@ page session="false" language="java" contentType="text/html; charset=ISO-8859-1" pageEncoding="ISO-8859-1" %>
-        
+
         <%-- Allow all JSPs to use the tag libraries --%>
         <%@ taglib prefix='c'   uri='http://java.sun.com/jsp/jstl/core' %>
-        
+
         <%-- Allow all JSPs to have the contextPath variable --%>
-        <c:set var='contextPath' value="${pageContext.request.contextPath}" />    
-    
-    
- 
+        <c:set var='contextPath' value="${pageContext.request.contextPath}" />
+
+
+
  2. Create a JSP:  error.jsp
     Create this file here:  /src/main/webapp/WEB-INF/jsp/error.jsp
         <%@ page session="false" language="java" contentType="text/html; charset=ISO-8859-1" pageEncoding="ISO-8859-1" %>
-    
+
         <%-- Include Core taglib and set contextPath --%>
         <%@ include file="/WEB-INF/jsp/stdJspIncludes.jsp" %>
-        
+
         <html>
-        
+
         <head>
             <title>Error</title>
         </head>
-        
+
         <body>
             <h2>Ooops!  This is embarrassing.</h2>
-        
+
             <%-- Display the Error Message --%>
             <br/>
             ${message}
-        
+
             <br/>
             <br/>
             <a href="${contextPath}" title="Go back to the main page">Click here to start over</a>
             <br/>
             <br/>
-        
+
         </body>
         </html>
-             
- 
- 
+
+
+
  3. Test a regular HTML call by having a Controller method throw a RuntimeException
- 
+
     a. Add this to your WelcomeController.java
-    
+
         /**********************************************************************
          * simulateError()
          *
@@ -191,29 +191,28 @@ Procedure
         public ModelAndView simulateError( Model aModel )
         {
             logger.debug("simulateError() started");
-    
+
             // Create a modelAndView object
             ModelAndView mav = new ModelAndView();
-    
+
             // Show the welcome.jsp page
             mav.setViewName("welcome.jsp");
-    
+
             int x=5;
-    
+
             if (x==5)
             {
                 // Throw a runtime exception
                 throw new RuntimeException("Something bad happened");
             }
-    
-    
+
+
             logger.debug("simulateError() finished");
             return mav;
         }
-        
-        
-        
+
+
+
       b. Add a link to the welcome.jsp
-      
+
             <h2><a href="${contextPath}/error">Simulate an Error</a></h2>
-      

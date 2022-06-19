@@ -1,0 +1,87 @@
+How to Create a Global Exception Handler for Spring MVC Web App
+---------------------------------------------------------------
+
+Suppose you want to create an exception handler that will do two things:
+ 1) Log the exception
+ 2) If the web app is making an ajax call,
+       then set a status to 500 and return the message
+    Otherwise
+       Forward the user to an error.jsp page
+
+
+Procedure
+---------
+ 1. Add the property to the application.yaml
+
+	 # Show Exception info to local developers
+	 exception_handler.return_dev_info: true
+
+
+ 2. Setup a MyExceptionHandler class
+    a. Right-click on src/main/java/app1/utilities -> New -> Java Class
+       Name:  MyExceptionHandler
+
+
+    b. Copy this to your new MyExceptionHandler class
+
+      package app1.utilities;
+
+      import org.slf4j.Logger;
+      import org.slf4j.LoggerFactory;
+      import org.springframework.beans.factory.annotation.Value;
+      import org.springframework.http.HttpStatus;
+      import org.springframework.http.MediaType;
+      import org.springframework.http.ResponseEntity;
+      import org.springframework.web.bind.annotation.ControllerAdvice;
+      import org.springframework.web.bind.annotation.ExceptionHandler;
+      import javax.servlet.http.HttpServletRequest;
+
+
+      @ControllerAdvice
+      public class MyExceptionHandler {
+          private static final Logger logger = LoggerFactory.getLogger(MyExceptionHandler.class);
+
+          @Value("${exception_handler.return_dev_info:false}")
+          private boolean returnExceptionDetailsToFrontend;
+
+
+          /**
+           * Global Exception Handler
+           *
+           * @param aException holds the exception object (with all exception details)
+           * @param aRequest  holds the  request object   (with info about the original request)
+           */
+          @ExceptionHandler( Exception.class )
+          public ResponseEntity<?> handleException(Exception aException, HttpServletRequest aRequest)
+          {
+              // Log the error and stacktrace *FIRST*
+              if (null != aRequest) {
+                  logger.error("Exception raised from call to " + aRequest.getRequestURI(), aException);
+              }
+              else {
+                  logger.error("Exception raised from null request.", aException);
+              }
+
+
+              if (returnExceptionDetailsToFrontend) {
+                  // Return the real exception details to the frontend  (should be used in local dev mode only)
+                  String returnedMessage = aException.getLocalizedMessage();
+
+                  // Return the message
+                  return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                      .contentType(MediaType.TEXT_PLAIN)
+                                      .body(returnedMessage);
+              }
+              else {
+                  // Return a sanitized message back to the front-end
+                  String sanitizedMessage = "An error occurred.  Please contact an administrator.";
+
+                  return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                          .contentType(MediaType.TEXT_PLAIN)
+                          .body(sanitizedMessage);
+              }
+          }
+
+      }
+
+
