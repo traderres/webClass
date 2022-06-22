@@ -29,27 +29,36 @@ Procedure 1:  Web App talks to localhost SMTP server on port 25
 
 
 
-Procedures 2:  Web App talks to Proxy server's SMTP server   (so we need to open up proxy server port 25)
-----------------------------------------------------------------------------------------------------------
- 1. Add puppet rule to open up port 25 (so proxy server will accept TCP/IP packets on port 25)
+Procedure 2:  Web App talks to Proxy server's SMTP server   (so we need to open up proxy server port 25)
+--------------------------------------------------------------------------------------------------------
+ 1. Adjust the puppet scripts to add an iptables rule to open up port 25 (so proxy server will accept TCP/IP packets on port 25)
 
 	ssh to puppet master
 
 	unix> sudo -s
 	unix> vi /etc/puppetlabs/code/modules/proxy/manifests/external.pp
 
-	iptables::listen::tcp_)stateful {
-	   'proxy_server_port_external':
-		 $trusted_nets => $trusted_nets,
-		 dports => $proxy::listen_port;
-
-		'proxy_server_smtp':
-		 $trusted_nets => $trusted_nets,
-		 dports => [25];
-	}
+    Change this entry:
+		iptables::listen::tcp_)stateful {
+		   'proxy_server_port_external':
+			 $trusted_nets => $trusted_nets,
+			 dports => $proxy::listen_port;
+		}
 
 
-2. Run puppet agent against the proxy server
+    To this:
+		iptables::listen::tcp_)stateful {
+		   'proxy_server_port_external':
+			 $trusted_nets => $trusted_nets,
+			 dports => $proxy::listen_port;
+
+			'proxy_server_smtp':
+			 $trusted_nets => $trusted_nets,
+			 dports => [25];
+		}
+
+
+ 2. Run puppet agent against the proxy server
 	unix> yarcs -r proxy_server   # run from the puppet master
 
     *OR*
@@ -58,25 +67,25 @@ Procedures 2:  Web App talks to Proxy server's SMTP server   (so we need to open
 	unix> puppet agent -t
 
 
-3. Verify the change was applied by running iptables
+ 3. Verify the change was applied by running iptables
     unix> iptables -L -n
 
     -- We should see an extra line
 			Accept tcp - 0.0.0.0/0    0.0.0.0/0   state new tcp multiport dports 25 /* SIMP */
 
 
-4. Watch the proxy server log file
-   ssh to proxy server
-   tail -f /var/log/maillog
+ 4. Watch the proxy server log file
+    ssh to proxy server
+    tail -f /var/log/maillog
 
 
-5. Change the NCCS Web App's Email "From Address" to use the external domain name of this cluster:
-   NOTE:  This must be the **EXTERNALLL domain name
+ 5. Change the NCCS Web App's Email "From Address" to use the external domain name of this cluster:
+    NOTE:  This must be the **EXTERNALLL domain name
 
-	-Demail.from.address=noreply@EXTERNAL.DOMAIN.NAME.COM
+  	-Demail.from.address=noreply@EXTERNAL.DOMAIN.NAME.COM
 
 
-6. We put the webapp in demo mode and sent an email out and we received it.
+ 6. We put the webapp in demo mode and sent an email out and we received it.
 
 
 
