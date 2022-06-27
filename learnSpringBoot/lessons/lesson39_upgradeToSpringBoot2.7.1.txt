@@ -127,18 +127,74 @@ Procedure
         </dependency>
 
 
+ 3. Update your WebMvcConfig so it implement WebMvcConfigurer and include the @EnableWebMvc annotation
+    BEFORE:  This class would extend WebMvcConfigurerAdapter
+    AFTER:   This class implements   WebMvcConfigurer   (and we daded the @EnableWebMvc annotation)
 
- 3. Build your webapp from command-line
+		 package com.lessons.config;
+
+		 import com.lessons.security.AuthenticationFailedInterceptor;
+		 import org.springframework.beans.factory.annotation.Value;
+		 import org.springframework.context.annotation.Configuration;
+		 import org.springframework.web.servlet.config.annotation.*;
+
+
+		 @Configuration
+		 @EnableWebMvc
+		 public class WebMvcConfig implements WebMvcConfigurer {
+
+			 @Value("${disable.cors}")
+			 private boolean disableCors;
+
+			 private static final String[] CLASSPATH_RESOURCE_LOCATIONS = {
+					 "classpath:/META-INF/resources/", "classpath:/resources/",
+					 "classpath:/static/", "classpath:/public/" };
+
+			 /**
+			  * Added to allow spring boot to find html content in the frontend depency jar
+			  * @param registry
+			  */
+			 @Override
+			 public void addResourceHandlers(ResourceHandlerRegistry registry) {
+				 registry.addResourceHandler("/**")
+						 .addResourceLocations(CLASSPATH_RESOURCE_LOCATIONS);
+			 }
+
+
+			 /**
+			  * Allow CORS requests to come from anywhere
+			  * -- Should be used for local debugging only
+			  * @param registry
+			  */
+			 @Override
+			 public void addCorsMappings(CorsRegistry registry) {
+				 if (disableCors) {
+					 // CORS is disabled therefore allow all GET, POST, PUT, and DELETE calls in development mode
+					 // This is needed because frontend is on port 4200 and backend is on port 8080 in development mode
+					 registry.addMapping("/**").allowedOrigins("*").allowedMethods("GET", "PUT", "POST", "DELETE");
+				 }
+			 }
+
+		 }
+
+
+ 4. Build your webapp from command-line
     unix> mvn clean package -Pprod
 
 
 
- 4. Run the webapp and verify that you have
+ 5. Run the webapp and verify that you have
     unix> java -jar ./backend/target/backend-1.0-SNAPSHOT-exec.jar
 
 
 
- 5. Verify that you see Spring Boot 2.7.1 and Spring 5.3.21 in the logging
+ 6. Verify that you see Spring Boot 2.7.1 and Spring 5.3.21 in the logging
     06/27/2022 17:42:53            main DEBUG [NO_USER NO_SESSION] com.lessons.Application - main() started.
     06/27/2022 17:42:53            main INFO  [NO_USER NO_SESSION] com.lessons.Application - Starting Application using Java 1.8.0_292 on mycentos8 with PID 74883 (/home/adam/intellijProjects/nccs-help/backend/target/classes started by adam in /home/adam/intellijProjects/nccs-help)
     06/27/2022 17:42:53            main DEBUG [NO_USER NO_SESSION] com.lessons.Application - Running with Spring Boot v2.7.1, Spring v5.3.21
+
+
+ 7. Verify that you can connect to the webapp
+    a. Open a browser
+    b. Connect to http://localhost:8080/app1
+
