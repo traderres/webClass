@@ -1,0 +1,144 @@
+Lesson:  How to Upgrade to Spring Boot 2.7.1
+--------------------------------------------
+
+Problem 1:  I want to upgrade from Spring Boot 2.1.RELEASE to 2.7.1
+Problem 2:  Spring Boot 2.7.1 comes with flyway 8.5.13 but I need to use my older Flyway 5.2.4
+
+
+Procedure
+---------
+ 1. Change the excluded auto-configures
+
+    a. Edit the backend/src/main/resources.application.yaml
+
+    b. Remove this section from your application.yaml
+
+			 # Tell Spring to disable DataSource Auto Configuration (so you can run a springboot app without a datasource
+			 spring.autoconfigure:
+			   exclude:
+				 - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+				 - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+				 - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+
+    c. Edit the Application.java
+
+    d. Change the @SpringBootApplication annotatoin
+
+       From this:
+          @SpringBootApplication
+
+       To this:
+          @SpringBootApplication(exclude = {WebMvcAutoConfiguration.class, DataSourceAutoConfiguration.class, HibernateJpaAutoConfiguration.class, SecurityAutoConfiguration.class})
+
+
+
+
+ 2. Upgrade Spring, Spring-Boot, and Jackson data-bind in your backend/pom.xml:
+   	a. Edit the backend/pom.xml
+
+	b. Change your <dependencyManagement> section from this:
+
+		  <dependencyManagement>
+			<!-- Set Spring Boot Dependencies -->
+			<dependencies>
+			  <dependency>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-dependencies</artifactId>
+				<version>2.2.1.RELEASE</version>
+				<type>pom</type>
+				<scope>import</scope>
+			  </dependency>
+			</dependencies>
+		  </dependencyManagement>
+
+
+
+		To this:
+
+		  <dependencyManagement>
+			<dependencies>
+
+			  <dependency>
+				<!-- Tell Spring Boot to use this **OLDER** version of flyway that works with Postgres 9.6 -->
+				<groupId>org.flywaydb</groupId>
+				<artifactId>flyway-core</artifactId>
+				<version>5.2.4</version>
+			  </dependency>
+
+			  <dependency>
+				<!-- Set the Spring Boot Version -->
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-dependencies</artifactId>
+				<version>2.7.1</version>
+				<type>pom</type>
+				<scope>import</scope>
+			  </dependency>
+
+			</dependencies>
+		  </dependencyManagement>
+
+
+
+	c. Change the spring-jdbc version from 5.2.1.RELEASE to 5.3.21
+
+		 <dependency>
+		   <groupId>org.springframework</groupId>
+		   <artifactId>spring-jdbc</artifactId>
+		   <version>5.3.21</version>
+		 </dependency>
+
+
+
+	d. Change the spring-web version from 5.2.1.RELEASE to 5.3.21
+
+		<dependency>
+		  <groupId>org.springframework</groupId>
+		  <artifactId>spring-web</artifactId>
+		  <version>5.3.21</version>
+		</dependency>
+
+
+
+	e. Change the spring-security-web from 5.2.1.RELEASE to 5.3.21
+
+		 <dependency>
+		   <groupId>org.springframework.security</groupId>
+		   <artifactId>spring-security-web</artifactId>
+		   <version>5.7.1</version>
+		 </dependency>
+
+
+	f. Change the spring-security-config from 5.2.1.RELEASE to 5.3.21
+
+		 <dependency>
+		   <groupId>org.springframework.security</groupId>
+		   <artifactId>spring-security-config</artifactId>
+		   <version>5.7.1</version>
+		 </dependency>
+
+
+	g. Change the jackson-data-bind from 2.9.3 to 2.13.3
+
+	    <dependency>
+          <!-- Implementation for converting objects to JSON -->
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-databind</artifactId>
+          <version>2.13.3</version>
+        </dependency>
+
+
+
+ 3. Build your webapp from command-line
+    unix> mvn clean package -Pprod
+
+
+
+ 4. Run the webapp and verify that you have
+    unix> java -jar ./backend/target/backend-1.0-SNAPSHOT-exec.jar
+
+
+
+ 5. Verify that you see Spring Boot 2.7.1 and Spring 5.3.21 in the logging
+    06/27/2022 17:42:53            main DEBUG [NO_USER NO_SESSION] com.lessons.Application - main() started.
+    06/27/2022 17:42:53            main INFO  [NO_USER NO_SESSION] com.lessons.Application - Starting Application using Java 1.8.0_292 on mycentos8 with PID 74883 (/home/adam/intellijProjects/nccs-help/backend/target/classes started by adam in /home/adam/intellijProjects/nccs-help)
+    06/27/2022 17:42:53            main DEBUG [NO_USER NO_SESSION] com.lessons.Application - Running with Spring Boot v2.7.1, Spring v5.3.21
