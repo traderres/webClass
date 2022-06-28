@@ -7,33 +7,8 @@ Problem 2:  Spring Boot 2.7.1 comes with flyway 8.5.13 but I need to use my olde
 
 Procedure
 ---------
- 1. Change the excluded auto-configures
 
-    a. Edit the backend/src/main/resources.application.yaml
-
-    b. Remove this section from your application.yaml
-
-			 # Tell Spring to disable DataSource Auto Configuration (so you can run a springboot app without a datasource
-			 spring.autoconfigure:
-			   exclude:
-				 - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
-				 - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
-				 - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
-
-    c. Edit the Application.java
-
-    d. Change the @SpringBootApplication annotatoin
-
-       From this:
-          @SpringBootApplication
-
-       To this:
-          @SpringBootApplication(exclude = {WebMvcAutoConfiguration.class, DataSourceAutoConfiguration.class, HibernateJpaAutoConfiguration.class, SecurityAutoConfiguration.class})
-
-
-
-
- 2. Upgrade Spring, Spring-Boot, and Jackson data-bind in your backend/pom.xml:
+ 1. Upgrade Spring, Spring-Boot, and Jackson data-bind in your backend/pom.xml:
    	a. Edit the backend/pom.xml
 
 	b. Change your <dependencyManagement> section from this:
@@ -127,28 +102,44 @@ Procedure
         </dependency>
 
 
- 3. Update your WebMvcConfig so it has an an InternalResourceViewResolver  (so it can return index.html)
+
+ 2. Change the excluded auto-configures
+
+    a. Edit the backend/src/main/resources.application.yaml
+
+    b. Remove this section from your application.yaml
+
+			 # Tell Spring to disable DataSource Auto Configuration (so you can run a springboot app without a datasource
+			 spring.autoconfigure:
+			   exclude:
+				 - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+				 - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+				 - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+
+
+
+
+    c. Edit the Application.java
+
+    d. Change the @SpringBootApplication annotatoin
+
+       From this:
+          @SpringBootApplication
+
+       To this:
+          @SpringBootApplication(exclude = {DataSourceAutoConfiguration.class, HibernateJpaAutoConfiguration.class, SecurityAutoConfiguration.class})
+
+
+
+
+		WARNING:  Do **NOT** exclude WebMvcAutoConfiguration.class   (you need this for the webapp to work!!!)
+
+
+
+
+ 3. Update your WebMvcConfig so it implements WebMvcConfigurer
     a. Change WebMvcConfig.java so it implements WebMvcConfigurer
-    b. Add this annotation:   @EnableWebMvc
-    c. Add these 2 methods:
-
-		/**
-		 * Create a ViewResolver  (which will be used to return the index.html)
-		 * NOTE:  THe ViewResolver + Enabling the default servlet allow spring to handle returning the index.html
-		 * @return ViewResolver object
-		 */
-		@Bean
-		public ViewResolver getViewResolver() {
-			// Setup the InternalResourceViewResolver (to return the index.html)
-			InternalResourceViewResolver resolver = new InternalResourceViewResolver();
-			return resolver;
-		}
-
-		@Override
-		public void configureDefaultServletHandling(DefaultServletHandlerConfigurer configurer) {
-			// Enable the DefaultServlet
-			configurer.enable();
-		}
+    b. You should **NOT** use the @EnableWebMvc annotation
 
 
 
@@ -166,7 +157,6 @@ Procedure
 
 
 	  @Configuration
-	  @EnableWebMvc
 	  public class WebMvcConfig implements WebMvcConfigurer {
 
 		  @Value("${disable.cors}")
@@ -176,25 +166,6 @@ Procedure
 				  "classpath:/META-INF/resources/", "classpath:/resources/",
 				  "classpath:/static/", "classpath:/public/" };
 
-
-		  /**
-		   * Create a ViewResolver  (which will be used to return the index.html)
-		   * NOTE:  THe ViewResolver + Enabling the default servlet allow spring to handle returning the index.html
-		   * @return ViewResolver object
-		   */
-		  @Bean
-		  public ViewResolver getViewResolver() {
-			  // Setup the InternalResourceViewResolver (to return the index.html)
-			  InternalResourceViewResolver resolver = new InternalResourceViewResolver();
-			  return resolver;
-		  }
-
-
-		  @Override
-		  public void configureDefaultServletHandling(DefaultServletHandlerConfigurer configurer) {
-			  // Enable the DefaultServlet
-			  configurer.enable();
-		  }
 
 
 		  /**
