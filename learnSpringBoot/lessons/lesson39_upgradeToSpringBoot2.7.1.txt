@@ -127,56 +127,112 @@ Procedure
         </dependency>
 
 
- 3. Update your WebMvcConfig so it implements WebMvcConfigurer and also include the @EnableWebMvc annotation
-    BEFORE:  This class extends    WebMvcConfigurerAdapter
-    AFTER:   This class implements WebMvcConfigurer   (and we daded the @EnableWebMvc annotation)
+ 3. Update your WebMvcConfig so it has an an InternalResourceViewResolver  (so it can return index.html)
+    a. Change WebMvcConfig.java so it implements WebMvcConfigurer
+    b. Add this annotation:   @EnableWebMvc
+    c. Add these 2 methods:
 
-		 package com.lessons.config;
+		/**
+		 * Create a ViewResolver  (which will be used to return the index.html)
+		 * NOTE:  THe ViewResolver + Enabling the default servlet allow spring to handle returning the index.html
+		 * @return ViewResolver object
+		 */
+		@Bean
+		public ViewResolver getViewResolver() {
+			// Setup the InternalResourceViewResolver (to return the index.html)
+			InternalResourceViewResolver resolver = new InternalResourceViewResolver();
+			return resolver;
+		}
 
-		 import com.lessons.security.AuthenticationFailedInterceptor;
-		 import org.springframework.beans.factory.annotation.Value;
-		 import org.springframework.context.annotation.Configuration;
-		 import org.springframework.web.servlet.config.annotation.*;
-
-
-		 @Configuration
-		 @EnableWebMvc
-		 public class WebMvcConfig implements WebMvcConfigurer {
-
-			 @Value("${disable.cors}")
-			 private boolean disableCors;
-
-			 private static final String[] CLASSPATH_RESOURCE_LOCATIONS = {
-					 "classpath:/META-INF/resources/", "classpath:/resources/",
-					 "classpath:/static/", "classpath:/public/" };
-
-			 /**
-			  * Added to allow spring boot to find html content in the frontend depency jar
-			  * @param registry
-			  */
-			 @Override
-			 public void addResourceHandlers(ResourceHandlerRegistry registry) {
-				 registry.addResourceHandler("/**")
-						 .addResourceLocations(CLASSPATH_RESOURCE_LOCATIONS);
-			 }
+		@Override
+		public void configureDefaultServletHandling(DefaultServletHandlerConfigurer configurer) {
+			// Enable the DefaultServlet
+			configurer.enable();
+		}
 
 
-			 /**
-			  * Allow CORS requests to come from anywhere
-			  * -- Should be used for local debugging only
-			  * @param registry
-			  */
-			 @Override
-			 public void addCorsMappings(CorsRegistry registry) {
-				 if (disableCors) {
-					 // CORS is disabled therefore allow all GET, POST, PUT, and DELETE calls in development mode
-					 // This is needed because frontend is on port 4200 and backend is on port 8080 in development mode
-					 registry.addMapping("/**").allowedOrigins("*").allowedMethods("GET", "PUT", "POST", "DELETE");
-				 }
-			 }
 
-		 }
+    When finished, it should look like this    (You may not need the addInterceptors() method)
+	-------------------------------------------------------------------------------------------
+	  package gov.dcsa.config;
 
+	  import gov.dcsa.security.AuthenticationFailedInterceptor;
+	  import org.springframework.beans.factory.annotation.Value;
+	  import org.springframework.context.annotation.Bean;
+	  import org.springframework.context.annotation.Configuration;
+	  import org.springframework.web.servlet.ViewResolver;
+	  import org.springframework.web.servlet.config.annotation.*;
+	  import org.springframework.web.servlet.view.InternalResourceViewResolver;
+
+
+	  @Configuration
+	  @EnableWebMvc
+	  public class WebMvcConfig implements WebMvcConfigurer {
+
+		  @Value("${disable.cors}")
+		  private boolean disableCors;
+
+		  private static final String[] CLASSPATH_RESOURCE_LOCATIONS = {
+				  "classpath:/META-INF/resources/", "classpath:/resources/",
+				  "classpath:/static/", "classpath:/public/" };
+
+
+		  /**
+		   * Create a ViewResolver  (which will be used to return the index.html)
+		   * NOTE:  THe ViewResolver + Enabling the default servlet allow spring to handle returning the index.html
+		   * @return ViewResolver object
+		   */
+		  @Bean
+		  public ViewResolver getViewResolver() {
+			  // Setup the InternalResourceViewResolver (to return the index.html)
+			  InternalResourceViewResolver resolver = new InternalResourceViewResolver();
+			  return resolver;
+		  }
+
+
+		  @Override
+		  public void configureDefaultServletHandling(DefaultServletHandlerConfigurer configurer) {
+			  // Enable the DefaultServlet
+			  configurer.enable();
+		  }
+
+
+		  /**
+		   * Added to allow spring boot to find html content in the frontend depency jar
+		   * @param registry holds hte ResourceHandlerRegistry configuration object
+		   */
+		  @Override
+		  public void addResourceHandlers(ResourceHandlerRegistry registry) {
+			  registry.addResourceHandler("/**")
+					  .addResourceLocations(CLASSPATH_RESOURCE_LOCATIONS);
+		  }
+
+
+		  /**
+		   * Allow CORS requests to come from anywhere
+		   * -- Should be used for local debugging only
+		   * @param registry holds the CorsRegistry configuration object
+		   */
+		  @Override
+		  public void addCorsMappings(CorsRegistry registry) {
+			  if (disableCors) {
+				  // CORS is disabled therefore allow all GET, POST, PUT, and DELETE calls in development mode
+				  // This is needed because frontend is on port 4200 and backend is on port 8080 in development mode
+				  registry.addMapping("/**").allowedOrigins("*").allowedMethods("GET", "PUT", "POST", "DELETE");
+			  }
+		  }
+
+
+		  /**
+		   * Register interceptors that will be called *BEFORE* every REST call
+		   * @param registry holds the InterceptorRegistry
+		   */
+		  @Override
+		  public void addInterceptors(InterceptorRegistry registry) {
+			  registry.addInterceptor(new AuthenticationFailedInterceptor());
+		  }
+
+	  }
 
 
  4. Build your webapp from command-line
