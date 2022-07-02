@@ -28,40 +28,29 @@ Procedure
 ---------
     1. Add HighCharts to the project
 
-        a. Install the highcharts NPM packages
+        a. Install the highcharts NPM packages   (install version 9.1.0 or 9.2.2)
            unix> cd ~/intellijProjects/angularApp1/frontend
-           unix> npm install highcharts
-           unix> npm install highcharts-angular
+           unix> npm install highcharts@9.1.0
     
-        b. Verify that highcharts and highcharts-angular in your frontend/package.json
-            --  You should see something like this in your frontend/package.json
+        b.Verify that highcharts is found in your frontend/package.json
+          --  You should see something like this in your frontend/package.json
                 "highcharts": "^9.1.0",
-                "highcharts-angular": "^2.10.0",
             
-        c. Remove the carrots from package.json for highcharts and highcharts-angular
+        c. Remove the carrots from package.json for highcharts so it does not get automatically upgraded:
                 "highcharts": "9.1.0",
-                "highcharts-angular": "2.10.0",
 
-        d. Build the project (to make sure it still compiles successfully)
+
+           NOTE:  highcharts 9.2.2 has fixes for the Gantt chart so it displays in dark mode
+
+
+        d. Delete the frontend/node_modules and run "npm install" on the package.json
+  
+        e. In Intellij:  Right-click on your package.json -> Run npm Install
+
+        f. Build the project (to make sure it still compiles successfully)
            unix> cd ~/intellijProjects/angularApp1
            unix> mvn clean package -Pprod
 
-        e. Delete the frontend/node_modules and run "npm install" on the package.json
-
-        f. Edit your app.module.ts
-            i. Add the HighchartsChartModule to your imports section
-                
-                imports [
-                    HighchartsChartModule
-                ]
-
-            ii. Add the import   (if IntelliJ did not already do this for you)
-
-                 import { HighchartsChartModule } from 'highcharts-angular';
-
-        g. Build the project a 2nd time   (to make sure it still compiles successfully)
-           unix> cd ~/intellijProjects/angularApp1
-           unix> mvn clean package -Pprod
 
 
 
