@@ -43,7 +43,7 @@ Procedure
            NOTE:  highcharts 9.2.2 has fixes for the Gantt chart so it displays in dark mode
 
 
-        d. Delete the frontend/node_modules and run "npm install" on the package.json
+        d. Delete the frontend/node_modules directory
   
         e. In Intellij:  Right-click on your package.json -> Run npm Install
 
