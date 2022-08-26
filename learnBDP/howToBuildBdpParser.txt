@@ -1,0 +1,853 @@
+How to Build a BDP Parser
+-------------------------
+Problem:  If I drop a CSV file in a certain HDFS directory, I want a "BDP Parser" to
+            1) Read the CSV file
+            2) Pull out the fields
+            3) Append the data to an ElasticSearch Mapping
+
+Assumptions:
+ A) You have IntelliJ
+ B) The puppet IP address is 10.1.21.100
+ C) The proxy server IP address is  10.1.21.107
+ D) You can ssh to the puppet master
+
+
+Approach:
+ 1) Create a java project that will create an RDA
+ 2) Build the RDAs
+ 3) Manually create the ES Mappings (called company_names)
+ 4) Verify that the BDP Parser reads file and writes them to ElasticSearch
+
+
+Part 1: Create Java Project to create the 2 RDAs
+------------------------------------------------
+ 1. Build a maven java project
+    a. Startup IntelliJ
+
+    b. Press "Create New Project"
+
+    c. In the "New Project" popup
+       1) Select "Maven" on the left
+       2) Check "Create from archetype
+       3) select "maven-archetype-quickstart"
+       4) Press "Next"
+   
+    d. In the next popup
+       1) Project Name:  bdpParsers
+       2) Press "Next"
+ 
+    e. Press "Finish"
+
+
+    f. Delete the src directory
+
+
+ 2. Add a maven module called "install-es-ingest-parsers"
+    a. In the project explorer, right-click on bdpParsers -> New Module
+    b. In the "New Module"
+       1) Select "Maven" on the left
+       2) Check "Create from archetype
+       3) select "maven-archetype-quickstart"
+       4) Press "Next"
+    
+    c. In the next popup
+       1) Name:  install-es-ingest-parsers
+       2) Press "next"
+
+    d. Press "Finish"
+
+    e. Delete these directories:
+			install-es-ingest-parsers/src/main
+        	install-es-ingest-parsers/src/test 
+    
+    f. Create these directories:
+			install-es-ingest-parsers/src/main
+    		install-es-ingest-parsers/src/main/assembly
+    		install-es-ingest-parsers/src/main/assembly/configs
+    		install-es-ingest-parsers/src/main/assembly/configs/elastic
+    		install-es-ingest-parsers/src/main/assembly/configs/elastic/company_names
+    		install-es-ingest-parsers/src/main/assembly/libs
+
+    g. Copy the jar files from install-es-ingest-parsers/libs  to  install-es-ingest-parsers/src/main/assembly/libs
+
+    h. Replace the install-es-ingest-parsers/pom.xml with this:
+
+
+		<?xml version="1.0" encoding="UTF-8"?>
+
+		<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+				 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+			<parent>
+				<artifactId>bdpParsers</artifactId>
+				<groupId>org.example</groupId>
+				<version>1.0-SNAPSHOT</version>
+			</parent>
+			<modelVersion>4.0.0</modelVersion>
+
+			<artifactId>install-es-ingest-parsers</artifactId>
+
+			<!-- There is no java code so tell maven to not compile anything -->
+			<packaging>pom</packaging>
+
+			<profiles>
+				<profile>
+				    <id>buildRda</id>
+				    <activation>
+				        <activeByDefault>false</activeByDefault>
+				    </activation>
+				    <build>
+				        <plugins>
+				            <plugin>
+				                <artifactId>maven-assembly-plugin</artifactId>
+				                <version>3.3.0</version>
+				                <executions>
+				                    <execution>
+				                        <id>create-rda</id>
+				                        <phase>package</phase>
+				                        <goals>
+				                            <goal>single</goal>
+				                        </goals>
+				                    </execution>
+				                </executions>
+				                <configuration>
+				                    <appendAssemblyId>false</appendAssemblyId>
+
+				                    <!-- The final name of the zip file will be es.ingest.parsers.rda.zip -->
+				                    <finalName>es.ingest.parsers.rda</finalName>
+
+				                    <descriptors>
+				                        <descriptor>src/main/assembly/assembly.xml</descriptor>
+				                    </descriptors>
+				                </configuration>
+				            </plugin>
+				        </plugins>
+				    </build>
+				</profile>
+			</profiles>
+
+		</project>
+
+
+	i. Add this file:  assembly.xml
+       a. Add this file:  install-es-ingest-parsers/src/main/assembly/assembly.xml
+
+	   b. Replace its contents with this:
+
+
+			<assembly xmlns="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+					  xsi:schemaLocation="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.2 http://maven.apache.org/xsd/assembly-1.1.2.xsd">
+				<id>buildRdaZipFile</id>
+
+				<includeBaseDirectory>false</includeBaseDirectory>
+
+				<formats>
+					<format>zip</format>
+				</formats>
+
+				<fileSets>
+					<fileSet>
+						<!-- Add to the zip file:  rda.manifest -->
+						<directory>src/main/assembly</directory>
+						<outputDirectory>./</outputDirectory>
+						<includes>
+						    <include>rda.manifest</include>
+						</includes>
+					</fileSet>
+
+					<fileSet>
+						<!-- Add to the zip file:  configs/ directory -->
+						<directory>src/main/assembly/configs</directory>
+						<outputDirectory>./configs</outputDirectory>
+					</fileSet>
+
+					<fileSet>
+						<!-- Add to the zip file:  libs/ directory -->
+						<directory>src/main/assembly/libs</directory>
+						<outputDirectory>./libs</outputDirectory>
+					</fileSet>
+				</fileSets>
+
+
+			</assembly>
+
+
+	j. Add this file:  rda.manifest
+       a. Add this file:  install-es-ingest-parsers/src/main/assembly/rda.manifest
+
+	   b. Replace its contents with this:
+
+			{
+			  "name": "My Elastic Ingest Parsers",
+			  "description": "My Elastic Ingest Parsers",
+			  "appKey": "my.es.ingest.parsers",
+			  "version": "2.0.0",
+			   "components": [
+				{
+				  "type": "parser",
+				  "name": "My Elastic Ingest Parsers",
+				  "description": "My Elastic Ingest Parsers",
+				  "properties": {
+					"package": {
+					  "using.bdp.ingest.extra.version": "{{{ bdp.ingest.extra:version }}}"
+					},
+					"public": {
+					  "version": "1.1.1"
+					}
+				  },
+				  "config": {
+					"libs": [
+					  {
+						"src": "libs/*"
+					  }
+					],
+					"feeds": {
+					  "elastic": [
+						{
+						  "src": "configs/elastic/*",
+						  "template": true
+						}
+					  ]
+					}
+				  }
+				}
+			  ]
+			}
+
+
+	k. Add this file:  company_names.yaml
+       a. Add this file:  install-es-ingest-parsers/src/main/assembly/configs/elastic/company_names.yaml
+
+	   b. Replace its contents with this:
+
+			#
+			# Create a BDP parser to watch this directory:  /bdp-ingest/usr/data/elastic/company_names
+			#
+			company_names:
+			  description: "Company names"
+			  schema:
+				exiger_company_names:
+				  company_name: keyword
+				  ingest_date: date
+				  ingest_user: keyword
+				  job_id: integer
+				  name: keyword
+				  seed_data_profile_id: keyword
+				  source: keyword
+
+			  parser:
+				description: "parse company_names data using csv parser"
+				class: bdp.ingest.parsers.csv.CSVParser
+				vis: "CTP"
+
+			  transforms:
+				- description: "Remove null values"
+				  class: bdp.ingest.transforms.elastic.field.IgnoreValues
+				  config:
+					values: ["", "null", "NULL"]
+
+				#    - description: "ensure correct types for mapped keys"
+				#      class: mil.disa.csaac.ingest.transform.elastic.RenameInvalidValueTypes
+				#      config:
+				#           case_open_date: date
+				#           case_close_date: date
+
+				- description: "ensure fields are typed correctly"
+				  class: bdp.ingest.transforms.elastic.field.ConvertValue
+				  config-file: "company_names/convert_company_names_values.yaml"
+
+
+	l. Add this files:  convert_company_names_values.yaml
+
+       b. Add this file:       install-es-ingest-parsers/src/main/assembly/configs/elastic/company_names/convert_company_names_values.yaml
+       c. Replace its contents with this:
+
+			ingest_date:
+			  - instant: "yyyy-MM-dd HH:mm:ss"
+			job_id:
+			  - integer
+
+
+
+
+ 3. Add a maven module called "install-ingest-extras"
+    a. In the project explorer, right-click on bdpParsers -> New Module
+    b. In the "New Module"
+       1) Select "Maven" on the left
+       2) Check "Create from archetype
+       3) select "maven-archetype-quickstart"
+       4) Press "Next"
+    
+    c. In the next popup
+       1) Name:  install-ingest-extras
+       2) Press "next"
+
+    d. Press "Finish"
+
+    e. Delete these directories:
+			install-ingest-extras/src/main
+        	install-ingest-extras/src/test 
+    
+    f. Create these directories:
+			install-ingest-extras/src/main
+    		install-ingest-extras/src/main/assembly/parser
+    		install-ingest-extras/src/main/assembly/parser/lib
+
+
+    g. Copy the jar files from install-ingest-extras/libs  to  install-ingest-extras/src/main/assembly/parser/lib
+
+    h. Replace the install-ingest-extras/pom.xml with this:
+
+		<?xml version="1.0" encoding="UTF-8"?>
+
+		<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+		  <parent>
+			<artifactId>bdpParsers</artifactId>
+			<groupId>org.example</groupId>
+			<version>1.0-SNAPSHOT</version>
+		  </parent>
+		  <modelVersion>4.0.0</modelVersion>
+
+		  <artifactId>install-ingest-extras</artifactId>
+		  <version>1.0-SNAPSHOT</version>
+
+		  <!-- There is no java code so tell maven to not compile anything -->
+		  <packaging>pom</packaging>
+
+		  <profiles>
+			<profile>
+			  <id>buildRda</id>
+			  <activation>
+				<activeByDefault>false</activeByDefault>
+			  </activation>
+			  <build>
+				<plugins>
+				  <plugin>
+				    <artifactId>maven-assembly-plugin</artifactId>
+				    <version>3.3.0</version>
+				    <executions>
+				      <execution>
+				        <id>create-rda</id>
+				        <phase>package</phase>
+				        <goals>
+				          <goal>single</goal>
+				        </goals>
+				      </execution>
+				    </executions>
+				    <configuration>
+				      <appendAssemblyId>false</appendAssemblyId>
+
+				      <!-- The final name of the zip file will be webapp.rda.zip -->
+				      <finalName>ingest.extras.rda</finalName>
+
+				      <descriptors>
+				        <descriptor>src/main/assembly/assembly.xml</descriptor>
+				      </descriptors>
+				    </configuration>
+				  </plugin>
+				</plugins>
+			  </build>
+			</profile>
+		  </profiles>
+
+		</project>
+		  
+
+
+	i. Add this file:  assembly.xml
+       a. Add this file:  install-ingest-extras/src/main/assembly/assembly.xml
+
+	   b. Replace its contents with this:
+
+
+			<assembly xmlns="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+					  xsi:schemaLocation="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.2 http://maven.apache.org/xsd/assembly-1.1.2.xsd">
+				<id>buildRdaZipFile</id>
+
+				<includeBaseDirectory>false</includeBaseDirectory>
+
+				<formats>
+					<format>zip</format>
+				</formats>
+
+				<fileSets>
+					<fileSet>
+						<!-- Add to the zip file:  rda.manifest -->
+						<directory>src/main/assembly</directory>
+						<outputDirectory>./</outputDirectory>
+						<includes>
+						    <include>rda.manifest</include>
+						</includes>
+					</fileSet>
+
+					<fileSet>
+						<!-- Add to the zip file:  configs/ directory -->
+						<directory>src/main/assembly/configs</directory>
+						<outputDirectory>./configs</outputDirectory>
+					</fileSet>
+
+					<fileSet>
+						<!-- Add to the zip file:  libs/ directory -->
+						<directory>src/main/assembly/libs</directory>
+						<outputDirectory>./libs</outputDirectory>
+					</fileSet>
+				</fileSets>
+
+
+			</assembly>
+
+
+	j. Add this file:  rda.manifest
+       a. Add this file:  install-ingest-extras/src/main/assembly/rda.manifest
+
+	   b. Replace its contents with this:
+
+			{
+			  "name": "Ingest Extra Libraries",
+			  "description": "Installs the bdp.ingest-extra parsers and transforms so they can be used by other parsers. If you require these, you should use the applicable version property somewhere in your RDA manifest.",
+			  "appKey": "bdp.ingest.extra",
+			  "version": "4.1.6",
+			  "components": [
+				{
+				  "type": "parser",
+				  "name": "Ingest Extra Libs.",
+				  "properties": {
+					"public": {
+					  "version": "4.1.6",
+					  "patch.compatible.version": "4.1.6",
+					  "minor.compatible.version": "4.1",
+					  "major.compatible.version": "4"
+					}
+				  },
+				  "config": {
+					"libs": [
+					  {
+						"src": "parser/lib/*"
+					  }
+					],
+					"feeds": {
+					  "kronos": []
+					}
+				  }
+				}
+			  ]
+			}
+
+
+
+ 4. Update the parent pom.xml
+    a. Edit the bdpParsers/pom.xml
+
+
+    b. Replace its contents with this:
+
+		<?xml version="1.0" encoding="UTF-8"?>
+
+		<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+		  <modelVersion>4.0.0</modelVersion>
+
+		  <groupId>org.example</groupId>
+		  <artifactId>bdpParsers</artifactId>
+		  <packaging>pom</packaging>
+		  <version>1.0-SNAPSHOT</version>
+
+		  <modules>
+			<module>install-es-ingest-parsers</module>
+			<module>install-ingest-extras</module>
+		  </modules>
+
+		  <name>bdpParsers</name>
+
+		  <properties>
+			<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+			<maven.compiler.source>1.8</maven.compiler.source>
+			<maven.compiler.target>1.8</maven.compiler.target>
+		  </properties>
+
+		  <dependencies>
+			<dependency>
+			  <groupId>junit</groupId>
+			  <artifactId>junit</artifactId>
+			  <version>4.11</version>
+			  <scope>test</scope>
+			</dependency>
+		  </dependencies>
+
+		  <build>
+			<pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
+			  <plugins>
+				<!-- clean lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#clean_Lifecycle -->
+				<plugin>
+				  <artifactId>maven-clean-plugin</artifactId>
+				  <version>3.1.0</version>
+				</plugin>
+				<!-- default lifecycle, jar packaging: see https://maven.apache.org/ref/current/maven-core/default-bindings.html#Plugin_bindings_for_jar_packaging -->
+				<plugin>
+				  <artifactId>maven-resources-plugin</artifactId>
+				  <version>3.0.2</version>
+				</plugin>
+				<plugin>
+				  <artifactId>maven-compiler-plugin</artifactId>
+				  <version>3.8.0</version>
+				</plugin>
+				<plugin>
+				  <artifactId>maven-surefire-plugin</artifactId>
+				  <version>2.22.1</version>
+				</plugin>
+				<plugin>
+				  <artifactId>maven-jar-plugin</artifactId>
+				  <version>3.0.2</version>
+				</plugin>
+				<plugin>
+				  <artifactId>maven-install-plugin</artifactId>
+				  <version>2.5.2</version>
+				</plugin>
+				<plugin>
+				  <artifactId>maven-deploy-plugin</artifactId>
+				  <version>2.8.2</version>
+				</plugin>
+				<!-- site lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#site_Lifecycle -->
+				<plugin>
+				  <artifactId>maven-site-plugin</artifactId>
+				  <version>3.7.1</version>
+				</plugin>
+				<plugin>
+				  <artifactId>maven-project-info-reports-plugin</artifactId>
+				  <version>3.0.0</version>
+				</plugin>
+			  </plugins>
+			</pluginManagement>
+		  </build>
+		  
+		  <profiles>
+			<profile>
+			  <!-- When running the buildRda profile, compiles these modules -->
+			  <id>buildRda</id>
+
+			  <modules>
+				<module>install-es-ingest-parsers</module>
+				<module>install-ingest-extras</module>
+			  </modules>
+			</profile>
+			
+		  </profiles>
+		</project>
+
+    c. Right-click on the pom.xml -> Maven -> Reload Project
+
+
+
+Part 2: Build & Verify the 2 RDAs
+---------------------------------
+ 1. Build the 2 RDAs
+    a. Open a terminal (in IntelliJ)
+    b. terminal> mvn clean package -PbuildRda
+
+
+ 2. Verify this zip file is created:  install-extras.rda.zip 
+    If using Windows, then use 7zip to list the contents of the zip file:
+    dos> set PATH=%PATH%;c:\progra~1\7-zip
+    dos> 7z l install-ingest-extras\target\install-extras.rda.zip 
+
+    If using unix, run this command to list the contents of the zip file:
+    unix> unzip -l install-ingest-extras/target/ingest.extras.rda.zip
+
+    You should see this:
+
+	  Length      Date    Time    Name
+	---------  ---------- -----   ----
+		    0  08-25-2022 21:45   parser/
+		    0  08-25-2022 21:46   parser/lib/
+		  789  08-25-2022 21:55   rda.manifest
+		14809  08-06-2022 16:37   parser/lib/content-store-2.3.1.jar
+		43965  08-06-2022 16:37   parser/lib/extra-core-4.1.6.jar
+	   174947  08-06-2022 16:37   parser/lib/extra-parsers-4.1.6.jar
+	   234975  08-06-2022 16:37   parser/lib/extra-transforms-4.1.6.jar
+	   150843  08-06-2022 16:37   parser/lib/nifi-utils-1.4.0.jar
+	   917052  08-06-2022 16:37   parser/lib/parquet-column-1.7.0.jar
+		21575  08-06-2022 16:37   parser/lib/parquet-common-1.7.0.jar
+	   285447  08-06-2022 16:37   parser/lib/parquet-encoding-1.7.0.jar
+	   387188  08-06-2022 16:37   parser/lib/parquet-format-2.3.0-incubating.jar
+		21243  08-06-2022 16:37   parser/lib/parquet-generator-1.7.0.jar
+	   209622  08-06-2022 16:37   parser/lib/parquet-hadoop-1.7.0.jar
+	  1048110  08-06-2022 16:37   parser/lib/parquet-jackson-1.7.0.jar
+	   179977  08-06-2022 16:37   parser/lib/stax2-api-3.0.1.jar
+	   254485  08-06-2022 16:37   parser/lib/woodstox-core-5.2.0.jar
+	---------                     -------
+	  3945027                     17 files
+
+
+
+ 3. Verify this zip file is created:  es-ingest.parsers.rda.zip
+    If using Windows, then use 7zip to list the contents of the zip file:
+    dos> set PATH=%PATH%;c:\progra~1\7-zip
+    dos> 7z l install-es-ingest-parsers\target\es.ingest.parsers.rda.zip 
+
+    If using unix, run this command to list the contents of the zip file:
+    unix> unzip -l install-es-ingest-parsers/target/es.ingest.parsers.rda.zip 
+
+
+    You should see this:
+
+	  Length      Date    Time    Name
+	---------  ---------- -----   ----
+		    0  08-25-2022 21:40   configs/
+		    0  08-25-2022 21:41   configs/company_names/
+		  986  08-25-2022 21:39   configs/company_names.yaml
+		   67  08-25-2022 21:41   configs/company_names/convert_company_names_values.yaml
+		    0  08-25-2022 21:27   libs/
+		  771  08-25-2022 21:36   rda.manifest
+	   190098  08-06-2022 16:37   libs/commons-validator-1.4.1.jar
+		18465  08-06-2022 16:37   libs/config-loader-2.2.4.jar
+		14180  08-06-2022 16:37   libs/content-store-2.2.4.jar
+	   505780  08-06-2022 16:37   libs/disa-feeds-1.2.1.jar
+		39759  08-06-2022 16:37   libs/extra-test-3.0.0.jar
+		50700  08-06-2022 16:37   libs/jackson-dataformat-cbor-2.8.6.jar
+		40877  08-06-2022 16:37   libs/jackson-dataformat-yaml-2.8.6.jar
+		52169  08-06-2022 16:37   libs/lzo-core-1.0.6.jar
+	   150843  08-06-2022 16:37   libs/nifi-utils-1.4.0.jar
+	   285428  08-06-2022 16:37   libs/univocity-parsers-2.0.0.jar
+	---------                     -------
+	  1350123                     16 files
+
+
+
+Part 3: Manually create the ES Mappings
+---------------------------------------
+ 1. Create this directory:  docs     (beneat the bdpParsers)
+
+ 2. Add this file:  company_names.mapping.json
+    a. Add an empty files to docs/company_names.mapping.json
+
+    b. Replace its contents with this:
+
+			{
+			  "settings": {
+
+				"index": {
+				  "visibility": {
+					"field": "_vis",
+					"write": "TYPE:HOST"
+				  }
+				},
+
+				"analysis": {
+				  "analyzer" : {
+					"my_ngram_analyzer" : {
+					  "tokenizer" : "my_ngram_tokenizer",
+					  "filter": ["lowercase"]
+					}
+				  },
+				  "tokenizer" : {
+					"my_ngram_tokenizer" : {
+					  "type" : "ngram",
+					  "min_gram" : "1",
+					  "max_gram" : "25",
+					  "token_chars": [ ]
+					}
+				  },
+				  "normalizer": {
+					"case_insensitive_normalizer": {
+					  "type": "custom",
+					  "char_filter": [],
+					  "filter": [ "lowercase", "asciifolding" ]
+					}
+				  }
+				},
+				"max_ngram_diff" : 25,
+				"max_result_window": 500000,
+				"refresh_interval": "2s"
+			  },
+			  "mappings": {
+
+				  "dynamic": "strict",
+				  "properties": {
+
+					"visibility": {
+					  "type": "keyword"
+					},
+
+					"_vis": {
+					  "type": "keyword"
+					},
+
+					"job_id": {
+					  "type": "integer",
+					  "ignore_malformed": false
+					},
+
+					"ingest_date": {
+					  "type": "date",
+					  "format": "MM/dd/yy||MM/dd/YYYY||yyyy-MM-dd||epoch_millis||epoch_second||yyyy/MM/dd HH:mm:ss.SSS||yyyy-MM-dd HH:mm:ss.SSS||yyyy/MM/dd HH:mm:ss||yyyy-MM-dd HH:mm:ss.SSSZ||yyyy-MM-dd'T'HH:mm:ss||yyyy-MM-dd'T'HH:mm:ssZ||yyyy-MM-dd HH:mm:ss||yyyy-MM-dd HH:mm:ssZ||yyyy/MM/dd||S",
+					  "ignore_malformed": true
+					},
+
+					"ingest_user": {
+					  "type": "text",
+					  "fields": {
+						"keyword": {
+						  "type": "keyword"
+						}
+					  }
+					},
+
+					"seed_data_profile_id": {
+					  "type": "text",
+					  "fields": {
+						"keyword": {
+						  "type": "keyword"
+						}
+					  }
+					},
+
+					"company_name": {
+					  "type": "text",
+					  "fields": {
+						"keyword": {
+						  "type": "keyword"
+						}
+					  }
+					},
+
+					"source": {
+					  "type": "text",
+					  "fields": {
+						"keyword": {
+						  "type": "keyword"
+						}
+					  }
+					},
+
+					"name": {
+					  "type": "text",
+					  "fields": {
+						"keyword": {
+						  "type": "keyword"
+						}
+					  }
+					}
+
+
+
+				  }
+			  }
+			}
+
+
+ 3. Upload the mapping file to one of the ES instances and create the ES mapping
+    ASSUMPTION:  Your puppet ip address is 10.1.21.100
+
+    a. Transfer the docs/company_names.mapping.json to the puppet master /tmp directory
+       1) Open a terminal
+          terminal> scp docs/company_names.mapping.json  MY_UNIX_ACCOUNT@10.1.21.100:/tmp
+
+    b. Transfer the company_names.mapping.json from the puppet master /tmp directory to one of the ES nodes /tmp directory
+       ssh to the puppet master
+
+       unix> go elastic_workers_primary    # to ssh to one of the ES nodes
+       unix> scp MY_UNIX_ACCOUNT@10.1.21.100:/tmp/company_names.mapping.json /tmp
+
+       unix> exit
+       unix> exit
+ 
+   
+
+ 4. Manually create the ES mapping called company_names
+    ssh to the puppet master
+
+    unix> go elastic_workers_primary    # to ssh to one of the ES nodes
+    unix> sudo -s
+
+    # Delete the existing company_names mapping   (you may get an index_not_found_exception)
+    unix> curl -k --cert /etc/pki/simp/x509/private/`hostname`.pem  -H 'Content-Type: application/json'  -XDELETE  "https://`hostname`:9200/company_names?pretty"
+
+    # Create a new company_names based on the /tmp/company_names.mapping.json 
+    unix> curl -k --cert /etc/pki/simp/x509/private/`hostname`.pem  -H 'Content-Type: application/json'  -XPUT  "https://`hostname`:9200/company_names?pretty" --data-binary   @/tmp/company_names.mapping.json 
+
+    You should see this:
+	{
+	  "acknowledged" : true,
+	  "shards_acknowledged" : true,
+	  "index" : "company_names"
+	}
+
+
+
+
+
+Part 4: Verify that the BDP Parser reads file and writes them to ElasticSearch
+------------------------------------------------------------------------------
+ 1. Build the RDAs  (if you have not done so already)
+    terminal> mvn clean package  -PbuildRda
+
+
+ 2. Connect to the RDA Deployer on your target BDP
+
+
+ 3. Upload & Deploy this RDA:  ingest.extras.rda.zip
+    a. Upload this RDA:        install-ingest-extras/target/ingest.extras.rda.zip
+    b. Find "Ingest Extra Libraries" in the RDA Deployer 
+       Click on the 3 dots -> Deploy
+
+
+ 4. Upload & Deploy this RDA:  es.ingest.parsers.rda.zip
+    a. Upload this RDA:        install-es-ingest-parsers/target/es.ingest.parsers.rda.zip
+    b. Find "My Elastic Ingest Parsers" in the RDA Deployer
+       Click on the 3 dots -> Deploy
+
+
+ 5. Add a csv file to the hdfs directory:  /bdp-ingest/usr/data/elastic/company_names
+    a. Copy the files from learnBDP/docs/company_names.data.csv to the bdpParsers/docs directory
+
+    b. Upload the company_names.data.csv to the puppet master /tmp
+       1) Open a terminal
+          terminal> scp docs/company_names.data.csv   MY_UNIX_ACCOUNT@10.1.21.100:/tmp
+
+    c. Upload the company_names.data.csv from the puppet master to one of the data nodes
+       ssh to the puppet master
+       unix> go datanodes
+       unix> scp MY_UNIX_ACCOUNT@10.1.21.100:/tmp/company_names.data.csv /tmp
+       unix> chmod ugo+r /tmp/company_names.data.csv
+
+
+ 6. Copy the file from /tmp/company_names.data.csv to the HDFS directory:  /bdp-ingest/usr/data/elastic/company_names
+    ssh to the puppet master
+    unix> go datanodes
+    unix> sudo -s
+    unix> su - yarn        # become the yarn user as the yarn user can do anything with HDFS
+    unix> hadoop fs -mkdir /bdp-ingest/usr/data/elastic/company_names         # create the HDFS directory
+    unix> hadoop fs -chown -R bdpingest:hadoop  /bdp-ingest/usr/data/elastic/company_names   # Make sure the HDFS directory is owned by bdp-ingest
+
+    unix> hadoop fs -put /tmp/company_names.data.csv  /bdp-ingest/usr/data/elastic/company_names   # Write the file to this HDFS directory
+
+
+ 7. Verify that the data appears in the Kibana console
+    a. Grant yourself ElasticSearch admin
+       ssh to the puppet master
+       unix> sudo -s
+       unix> export USERNAME=MY_ACCOUNT
+       unix> citadel attribute:add -u $USERNAME -a ELASTICSEARCH:ADMIN
+
+    b. Run an ES query to verify the data (using the kibana console)
+       1) Open a browser
+       2) Connect to https://10.1.21.107/kibana-primary/app/kibana#/dev_tools/console
+         
+			POST company_names/_search
+
+
+	     -- You should see the ElasticSearch records
+
+
+
+   
+
+    b. Run an ES query from command line
+       ssh to the puppet master
+       unix> go elastic_workers_primary    # to ssh to one of the ES nodes
+       unix> sudo -s
+       unix> curl -k --cert /etc/pki/simp/x509/private/`hostname`.pem  -H 'Content-Type: application/json'  -XGET "https://`hostname`:9200/company_names/_search?pretty"
+
+           -- You should see the ElasticSearch records
+
