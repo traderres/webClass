@@ -1,0 +1,147 @@
+How to Add Static Content to a Spring Boot App
+----------------------------------------------
+Problem:  I want to add a url path /nccs-training/new-stuff that opens an index.html and directories of files and want to add it to this RDA
+
+
+
+Procedure
+---------
+ 1. Verify that your WebMvcConfig class knows to add the static directories to the Resource Handler
+
+    a. Verify this class exists:  WebMvcConfig
+
+    b. Verify it looks it has an override addResourceHandlers()
+
+            package com.lessons.config;
+
+            import org.springframework.context.annotation.Configuration;
+            import org.springframework.web.servlet.config.annotation.*;
+
+
+            @Configuration
+            public class WebMvcConfig extends WebMvcConfigurerAdapter {
+
+                /**
+                 * Added to allow spring boot to find html content in the static directory
+                 * @param registry is the ResourceHandlerRegistry object
+                 */
+                @Override
+                public void addResourceHandlers(ResourceHandlerRegistry registry) {
+                    registry.addResourceHandler("/static/**")
+                            .addResourceLocations("classpath:/static/");
+                }
+
+
+            }
+
+
+ 2. Create a new directory to hold your content in backend/src/main/resources/static
+    a. Create a directory to hold your static content:
+             backend/src/main/resources/static/new-stuff
+
+
+ 3. Copy your static content (including your index.html) to the new-stuff/ directory
+    -- So, you now have this directory structure
+             backend/src/main/resources/static/new-stuff/index.html
+             backend/src/main/resources/static/new-stuff/stuff.css             # Additional CSS or JS files
+             backend/src/main/resources/static/new-stuff/lib/whatever.js       # Additional directories containing flies
+
+
+ 4. Set the base href (in the provided index.html)
+    a. Edit backend/src/main/resources/static/new-stuff/index.html
+
+    b. Change the provided index.html by adding a <base href=" " tag
+
+        <head>
+            <!-- Add /nccs-training/new-stuff/ to all href paths (so that the css and js files will be loaded successfully) -->
+            <base href="/nccs-training/new-stuff/">
+        </head>
+
+
+ 5. Add a new REST endpoint to load the page (that has no security)
+    a. Edit HomeController.java
+
+    b. Add a public method
+
+        /**
+         * REST Endpoint to return static index.html page
+         * @return string that tells Spring-Boot to forward to a specific html file
+         */
+        @RequestMapping(value = {"/new-stuff"}, method = RequestMethod.GET)
+        public String showHomePageForNewStuff() {
+
+            // Forward the user to the index.html
+            return "forward:/static/new-stuff/index.html";
+        }
+
+
+ 6. Verify it works locally without security
+    a. Compile & Run the web app
+       unix> cd ~/intellijProjects/nccs-training
+       unix> mvn clean package
+
+    b. Run the web app locally
+       unix> java -jar ./backend/target/backend-1.0-SNAPSHOT-exec.jar
+
+    c. Connect to the web app static page by going to
+       http://localhost:8080/nccs-training/new-stuff
+
+
+ 7. Add Security
+    a. Grant the NCCS_GOV role for development
+       1) Edit MyAuthenticationManager.java
+
+       2) Edit the loadUserDetailsForDevelopment()
+
+             // Simulate Citadel by granting certain roles here
+             List<GrantedAuthority> citadelRolesGranted = new ArrayList<>();
+             citadelRolesGranted.add(new SimpleGrantedAuthority("ROLE_NCCS_GOV"));   // Make myself an admin in local dev mode
+
+
+
+    b. Add the security to the REST call
+       1) Edit HomeController.java
+
+       2) Edit the public method by adding this:
+
+            @PreAuthorize("hasAnyRole('NCCS_SUPERUSER','NCCS_GOV', 'NCCS_INDUSTRY', 'NCCS_GLOBAL_RO')")
+
+
+
+            So, the REST endpoint looks like this:
+
+             /**
+              * REST Endpoint to return static index.html page
+              * @return string that tells Spring-Boot to forward to a specific html file
+              */
+             @RequestMapping(value = {"/new-stuff"}, method = RequestMethod.GET)
+             @PreAuthorize("hasAnyRole('NCCS_SUPERUSER','NCCS_GOV', 'NCCS_INDUSTRY', 'NCCS_GLOBAL_RO')")
+             public String showHomePageForNewStuff() {
+
+                 // Forward the user to the index.html
+                 return "forward:/static/new-stuff/index.html";
+             }
+
+
+
+ 8. Verify it works with security running locally
+    a. Compile & Run the web app
+       unix> cd ~/intellijProjects/nccs-training
+       unix> mvn clean package
+
+    b. Run the web app locally
+       unix> java -jar ./backend/target/backend-1.0-SNAPSHOT-exec.jar
+
+    c. Connect to the web app static page by going to
+       http://localhost:8080/nccs-training/new-stuff
+
+
+
+ 9. Verify it works with security on the BDP
+    a. Compile the RDA
+       unix> mvn clean package -PbuildRda
+
+    b. Deploy the RDA
+
+    c. Verify it works on a BDP cluster
+
