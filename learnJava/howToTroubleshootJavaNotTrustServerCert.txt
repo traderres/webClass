@@ -1,0 +1,148 @@
+How to Toubleshoot a Java program that is having problems talking to a site using SSL
+-------------------------------------------------------------------------------------
+
+
+Problem 1:   How can I verify that the server certificates are really valid?
+Solution 1:  Use the www.ssllabs.com to verify it
+-------------------------------------------------------------------------------------------------------------------------------------------
+ 1. Go to https://www.ssllabs.com/ssltest/index.html
+ 2. Enter the hostname:   tesseract-test.cloud.dcsa.mil
+    Press Submit
+ 3. It will tell you if the certificates are good
+
+
+
+
+Problem 2:   The heartbeat program cannot reach tesseract-test.cloud.dcsa.mil:  unable to find valid certification path to requested target
+Solution 2:  Adjust the cacerts so it trusts the cert
+-------------------------------------------------------------------------------------------------------------------------------------------
+The server cert on tesseract-test.cloud.dcsa.mil is not trusted completely
+Caused by: sun.security.validator.ValidatorException: PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+
+To fix this:
+ 1. Ssh to the gitlab server
+
+
+ 2. Get the tesseract-test server certificate
+    unix> sudo -s
+    unix> openssl s_client -connect tesseract-test.cloud.dcsa.mil:443
+
+
+ 3. Copy and save the lines between
+        -----BEGIN CERTIFICATE----- and
+        -----END CERTIFICATE-----
+    into a new file called tesseract-test.cer
+
+
+    So, the file should look something like this:
+
+    -----BEGIN CERTIFICATE-----
+    UzEYMBYGA1UEChMPVS5TLiBHb3Zlcm5tZW50MQwwCgYDVQQLEwNEb0QxDDAKBgNV
+    BAsTA1BLSTEVMBMGA1UEAxMMRE9EIFNXIENBLTYwMB4XDTIxMTEyOTEzMjkwNFoX
+    DTIyMTIzMTEzMjkwNFoweTELMAkGA1UEBhMCVVMxGDAWBgNVBAoTD1UuUy4gR292
+    ZXJubWVudDEMMAoGA1UECxMDRG9EMQwwCgYDVQQLEwNQS0kxDDAKBgNVBAsTA0RP
+    RDEmMCQGA1UEAxMddGVzc2VyYWN0LXRlc3QuY2xvdWQuZGNzYS5taWwwggEiMA0G
+    CSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCozqDWEwwzYGZ42S5XpW/L4dWmUPBH
+    qOFdzvdOmdea6Ue94Lc5b2L3+rxGKyoIA29PIKfcz6IjcWC9ztNan1nS0nD4Mlm6
+    3J3wHoGJFV803P7dBwN8eF/QtwMRFosb1Ba2aY/xQhqtdeUd4++A5dueycpHTGt9
+    WxJgkeu+O1+xFjzTAZMZ996qm/ep3ddHyC9DQ2l0qTLXjlA+ik4W73naI5fdFCfq
+    wQAUJzBKe5FOeHf0iP7ZbJOerb329SHwGntY6lE6OUWRX+WdntRPfUgwy8OYXjSm
+    YS5taWwvY3JsL0RPRFNXQ0FfNjBfU1NMLmNybDAoBgNVHREEITAfgh10ZXNzZXJh
+    Y3QtdGVzdC5jbG91ZC5kY3NhLm1pbDAWBgNVHSAEDzANMAsGCWCGSAFlAgELJDAd
+    BgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwHQYDVR0OBBYEFDOJk590j1uS
+    lpwyT5PhN0k+t+hRMA0GCSqGSIb3DQEBCwUAA4IBAQBqKGHMo23gYjyuH4cUiu/9
+    xyFeoZR7GoR+C6fl95XzJ85BUrSfW4T7v/NscuE0qS2V1wGV6bweRfiwfwnjMyip
+    oP2z+jhbdx5bdB+xr5ishVKTJocH9ceI+t46Fdwp2E5+FKv7znek97rrtZHzB9l6
+    6Vqm/eGxvqhaKB16IPcs3oYYfLNHk9Oogiy5muI/KuQN8ZOWZ+AuxozR1XLDgoRd
+    ASDQCV+dkNRrRA2yYQw2d91cwL+5h9T+x/wLCIbj9vZMTaZcR1KFqFbuuVQftGLz
+    -----END CERTIFICATE-----
+
+ 4. Get the real path of where java is running from
+    unix> readlink -f `which java`
+    /usr/lib/jvm/java-1.8.0-openjdk-1.8.0.352.b08-2.el7_9.x86_64/jre/bin/java
+
+    Set JAVA_HOME should be the directory that holds the jre directory
+    unix> export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.352.b08-2.el7_9.x86_64
+
+
+ 5. Verify that you have the path of the cacerts file
+    unix> ls $JAVA_HOME/jre/lib/security/cacerts
+
+    You should see this:
+       /usr/lib/jvm/java-1.8.0-openjdk-1.8.0.352.b08-2.el7_9.x86_64/jre/lib/security/cacerts
+
+
+ 6. Update the cacerts file so it will trust the server cert
+    unix> keytool -import -alias "tesseract-test" -keystore "$JAVA_HOME/jre/lib/security/cacerts" -file ./tesseract-test.cer
+    password> changeit
+    Trust this certificate: yes
+
+    You should see this message:
+       Certificate was added to keystore
+
+
+
+
+
+
+
+Problem 3:   The heartbeat program cannot reach tesseract.cloud.dcsa.mil:  unable to find valid certification path to requested target
+Solution 3:  Adjust the cacerts so it trusts the cert
+-------------------------------------------------------------------------------------------------------------------------------------------
+The server cert on tesseract.cloud.dcsa.mil is not trusted completely
+Caused by: sun.security.validator.ValidatorException: PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+
+To fix this:
+ 1. Ssh to the gitlab server
+
+
+ 2. Get the tesseract server certificate
+    unix> sudo -s
+    unix> openssl s_client -connect tesseract.cloud.dcsa.mil:443
+
+
+ 3. Copy and save the lines between
+        -----BEGIN CERTIFICATE----- and
+        -----END CERTIFICATE-----
+    into a new file called tesseract-prod.cer
+
+
+    So, the file should look something like this:
+
+     -----BEGIN CERTIFICATE-----
+     UzEYMBYGA1UEChMPVS5TLiBHb3Zlcm5tZW50MQwwCgYDVQQLEwNEb0QxDDAKBgNV
+     BAsTA1BLSTEVMBMGA1UEAxMMRE9EIFNXIENBLTYwMB4XDTIxMTEyOTEzMzAzMloX
+     DTIyMTIzMTEzMzAzMlowdDELMAkGA1UEBhMCVVMxGDAWBgNVBAoMD1UuUy4gR292
+     ZXJubWVudDEMMAoGA1UECwwDRG9EMQwwCgYDVQQLDANQS0kxDDAKBgNVBAsMA0RP
+     RDEhMB8GA1UEAwwYdGVzc2VyYWN0LmNsb3VkLmRjc2EubWlsMIIBIjANBgkqhkiG
+     CCsGAQUFBwMCBggrBgEFBQcDATAdBgNVHQ4EFgQU3xNG6TBygtVa64LsVNqsqq2U
+     934wDQYJKoZIhvcNAQELBQADggEBABO0tbGbPUZ/FAV/RuC2aZqtfksWKGfYQHwp
+     THZZN4l+p8XW58iH2BRDH9P+MY3QdLefNGVrrs5kH8O/mMv8eiI8ZRvAfCoao1I8
+     w+LlazyzA6hJq6PYjIJQLd8AJhCYgQZTJQmRt+FMQFouJ3wNQxvKAKl9hD9BAzKl
+     uN0ZZy1iB/HUnB6FSFSB2r4kZPck0pG7pNAes+63pROyMQh5ilVyUG8zAgsUZm98
+     KDA2IwwdSt+n+1nuAY/wLBS5mZ0Fcr6RwED3ZW7e8pZMYUMO1lE=
+     -----END CERTIFICATE-----
+
+
+ 4. Get the real path of where java is running from
+    unix> readlink -f `which java`
+    /usr/lib/jvm/java-1.8.0-openjdk-1.8.0.352.b08-2.el7_9.x86_64/jre/bin/java
+
+    Set JAVA_HOME should be the directory that holds the jre directory
+    unix> export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.352.b08-2.el7_9.x86_64
+
+
+ 5. Verify that you have the path of the cacerts file
+    unix> ls $JAVA_HOME/jre/lib/security/cacerts
+
+    You should see this:
+       /usr/lib/jvm/java-1.8.0-openjdk-1.8.0.352.b08-2.el7_9.x86_64/jre/lib/security/cacerts
+
+
+ 6. Update the cacerts file so it will trust the server cert
+    unix> keytool -import -alias "tesseract-prod" -keystore "$JAVA_HOME/jre/lib/security/cacerts" -file ./tesseract-prod.cer
+    password> changeit
+    Trust this certificate: yes
+
+    You should see this message:
+       Certificate was added to keystore
