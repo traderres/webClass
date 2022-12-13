@@ -1,0 +1,54 @@
+How to Debug Sync Service by Connecting to Postgres on AWS Cluster
+------------------------------------------------------------------
+Problem:  I want to connect to the AWS Cluster's postgres database to verify a bug in the sync service
+Solution: Setup a tunnel 
+
+
+Procedure
+---------
+ 1. Create a postgres database user called ctp_user with password secret (on the AWS cluster)
+    ssh to the aws cluster
+    unix> go postgres_server
+    sudo -s
+    psql -U postgres -h localhost -d nccs_analytics_db
+
+
+	drop user nccs_analytics_user;
+	create user nccs_analytics_user with password 'secret';
+	grant all privileges on database nccs_analytics_db to nccs_analytics_user;
+	GRANT SELECT ON ALL TABLES IN SCHEMA public TO nccs_analytics_user;
+	\q
+
+
+ 2. Stop your local postgres database
+
+ 3. Create a tunnel that connects to the AWS cluster that forwards localhost:5432 --> 10.0.0.93:5432
+    NOTE:  The ip address of the tunnel is the puppet IP:  54.196.246.107
+    
+ 4. Activate the tunnel
+
+
+ 5. Verify that your intellij database console can query against the AWS database
+    a. Startup up Intellij for NCCS
+    b. Refresh your database console
+    c. Verify that you see the tables
+       – Run a sql query like:  select * from users;
+
+ 6. Configure your FRMS sync-service debug configuration with these settings (so it will not destroy the AWS database)
+     -Dapp.datasource.schema=public   
+
+   DO NOT INCLUDE THIS LINE:   -Dapp.datasource.flyway-clean-on-startup=TRUE
+
+
+ 7. Set a breakpoint in your RefreshService
+
+ 8. Run the "SyncApplication" debugger   
+  
+    !!!WARNING!!!  Make sure you have  -Dapp.datasource.flyway-clean-on-startup=FALSE or it is not listed!!!
+
+    -- It should READ from the aws postgres server
+    -- It should WRITe to your local ElasticSearch
+
+
+
+
