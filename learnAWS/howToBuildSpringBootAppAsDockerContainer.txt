@@ -1,0 +1,104 @@
+How to Build Spring Boot Image as a Docker Container
+----------------------------------------------------
+
+Assumptions:
+ A) You have Docker installed  (needed to run Kubernetes and to run the maven module)
+ B) You have Java JDK and Maven installed
+ C) You can build the web app
+ D) You want mvn clean package -PbuildImage    (to build your image file)
+
+
+References
+----------
+https://spring.io/guides/gs/spring-boot-kubernetes/
+
+
+Procedure
+---------
+ 1. Edit the webapp/backend/pom.xml
+    a. Edit backend/pom.xml
+
+    b. Add this maven profile to the end of the backend/pom.xml
+
+
+		<profiles>
+			...
+
+
+				<profile>
+				  <id>buildImage</id>
+				  <build>
+					<plugins>
+					  <plugin>
+						<groupId>org.springframework.boot</groupId>
+						<artifactId>spring-boot-maven-plugin</artifactId>
+						<version>2.7.1</version>
+						<configuration>
+						  <addResources>true</addResources>
+						</configuration>
+
+						<executions>
+						  <execution>
+							<id>build-image</id>
+							<goals>
+							  <goal>build-image</goal>
+							</goals>
+							<phase>package</phase>
+							<configuration>
+							  <imageName>my-spring-boot-image-on-install</imageName>
+							</configuration>
+						  </execution>
+					  </executions>
+					  </plugin>
+
+					</plugins>
+				  </build>
+
+				</profile>
+
+			...
+
+		</profiles>
+
+
+
+ 2. Build the webapp JAR
+    unix> cd ~/intellijProject/angularApp1
+    unix> mvn clean package -Pprod
+
+ 3. Run the regular JAR
+    unix> java jar ./backend/target/backend-exec.jar
+
+ 4. Verify you can connect to it:
+    a. Start up a browser
+    b. Connect to http://localhost:8080/app1
+    c. Press Control-C to stop your java JAR
+
+
+ 5. Build the docker image
+    unix> mvn clean package -PbuildImage
+
+    [INFO]  Successfully built image 'docker.io/library/my-spring-boot-image-on-install:latest'
+
+
+ 6. Run the docker image
+    NOTE:  The --network=host options tells the docker image that localhost is the localhost of the host
+           So, your docker image can connect to the local databaes and local ElasticSearch
+    unix> docker run --network=host -p 8080:8080  docker.io/library/my-spring-boot-image-on-install:latest
+
+
+ 7. Connect to the webapp
+    a. Open a browser
+    b. Connect to http://localhost:8080/app1
+    c. Press Control-C to stop the docker run
+
+
+
+Optional
+--------
+ 8. Save the image to a file
+    unix> docker save  docker.io/library/my-spring-boot-image-on-install:latest > /tmp/image2
+
+ 9. Load the image somewhere else
+    unix> docker load -i /tmp/image2
+
