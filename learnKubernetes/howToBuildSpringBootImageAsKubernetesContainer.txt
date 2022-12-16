@@ -5,7 +5,7 @@ Assumptions:
  A) You have Docker installed  (needed to run Kubernetes)
  B) You have Kubernetes installed
  C) You can build the web app
-
+ D) You want mvn clean package -PbuildImage    (to build your image file)
 References
 ----------
 https://spring.io/guides/gs/spring-boot-kubernetes/
@@ -13,26 +13,87 @@ https://spring.io/guides/gs/spring-boot-kubernetes/
 
 Procedure
 ---------
- 1. Build the angular app1
-    unix> cd ~/intellijProjects/angularApp1
+ 1. Edit the webapp/backend/pom.xml
+    a. Edit backend/pom.xml
 
- 2. Build the docker image  **MANUALLY**
-    unix> cd backend
-    unix> mvn spring-boot:build-image
-
-    [INFO] Successfully built image 'docker.io/library/backend:1.0-SNAPSHOT'
+    b. Add this maven profile to the end of the backend/pom.xml
 
 
- 3. Run the image **MANUALLY*
+		<profiles>
+			...
+
+
+				<profile>
+				  <id>buildImage</id>
+				  <build>
+					<plugins>
+					  <plugin>
+						<groupId>org.springframework.boot</groupId>
+						<artifactId>spring-boot-maven-plugin</artifactId>
+						<version>2.7.1</version>
+						<configuration>
+						  <addResources>true</addResources>
+						</configuration>
+
+						<executions>
+						  <execution>
+							<id>build-image</id>
+							<goals>
+							  <goal>build-image</goal>
+							</goals>
+							<phase>package</phase>
+							<configuration>
+							  <imageName>my-spring-boot-image-on-install</imageName>
+							</configuration>
+						  </execution>
+					  </executions>
+					  </plugin>
+
+					</plugins>
+				  </build>
+
+				</profile>
+
+			...
+
+		</profiles>
+
+
+
+ 2. Build the webapp JAR
+    unix> cd ~/intellijProject/angularApp1
+    unix> mvn clean package -Pprod
+
+ 3. Run the regular JAR
+    unix> java jar ./backend/target/backend-exec.jar
+
+ 4. Verify you can connect to it:
+    a. Start up a browser
+    b. Connect to http://localhost:8080/app1
+
+ 5. Press Control-C to stop your java JAR
+
+
+
+ 6. Build the docker image  **MANUALLY**
+    unix> mvn clean package -PbuildImage
+
+    [INFO]  Successfully built image 'docker.io/library/my-spring-boot-image-on-install:latest'
+
+
+ 7. Run the image **MANUALLY**
     NOTE:  Use the --network=host so that the docker image can connect to your local database and local ES
-    unix> docker run --network=host -p 8080:8080   docker.io/library/backend:1.0-SNAPSHOT
+    unix> docker run --network=host -p 8080:8080  docker.io/library/my-spring-boot-image-on-install:latest
 
- 4. Connect to the webapp
+
+ 8. Connect to the webapp
     a. Open a browser
     b. Connect to http://localhost:8080/app1
 
+ 9. Press Control-C to stop the docker run
 
- 5. Deploy the application to Kubernetes
+
+10. Deploy the application to Kubernetes
     a. Have kubernetes create the deployment.yaml file
        unix> kubectl create deployment demo --image=docker.io/library/backend:1.0-SNAPSHOT --dry-run -o=yaml > /tmp/deployment.yaml
        unix> echo --- >> /tmp/deployment.yaml
@@ -173,3 +234,28 @@ Procedure
 
  6. Connect to the application in kubernetes
     unix> kubectl port-forward svc/demo 8080:8080
+
+
+
+
+How to List Docker Images
+-------------------------
+    unix> docker images -a
+
+    You should see the following:
+		REPOSITORY                         TAG                     IMAGE ID       CREATED         SIZE
+		paketobuildpacks/run               base-cnb                e06d1d37657c   45 hours ago    87MB
+		gcr.io/k8s-minikube/kicbase        v0.0.36                 866c1fe4e3f2   7 weeks ago     1.11GB
+		paketobuildpacks/run               <none>                  43a6ea5d061e   23 months ago   107MB
+		alpine                             latest                  d6e46aa2470d   2 years ago     5.57MB
+		backend                            1.0-SNAPSHOT            d709a585c01d   42 years ago    269MB       <-- Old image
+		paketobuildpacks/builder           base                    ab7352030ed4   42 years ago    1.32GB
+		<none>                             <none>                  fb44c8e578d0   42 years ago    317MB
+		<none>                             <none>                  0b9a62f87d5d   42 years ago    269MB
+		gcr.io/paketo-buildpacks/builder   base-platform-api-0.3   d86b37118457   42 years ago    669MB
+
+
+
+How to Remove Docker Image
+--------------------------
+    unix> docker rmi d709a585c01d -f
