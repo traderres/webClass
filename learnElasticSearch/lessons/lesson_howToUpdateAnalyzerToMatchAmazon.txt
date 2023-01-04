@@ -1,0 +1,658 @@
+Lesson:  How to Create a Custom Analyzer that will search around dots
+---------------------------------------------------------------------
+Problem:  With the standard text analyzer, searching for amazon does *NOT* match amazon.com
+Solution: Adjust the text analyzer so that searching for amazon does       match amazon.com
+
+
+Procedure
+---------
+ 1. Verify that the standard text analyzer does not let me search for amazon in amazon.com
+    a. Connect to your local kibana by going to http://localhost:5601/app/kibana#/dev_tools/console
+
+    b. Use the standard text analyzer to analyze "searching amazon.com"
+
+			GET my-index/_analyze
+			{
+			  "analyzer" : "standard",
+			  "text" : "searching amazon.com"
+			}
+
+
+	 	You will get this result
+	 	  {
+            "tokens" : [
+              {
+                "token" : "searching",				  <-- You can search the word "searching"
+                "start_offset" : 0,
+                "end_offset" : 9,
+                "type" : "<ALPHANUM>",
+                "position" : 0
+              },
+              {
+                "token" : "amazon.com",                <-- You can search the word 'amazon.com"
+                "start_offset" : 10,
+                "end_offset" : 20,
+                "type" : "<ALPHANUM>",
+                "position" : 1
+              }
+            ]
+          }
+
+
+ 2. Verify that we can reproduce the problem of searching for "amazon" does not match "amazon.com"
+	a. Delete the index (if it already exists)
+
+		DELETE basic-index
+
+
+	b. Create an index
+
+		PUT basic-index
+		{
+		  "settings": {   },
+		  "mappings": {
+			"dynamic": "strict",
+			"properties": {
+			  "name": {
+				"type": "text"
+			  }
+		  }
+		 }
+		}
+
+
+
+    c. Add 2 records to the index
+
+		POST _bulk
+		{ "index": { "_index": "basic-index", "_id": 1 }}
+		{ "name": "searching for amazon.com."}
+		{ "index": { "_index": "basic-index", "_id": 2 }}
+		{ "name": "searching for rbr-technologies.com."}
+
+
+
+   d. Case 1:  Try searching for amazon     (FAILS:  you will NOT get any matches / this is the PROBLEM we're trying to fix)
+		POST basic-index/_search
+		{
+		  "query": {
+			"simple_query_string": {
+			  "fields": ["name"],
+			  "query": "amazon"
+			}
+		  }
+		}
+
+
+
+   e. Case 2:  Try searching for amazon.com  (WORKS:  you will get a single match because amazon.com is a searchable term)
+
+		POST basic-index/_search
+		{
+		  "query": {
+			"simple_query_string": {
+			  "fields": ["name"],
+			  "query": "amazon.com"
+			}
+		  }
+		}
+
+
+
+   f. Case 3:  Try searching for "amazon.com"  (WORKS:  you will get a single match because amazon.com is a searchable term)
+
+		POST basic-index/_search
+		{
+		  "query": {
+			"simple_query_string": {
+			  "fields": ["name"],
+			  "query": "\"amazon.com\""
+			}
+		  }
+		}
+
+
+
+   g. Case 4:  Try searching for rbr  (you will get a single match because rbr-technologies is broken-up into "rbr" and "technologies.com")
+
+		POST basic-index/_search
+		{
+		  "query": {
+			"simple_query_string": {
+			  "fields": ["name"],
+			  "query": "rbr"
+			}
+		  }
+		}
+
+
+
+   h. Case 5:  Look at the searchable words in the string "searching for amazon.com."
+
+		POST basic-index/_analyze
+		{
+		  "analyzer" : "standard",
+		  "text" : "searching for amazon.com."
+		}
+
+		You will see that there are 3 words:  "searching", "for", and "amazon.com"
+
+
+
+   i. Case 6:  Look at the searchable words in the string "searching for rbr-technologies.com."
+
+		 POST basic-index/_analyze
+		 {
+		   "analyzer" : "standard",
+		   "text" : "searching for rbr-technologies.com."
+		 }
+
+		You will see that there are 4 words:  "searching", "for", "rbr", and "technologies.com"
+
+
+
+ 3. Create a new index that lets you search for "amazon" or "amazon.com"
+    a. Delete the index (if it already exists)
+       DELETE improved-index
+
+
+    b. Create an index called "improved-index"
+
+		PUT improved-index
+		{
+		  "settings": {
+			"analysis": {
+			  "analyzer": {
+				"my_text_analyzer": {
+				  "tokenizer": "standard",
+				  "char_filter": [
+					"replace_dot"
+				  ]
+				}
+			  },
+			  "char_filter": {
+				"replace_dot": {
+				  "type": "pattern_replace",
+				  "pattern": "\\.",
+				  "replacement": " "
+				}
+			  }
+			}
+		  },
+
+		 "mappings": {
+			"dynamic": "strict",
+			"properties": {
+			  "name": {
+				"type": "text",
+				"analyzer": "my_text_analyzer"
+			  }
+		  }
+		 }
+		}
+
+
+
+    c. Add 2 records to the better-index
+
+ 		POST _bulk
+ 		{ "index": { "_index": "improved-index", "_id": 1 }}
+ 		{ "name": "searching for amazon.com."}
+ 		{ "index": { "_index": "improved-index", "_id": 2 }}
+ 		{ "name": "searching for rbr-technologies.com."}
+
+
+
+	d. Case 1:  Try searching for amazon     (NOW WORKS:  it matches a record because "amazon" is a searchable word)
+		POST improved-index/_search
+			{
+			  "query": {
+				"simple_query_string": {
+				  "fields": ["name"],
+				  "query": "amazon"
+				}
+			  }
+			}
+
+
+
+	e. Case 2:  Try searching for amazon.com  (PROBLEM:  This now matches 2 records:  amazon.com and rbr-technologies.com)
+		POST improved-index/_search
+			{
+			  "query": {
+				"simple_query_string": {
+				  "fields": ["name"],
+				  "query": "amazon.com"
+				}
+			  }
+			}
+
+
+
+	f. Case 3:  Try searching for "amazon.com"  (WORKS:  This matches 1 record:  amazon.com)
+
+		POST improved-index/_search
+			{
+			  "query": {
+				"simple_query_string": {
+				  "fields": ["name"],
+				  "query": "\"amazon.com\""
+				}
+			  }
+			}
+
+
+
+	g. Case 4:  Try searching for rbr  (you will get a single match because rbr-technologies is broken-up into "rbr" and "technologies.com")
+
+	 	POST improved-index/_search
+			{
+			  "query": {
+				"simple_query_string": {
+				  "fields": ["name"],
+				  "query": "rbr"
+				}
+			  }
+			}
+
+
+
+	h. Case 5:  Look at the searchable words in the string "searching for amazon.com."    (WORKS -- but now users can also search for "com")
+
+		POST improved-index/_analyze
+		{
+		  "analyzer" : "my_text_analyzer",
+		  "text" : "searching for amazon.com."
+		}
+
+		You will see that there are 4 words:  "searching", "for", "amazon", "com", "amazon.com"
+
+
+
+	i. Case 6:  Look at the searchable words in the string "searching for rbr-technologies.com."   (WORKS -- but users can also search for "com"
+
+		 POST improved-index/_analyze
+		 {
+		   "analyzer" : "my_text_analyzer",
+		   "text" : "searching for rbr-technologies.com."
+		 }
+
+		You will see that there are 4 words:  "searching", "for", "rbr", "technologies", and "com"
+
+
+
+
+ 4. Take an existing index and add the "my_text_analyzer" to it
+    a. Delete the index (if it already exists)
+       DELETE final-index
+
+
+    b. Create an index that has an ngram analyzer
+
+   		PUT final-index
+       	{
+                 "settings": {
+                   "analysis": {
+                     "analyzer": {
+                       "my_ngram_analyzer": {
+                         "tokenizer": "my_ngram_tokenizer",
+                         "filter": [
+                           "lowercase"
+                         ]
+                       }
+                     },
+                     "tokenizer": {
+                       "my_ngram_tokenizer": {
+                         "type": "ngram",
+                         "min_gram": "1",
+                         "max_gram": "25",
+                         "token_chars": []
+                       }
+                     },
+                     "normalizer": {
+                       "case_insensitive_normalizer": {
+                         "type": "custom",
+                         "char_filter": [],
+                         "filter": [
+                           "lowercase",
+                           "asciifolding"
+                         ]
+                       }
+                     }
+                   },
+                   "max_result_window": 500000,
+                   "refresh_interval": "1s",
+                   "max_ngram_diff": "25"
+                 },
+                 "mappings": {
+                   "dynamic": "strict",
+                   "properties": {
+
+                     "id": {
+                       "type": "integer",
+                       "ignore_malformed": false
+                     },
+
+
+                     "created_full_name": {
+                       "type": "text",
+                       "fields": {
+                         "raw": {
+                           "type": "keyword"
+                         },
+                         "sort": {
+                           "type": "keyword",
+                           "normalizer": "case_insensitive_normalizer"
+                         },
+                         "filtered": {
+                           "type": "text",
+                           "analyzer": "my_ngram_analyzer"
+                         }
+                       }
+                     },
+
+                     "created_date": {
+                       "type": "date",
+                       "format": "MM/dd/yyyy HH:mm:ss||MM/dd/yy||MM/dd/yyyy||yyyy-MM-dd||epoch_millis||epoch_second||yyyy/MM/dd HH:mm:ss.SSS||yyyy-MM-dd HH:mm:ss.SSS||yyyy/MM/dd HH:mm:ss||yyyy-MM-dd HH:mm:ss.SSSZ||yyyy-MM-dd'T'HH:mm:ss||yyyy-MM-dd'T'HH:mm:ssZ||yyyy-MM-dd HH:mm:ss||yyyy-MM-dd HH:mm:ssZ||yyyy/MM/dd||S",
+                       "ignore_malformed": false,
+                       "fields": {
+                         "raw": {
+                           "type": "keyword"
+                         },
+                         "sort": {
+                           "type": "date",
+                           "format": "epoch_millis||MM/dd/yyyy HH:mm:ss||MM/dd/yyyy",
+                           "ignore_malformed": false
+                         },
+                         "filtered": {
+                           "type": "text",
+                           "analyzer": "my_ngram_analyzer"
+                         }
+                       }
+                     }
+
+                 }
+               }
+       		}
+
+
+
+    c. Add some data to the index
+
+ 		POST _bulk
+ 		{ "index": { "_index": "final-index", "_id": 1 }}
+ 		{ "created_full_name": "amazon.com"}
+ 		{ "index": { "_index": "final-index", "_id": 2 }}
+ 		{ "created_full_name": "rbr-technologies.com"}
+
+
+
+    d. Case 5:  Look at the searchable words in the string "searching for amazon.com."
+
+		POST final-index/_analyze
+		{
+		  "analyzer" : "standard",
+		  "text" : "searching for amazon.com."
+		}
+
+		You will see that there are 3 words:  "searching", "for",  and "amazon.com"
+
+
+
+    e. Case 6:  Look at the searchable words in the string "searching for rbr-technologies.com."
+		 POST final-index/_analyze
+		 {
+		   "analyzer" : "standard",
+		   "text" : "searching for rbr-technologies.com."
+		 }
+
+       	You will see that there are 4 words:  "searching", "for", "rbr", and "technologies.com"
+
+
+
+ 5. Update the final-index so that it searches for "amazon" matches "amazon.com"
+    a. Destroy the existing index
+ 		DELETE final-index
+
+
+    b. Create a new final-index
+       NOTE:  We add the "my_text_analyzer" to to the "analyzer" section and added the replace_dot filter
+
+   		PUT final-index
+       	{
+                 "settings": {
+                   "analysis": {
+                     "analyzer": {
+                       "my_ngram_analyzer": {
+                         "tokenizer": "my_ngram_tokenizer",
+                         "filter": [
+                           "lowercase"
+                         ]
+                       },
+
+                       "my_text_analyzer": {
+						 "tokenizer": "standard",
+						 "char_filter": [
+						   "replace_dot"
+						 ]
+					   }
+                     },
+
+                     "char_filter": {
+						"replace_dot": {
+							"type": "pattern_replace",
+							"pattern": "\\.",
+							"replacement": " "
+						}
+                     },
+                     "tokenizer": {
+                       "my_ngram_tokenizer": {
+                         "type": "ngram",
+                         "min_gram": "1",
+                         "max_gram": "25",
+                         "token_chars": []
+                       }
+                     },
+                     "normalizer": {
+                       "case_insensitive_normalizer": {
+                         "type": "custom",
+                         "char_filter": [],
+                         "filter": [
+                           "lowercase",
+                           "asciifolding"
+                         ]
+                       }
+                     }
+
+                   },
+                   "max_result_window": 500000,
+                   "refresh_interval": "1s",
+                   "max_ngram_diff": "25"
+                 },
+                 "mappings": {
+                   "dynamic": "strict",
+                   "properties": {
+
+                     "id": {
+                       "type": "integer",
+                       "ignore_malformed": false
+                     },
+
+
+                     "created_full_name": {
+                       "type": "text",
+                       "analyzer": "my_text_analyzer",
+
+                       "fields": {
+                         "raw": {
+                           "type": "keyword"
+                         },
+                         "sort": {
+                           "type": "keyword",
+                           "normalizer": "case_insensitive_normalizer"
+                         },
+                         "filtered": {
+                           "type": "text",
+                           "analyzer": "my_ngram_analyzer"
+                         }
+                       }
+                     },
+
+                     "created_date": {
+                       "type": "date",
+                       "format": "MM/dd/yyyy HH:mm:ss||MM/dd/yy||MM/dd/yyyy||yyyy-MM-dd||epoch_millis||epoch_second||yyyy/MM/dd HH:mm:ss.SSS||yyyy-MM-dd HH:mm:ss.SSS||yyyy/MM/dd HH:mm:ss||yyyy-MM-dd HH:mm:ss.SSSZ||yyyy-MM-dd'T'HH:mm:ss||yyyy-MM-dd'T'HH:mm:ssZ||yyyy-MM-dd HH:mm:ss||yyyy-MM-dd HH:mm:ssZ||yyyy/MM/dd||S",
+                       "ignore_malformed": false,
+                       "fields": {
+                         "raw": {
+                           "type": "keyword"
+                         },
+                         "sort": {
+                           "type": "date",
+                           "format": "epoch_millis||MM/dd/yyyy HH:mm:ss||MM/dd/yyyy",
+                           "ignore_malformed": false
+                         },
+                         "filtered": {
+                           "type": "text",
+                           "analyzer": "my_ngram_analyzer"
+                         }
+                       }
+                     }
+
+                 }
+               }
+       		}
+
+
+
+   c. Add some data to the index
+
+ 		POST _bulk
+ 		{ "index": { "_index": "final-index", "_id": 1 }}
+ 		{ "created_full_name": "amazon.com"}
+ 		{ "index": { "_index": "final-index", "_id": 2 }}
+ 		{ "created_full_name": "rbr-technologies.com"}
+
+
+
+
+
+
+   d. Case 1:  Try searching for amazon     (WORKS / it matches amazon.com)
+		POST final-index/_search
+		{
+		  "query": {
+			"simple_query_string": {
+			  "fields": ["created_full_name"],
+			  "query": "amazon"
+			}
+		  }
+		}
+
+
+
+   e. Case 2:  Try searching for amazon.com  (PROBLEM:  Matches amazon.com and rbr-technologies.com because both contain com)
+
+		POST final-index/_search
+		{
+		  "query": {
+			"simple_query_string": {
+			  "fields": ["created_full_name"],
+			  "query": "amazon.com"
+			}
+		  }
+		}
+
+
+
+   f. Case 3:  Try searching for "amazon.com"  (WORKS:  you will get a single match because amazon.com is a searchable term)
+
+		POST final-index/_search
+		{
+		  "query": {
+			"simple_query_string": {
+			  "fields": ["created_full_name"],
+			  "query": "\"amazon.com\""
+			}
+		  }
+		}
+
+
+
+   g. Case 4:  Try searching for rbr  (you will get a single match because rbr-technologies is broken-up into "rbr" and "technologies.com")
+
+		POST final-index/_search
+		{
+		  "query": {
+			"simple_query_string": {
+			  "fields": ["created_full_name"],
+			  "query": "rbr"
+			}
+		  }
+		}
+
+
+
+   h. Case 5:  Look at the searchable words in the string "searching for amazon.com."
+
+		POST final-index/_analyze
+		{
+		  "analyzer" : "my_text_analyzer",
+		  "text" : "searching for amazon.com."
+		}
+
+		You will see that there are 3 words:  "searching", "for", "amazon", and "com"
+
+
+
+   i. Case 6:  Look at the searchable words in the string "searching for rbr-technologies.com."
+
+		 POST final-index/_analyze
+		 {
+		   "analyzer" : "my_text_analyzer",
+		   "text" : "searching for rbr-technologies.com."
+		 }
+
+		You will see that there are 4 words:  "searching", "for", "rbr", "technologies", and "com"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 	d. Case 5:  Look at the searchable words in the string "searching for amazon.com."
+
+		POST final-index/_analyze
+		{
+		  "analyzer" : "my_text_analyzer",
+		  "text" : "searching for amazon.com."
+		}
+
+		You will see that there are 4 words:  "searching", "for", "amazon", and "com"
+
+
+
+     d. Case 6:  Look at the searchable words in the string "searching for rbr-technologies.com."
+		 POST final-index/_analyze
+		 {
+		   "analyzer" : "my_text_analyzer",
+		   "text" : "searching for rbr-technologies.com."
+		 }
+
+       	You will see that there are 5 words:  "searching", "for", "rbr", "technologies" and "com"
+
+	e.
