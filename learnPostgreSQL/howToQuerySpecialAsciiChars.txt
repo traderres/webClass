@@ -1,0 +1,72 @@
+How to Query Postgres for Special ASCII Chars
+---------------------------------------------
+Problem:  I have non-printable ASCII characters in a table and need to identify them
+
+
+
+
+Procedure
+---------
+ 1. Create a table with some records that have escaped ASCII chars in them
+
+		create table junk
+		(
+			id int,
+			value varchar
+		);
+
+		truncate table junk;
+		insert into junk(id, value) values(1, 'no special ascii');
+		insert into junk(id, value) values(2, 'Ascii char  1 is here -->' || chr(1) || '<--');
+		insert into junk(id, value) values(3, 'Ascii char  5 is here -->' || chr(5) || '<--');
+		insert into junk(id, value) values(4, 'Ascii char  9 (tab) is here -->' || chr(9) || '<--');
+		insert into junk(id, value) values(5, 'Ascii char 10 is here -->' || chr(10) || '<--');
+		insert into junk(id, value) values(6, 'Ascii char 13 is here -->' || chr(13) || '<--');
+		insert into junk(id, value) values(7, 'Ascii char 31 is here -->' || chr(31) || '<--');
+		insert into junk(id, value) values(8, 'Ascii char 32 is here -->' || chr(32) || '<--');
+		insert into junk(id, value) values(9, 'Ascii char 39 (apostrophe) is here -->' || chr(39) || '<--');
+
+
+
+		select * from junk;
+
+
+
+ 2. Approach 1:  Use regular expression that can match a range of ascii chars
+
+		-- Get all rows that have ascii 5 in them
+		select * from junk where value ~ '[\x005]';
+
+		-- Get all rows that have ascii 9 in them
+		select * from junk where value ~ '[\x009]';
+
+		-- Get all rows that have ascii in range of 5 to 9
+		select * from junk where value ~ '[\x005-\x009]';
+
+		-- Get all rows that have ascii in range of 5 to 31
+		-- NOTE: 31 in decimal is 1F in hex
+		select * from junk where value ~ '[\x005-\x01F]';
+
+		-- Get all rows that have ascii in range of 1 to 31
+		-- NOTE:  31 in decimal is 1F in hex
+		select * from junk where value ~ '[\x001-\x01F]';
+
+
+
+
+ 3. Approach 2: Use wild card to search for ascii char   (really tedious)
+
+	select *
+	from junk
+	where
+      value like '%'||chr(1)||'%' or
+      value like '%'||chr(2)||'%' or
+      value like '%'||chr(3)||'%' or
+      value like '%'||chr(4)||'%' or
+      value like '%'||chr(5)||'%' or
+      value like '%'||chr(6)||'%' or
+      value like '%'||chr(7)||'%' or
+      value like '%'||chr(8)||'%' or
+      value like '%'||chr(9)||'%'
+
+
