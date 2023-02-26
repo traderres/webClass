@@ -1,0 +1,165 @@
+How to Create a Docker Container and Push it Up to a Repo
+---------------------------------------------------------
+
+Assumptions:
+ A) You have docker installed
+
+
+
+Part 1:  Create a docker repository (both public and private)
+-------------------------------------------------------------
+ 1. Go to https://hub.docker.com/
+ 2. Press "Register"
+ 3. Enter a username/email/password
+ 4. You will get an email verification
+ 5. Open the verification email
+ 6. Login to https://hub.docker.com/ with your username/password
+
+ 7. Create a private repo
+    a. Press "Repositories"
+    b. Press "Create repository"
+    c. In the "Create repository" page
+       Name:         my-private-repo
+       Description:  My Private Repo
+       Visibility:   Only visible to you
+       Press "Create"
+
+ 8. Create a public repo
+	a. Press "Repositories"
+	b. Press "Create repository"
+    c. In the "Create repository" page
+       Name:         my-public-repo
+       Description:  My Public Repo
+       Visibility:   Public  (Appears in Docker Hub search results)
+       Press "Create"
+
+
+
+
+Part 2:  Create a simple webapp docker image
+--------------------------------------------
+ 1. Create this file:  app.js
+    unix> vi app.js
+
+		const http = require('http')
+		const os = require('os')
+
+		console.log("Kubia server starting...");
+
+		var handler = function(request, response) {
+		  console.log("Received request from " + request.connection.remoteAddress);
+
+		  response.writeHead(200);
+		  response.end("You've hit " + os.hostname() + "\n");
+		};
+
+		var www = http.createServer(handler);
+		www.listen(8080);
+
+
+ 2. Create this file:  Dockerfile
+    unix> vi Dockerfile
+
+	FROM node:7
+	ADD app.js /app.js
+	ENTRYPOINT ["node", "app.js"]
+
+
+ 3. Build the local image and call it "kubia"
+    unix> docker build -t kubia .
+
+
+
+Part 3:  Run the docker image
+-----------------------------
+ 1. Run the container and name it "kubia-container" and have localhost:8080 --> docker container:8080
+    unix> docker run --name kubia-container -p 8080:8080  kubia
+
+    You should see this:
+	 	Kubia server starting...
+
+
+ 2. Connect to the webapp (running in the kubia-container)
+    unix> curl localhost:8080
+
+    You should see this:
+     	You've hit 0254189bd9be
+
+ 3. Inspect the container
+    unix> docker inspect kubia-container
+
+ 4. Stop the container
+    unix> docker stop kubia-container     # May take a few seconds
+
+ 5. Erase the the container
+    unix> docker rm kubia-container
+
+
+
+Part 4:  Push an image to my public repo
+----------------------------------------
+ 1. Tag the repo as v1.0
+    unix> docker tag kubia traderres/my-public-repo:v1.0
+
+
+ 2. Verify that the tag name is the latest
+    unix>  docker images | head -5
+
+	REPOSITORY                           TAG                     IMAGE ID       CREATED        SIZE
+	traderres/my-public-repo             latest                  305e1f38ce19   3 hours ago    660MB
+	traderres/my-public-repo             v1.0                    305e1f38ce19   3 hours ago    660MB
+	traderres/my-public-repo             v1.1                    305e1f38ce19   3 hours ago    660MB
+	kubia                                latest                  305e1f38ce19   3 hours ago    660MB
+
+
+
+ 3. Push the image to my public repo
+    a. Login to Docker
+       unix> docker login
+       Username:
+       Password:
+
+    b. Push to traderres/my-public-repo
+       unix> docker push traderres/my-public-repo:v1.0
+
+
+ 4. Verify that the push worked
+    a. Go to https://hub.docker.com/repository/docker/traderres/my-public-repo
+    b. Verify that you see the tag
+
+
+
+Part 5:  Push the image to my private repo
+------------------------------------------
+ 1. Tag the repo
+    unix> docker tag kubia traderres/my-private-repo:v1.5
+
+
+ 2. Verify that the tag name is the latest
+    unix>  docker images | head -5
+
+	REPOSITORY                           TAG                     IMAGE ID       CREATED        SIZE
+	kubia                                latest                  305e1f38ce19   3 hours ago    660MB
+	traderres/my-private-repo            v1.5                    305e1f38ce19   3 hours ago    660MB
+	traderres/my-public-repo/kubia       latest                  305e1f38ce19   3 hours ago    660MB
+	traderres/my-public-repo             latest                  305e1f38ce19   3 hours ago    660MB
+
+
+ 3. Push the image to my private repo
+    a. Login to Docker
+       unix> docker login
+       Username:
+       Password:
+
+    b. Push to traderres/my-private-repo
+       unix> docker push traderres/my-private-repo:v1.5
+
+
+ 4. Verify that the push worked
+    a. Go to https://hub.docker.com/
+    b. Login with your docker account
+    c. Click on Repositories
+    d. Click on traderres / my-private-repo
+       *OR*
+       Go to the my-private-reporepository/docker/traderres/my-private-repo
+    e. Verify that you see the tag
