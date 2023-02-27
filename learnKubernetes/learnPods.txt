@@ -1,0 +1,409 @@
+Learn Pods
+----------
+
+Pods are ephermal
+-- A pod may disappear at any time  (because the nod it's running on has failed / because someone deleted the pod / because pod was evicted)
+-- Missing pods are replaced with a new one
+-- New pods get a different IP address from the pod it's replacing
+
+
+
+
+Service
+-------
+Services solve the problem of ever-changing IP addresses as well as exposing multiple pods to a single constant IP and port pair
+-- When a service is created, it gets a static IP (which never changes during the lifetime of the service)
+-- Service represents a STATIC location for a group of one or more pods
+
+
+     Client --> Service --> Pod 1   10.10.1.2
+                        --> Pod 2   10.10.1.2
+                        --> Pod 3   10.10.1.3
+
+ -- The service makes sure one of the pods received the connection (regardless of its IP address)
+
+
+
+
+Working with Pods
+-----------------
+ 1. Create the yaml file
+    unix> vi kubia-manual.yaml
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kubia-manual
+spec:
+  containers:
+  - image: traderres/my-public-repo:kubia-1.0         <-- This is from my public repo
+    imagePullPolicy: IfNotPresent
+    name: kubia
+    ports:
+    - containerPort: 8080
+      protocol: TCP
+
+
+
+ 2. Create the resource (a pod in this case)
+    unix> kubectl create -f kubia-manual.yaml
+
+ 3. Get all of the details
+    unix> kubectl get po kubia-manual -o yaml
+
+ 4. Get the status of the pod
+    unix> kubectl get pods
+
+	NAME           READY   STATUS    RESTARTS      AGE
+	kubia          1/1     Running   1 (25m ago)   21h
+	kubia-manual   1/1     Running   0             18s         <-- Here is the new pod
+
+ 5. View the container logs
+    unix> kubectl logs kubia-manual               # Get the log from the pod called kubia-manual)
+    unix> kubectl logs kubia-manual -c kubia      # Get the log from the container kubia (inside the pod kubia-manual)
+
+				 +------------------------------+
+				 | pod  (kubia-manual)          |
+				 | (listening on port 8080)     |
+				 |                              |
+				 |   +---------------------+    |
+				 |   | container (kubia)   |    |
+				 |   |                     |    |
+				 |   +---------------------+    |
+				 |                              |
+				 +------------------------------+
+
+
+
+ 6. Configure port forwarding on the pod  (without using a service)
+    unix> kubectl port-forward kubia-manual 8888:8080
+
+    You will see the following:
+    	Forwarding from 127.0.0.1:8888 -> 8080
+    	Forwarding from [::1]:8888 -> 8080
+
+
+				 +-------------------------------
+				 | Connect to localhost:8888    |
+                 +------------------------------+
+                              |
+                              V
+				 +------------------------------+
+				 |  Port Forwarder              |
+				 |  (listen on port 8888)       |
+				 |  (forward to port 8080)      |
+				 +------------------------------+
+                              |
+                              V
+				 +------------------------------+
+				 | pod  (kubia-manual)          |
+				 | (listening on port 8080)     |
+				 |                              |
+				 |   +---------------------+    |
+				 |   | container (kubia)   |    |
+				 |   |                     |    |
+				 |   +---------------------+    |
+				 |                              |
+				 +------------------------------+
+
+
+ 7. Verify you can connect to your pod using localhost:8888
+    unix> curl localhost:8888
+
+    You should see the following:
+    	You've hit kubia-manual
+
+
+
+Labeling the pod
+----------------
+ 1. Create a pod with a label
+    unix> cp kubia-manual.yaml kubia-manual-with-labels.yaml
+
+ 2. Edit kubia-manual-with-labels.yaml and add some label
+    unix> vi kubia-manual-with-labels.yaml
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kubia-manual-v2                               <-- Pod has new name "kubia-manual-v2
+  labels:                                             <-- Labels section is here
+    creation_method: manual
+    env: prod
+spec:
+  containers:
+  - image: traderres/my-public-repo:kubia-1.0
+    imagePullPolicy: IfNotPresent
+    name: kubia
+    ports:
+    - containerPort: 8080
+      protocol: TCP
+
+
+
+ 3. Create a pod with the label
+    unix> kubectl create -f kubia-manual-with-labels.yaml
+
+    You should see the following:
+    	pod/kubia-manual-v2 created
+
+ 4. Get status of pods and show labels
+    unix> kubectl get pod --show-labels
+
+    NAME              READY   STATUS    RESTARTS      AGE   LABELS
+    kubia             1/1     Running   1 (66m ago)   22h   run=kubia
+    kubia-manual      1/1     Running   0             41m   <none>
+    kubia-manual-v2   1/1     Running   0             48s   creation_method=manual,env
+
+
+ 5. Get status of pods and make a column for the creation_method and ENV
+    unix> kubectl get pod -L creation_method,env
+
+    NAME              READY   STATUS    RESTARTS      AGE    CREATION_METHOD   ENV
+    kubia             1/1     Running   1 (67m ago)   22h
+    kubia-manual      1/1     Running   0             42m
+    kubia-manual-v2   1/1     Running   0             102s   manual            prod
+
+
+ 6. Modify existing labels by adding creation_method=manual
+    a. Add the creation_method=manual label to the kubia-manual pod
+       unix> kubectl label pod kubia-manual creation_method=manual
+
+    b. Verify that the kubia-manual pod was updated
+       unix> kubectl get pod -L creation_method,env
+
+		NAME              READY   STATUS    RESTARTS      AGE     CREATION_METHOD   ENV
+		kubia             1/1     Running   1 (71m ago)   22h
+		kubia-manual      1/1     Running   0             46m     manual                     <-- manual label now set here
+		kubia-manual-v2   1/1     Running   0             5m19s   manual            prod
+
+
+ 7. Modify existing labels by adding env=debug to kubia-manual-v2
+    a. Add the creation_method=manual label to the kubia-manual pod
+       unix> kubectl label pod kubia-manual-v2 env=debug --overwrite         # Use overwrite to overwrite existing labels
+
+    b. Verify that the kubia-manual pod was updated
+       unix> kubectl get pod -L creation_method,env
+
+		NAME              READY   STATUS    RESTARTS      AGE     CREATION_METHOD   ENV
+		kubia             1/1     Running   1 (74m ago)   22h
+		kubia-manual      1/1     Running   0             49m     manual
+		kubia-manual-v2   1/1     Running   0             8m46s   manual            debug      <-- env is now debug for this pod
+
+
+ 8. Listing pods using a label selector
+    a. List all pods that have creation_method=manual
+       unix> kubectl get pod -Lcreation_method,env -l creation_method=manual
+
+       NAME              READY   STATUS    RESTARTS   AGE   CREATION_METHOD   ENV
+       kubia-manual      1/1     Running   0          81m   manual
+       kubia-manual-v2   1/1     Running   0          40m   manual            debug
+
+    b. List all pods that have the env label
+       unix> kubectl get pod -Lcreation_method,env -l env
+
+		NAME              READY   STATUS    RESTARTS   AGE   CREATION_METHOD   ENV
+		kubia-manual-v2   1/1     Running   0          41m   manual            debug
+
+
+    c. List all pods that do NOT have the env label
+       unix> kubectl get pod -Lcreation_method,env -l '!env'
+
+		NAME           READY   STATUS    RESTARTS       AGE   CREATION_METHOD   ENV
+		kubia          1/1     Running   1 (108m ago)   23h
+		kubia-manual   1/1     Running   0              83m   manual
+
+    d. List all pods that have the env label holding either debug or prod
+       unix> kubectl get pod -Lcreation_method,env -l 'env in (debug,prod)'
+
+		NAME              READY   STATUS    RESTARTS   AGE   CREATION_METHOD   ENV
+		kubia-manual-v2   1/1     Running   0          43m   manual            debug
+
+
+    e. List all pods that have env labels that are not debug nor prod
+       unix> kubectl get pod -Lcreation_method,env -l 'env notin (debug,prod)'
+
+		NAME           READY   STATUS    RESTARTS       AGE   CREATION_METHOD   ENV
+		kubia          1/1     Running   1 (110m ago)   23h
+		kubia-manual   1/1     Running   0              84m   manual
+
+
+    f. List all prods that have creation_method=manual AND env=debug
+       unix> kubectl get pod -Lcreation_method,env -l 'creation_method=manual,env=debug'
+
+		NAME              READY   STATUS    RESTARTS   AGE   CREATION_METHOD   ENV
+		kubia-manual-v2   1/1     Running   0          44m   manual            debug
+
+
+Using selectors to specify what kind of node to deploy to
+---------------------------------------------------------
+You never want to say specifically what node a pod should be scheduled to
+-- if you want to have a say in where a pod should be scheduled,
+   Then describe the node requirements and let Kubernetes select a node that matches those requirements
+-- This can be done with node labels and node label selectors
+
+
+Labels can be attached to any Kubernetes object, including nodes
+-- When the opts team adds a new node to the cluster, they will categorize the node by attaching labels
+
+
+How to assign a label to a node
+-------------------------------
+Add a label to a node cpu=true
+ 1. List the nodes along with the gpu label
+    unix> kubectl get nodes -L gpu
+
+   	NAME       STATUS   ROLES           AGE   VERSION   GPU
+   	minikube   Ready    control-plane   73d   v1.25.3
+
+ 2. Assign a label to the minikube node with gpu=true
+    unix> kubectl label node minikube gpu=true
+
+ 3. Verify that the label was assigned
+    unix> kubectl get nodes -L gpu
+
+	NAME       STATUS   ROLES           AGE   VERSION   GPU
+	minikube   Ready    control-plane   73d   v1.25.3   true
+
+
+How to schedule pods to certain nodes
+-------------------------------------
+ 1. vi kubia-gpu.yaml
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kubia-gpu
+spec:
+  nodeSelector:               <-- nodeSelector tells kubernetes to deploy this pod only if nodes containing gpu==true
+    gpu: "true"
+  containers:
+  - image: traderres/my-public-repo:kubia-1.0
+    imagePullPolicy: IfNotPresent
+    name: kubia
+    ports:
+    - containerPort: 8080
+      protocol: TCP
+
+ 2. Create the pod  (that will only be scheduled to a node with gpu=true
+    unix> kubectl create -f kubia-gpu.yaml
+
+ 3. Get the status of the pods
+    unix> kubectl get pod -L creation_method,env
+
+	NAME              READY   STATUS    RESTARTS       AGE    CREATION_METHOD   ENV
+    kubia             1/1     Running   1 (132m ago)   23h
+    kubia-gpu         1/1     Running   0              29s                                 <-- new pod that was created
+    kubia-manual      1/1     Running   0              107m   manual
+    kubia-manual-v2   1/1     Running   0              66m    manual            debug
+
+
+
+Using Namespaces to Group Resources
+-----------------------------------
+Namespaces let you separate resources that don't belong together into non-overlapping groups
+If several users are using the same Kubernetes cluster and they each manage their own resources, they should be using their *OWN* namespace
+
+ 1. List all namespaces
+    unix> kubectl get ns
+
+    NAME                   STATUS   AGE
+    default                Active   73d         <-- you have been operating in the default name space
+    kube-node-lease        Active   73d
+    kube-public            Active   73d
+    kube-system            Active   73d
+    kubernetes-dashboard   Active   73d
+
+
+ 2. Get a list of pods in the kube-system namespace
+    unix> kubectl get pod --namespace kube-system
+
+	NAME                               READY   STATUS    RESTARTS       AGE
+	coredns-565d847f94-7f8br           1/1     Running   7 (20h ago)    73d
+	etcd-minikube                      1/1     Running   7 (20h ago)    73d
+	kube-apiserver-minikube            1/1     Running   6 (20h ago)    73d
+	kube-controller-manager-minikube   1/1     Running   7 (20h ago)    73d
+	kube-proxy-7vwx5                   1/1     Running   7 (20h ago)    73d
+	kube-scheduler-minikube            1/1     Running   7 (20h ago)    73d
+	storage-provisioner                1/1     Running   12 (20h ago)   73d
+
+ 3. Create a new namespace called custom-namespace
+    a. Create a yaml file called custom-namespace.yaml
+       unix> vi custom-namespace.yaml
+
+			apiVersion: v1
+			kind: Namespace
+			metadata:
+			  name: custom-namespace
+
+    b. Create the namespace
+       unix> kubectl create -f custom-namespace.yaml
+
+    c. Verify that the namespace was created
+       unix> kubectl get ns
+
+		NAME                   STATUS   AGE
+		custom-namespace       Active   34s          <-- here is the new namespace
+		default                Active   73d
+		kube-node-lease        Active   73d
+		kube-public            Active   73d
+		kube-system            Active   73d
+		kubernetes-dashboard   Active   73d
+
+ 4. Create a new pod called "kubia-manual" but put it in the custom-namespace
+    a. Create a new pod with the name kub-manual
+       unix> kubectl create -f kubia-manual.yaml -n custom-namespace
+
+    b. Verify that this name space now has 1 pod
+       unix> kubectl get pods -n custom-namespace
+
+		NAME           READY   STATUS    RESTARTS   AGE
+		kubia-manual   1/1     Running   0          96s         <-- this pod is only 96 seconds old
+
+    c. List pods in the default namespace
+       unix> kubectl get pods -n default
+
+		NAME              READY   STATUS    RESTARTS       AGE
+		kubia             1/1     Running   1 (172m ago)   24h
+		kubia-gpu         1/1     Running   0              40m
+		kubia-manual      1/1     Running   0              147m     <-- this pod has been up for 147 minutes
+		kubia-manual-v2   1/1     Running   0              106m
+
+
+
+
+Stopping & Deleting Pods
+------------------------
+ 1. Delete a pod by name
+    unix> kubectl delete pod kubia-gpu
+
+	You are telling Kubernetes to terminate all of the containers that are part of that pod
+	-- Kuberentes sends a SIGTERM signal to the process and waits up to 30 seconds for it to shutdown gracefully
+	-- If it doesn't shutdown in time, then a SIGKILL signal is sent
+	-- To make sure your apps are always shutdown gracefully, make sure the app handles SIGTERM signal properly
+
+
+ 2. Delete a pod by label selector
+    a. List all pods with creation_method=manual
+       unix> kubectl get pod -Lcreation_method -l creation_method=manual
+
+		NAME              READY   STATUS    RESTARTS   AGE    CREATION_METHOD
+		kubia-manual      1/1     Running   0          151m   manual
+		kubia-manual-v2   1/1     Running   0          110m   manual
+
+    b. Delete all pods with creation_method=manual
+       unix> kubectl delete pod -l creation_method=manual
+
+
+ 3. Delete all pods in a namespace (by deleting the namespace)
+    a. List all pods in the namespace called "custom-namespace"
+       unix> kubectl get pod -n custom-namespace
+
+		NAME           READY   STATUS    RESTARTS   AGE
+		kubia-manual   1/1     Running   0          9m19s
+
+    b. Delete all pods in "custom-namespace"
+       unix> kubectl delete ns custom-namespace
+
+
+
