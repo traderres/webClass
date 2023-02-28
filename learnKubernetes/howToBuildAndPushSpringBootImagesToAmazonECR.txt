@@ -1,0 +1,156 @@
+How to Build and Push Spring Boot Images to Amazon ECR
+------------------------------------------------------
+Problem:  We want to build our spring-boot image and push it to Amazon ECR
+
+
+Part 1:  Build an Image
+-----------------------
+ 1. Edit the backend/pom.xml so that the buildImage maven profile will build it
+    a. Edit backend/pom.xml
+
+    b. Add this profile to the end
+
+			<profile>
+			  <id>buildImage</id>
+
+			  <build>
+				<plugins>
+				  <plugin>
+					<groupId>com.google.cloud.tools</groupId>
+					<artifactId>jib-maven-plugin</artifactId>
+					<version>3.3.1</version>
+					<configuration>
+					  <from>
+						  <!-- The source image runs linux with JDK 1.8-362 -->
+                          <image>eclipse-temurin:8u362-b09-jdk</image>
+					  </from>
+					  <to>
+						<image>traderres/my-public-repo/${project.artifactId}:${project.version}</image>
+					  </to>
+					</configuration>
+
+					<executions>
+					  <execution>
+						<phase>package</phase>
+						<goals>
+						  <goal>dockerBuild</goal>
+						</goals>
+					  </execution>
+					</executions>
+
+				  </plugin>
+				</plugins>
+			  </build>
+			</profile>
+
+
+ 2. Build the image
+    unix> mvn clean package -Pprod -PbuildImage
+
+ 3. Run the image locally
+    unix> docker run --network=host -p 8080:8080 --security-opt seccomp=unconfined   docker.io/library/my-spring-boot-image-on-install:latest
+
+ 4. Verify that the webapp startsup
+
+
+
+Part 2:  (OPTOINAL) Add additional files to the image  (if needed)
+------------------------------------------------------------------
+ 1. Edit the maven profile by adding <ExtraDirectories>...</extraDirectories> to the configuration section
+
+    <profile>
+       <id>buildImage</id>
+
+       <build>
+         <plugins>
+           <plugin>
+             <groupId>com.google.cloud.tools</groupId>
+             <artifactId>jib-maven-plugin</artifactId>
+             <version>3.3.1</version>
+             <executions>
+               <execution>
+                 <phase>package</phase>
+                 <goals>
+                   <goal>dockerBuild</goal>
+                 </goals>
+               </execution>
+             </executions>
+
+             <configuration>
+               <from>
+                 <!-- The source image runs linux with JDK 1.8-362 -->
+                 <image>eclipse-temurin:8u362-b09-jdk</image>
+               </from>
+               <to>
+                 <image>traderres/my-public-repo/${project.artifactId}:${project.version}</image>
+               </to>
+
+               <extraDirectories>
+                 <paths>
+                   <path>
+                     <!-- Copies from 'src/main/dev_resources' into '/sf328-backend/src/main/dev_resources' on the container. -->
+                     <from>src/main/dev_resources</from>
+                     <into>/sf328-backend/src/main/dev_resources</into>
+                   </path>
+
+                 </paths>
+               </extraDirectories>
+
+             </configuration>
+
+           </plugin>
+         </plugins>
+       </build>
+     </profile>
+
+
+ 2. Build the image
+    unix> mvn clean package -Pprod -PbuildImage
+
+ 3. Run the image locally
+    unix> docker run --network=host -p 8080:8080 --security-opt seccomp=unconfined   docker.io/library/my-spring-boot-image-on-install:latest
+
+ 4. Verify that the webapp startsup
+
+
+
+
+Part 3:  Deploy the Image
+-------------------------
+
+
+
+
+  1. Install Amazon CLI
+     a. Install the AWS client
+        unix> cd
+ 		unix> mkdir aws-cli
+ 		unix> cd aws-cli
+		unix> curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+		unix> unzip awscliv2.zip
+		unix> sudo ./aws/install
+
+    b. Verify it works
+    	unix> aws --version
+    	aws-cli/2.10.3 Python/3.9.11 Linux/4.18.0-305.7.1.el8_4.x86_64 exe/x86_64.centos.8 prompt/off
+
+
+  2. Run AWS Configure to configure it
+     unix> aws configure
+     AWS Access Key ID [None]:    my-access-key
+     AWS Secret Access Key:       my-secret-key
+     Region:                      us-gov-west-1
+     Default Output format:       json
+
+
+  3. Login to AWS ECR
+     unix> aws ecr get-login-password --region us-gov-west-1 | docker login --username AWS --password-stdin 527362555097.dkr.ecr.us-gov-west-1.amazonaws.com
+
+     You should see the following:
+     	Login Succeeded
+
+
+  4. Edit the backend/pom.xml "buildImage" profile "by adding this plugin
+
+  5. Build the image
+     unix> mvn clean package -Pprod -PbuildImage
