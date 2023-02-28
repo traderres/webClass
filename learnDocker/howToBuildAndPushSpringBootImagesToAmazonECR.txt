@@ -3,8 +3,8 @@ How to Build and Push Spring Boot Images to Amazon ECR
 Problem:  We want to build our spring-boot image and push it to Amazon ECR
 
 
-Part 1:  Build an Image
------------------------
+Part 1:  Build an Image (using the jib-maven-plugin)
+----------------------------------------------------
  1. Edit the backend/pom.xml so that the buildImage maven profile will build it
     a. Edit backend/pom.xml
 
@@ -21,11 +21,12 @@ Part 1:  Build an Image
 					<version>3.3.1</version>
 					<configuration>
 					  <from>
-						  <!-- The source image runs linux with JDK 1.8-362 -->
-                          <image>eclipse-temurin:8u362-b09-jdk</image>
+					     <!-- The source image runs linux with JDK 1.8-362 -->
+					     <image>eclipse-temurin:8u362-b09-jdk@sha256:3b83f3fc0d016d7536dfd5e8a98ece451061b7dbb6d5db3ddea2db30b6153b28</image>
 					  </from>
+
 					  <to>
-						<image>traderres/my-public-repo/${project.artifactId}:${project.version}</image>
+						<image>traderres/my-public-repo:${project.artifactId}-${project.version}</image>
 					  </to>
 					</configuration>
 
@@ -50,7 +51,7 @@ Part 1:  Build an Image
  3. Run the image locally
     unix> docker run --network=host -p 8080:8080 --security-opt seccomp=unconfined   docker.io/library/my-spring-boot-image-on-install:latest
 
- 4. Verify that the webapp startsup
+ 4. Verify that the webapp starts
 
 
 
@@ -77,12 +78,13 @@ Part 2:  (OPTOINAL) Add additional files to the image  (if needed)
              </executions>
 
              <configuration>
-               <from>
-                 <!-- The source image runs linux with JDK 1.8-362 -->
-                 <image>eclipse-temurin:8u362-b09-jdk</image>
-               </from>
+			   <from>
+				 <!-- The source image runs linux with JDK 1.8-362 -->
+				 <image>eclipse-temurin:8u362-b09-jdk@sha256:3b83f3fc0d016d7536dfd5e8a98ece451061b7dbb6d5db3ddea2db30b6153b28</image>
+			   </from>
+
                <to>
-                 <image>traderres/my-public-repo/${project.artifactId}:${project.version}</image>
+                 <image>traderres/my-public-repo:${project.artifactId}-${project.version}</image>
                </to>
 
                <extraDirectories>
@@ -92,7 +94,6 @@ Part 2:  (OPTOINAL) Add additional files to the image  (if needed)
                      <from>src/main/dev_resources</from>
                      <into>/sf328-backend/src/main/dev_resources</into>
                    </path>
-
                  </paths>
                </extraDirectories>
 
@@ -110,17 +111,83 @@ Part 2:  (OPTOINAL) Add additional files to the image  (if needed)
  3. Run the image locally
     unix> docker run --network=host -p 8080:8080 --security-opt seccomp=unconfined   docker.io/library/my-spring-boot-image-on-install:latest
 
- 4. Verify that the webapp startsup
+ 4. Verify that the webapp starts
 
 
 
 
-Part 3:  Deploy the Image
--------------------------
+Part 3:  Push the Image to my-public-repo (Public Repo)
+-------------------------------------------------------
+ 1. Change the backend/pom.xml
+       <image>traderres/my-public-repo:${project.artifactId}-${project.version}</image>
+
+ 2. Build the image
+    unix> mvn clean package -Pprod -PbuildImage
+
+ 3. Get the image info
+    unix> docker images -a
+
+        REPOSITORY                               TAG
+    	traderres/my-public-repo                 sf328-backend-1.0.8-SNAPSHOT
+
+
+ 4. Push the image to the traderres/my-public-repo  (public repo)
+     a. Login to Docker
+        unix> docker login
+        Username:
+        Password:
+
+    b. Push the image
+       unix> docker push traderres/my-public-repo:sf328-backend-1.0.8-SNAPSHOT
+
+
+ 5. Verify that the push worked
+    a. Go to https://hub.docker.com/r/traderres/my-public-repo/tags
+    b. Verify that you see the tag called sf328-backend-1.0.8-SNAPSHOT
+
+
+
+Part 4:  Push the Image to my-private-repo (Private Repo)
+---------------------------------------------------------
+ 1. Change the backend/pom.xml
+    Change the image name so that the tag refers to my-private-repo  (instead of my-public-repo)
+       <image>traderres/my-private-repo:${project.artifactId}-${project.version}</image>
+
+ 2. Build the image
+    unix> mvn clean package -Pprod -PbuildImage
+
+ 3. Get the image info
+    unix> docker images -a
+
+        REPOSITORY                               TAG
+    	traderres/my-private-repo                sf328-backend-1.0.8-SNAPSHOT
+
+
+ 4. Push the image to the traderres/my-public-repo  (public repo)
+     a. Login to Docker
+        unix> docker login
+        Username:
+        Password:
+
+    b. Push the image
+       unix> docker push traderres/my-private-repo:sf328-backend-1.0.8-SNAPSHOT
+
+
+ 5. Verify that the push worked
+    a. Go to https://hub.docker.com/
+    b. Login with your docker account
+    c. Click on Repositories
+    d. Click on traderres / my-private-repo
+       *OR*
+       Go to theh https://hub.docker.com/repository/docker/traderres/my-private-repo
+
+    e. Verify that you see the tag called sf328-backend-1.0.8-SNAPSHOT
 
 
 
 
+Part 4:  Push the Image to an AWS ECR Repo
+------------------------------------------
   1. Install Amazon CLI
      a. Install the AWS client
         unix> cd
