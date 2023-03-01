@@ -1,0 +1,530 @@
+Web App Changes to make them work as Docker Containers
+------------------------------------------------------
+ 1. Change the DataSourceConfig so that the hikariConfig.setSchema(this.schemaName);
+
+		package gov.dcsa.sync.config;
+
+		import com.zaxxer.hikari.HikariConfig;
+		import com.zaxxer.hikari.HikariDataSource;
+		import org.flywaydb.core.Flyway;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import org.springframework.beans.factory.annotation.Value;
+		import org.springframework.context.annotation.Bean;
+		import org.springframework.context.annotation.Configuration;
+
+		import javax.sql.DataSource;
+
+		@Configuration
+		public class DataSourceConfig {
+
+			private static final Logger logger = LoggerFactory.getLogger(DataSourceConfig.class);
+
+			@Value("${app.datasource.driver-class-name}")
+			private String driverClassName;
+
+			@Value("${app.datasource.url}")
+			private String url;
+
+			@Value("${app.datasource.username}")
+			private String username;
+
+			@Value("${app.datasource.password}")
+			private String password;
+
+			@Value("${app.datasource.maxPoolSize:20}")
+			private int maxPoolSize;
+
+			@Value("${app.datasource.schema}")
+			private String schemaName;
+
+			@Value("${app.datasource.flyway-migrate-on-startup:true}")
+			private boolean runFlywayMigrateOnStartup;
+
+			@Value("${app.datasource.flyway-clean-on-startup:false}")
+			private boolean runFlywayCleanOnStartup;
+
+
+
+			@Bean
+			public DataSource dataSource() {
+				HikariConfig hikariConfig = new HikariConfig();
+
+				hikariConfig.setDriverClassName(this.driverClassName);
+				hikariConfig.setJdbcUrl(this.url);
+				hikariConfig.setUsername(this.username);
+				hikariConfig.setPassword(this.password);
+				hikariConfig.setMaximumPoolSize(this.maxPoolSize);
+				hikariConfig.setConnectionTestQuery("SELECT 1");
+				hikariConfig.setPoolName("sf328_sync_jdbc_connection_pool");
+				hikariConfig.setSchema(this.schemaName);
+
+				// Create the DataSource
+				HikariDataSource dataSource = new HikariDataSource(hikariConfig);
+
+				if (runFlywayMigrateOnStartup) {
+				    // Initialize the flyway object by setting the data source and schema name
+				    Flyway flyway = Flyway.configure()
+				            .dataSource(dataSource)
+				            .schemas(schemaName)
+				            .load();
+
+				    if (runFlywayCleanOnStartup) {
+				        logger.debug("Running flyway clean on startup.");
+				        flyway.clean();
+				    }
+
+				    // Use the flyway object to do a migrate on webapp startup
+				    flyway.migrate();
+				}
+				logger.debug("Flyway Migrate Finished.");
+
+				return dataSource;
+			}
+
+		}
+
+
+
+ 2. Change ElasticSearchResourcesConfig to pass-in a ream principal & password
+
+		package gov.dcsa.sync.config;
+
+		import com.ning.http.client.AsyncHttpClient;
+		import com.ning.http.client.Realm;
+		import gov.dcsa.sync.security.SSLContextFactory;
+		import org.apache.commons.lang3.StringUtils;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import org.springframework.beans.factory.annotation.Value;
+		import org.springframework.context.annotation.Bean;
+		import org.springframework.context.annotation.Configuration;
+
+		import javax.net.ssl.SSLContext;
+		import java.io.File;
+
+
+		@Configuration
+		public class ElasticSearchResourcesConfig {
+
+
+
+			private static final Logger logger = LoggerFactory.getLogger(ElasticSearchResourcesConfig.class);
+
+			@Value("${es.url:}")
+			private String elasticSearchUrl;
+
+			@Value("${es.ssl_enabled:false}")
+			private boolean sslEnabled;
+
+
+			// -------------- Optional SSL Parameters ------------------------
+			@Value("${es.key-store:}")
+			private String keyStoreFilePath;
+
+			@Value("${es.key-store-password:}")
+			private String keyStorePassword;
+
+			@Value("${es.key-store-type:}")
+			private String keyStoreType;
+
+			@Value("${es.trust-store:}")
+			private String trustStoreFilePath;
+
+			@Value("${es.trust-store-password:}")
+			private String trustStorePassword;
+
+			@Value("${es.trust-store-type:}")
+			private String trustStoreType;
+
+			@Value("${es.authentication.principal:}")
+			private String esPrincipal;
+
+			@Value("${es.authentication.password:}")
+			private String esPassword;
+
+
+			@Bean
+			public ElasticSearchResources elasticSearchResources() throws Exception {
+				logger.debug("elasticSearchResources()  sslEnabled={} principal={} password={}", this.sslEnabled, this.esPrincipal, this.esPassword);
+
+				// Set the AsyncHttpClient settings
+				com.ning.http.client.AsyncHttpClientConfig.Builder configBuilder = new com.ning.http.client.AsyncHttpClientConfig.Builder();
+				configBuilder.setReadTimeout(-1);
+				configBuilder.setAcceptAnyCertificate(true);
+				configBuilder.setFollowRedirect(true);
+
+				// Set the ES connection username/password
+				Realm realm = new Realm.RealmBuilder()
+				        .setPrincipal(esPrincipal)
+				        .setPassword(esPassword)
+				        .setUsePreemptiveAuth(true)
+				        .setScheme(Realm.AuthScheme.BASIC)
+				        .build();
+				configBuilder.setRealm(realm);
+
+				if (sslEnabled) {
+				    // initialize the sslContext and store it in the configBuilder object
+				    SSLContext sslContext = generateSslContext();
+				    configBuilder.setSSLContext(sslContext);
+				}
+
+				// Create a new AsyncHttpClient object
+				com.ning.http.client.AsyncHttpClientConfig config = configBuilder.build();
+				AsyncHttpClient asyncHttpClient = new AsyncHttpClient(config);
+
+
+				// Store the AsyncHttpClient and elasticSearc url in the ElasticSearchResources object
+				// NOTE:  THe elastic search url is injected from the application.yaml
+				//        The AsyncHttpClient is constructed with java code
+				ElasticSearchResources elasticSearchResources = new ElasticSearchResources(this.elasticSearchUrl, asyncHttpClient);
+
+				// Return a spring bean that holds the AsyncHttpClient and elasticsearch url
+				return elasticSearchResources;
+			}
+
+
+			/**
+			 * Helper method to generate the SSL Context
+			 * @return a SSLContext object
+			 */
+			private SSLContext generateSslContext() throws Exception {
+
+				if (StringUtils.isEmpty(this.keyStorePassword)) {
+				    throw new RuntimeException("Critical Error Creating SSL Context:  The keystore jks password is empty.  Check this property 'es.key-store-password' in the application.yaml");
+				}
+				else if (StringUtils.isEmpty(this.trustStorePassword)) {
+				    throw new RuntimeException("Critical Error Creating SSL Context:  The truststore jks password is empty.  Check this property 'es.trust-store-password' in the application.yaml");
+				}
+				else if ((StringUtils.isEmpty(this.keyStoreType)) || (! this.keyStoreType.equalsIgnoreCase("JKS"))) {
+				    throw new RuntimeException("Critical Error Creating SSL Context:  The truststore type must be JKS.   Check this property 'es.trust-store-type'");
+				}
+				else if ((StringUtils.isEmpty(this.trustStoreType)) || (! this.trustStoreType.equalsIgnoreCase("JKS"))) {
+				    throw new RuntimeException("Critical Error Creating SSL Context:  The truststore type must be JKS.   Check this property 'es.trust-store-type'");
+				}
+
+				File keyStoreJkdFile = new File(this.keyStoreFilePath);
+				if (! keyStoreJkdFile.exists()) {
+				    throw new RuntimeException("Critical Error:  This keystore JKS file was not found: " + this.keyStoreFilePath + "  Check this property 'es.key-store' in the application.yaml");
+				}
+
+				File trustStoreJkdFile = new File(this.trustStoreFilePath);
+				if (! trustStoreJkdFile.exists()) {
+				    throw new RuntimeException("Critical Error:  This truststore JKS file was not found: " + this.trustStoreFilePath + "  Check this property 'es.trust-store' in the application.yaml");
+
+				}
+
+				logger.debug("Generating SSL Context from keystore {} and truststore {}", this.keyStoreFilePath, this.trustStoreFilePath);
+				SSLContext sslContext = SSLContextFactory.makeContext(keyStoreJkdFile, this.keyStorePassword, trustStoreJkdFile, this.trustStorePassword);
+				return sslContext;
+			}
+
+		}
+
+
+
+		SSLContextFactory
+		-----------------
+		package gov.dcsa.sync.security;
+
+
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+
+		import javax.net.ssl.KeyManager;
+		import javax.net.ssl.KeyManagerFactory;
+		import javax.net.ssl.SSLContext;
+		import javax.net.ssl.TrustManager;
+		import javax.xml.bind.DatatypeConverter;
+		import java.io.*;
+		import java.security.KeyStore;
+		import java.security.cert.CertificateFactory;
+		import java.security.cert.X509Certificate;
+
+		/**
+		 * Builds an SSLContext with custom KeyStore and TrustStore, to work with a client cert signed by a truststore.jks file
+		 */
+		public enum SSLContextFactory
+		{
+			INSTANCE;
+
+			private static final Logger logger = LoggerFactory.getLogger(SSLContextFactory.class);
+
+			/**
+			 * Utility class private constructor
+			 */
+			private SSLContextFactory() {
+			}
+
+
+
+
+			/***********************************************************************************
+			 * makeContext()
+			 * Creates an SSLContext using the passed-in clientp12 File and truststoreJks File objects
+			 *
+			 * @return An initialized SSLContext
+			 * @throws Exception
+			 ***********************************************************************************/
+			public static SSLContext makeContext(File keyJksFile, String keyPassword,
+				                                 File trustJksFile, String trustPassword) throws Exception
+			{
+				logger.debug("makeContext() started.  aKeyJksFile={}   aTrustJksFile={}",
+				        keyJksFile.toString(), trustJksFile.toString());
+
+				// Generate a truststore from the passed-in aTrustJksFile object
+				final KeyStore keyStore = loadJksKeyStore(keyJksFile, keyPassword);
+
+				KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+				kmf.init(keyStore, keyPassword.toCharArray());
+				KeyManager[] keyManagers = kmf.getKeyManagers();
+
+				// Generate a truststore from the passed-in aTrustJksFile object
+				final KeyStore trustStore = loadJksKeyStore(trustJksFile, trustPassword);
+
+				TrustManager[] trustManagers = {new SSLCustomTrustManager(trustStore) };
+				SSLContext sslContext = SSLContext.getInstance("TLS");
+				sslContext.init(keyManagers, trustManagers, null);
+
+				logger.debug("makeContext() finished.");
+				return sslContext;
+			}
+
+
+			/***********************************************************************************
+			 * loadPEMTrustStore()
+			 * Produces a KeyStore from a String containing a PEM certificate (typically, the server's CA certificate)
+			 ***********************************************************************************/
+			private static KeyStore loadPEMTrustStore(String certificateString) throws Exception
+			{
+				byte[] certificateBytes = loadPemCertificate(new ByteArrayInputStream(certificateString.getBytes()));
+				ByteArrayInputStream derInputStream = new ByteArrayInputStream(certificateBytes);
+				CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
+				X509Certificate certificate = (X509Certificate) certificateFactory.generateCertificate(derInputStream);
+				String alias = certificate.getSubjectX500Principal().getName();
+
+				KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
+				trustStore.load(null);
+				trustStore.setCertificateEntry(alias, certificate);
+
+				return trustStore;
+			}
+
+
+			/***********************************************************************************
+			 * Produces a KeyStore from a PKCS12 (.p12) certificate file, typically the client certificate
+			 * @param certificateP12File A File object referring to the client p12 certificate
+			 * @param clientCertPassword Password for the certificate
+			 * @return A KeyStore containing the certificate from the certificateFile
+			 ***********************************************************************************/
+			private static KeyStore loadPKCS12KeyStore(File certificateP12File, String clientCertPassword) throws Exception {
+				try (FileInputStream fileInputStream = new FileInputStream(certificateP12File)) {
+				    KeyStore keyStore = KeyStore.getInstance("PKCS12");
+				    keyStore.load(fileInputStream, clientCertPassword.toCharArray());
+				    return keyStore;
+				}
+			}
+
+			/***********************************************************************************
+			 * loadJksKeyStore()
+			 * @param jksCertificateFile
+			 * @param trustPassword
+			 * @return
+			 ***********************************************************************************/
+			private static KeyStore loadJksKeyStore(File jksCertificateFile, String trustPassword) throws Exception {
+				try (FileInputStream fileInputStream = new FileInputStream(jksCertificateFile)) {
+				    KeyStore keyStore =  KeyStore.getInstance("JKS");
+				    keyStore.load(fileInputStream, trustPassword.toCharArray());
+				    return keyStore;
+				}
+			}
+
+
+			/***********************************************************************************
+			 * loadPemCertificate()
+			 * Reads and decodes a base-64 encoded DER certificate (a .pem certificate), typically the server's CA cert.
+			 * @param certificateStream an InputStream from which to read the cert
+			 * @return a byte[] containing the decoded certificate
+			 ***********************************************************************************/
+			private static byte[] loadPemCertificate(InputStream certificateStream) throws IOException
+			{
+				byte[] certificateBytes;
+				BufferedReader bufferedReader = null;
+
+				try {
+				    StringBuilder builder = new StringBuilder();
+				    bufferedReader = new BufferedReader(new InputStreamReader(certificateStream));
+
+				    String line = bufferedReader.readLine();
+				    while(line != null) {
+				        if(!line.startsWith("--")){
+				            builder.append(line);
+				        }
+				        line = bufferedReader.readLine();
+				    }
+
+				    String pem = builder.toString();
+				    certificateBytes = DatatypeConverter.parseBase64Binary(pem);
+
+				}
+				finally
+				{
+				    if(bufferedReader != null)
+				    {
+				        bufferedReader.close();
+				    }
+				}
+
+				return certificateBytes;
+			}
+		}
+
+
+ 3. Create a backend/src/main/prod_resources/ directory
+	-- application.yaml   (production application.yaml)
+	-- dummy_user.p12
+	-- my_keystore.jks    (used to make outgoing SSL calls to ElasticSearch)
+	-- my_truststore.jks  (used to make outgoing SSL calls to ElasticSearch)
+
+
+
+ 4. Update the backend/src/main/prod_resources/application.yaml with updated postgres and ES settings
+
+		# Set the Active profile to be prod
+		spring.profiles.active: prod
+
+		# Tell Spring to not run flyway
+		# NOTE:  In the DataSourceConfig, there is code to run flyway migrate on webapp startup
+		spring.flyway.enabled: false
+
+
+		##########################################################
+		# Database Settings
+		##########################################################
+		app.datasource:
+		  driver-class-name: org.postgresql.Driver
+		  url: jdbc:postgresql://AWS_SERVER_THAT_HOLDS_POSTGRES:5432/sf328_db
+		  username: sf328_user
+		  password: DATABASE_PASSWORD
+		  schema: sf328_db
+		  maxPoolSize: 15
+		  connectionTimeout: 60000
+		  database-name: sf328_db
+
+
+
+		##########################################################
+		# ElasticSearch Settings
+		##########################################################
+		es:
+		  url: https://AWS_SERVER_RUNNING_OUR_ELASTICSEARCH:443
+		  ssl_enabled: true
+		  key-store: sf328-backend/src/main/prod_resources/my_keystore.jks
+		  key-store-password: changeit
+		  key-store-type: JKS
+		  trust-store: sf328-backend/src/main/prod_resources/my_truststore.jks
+		  trust-store-password: changeit
+		  trust-store-type: JKS
+		  authentication.principal: sf328_user
+		  authentication.password: Secret1@
+
+
+
+ 5. Add the "buildImage" maven profile to the backend/pom.xml so that it will create the docker image
+    NOTE:  This will do the following
+           1) Run the jib-maven-plugin buildImage goal  (to build a docker container)
+           2) Set the base container image
+           3) Set JVM Arguments -- e.g., tell it where the production application.yaml file is
+           4) Tell Maven to not package-up the src/main/resources/application.yaml  (as that is only used for development)
+
+ 
+
+	   <profile>
+		  <id>buildImage</id>
+
+		  <build>
+		    <resources>
+		      <!-- When running this profile, do *NOT* include the src/main/resources/application.yaml in the build -->
+		      <resource>
+		        <filtering>true</filtering>
+		        <directory>src/main/resources</directory>
+		        <excludes>
+		          <exclude>application.yaml</exclude>
+		        </excludes>
+		      </resource>
+		    </resources>
+
+		    <plugins>
+		      <plugin>
+		        <groupId>com.google.cloud.tools</groupId>
+		        <artifactId>jib-maven-plugin</artifactId>
+		        <version>3.3.1</version>
+		        <executions>
+		          <execution>
+		            <phase>package</phase>
+		            <goals>
+		              <goal>dockerBuild</goal>
+		            </goals>
+		          </execution>
+		        </executions>
+
+		        <configuration>
+		          <from>
+		            <!-- The source image runs linux with JDK 1.8-362 -->
+		            <image>eclipse-temurin:8u362-b09-jdk@sha256:3b83f3fc0d016d7536dfd5e8a98ece451061b7dbb6d5db3ddea2db30b6153b28</image>
+		          </from>
+		          <to>
+		            <image>traderres/my-public-repo:${project.artifactId}-${project.version}</image>
+		          </to>
+
+		          <extraDirectories>
+		            <paths>
+		              <path>
+		                <!-- Copies from 'src/main/prod_resources' into '/sf328-backend/src/main/prod_resources' on the container. -->
+		                <from>src/main/prod_resources</from>
+		                <into>/sf328-backend/src/main/prod_resources</into>
+		              </path>
+		            </paths>
+		          </extraDirectories>
+
+		          <container>
+		            <jvmFlags>
+		              <jvmFlag> -Dspring.config.location=/sf328-backend/src/main/prod_resources/application.yaml</jvmFlag>
+		            </jvmFlags>
+		          </container>
+
+		        </configuration>
+
+		      </plugin>
+		    </plugins>
+		  </build>
+		</profile>
+
+
+ 6. OPTIONAL / Remove the old image
+    unix> docker rmi -f traderres/my-public-repo:sf328-backend-1.0.8-SNAPSHOT
+
+ 7. Build the image
+    unix> mvn clean package -Pprod -PbuildImage
+
+ 8. Run the image locally
+    unix> docker run --network=host -p 8080:8080 --security-opt seccomp=unconfined traderres/my-public-repo:sf328-backend-1.0.8-SNAPSHOT
+
+
+ 9. Push the image to the traderres/my-public-repo  (public repo)
+     a. Login to Docker
+        unix> docker login
+        Username:
+        Password:
+
+    b. Push the image
+       unix> docker push traderres/my-public-repo:sf328-backend-1.0.8-SNAPSHOT
+
+
+10. Verify that the push worked
+    a. Go to https://hub.docker.com/r/traderres/my-public-repo/tags
+    b. Verify that you see the tag called sf328-backend-1.0.8-SNAPSHOT
+
+
+
+
