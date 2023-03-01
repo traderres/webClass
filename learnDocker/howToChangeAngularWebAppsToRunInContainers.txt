@@ -380,10 +380,12 @@ Web App Changes to make them work as Docker Containers
 		}
 
 
- 3. Create a backend/src/main/prod_resources/ directory
-	-- application.yaml   (production application.yaml)
-	-- my_keystore.jks    (used to make outgoing SSL calls to ElasticSearch  [generated using the learnSSL/howToUseYourCertAuthority procedures]
-	-- my_truststore.jks  (used to make outgoing SSL calls to ElasticSearch)
+
+ 3. Create a backend/src/main/prod_resources/ directory and add these files:
+	application.yaml   	Production application.yaml
+	my_keystore.jks    	Generated PKI keystore / used to make outgoing SSL calls to ElasticSearch    [see learnSSL/howToUseYourCertAuthority_InitialSetup_centos7.txt]
+	my_truststore.jks  	Generated PKI truststore / used to make outgoing SSL calls to ElasticSearch  [see learnSSL/howToUseYourCertAuthority_MakeServerCert_centos7.txt]
+	john.smith.p12      Generated PKI client cert renamed from client.p12 to john.smith.p12)         [see learnSSL/howToUseYourCertAuthority_MakeClientCert_centos7.txt]
 
 
 
@@ -396,6 +398,30 @@ Web App Changes to make them work as Docker Containers
 		# Tell Spring to not run flyway
 		# NOTE:  In the DataSourceConfig, there is code to run flyway migrate on webapp startup
 		spring.flyway.enabled: false
+
+
+		##########################################################
+		# SSL Settings
+		##########################################################
+		use.hardcoded.authenticated.principal: true
+
+		ssl.security.mode: header
+
+		server:
+		  port: 8443
+		  ssl:
+			key-store: sf328-backend/src/main/prod_resources/my_keystore.jks
+			key-store-password: changeit
+			key-store-type: JKS
+			client-auth: need
+			trust-store: sf328-backend/src/main/prod_resources/my_truststore.jks
+			trust-store-password: changeit
+			trust-store-type: JKS
+			enabled: true
+
+		# Secure the cookies
+		server.servlet.session.cookie.secure: true
+		server.servlet.session.cookie.http-only: true
 
 
 		##########################################################
@@ -508,10 +534,15 @@ Web App Changes to make them work as Docker Containers
     unix> mvn clean package -Pprod -PbuildImage
 
  8. Run the image locally
-    unix> docker run --network=host -p 8080:8080 --security-opt seccomp=unconfined traderres/my-public-repo:sf328-backend-1.0.8-SNAPSHOT
+    unix> docker run --network=host -p 8443:8443 --security-opt seccomp=unconfined traderres/my-public-repo:sf328-backend-1.0.8-SNAPSHOT
+
+ 9. Connect to the webapp locally using SSL and a pki client cert (john.smith.p12)
+    a. Import the john.smith.p12 file as a cert
+    b. Import the root.pem as a certificate authority
+    c. Go to https://localhost:8443/sf
 
 
- 9. Push the image to the traderres/my-public-repo  (public repo)
+10. Push the image to the traderres/my-public-repo  (public repo)
      a. Login to Docker
         unix> docker login
         Username:
@@ -521,7 +552,7 @@ Web App Changes to make them work as Docker Containers
        unix> docker push traderres/my-public-repo:sf328-backend-1.0.8-SNAPSHOT
 
 
-10. Verify that the push worked
+11. Verify that the push worked
     a. Go to https://hub.docker.com/r/traderres/my-public-repo/tags
     b. Verify that you see the tag called sf328-backend-1.0.8-SNAPSHOT
 
