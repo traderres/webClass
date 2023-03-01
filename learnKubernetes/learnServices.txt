@@ -35,7 +35,10 @@ External Client -----------------> Front end Service
 
 Create a Service with a yaml file
 ---------------------------------
- 1. Create a new service
+ 1. Label the kubia pod with app=kubia
+    unix> kubectl label pod kubia app=kubia
+
+ 2. Create a new service
     a. Create the yaml file
        unix> vi kubia-svc.yaml
 
@@ -48,7 +51,7 @@ Create a Service with a yaml file
 			  - port: 80
 				targetPort: 8080
 			  selector:
-				app: kubia
+				app: kubia                <-- Only pods with app=kubia will be referenced in this service
 
 
     b. Create the service
@@ -60,4 +63,207 @@ Create a Service with a yaml file
 		NAME         TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)   AGE
 		kubernetes   ClusterIP   10.96.0.1      <none>        443/TCP   73d
 		kubia        ClusterIP   10.103.28.45   <none>        80/TCP    15s    <-- new service is 15 seconds old
+
+
+       NOTE:  You can only connect to 10.103.28.45:80 from **INSIDE** the kubernetes cluster
+              So, it's an internal IP address
+
+
+ 2. Delete the service
+    unix> kubectl delete service kubia
+
+ 3. Adjust the kubia-svc.yaml by naming the ports
+    a. Edit the kubia-svc.yaml to name the port
+       unix> vi kubia-svc.yaml
+
+			apiVersion: v1
+			kind: Service
+			metadata:
+			  name: kubia
+			spec:
+			  ports:
+			  - name: http
+				port: 80
+				targetPort: 8080
+			  selector:
+				app: kubia
+
+    b. Create the service
+       unix> kubtectl create -f kubia-svc.yaml
+
+    c. Verify it was created
+       unix> kubectl get services
+
+		NAME         TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
+		kubernetes   ClusterIP   10.96.0.1       <none>        443/TCP   75d
+		kubia        ClusterIP   10.102.7.68     <none>        80/TCP    36s           <-- new service is 36 seconds old
+
+       NOTE:  You can only connect to 10.102.7.68:80 from **INSIDE** the kubernetes cluster
+              So, it's an internal IP address
+
+
+ 4. Examine service endpints
+    unix> kubectl describe svc kubia
+
+	Name:              kubia
+	Namespace:         default
+	Labels:            <none>
+	Annotations:       <none>
+	Selector:          app=kubia
+	Type:              ClusterIP
+	IP Family Policy:  SingleStack
+	IP Families:       IPv4
+	IP:                10.102.7.68
+	IPs:               10.102.7.68
+	Port:              http  80/TCP
+	TargetPort:        8080/TCP
+	Endpoints:         172.17.0.3:8080
+	Session Affinity:  None
+	Events:            <none>
+
+
+ 5. Get the endpoints for this service
+    unix> kubectl get endpoints kubia
+
+	NAME    ENDPOINTS         AGE
+	kubia   172.17.0.3:8080   102s
+
+
+
+	Endpoints are a list of IP addresses and ports exposing a service
+
+
+Part 2: Create an External Service / LoadBalancer
+-------------------------------------------------
+ 1. Run the minikube tunnel (in a separate window)  (so that the loadBalancer can be assigned an external IP on a local laptop)
+    unix> minikube tunnel
+
+ 2. Create a yaml file for the external service
+    unix> vi kubia-svc-loadbalancer.yaml
+
+		apiVersion: v1
+		kind: Service
+		metadata:
+		  name: kubia-loadbalancer
+		spec:
+		  type: LoadBalancer
+		  ports:
+		  - port: 80
+			targetPort: 8080
+		  selector:
+			app: kubia
+
+
+
+ 3. Create the external service
+    unix> kubectl create -f kubia-svc-loadbalancer.yaml
+
+ 4. Verify that the service was created
+    unix> kubectl get service kubia-loadbalancer
+
+	NAME                 TYPE           CLUSTER-IP       EXTERNAL-IP      PORT(S)        AGE
+	kubia-loadbalancer   LoadBalancer   10.111.163.138   10.111.163.138   80:30578/TCP   11s
+
+
+ 5. Now, you can access your cluster using the EXTERNAL-IP
+    unix> curl http://10.111.163.138
+    You've hit kubia
+
+
+
+Part 3: Setup a Deployment that has 3 replicas
+----------------------------------------------
+ 1. Create a Deployment called sf328
+    a. Delete the kubia-manual pod
+
+
+    b. Create this kubia-deployment-v1.yaml file
+
+			#
+			#  kubia-deployment-v1.yaml
+			#
+			apiVersion: apps/v1
+			kind: Deployment
+			metadata:
+			  name: kubia
+
+			spec:
+			  selector:
+				matchLabels:
+				  app: kubia
+			  replicas: 3
+			  template:
+				metadata:
+				  name: kubia
+				  labels:
+					 app: kubia
+				spec:
+				  containers:
+				  - image: traderres/my-public-repo:kubia-1.0
+					imagePullPolicy: IfNotPresent
+					name: nodejs
+
+
+	 c. Create the deployment
+	    unix> kubectl create -f kubia-deployment-v1.yaml
+
+	 d. Verify that there are 3 kubia pods running
+	    unix> kubectl get pods -Lapp
+
+		NAME                    READY   STATUS    RESTARTS   AGE   APP
+		kubia-588b8f9db-kkl7z   1/1     Running   0          2s    kubia
+		kubia-588b8f9db-p5gwf   1/1     Running   0          2s    kubia
+		kubia-588b8f9db-vn4xh   1/1     Running   0          2s    kubia
+
+
+ 2. Because the load balancer is running, we should be able to connect to it
+    a. Get the external IP address of the load balancer
+       unix> kubectl get services
+
+	   	NAME                 TYPE           CLUSTER-IP       EXTERNAL-IP      PORT(S)        AGE
+   		kubernetes           ClusterIP      10.96.0.1        <none>           443/TCP        75d
+   		kubia-loadbalancer   LoadBalancer   10.101.123.111   10.101.123.111   80:30232/TCP   3s
+                                                                 ^
+                                                                 This is the external IP
+
+    b. Use curl to connect to the load balancer
+	   unix> curl 10.101.123.111
+	   You've hit kubia-588b8f9db-kkl7z
+
+	   unix> curl 10.101.123.111
+	   You've hit kubia-588b8f9db-p5gwf
+
+	   unix> curl 10.101.123.111
+	   You've hit kubia-588b8f9db-p5gwf
+
+	   unix> curl 10.101.123.111
+	   You've hit kubia-588b8f9db-vn4xh
+
+	   unix> curl 10.101.123.111
+	   You've hit kubia-588b8f9db-kkl7z
+
+
+
+ 2. Delete the deployment
+    a. Delete the deployment
+       unix> kubectl delete deployment kubia
+
+    b. Get the status of the pods
+       unix> kubectl get pods -Lapp
+
+		NAME                    READY   STATUS        RESTARTS   AGE     APP
+		kubia-588b8f9db-6pgq4   1/1     Terminating   0          2m36s   kubia
+		kubia-588b8f9db-n9wnl   1/1     Terminating   0          2m36s   kubia
+		kubia-588b8f9db-tsgrs   1/1     Terminating   0          2m36s   kubia
+
+
+
+
+    NOTE:  If you see External-IP as <pending>, then make sure you have minikube tunnel running
+
+
+
+
+
+
 
