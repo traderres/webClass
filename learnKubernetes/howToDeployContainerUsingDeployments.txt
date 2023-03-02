@@ -58,7 +58,7 @@ spec:
     ASSUMPTION:  We want to connect to this pod using 443
                  The java app server inside the pod is listening on port 8443
 
-    a. Start the minitunnel  (so that the load balancer service works running locally)
+    a. Start the minikube tunnel  (so that the load balancer service works running locally)
        unix> minikube tunnel
 
     b. Create the service file
@@ -161,3 +161,90 @@ spec:
 		sf328-deployment-5c5d59f569-wtksm   1/1     Terminating   0          2m36s   sf328-backend
 		sf328-deployment-5c5d59f569-xtxrcs  1/1     Terminating   0          2m36s   sf328-backend
 
+
+
+Part 2:  Tell Kubernetes to Upgrade to a Newer Version
+------------------------------------------------------
+ 1. Use maven to set the version to 1.0.9-SNAPSHOT
+    unix> cd ~/intellijProjects/sf328
+    unix> mvn versions:set -DnewVersion=1.0.9-SNAPSHOT
+
+
+ 2. Build your image
+    unix> cd ~/intellijProjects/sf328
+    unix> mvn clean package -Pprod -PbuildImage
+
+    This generates 2 local images:
+       traderres/my-public-repo:sf328-backend-1.0.9-SNAPSHOT
+       traderres/my-public-repo:sync-service-1.0.9-SNAPSHOT
+
+
+ 3. Push these up to your docker repository
+    unix> docker login
+    unix> docker  push  traderres/my-public-repo:sf328-backend-1.0.9-SNAPSHOT
+    unix> docker  push  traderres/my-public-repo:sync-service-1.0.9-SNAPSHOT
+
+
+ 4. Startup the load balancer service
+    a. Start the minikube tunnel  (so that the load balancer service works running locally)
+       unix> minikube tunnel
+
+    b. Create the load balancer service
+       unix> kubectl create -f sf328-svc-loadbalancer.yaml
+
+    c. Verify that the load balancer service has an external IP address
+       unix> kubectl get service
+
+		NAME                 TYPE           CLUSTER-IP       EXTERNAL-IP      PORT(S)         AGE
+		kubernetes           ClusterIP      10.96.0.1        <none>           443/TCP         76d
+		sf328-loadbalancer   LoadBalancer   10.111.164.170   10.111.164.170   443:30063/TCP   8s
+
+    	   NOTE:  External ip is 10.111.164.170
+
+
+ 4. Startup the old deployment
+    a. Create a Deployment
+       unix> kubectl create -f sf328-deployment-v1.yaml
+
+    b. Verify that the deployment rolled out
+       unix> kubectl rollout status deployment sf328-deployment
+       deployment "sf328-deployment" successfully rolled out
+
+    c. Verify that there are 3 running pods
+       unix> kubectl get pods -Lapp
+
+ 		NAME                                READY   STATUS    RESTARTS   AGE   APP
+ 		sf328-deployment-5c5d59f569-chl6v   1/1     Running   0          22s   sf328-backend
+ 		sf328-deployment-5c5d59f569-wtksm   1/1     Running   0          22s   sf328-backend
+ 		sf328-deployment-5c5d59f569-xtxrc   1/1     Running   0          22s   sf328-backend
+
+    d. Connect to the webapp by going to https://10.111.164.170/sf
+       -- Verify that you see the webapp come up
+
+    e. Get the current web app version
+       Go to https://10.111.164.170/sf/api/version
+       -- Verify that you see 1.0.8-SNAPSHOT
+
+
+ 5. Tell Kubernetes to **UPGRADE** from 1.0.8-SNAPSHOT to 1.0.9-SNAPSHOT
+    a. Tell Kubernetes to upgrade to 1.0.9-SNAPSHOT by updating the deployment template
+       unix> kubectl set image deployment sf328-deployment java-backend=traderres/my-public-repo:sf328-backend-1.0.9-SNAPSHOT
+
+    b. Verify that the deployment rolled out
+       unix> kubectl rollout status deployment sf328-deployment
+       deployment "sf328-deployment" successfully rolled out
+
+    c. Verify that there are 3 running pods
+       unix> kubectl get pods -Lapp
+
+		NAME                                READY   STATUS    RESTARTS   AGE   APP
+		sf328-deployment-65dd9778db-68h86   1/1     Running   0          9s    sf328-backend
+		sf328-deployment-65dd9778db-s6ljh   1/1     Running   0          11s   sf328-backend
+		sf328-deployment-65dd9778db-tq2ng   1/1     Running   0          15s   sf328-backend
+
+    d. Connect to the webapp by going to https://10.111.164.170/sf
+       -- Verify that you see the webapp come up
+
+    e. Get the current web app version
+       Go to https://10.111.164.170/sf/api/version
+       -- Verify that you see 1.0.9-SNAPSHOT
