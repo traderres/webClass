@@ -1,9 +1,19 @@
-How to Deploy a Web App Image using Deployments
------------------------------------------------
+How to Deploy a Web App Image using Deployments to MiniKube
+-----------------------------------------------------------
+
+Assumptions
+ A) You have MiniKube installed
+ B) You followed the steps in learnDocker/howToBuildAndPushSpringBootImagesUsingJibMavenPlugin.txt to make a docker image
+
 
 Procedure
 ---------
- 1. Build your image
+ 1. Erase any local docker image
+    unix> docker rmi  traderres/my-public-repo:sf328-backend-1.0.8-SNAPSHOT
+    unix> docker rmi  traderres/my-public-repo:sync-service-1.0.8-SNAPSHOT
+
+
+ 2. Build your image
     unix> cd ~/intellijProjects/sf328
     unix> mvn clean package -Pprod -PbuildImage
 
@@ -12,18 +22,22 @@ Procedure
        traderres/my-public-repo:sync-service-1.0.8-SNAPSHOT
 
 
- 2. Push these up to your docker repository
+ 3. Push these up to your docker repository
     unix> docker login
     unix> docker  push  traderres/my-public-repo:sf328-backend-1.0.8-SNAPSHOT
     unix> docker  push  traderres/my-public-repo:sync-service-1.0.8-SNAPSHOT
 
 
- 3. Create the pod
+ 4. Create the pod
     a. Create the pod file
        unix> vi sf328-backend-pod.yaml
 
 #############################################################################
 # sf328-backend-pod.yaml
+#
+# Use JAVA_TOOL_OPTIONS to set the container's JVM's java options
+# Make sure the container has enough memory for the container and JVM
+#    spec.resource.limits.memory > JVM memory + container memory
 #############################################################################
 apiVersion: v1
 kind: Pod
@@ -34,11 +48,18 @@ metadata:
 spec:
   containers:
   - image: traderres/my-public-repo:sf328-backend-1.0.8-SNAPSHOT
-    imagePullPolicy: IfNotPresent
+    imagePullPolicy: Always
     name: sf328-backend
     ports:
     - containerPort: 8080
       protocol: TCP
+    env:
+    - name: JAVA_TOOL_OPTIONS
+      value:  -Xms256m -Xmx256m -Demail.mode=off
+    resources:
+      limits:
+         memory: "300M"
+
 
 
 
