@@ -1,0 +1,163 @@
+How to Deploy a Web App Image using Deployments
+-----------------------------------------------
+
+Procedure
+---------
+ 1. Build your image
+    unix> cd ~/intellijProjects/sf328
+    unix> mvn clean package -Pprod -PbuildImage
+
+    This generates 2 local images:
+       traderres/my-public-repo:sf328-backend-1.0.8-SNAPSHOT
+       traderres/my-public-repo:sync-service-1.0.8-SNAPSHOT
+
+
+ 2. Push these up to your docker repository
+    unix> docker login
+    unix> docker  push  traderres/my-public-repo:sf328-backend-1.0.8-SNAPSHOT
+    unix> docker  push  traderres/my-public-repo:sync-service-1.0.8-SNAPSHOT
+
+
+ 3. Create the pod
+    a. Create the pod file
+       unix> vi sf328-backend-pod.yaml
+
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sf328-backend-pod
+  labels:
+    app: sf328-backend
+spec:
+  containers:
+  - image: traderres/my-public-repo:sf328-backend-1.0.8-SNAPSHOT
+    imagePullPolicy: IfNotPresent
+    name: sf328-backend
+    ports:
+    - containerPort: 8080
+      protocol: TCP
+
+
+
+	b. Create the pod
+       unix> kubectl create -f sf328-backend-pod.yaml
+
+    c. Verify that the pod is running
+       unix> kubectl get pods
+
+	   NAME                READY   STATUS    RESTARTS   AGE
+	   sf328-backend-pod   1/1     Running   0          3s
+
+
+    d. Stop the pod
+       unix> kubectl delete pod sf328-backend-pod
+
+
+ 4. Create the external load balancer service
+    ASSUMPTION:  We want to connect to this pod using 443
+                 The java app server inside the pod is listening on port 8443
+
+    a. Start the minitunnel  (so that the load balancer service works running locally)
+       unix> minikube tunnel
+
+    b. Create the service file
+       unix> vi sf328-svc-loadbalancer.yaml
+
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: sf328-loadbalancer
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 443
+    targetPort: 8443
+  selector:
+    app: sf328-backend
+
+
+
+    c. Create the load balancer service
+       unix> kubectl create -f sf328-svc-loadbalancer.yaml
+
+    d. Verify that the load balancer service has an external IP address
+       unix> kubectl get service
+
+		NAME                 TYPE           CLUSTER-IP      EXTERNAL-IP     PORT(S)         AGE
+		kubernetes           ClusterIP      10.96.0.1       <none>          443/TCP         76d
+		sf328-loadbalancer   LoadBalancer   10.97.122.147   10.97.122.147   443:30887/TCP   3s
+
+
+	   NOTE:  External ip is 10.97.122.147
+
+
+ 5. Create the deployment
+    a. Create the deployment file
+       unix> vi sf328-deployment-v1.yaml
+
+#
+#  sf328-deployment-v1.yaml
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sf328-deployment
+
+spec:
+  selector:
+    matchLabels:
+      app: sf328-backend
+  replicas: 3
+  template:
+    metadata:
+      name: kubia
+      labels:
+         app: sf328-backend
+    spec:
+      containers:
+      - image: traderres/my-public-repo:sf328-backend-1.0.8-SNAPSHOT
+        imagePullPolicy: IfNotPresent
+        name: java-backend
+
+
+
+    b. Create a Deployment
+       unix> kubectl create -f sf328-deployment-v1.yaml
+
+    c. Verify that the deployment rolled out
+       unix> kubectl rollout status deployment sf328-deployment
+       deployment "sf328-deployment" successfully rolled out
+
+    d. Verify that there are 3 running pods
+       unix> kubectl get pods -Lapp
+
+		NAME                                READY   STATUS    RESTARTS   AGE   APP
+		sf328-deployment-5c5d59f569-chl6v   1/1     Running   0          22s   sf328-backend
+		sf328-deployment-5c5d59f569-wtksm   1/1     Running   0          22s   sf328-backend
+		sf328-deployment-5c5d59f569-xtxrc   1/1     Running   0          22s   sf328-backend
+
+
+
+ 6. Attempt to connect to it
+    NOTE:  The external IP is 10.97.122.147:443
+
+    a. Open a browser that has the john.smith.p12
+
+    b. Connect to https://10.97.122.147/sf
+       -- You should see the webapp
+
+
+ 7. Stop the deployment (by deleting the deployment)
+    a. Delete the deployment
+       unix> kubectl delete deployment sf328-deployment
+
+    b. Get the status of the pods
+       unix> kubectl get pods -Lapp
+
+		NAME                                READY   STATUS        RESTARTS   AGE     APP
+		sf328-deployment-5c5d59f569-chl6v   1/1     Terminating   0          2m36s   sf328-backend
+		sf328-deployment-5c5d59f569-wtksm   1/1     Terminating   0          2m36s   sf328-backend
+		sf328-deployment-5c5d59f569-xtxrcs  1/1     Terminating   0          2m36s   sf328-backend
+
