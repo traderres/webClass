@@ -11,8 +11,8 @@ Assumptions:
 
 Part 1:  Build an Image (using the jib-maven-plugin)
 ----------------------------------------------------
- 1. Create a profile called "buildImage" that will run the jib:docker-build  (to build a docker image)
-    WARNING:  This maven profile requires docker to be installed
+ 1. Add a maven profile called "buildImage" that will run the jib:docker-build  (to build a docker image)
+    WARNING:  The  jib:docker-build goal requires docker to be installed
 
     a. Edit backend/pom.xml
 
@@ -56,7 +56,7 @@ Part 1:  Build an Image (using the jib-maven-plugin)
    Alternatve Maven Profile (that does not require docker)
    -------------------------------------------------------
    NOTE:  If you do not have docker installed, then you use the "buildImageWithoutDocker" profile [see below]
-          This profile uses the "build" goal which does not require docker to be installed
+          This profile uses the jib:build goal (which does not require docker to be installed)
 
 		<profile>
 		  <id>buildImageWithoutDocker</id>
@@ -94,9 +94,248 @@ Part 1:  Build an Image (using the jib-maven-plugin)
 		</profile>
 
 		Use this command to build the image and push to a docker repo
-		unix> export USERNAME=traderres    # This is the username for the  <to><image>...</image></to repository
-		unix> export PASSWORD=secret       # This is the password for the <to><image>...</image></to> repository
+		unix> export USERNAME=traderres      # This is the username for the  <to><image>...</image></to repository
+		unix> export PASSWORD=secret         # This is the password for the <to><image>...</image></to> repository
 		unix> mvn clean package -Pprod -PbuildImageWithoutDocker  -Djib.to.auth.username=$USERNAME -Djib.to.auth.password=$PASSWORD
+
+
+
+     Here's what a sample pom.xml would look like with both profiles added to the pom.xml
+     ------------------------------------------------------------------------------------
+      <?xml version="1.0" encoding="UTF-8"?>
+      <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+        <modelVersion>4.0.0</modelVersion>
+
+        <parent>
+          <artifactId>angularApp1</artifactId>
+          <groupId>com.lessons</groupId>
+          <version>1.0-SNAPSHOT</version>
+        </parent>
+
+        <artifactId>backend</artifactId>
+        <version>1.0-SNAPSHOT</version>
+
+        <name>backend</name>
+
+        <properties>
+          <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+          <maven.compiler.source>1.8</maven.compiler.source>
+          <maven.compiler.target>1.8</maven.compiler.target>
+        </properties>
+
+        <dependencyManagement>
+          <!-- Set Spring Boot Dependencies -->
+          <dependencies>
+            <dependency>
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-dependencies</artifactId>
+              <version>2.2.1.RELEASE</version>
+              <type>pom</type>
+              <scope>import</scope>
+            </dependency>
+          </dependencies>
+        </dependencyManagement>
+
+        <dependencies>
+
+          <dependency>
+            <!-- Include the front-end as a dependency so the front-end is compiled *BEFORE* the backend is compiled -->
+            <groupId>${project.groupId}</groupId>
+            <artifactId>frontend</artifactId>
+            <version>${project.version}</version>
+          </dependency>
+
+          <dependency>
+            <!-- Spring Boot Web -->
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+
+            <exclusions>
+              <exclusion>
+                <!-- Remove Tomcat from Spring Boot -->
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-tomcat</artifactId>
+              </exclusion>
+
+              <exclusion>
+                <!-- Remove logging from spring as we will use logback -->
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-logging</artifactId>
+              </exclusion>
+            </exclusions>
+          </dependency>
+
+          <dependency>
+            <!-- Add Dependency for the Undertow App Server -->
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-undertow</artifactId>
+
+            <exclusions>
+              <exclusion>
+                <!-- Remove logging from undertow as we will use logback -->
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-logging</artifactId>
+              </exclusion>
+            </exclusions>
+          </dependency>
+
+          <dependency>
+            <!-- Send logging from Java Common Logging to SLF4J -->
+            <groupId>org.slf4j</groupId>
+            <artifactId>jcl-over-slf4j</artifactId>
+            <version>1.7.5</version>
+          </dependency>
+
+          <dependency>
+            <!-- SLF4J will use Logback-classic as its logging implementation -->
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.2.3</version>
+          </dependency>
+
+          <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jdbc</artifactId>
+            <version>5.2.1.RELEASE</version>
+          </dependency>
+
+          <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+            <version>5.2.1.RELEASE</version>
+          </dependency>
+
+          <dependency>
+            <!-- Implementation for converting objects to JSON -->
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.9.3</version>
+          </dependency>
+
+          <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.12</version>
+            <scope>test</scope>
+          </dependency>
+        </dependencies>
+
+        <build>
+
+          <plugins>
+            <plugin>
+              <!-- This plugin provides the tools needed to repackage the Spring Boot JAR into a runnable JAR
+                   Run this command to generate the runnable Spring Boot Jar
+                      mvn clean package  *or*
+                      mvn clean package spring-boot:repackage
+               -->
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-maven-plugin</artifactId>
+              <version>2.2.1.RELEASE</version>
+              <configuration>
+                <addResources>true</addResources>
+              </configuration>
+
+              <executions>
+                <execution>
+                  <goals>
+                    <goal>repackage</goal>
+                  </goals>
+                  <configuration>
+                    <classifier>exec</classifier>
+                  </configuration>
+                </execution>
+              </executions>
+
+            </plugin>
+          </plugins>
+
+        </build>
+
+        <profiles>
+
+          <profile>
+            <!--    B U I L D    I M A G E       P R O F I L E    -->
+            <id>buildImage</id>
+
+            <build>
+              <plugins>
+                <plugin>
+                  <groupId>com.google.cloud.tools</groupId>
+                  <artifactId>jib-maven-plugin</artifactId>
+                  <version>3.3.1</version>
+                  <configuration>
+                    <from>
+                      <!-- The source image runs linux with JDK 1.8-362 -->
+                      <image>eclipse-temurin:8u362-b09-jdk@sha256:3b83f3fc0d016d7536dfd5e8a98ece451061b7dbb6d5db3ddea2db30b6153b28</image>
+                    </from>
+
+                    <to>
+                      <image>traderres/my-public-repo:${project.artifactId}-${project.version}</image>
+                    </to>
+                  </configuration>
+
+                  <executions>
+                    <execution>
+                      <phase>package</phase>
+                      <goals>
+                        <!-- The "dockerBuild" goal requires docker to be installed -->
+                        <goal>dockerBuild</goal>
+                      </goals>
+                    </execution>
+                  </executions>
+
+                </plugin>
+              </plugins>
+            </build>
+          </profile>
+
+
+
+          <profile>
+             <!--    B U I L D      I M A G E      W I T H O U T    D O C K E R     P R O F I L E    -->
+            <id>buildImageWithoutDocker</id>
+
+            <build>
+              <plugins>
+                <plugin>
+                  <groupId>com.google.cloud.tools</groupId>
+                  <artifactId>jib-maven-plugin</artifactId>
+                  <version>3.3.1</version>
+                  <configuration>
+                    <from>
+                      <!-- The source image runs linux with JDK 1.8-362 -->
+                      <image>eclipse-temurin:8u362-b09-jdk@sha256:3b83f3fc0d016d7536dfd5e8a98ece451061b7dbb6d5db3ddea2db30b6153b28</image>
+                    </from>
+
+                    <to>
+                      <image>traderres/my-public-repo:${project.artifactId}-${project.version}</image>
+                    </to>
+                  </configuration>
+
+                  <executions>
+                    <execution>
+                      <phase>package</phase>
+                      <goals>
+                        <!-- The "build" goal does not require docker to be installed -->
+                        <goal>build</goal>
+                      </goals>
+                    </execution>
+                  </executions>
+
+                </plugin>
+              </plugins>
+            </build>
+          </profile>
+        </profiles>
+
+      </project>
+
+
+
+
+
 
 
 
@@ -162,6 +401,10 @@ Part 2:  (OPTIONAL) Add additional files to the image  (if needed)
          </plugins>
        </build>
      </profile>
+
+
+
+
 
 
  2. OPTIONAL / Remove the old image
