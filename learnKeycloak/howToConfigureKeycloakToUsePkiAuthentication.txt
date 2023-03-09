@@ -1,0 +1,693 @@
+How to configure keycloak client to use mutual SSL
+--------------------------------------------------
+
+APPROACHES
+ 1. Manual
+    -- Spring Security to gets PKI cert
+    -- Spring Security invokes separate REST call to keycloak to get roles
+    -- Spring Security then proceeds (MyAuthenticationManager approach)
+	   PROBLEM:  if we want to change from pki security to passwords in the future, it's not easy
+                 It goes around security (because users do not go through the keycloak fron door)
+
+
+ 2. Automatic / Using Spring Security & Redirect to keycloak login page
+    -- Spring Security invokes separate REST call to keycloak to get roles
+    -- Spring Security then proceeds
+       PROBLEM:  Having issues with outgoing call from Spring Security to KeyCloak
+
+	NOTE:  This uses the oauth2Login() which should cause a redirect
+
+
+
+ 3. Automatic / Using KeyCloak Adapter
+     PROBLEM:  KeyCloak Adapter is deprecated with Spring Boot 3  (so we cannot upgrade to Spring Boot 3 easily in the future)
+
+
+
+
+
+
+Procedure for approach #2  (Automatic / Spring Security Redirect)
+-----------------------------------------------------------------
+
+
+Part 1: Configure Keycloak to run in SSL
+----------------------------------------
+ 1. Create a java keystore and truststore for a server cert
+    Put the keystore here:   /home/adam/intellijProjects/sf328/sf328-backend/src/main/prod_resources/my_keystore.jks
+    Put the truststore here: /home/adam/intellijProjects/sf328/sf328-backend/src/main/prod_resources/my_truststore.jks
+
+    NOTE:  When creating the server cert use this:
+              cn=localhost.localdomain
+
+
+ 2. Create a server cert with CN=localhost.localdomain    (this entry is found in my /etc/hosts)
+
+
+ 3. Enable SSL in keycloak
+
+    a. Create a unix script that will startup keycloak with SSL
+       unix> cd ~/Downloads/keycloak-21.0.1/
+       unix> vi start.kc.ssl.sh
+
+
+####################################################################################################################
+# Filename:   start.kc.ssl.sh
+#
+# Purpose:
+#     Run keycloak in SSL mode
+#
+# ASSUMPTIONS:
+#   1) You ran bin/kc.sh build  (first)
+#   2) You have a Java 11 JDK
+#
+# NOTES:
+#   --https-client-auth=<none|request|required>       "request" means keycloak will also accept requests without a cert but validates cert if it exists
+#   --hostname=localhost.localdomain                  tells it to listen on the hostname called localhost.localdomain
+####################################################################################################################
+export JAVA_HOME=/usr/java/jdk-11.0.12
+export PATH=${JAVA_HOME}/bin:$PATH
+bin/kc.sh start --http-enabled=false --https-port=8444 --https-key-store-file=/home/adam/intellijProjects/sf328/sf328-backend/src/main/prod_resources/my_keystore.jks --https-key-store-type=JKS --https-key-store-password=changeit --https-trust-store-file=/home/adam/intellijProjects/sf328/sf328-backend/src/main/prod_resources/my_truststore.jks --https-trust-store-type=JKS  --https-trust-store-password=changeit --https-client-auth=request  --log-level=INFO --hostname-strict-https=false --hostname-strict=false --hostname=localhost.localdomain
+
+
+    b. Make the script executable
+       unix> chmod u+x start.kc.ssl.sh
+
+
+    c. Rebuild keycloak config
+       unix> cd ~/Downloads/keycloak-21.0.1/
+       unix> bin/kc.sh build   # To rebuild the configuration
+
+
+ 4. Startup Keycloak in SSL
+    unix> cd ~/Downloads/keycloak-21.0.1/
+    unix> ./start.kc.ssl.sh
+
+
+ 5. Verify that you can connect to keycloak at https://localhost.localdomain:8444/
+
+
+
+
+Part 2: Configure Keycloak's realm and client
+---------------------------------------------
+ 1. Select Realms -> Create new realm: MyRealm
+
+
+ 2. Create an x509 authentication flow
+    a. Click on Authentication
+    b. Click on browser
+    c. Selection Action -> Duplicate
+       Name:  x509 authentication flow
+    d. Delete Everything
+    e. Add Cookie   with Requirement=Alternative
+
+    f. Press "Add step"
+       1) Press the "next" button a few times until you see x509/Validate Username Form
+       2) Select x509/Validate Username Form
+       3) Change X509/Validate Username From to Alternate
+       4) Press the "Settings" button
+
+       5) In the X509/Validate Username Form Config
+
+          Alias:                                        x509 configuration
+          User Identity Source:                         Match SubjectDN using regular expression
+          Regular expression to extract user identity:  cn=(.*?)(?:,|$)
+          User mapping method:                          Username or Email
+          Check certificate validity:                   On
+          Bypass identity confirmation                  On
+
+       6) In x509 authentication flow, select Action -> Bind flow
+          Choose "Browser flow"
+          Press "Save"
+
+
+
+
+ 3. Create the client: sf328-webapp
+    a. Click on Clients
+    b. Press "Create client"
+
+    General Settings
+      Client type:           OpenID Connect
+      Client ID:             sf328-webapp
+      Name:                  SF328 Submissions
+      Always display in UI:  Off
+      Press "Next"
+      Press "Next"
+      Press "Save"
+
+    Access Settings:
+    ### DO NOT SET ##    Root URL:              https://localhost.localdomain:8443/sf
+    ###  Home URL:              https://localhost.localdomain:8443/sf
+
+    Capability Config:
+      Client authentication  On
+      Authorization          On
+      Authentication Flow:   Check Standard flow
+
+    Login Settings
+       Login theme:               keycloak
+       Consent required:          Off
+       Display client on screen:  Off
+
+    Press "Save"
+
+
+ 4. Click on SF328-webapp / Credentials Tab
+    Client Authenticator:  Client ID and Secret
+
+
+ 5. Click on "Advanced"
+    Go to Authentication flow overrides
+    Browser Flow:  x509 authentication flow
+    Press "Save"
+
+
+ 6. Create the realm role
+    a. CReate a role called SF328_USER
+
+ 7. Assign that role to your test user
+    a. Click on Users
+    b. Press "Add User"
+    c. Username:       Lastname.first
+
+    d. Click on "role Mappings"
+    e. Press Assign Role
+    f. Assign the SF328_USER role to this user
+
+
+
+
+
+Part 3: Configure Web App to use oauth2 for authentication
+-----------------------------------------------------------
+ 1. Add these maven dependencies to your backend/pom.xml
+
+    <dependency>
+      <!-- Sprint Boot / Use OAuth2/OpenID Connect client as my authentication client -->
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-oauth2-client</artifactId>
+    </dependency>
+
+    <dependency>
+      <!-- Spring Boot / Tell Spring Security to use the keycloak server for identity control -->
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+    </dependency>
+
+
+ 2. Add this profile to your application.yaml
+
+
+		#################################################################################################
+		#            L O C A L      O A U T H 2        P R O F I L E
+		# Prod Profile
+		#  1) use the local database
+		#################################################################################################
+		spring.profiles: local_oauth2
+
+		# So, we're running in HTTPS mode but using a hard-coded principal for security
+		use.hardcoded.authenticated.principal: false
+
+
+		##########################################################
+		# Keycloak Settings for Spring Security
+		##########################################################
+		spring.security.oauth2.client.registration.keycloak.client-id: sf328-webapp
+		spring.security.oauth2.client.registration.keycloak.client-secret: EZNI1jBMiWikhmYuIF2aIL0ULfkgzZHA
+		spring.security.oauth2.client.registration.keycloak.authorization-grant-type: authorization_code
+		spring.security.oauth2.client.registration.keycloak.scope: openid,email,profile
+
+		spring.security.oauth2.client.provider.keycloak.issuer-uri: https://localhost.localdomain:8444/realms/MyRealm
+		spring.security.oauth2.client.provider.keycloak.user-name-attribute: preferred_username
+
+		spring.security.oauth2.resourceserver.jwt.issuer-uri: https://localhost.localdomain:8444/realms/MyRealm
+
+
+
+
+		##########################################################
+		# SSL Settings
+		##########################################################
+		server:
+		  port: 8443
+		  ssl:
+			key-store: sf328-backend/src/main/prod_resources/my_keystore.jks
+			key-store-password: changeit
+			key-store-type: JKS
+			client-auth: need
+			trust-store: sf328-backend/src/main/prod_resources/my_truststore.jks
+			trust-store-password: changeit
+			trust-store-type: JKS
+			enabled: true
+
+
+		# Secure the cookies
+		server.servlet.session.cookie.secure: true
+		server.servlet.session.cookie.http-only: true
+
+
+		##########################################################
+		# Database Settings
+		##########################################################
+		app.datasource:
+		  driver-class-name: org.postgresql.Driver
+		  url: jdbc:postgresql://localhost:5432/sf328_db
+		  username: sf328_user
+		  password: secret
+		  schema: sf328_db
+		  maxPoolSize: 15
+		  connectionTimeout: 60000
+		  database-name: sf328_db
+
+
+		##########################################################
+		# ElasticSearch Settings
+		##########################################################
+		es:
+		  url: http://localhost:9201
+		  ssl_enabled: false
+
+
+
+
+ 3. Create this class:  AuthenticationService (that loads data into the principal)
+
+		package com.lessons.services;
+
+		import com.lessons.models.ConflictingRolesDTO;
+		import com.lessons.models.InitialUserInfoDTO;
+		import com.lessons.security.UserInfo;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import org.springframework.jdbc.core.JdbcTemplate;
+		import org.springframework.security.core.Authentication;
+		import org.springframework.security.core.GrantedAuthority;
+		import org.springframework.security.core.authority.SimpleGrantedAuthority;
+		import org.springframework.security.core.context.SecurityContextHolder;
+		import org.springframework.security.oauth2.core.oidc.user.OidcUser;
+		import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
+		import org.springframework.stereotype.Service;
+
+		import javax.annotation.Resource;
+		import javax.servlet.ServletException;
+		import javax.servlet.http.HttpServletRequest;
+		import javax.servlet.http.HttpServletResponse;
+		import javax.sql.DataSource;
+		import java.io.IOException;
+		import java.util.ArrayList;
+		import java.util.List;
+		import java.util.Map;
+		import java.util.regex.Matcher;
+		import java.util.regex.Pattern;
+
+		@Service
+		public class AuthenticationService {
+			private static final Logger logger = LoggerFactory.getLogger(AuthenticationService.class);
+
+			@Resource
+			private DataSource dataSource;
+
+			@Resource
+			private UserService userService;
+
+
+			private static final Pattern patExtractCN = Pattern.compile("cn=(.*?)(?:,|/|\\z)", Pattern.CASE_INSENSITIVE);
+
+
+
+			/**
+			 * @param aRequest
+			 * @param aResponse
+			 * @param aAuthentication
+			 * @throws Exception
+			 */
+			public void onAuthenticationSuccessForOauth2(HttpServletRequest aRequest,
+				                                         HttpServletResponse aResponse,
+				                                         Authentication aAuthentication) throws IOException, ServletException {
+
+				// Get the info from the OAuth2 server (keycloak) and build a UserInfo object
+				UserInfo userInfo = loadUserDetailsFromOauth2Server(aRequest, aResponse, aAuthentication);
+
+				// Create a new authentication object
+				PreAuthenticatedAuthenticationToken authenticationToken = new PreAuthenticatedAuthenticationToken(userInfo, null, userInfo.getAuthorities());
+				authenticationToken.setAuthenticated(true);
+
+				// Replace the old authentication object with this new one
+				SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+			}
+
+
+
+			public UserInfo loadUserDetailsFromOauth2Server(HttpServletRequest aRequest,
+				                                            HttpServletResponse aResponse,
+				                                            Authentication aAuthentication) {
+				OidcUser oidcUser = (OidcUser) aAuthentication.getPrincipal();
+				String userUID = oidcUser.getName();
+
+				List<GrantedAuthority> oauth2RolesGranted = new ArrayList<>();
+
+				// Get the roles from keycloak and put them into the object called oauth2RolesGranted
+				Map<String, Object> realmAccessMap = (Map<String, Object>) oidcUser.getAttributes().get("realm_access");
+				if (realmAccessMap.size() == 1) {
+				    List<String> roleNames = (List<String>) realmAccessMap.get("roles");
+
+				    if (roleNames != null) {
+				        for (String roleName: roleNames) {
+				            GrantedAuthority grantedAuthority = new SimpleGrantedAuthority("ROLE_" + roleName);
+				            oauth2RolesGranted.add(grantedAuthority);
+				        }
+				    }
+
+				}
+
+				// Get the list of the Citadel Roles from the db
+				List<String> citadelRoles = getCitadelRolesList();
+
+				ConflictingRolesDTO conflictingRolesDTO = new ConflictingRolesDTO(oauth2RolesGranted, citadelRoles);
+
+
+				// Get the user's userId from the database (or generate one)
+				// NOTE:  Use the synchronized version of this method when running in local dev mode
+				InitialUserInfoDTO userInfoDTO = userService.getInitialUserInfoOrInsertRecordSynchronized(userUID);
+
+				// The list of allRolesGranted = all citadel roles + all internal roles granted
+				List<GrantedAuthority> allRolesGranted = new ArrayList<>(oauth2RolesGranted.size() + userInfoDTO.getInternalRolesGranted().size() );
+				allRolesGranted.addAll(oauth2RolesGranted);
+				allRolesGranted.addAll( userInfoDTO.getInternalRolesGranted());
+
+				// Create a UserInfo object with information from the database and the keycloak server
+				UserInfo userInfo = new UserInfo()
+				        .withId( userInfoDTO.getUserId() )
+				        .withIsLocked( userInfoDTO.getIsLocked() )
+				        .withUsernameUID(oidcUser.getName())
+				        .withUsernameDn(oidcUser.getName())
+				        .withGrantedAuthorities(allRolesGranted)
+				        .withRolesAreConflicting(conflictingRolesDTO.isRolesAreConflicting())
+				        .withRolesAreConflictingMessage(conflictingRolesDTO.getRolesAreConflictingMessage());
+
+				return userInfo;
+			}
+
+
+
+			public UserInfo loadUserDetailsForDevelopment(Authentication authentication) {
+
+				String userUID = "my_sf328_user2";
+				String userDN = "3.2.12.144549.1.9.1=#161760312e646576,CN=my_test_user2,OU=Hosts,O=ZZTop.Org,C=ZZ";
+
+				if ((authentication != null) && (authentication.getPrincipal() != null)) {
+				    userDN = authentication.getPrincipal().toString();
+				    userUID = getCnValueFromLongDnString(userDN);
+				    if (userUID == null) {
+				        userUID = "my_sf328_user2";
+				    }
+				}
+
+				// Create a list of granted authorities
+				// NOTE:  The roles *MUST* start with a ROLE_ prefix for the @PreAuthorize annotations to work correctly
+				List<GrantedAuthority> citadelRolesGranted = new ArrayList<>();
+				citadelRolesGranted.add(new SimpleGrantedAuthority("ROLE_SF328_USER"));
+				citadelRolesGranted.add(new SimpleGrantedAuthority("ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS"));
+
+				// Get the list of the Citadel Roles from the db
+				List<String> citadelRoles = getCitadelRolesList();
+
+				ConflictingRolesDTO conflictingRolesDTO = new ConflictingRolesDTO(citadelRolesGranted, citadelRoles);
+
+
+				// Get the user's userId from the database (or generate one)
+				// NOTE:  Use the synchronized version of this method when running in local dev mode
+				InitialUserInfoDTO userInfoDTO = this.userService.getInitialUserInfoOrInsertRecordSynchronized(userUID);
+
+				// The list of allRolesGranted = all citadel roles + all internal roles granted
+				List<GrantedAuthority> allRolesGranted = new ArrayList<>(citadelRolesGranted.size() + userInfoDTO.getInternalRolesGranted().size() );
+				allRolesGranted.addAll(citadelRolesGranted);
+				allRolesGranted.addAll( userInfoDTO.getInternalRolesGranted());
+
+				// Create a bogus UserInfo object
+				// NOTE:  I am hard-coding the user's userid=25
+				UserInfo userInfo = new UserInfo()
+				        .withId( userInfoDTO.getUserId() )
+				        .withIsLocked( userInfoDTO.getIsLocked() )
+				        .withUsernameUID(userUID)
+				        .withUsernameDn(userDN)
+				        .withGrantedAuthorities(allRolesGranted)
+				        .withRolesAreConflicting(conflictingRolesDTO.isRolesAreConflicting())
+				        .withRolesAreConflictingMessage(conflictingRolesDTO.getRolesAreConflictingMessage());
+
+				if (userInfoDTO.getIsLocked() ) {
+				    logger.info("{} successfully logged-in.", userUID);
+				}
+
+
+				// When running in local development, disable the acknowledgement popup
+				userInfo.setUserAcknoledgedMessage();
+
+				return userInfo;
+			}
+
+
+
+
+			private List<String> getCitadelRolesList() {
+				JdbcTemplate jt = new JdbcTemplate(this.dataSource);
+
+				String sql = "select name from roles where is_citadel_role=true";
+
+				List<String> citadelRolesList = jt.queryForList(sql, String.class);
+
+				return citadelRolesList;
+			}
+
+			private static String getCnValueFromLongDnString(String userDN) {
+				logger.debug("getCnValueFromLongDnString()  userDN={}", userDN);
+				String cnValue = null;
+				// Use the regular expression pattern to getByUserId the value part of "CN=value"
+				Matcher matcher = patExtractCN.matcher(userDN);
+				if (matcher.find()) {
+				    cnValue = matcher.group(1);
+				}
+
+				logger.debug("getCnValueFromLongDnString() returns -->{}<--", cnValue);
+				return cnValue;
+			}
+
+
+		}
+
+
+ 4. Create this class:  OAuth2LoginSuccessHandler
+
+		package com.lessons.security;
+
+		import com.lessons.services.AuthenticationService;
+		import org.springframework.security.core.Authentication;
+		import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
+		import org.springframework.stereotype.Component;
+
+		import javax.annotation.Resource;
+		import javax.servlet.ServletException;
+		import javax.servlet.http.HttpServletRequest;
+		import javax.servlet.http.HttpServletResponse;
+		import java.io.IOException;
+
+		/*
+		 * Create a success handler class that extends SavedRequestAwareAuthenticationSuccessHandler
+		 * -- This ensures that upon successful authentication, the user is taken to the user's ORIGINAL url
+		 */
+		@Component
+		public class OAuth2LoginSuccessHandler extends SavedRequestAwareAuthenticationSuccessHandler {
+
+			@Resource
+			private AuthenticationService authenticationService;
+
+			@Override
+			public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
+				                                Authentication authentication) throws IOException, ServletException {
+
+				// The user successfully authenticated against the OAUTH2 Server
+
+				// Create the UserInfo object and set it as the principal
+				//   1) Replace the OAuth2 Principal object with our own UserInfo object
+				//   2) Update the database to indicate that the user successfully logged-in
+			   this.authenticationService.onAuthenticationSuccessForOauth2(request, response, authentication);
+
+
+			   // Proceed to the user's original URL
+			   super.onAuthenticationSuccess(request, response, authentication);
+			}
+		}
+
+
+ 5. Update your SpringSecurityConfig with this:
+
+		package com.lessons.security;
+
+		import org.springframework.beans.factory.annotation.Value;
+		import org.springframework.context.annotation.Bean;
+		import org.springframework.context.annotation.Configuration;
+		import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
+		import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+		import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+		import org.springframework.security.config.http.SessionCreationPolicy;
+		import org.springframework.security.web.SecurityFilterChain;
+
+		import javax.annotation.Resource;
+
+
+		@Configuration
+		@EnableWebSecurity
+		@EnableGlobalMethodSecurity(prePostEnabled = true)         // Needed for @PreAuthorize to work
+		public class SpringSecurityConfig  {
+
+			@Resource
+			private MyRequestHeaderAuthFilter requestHeaderAuthFilter;
+
+			@Resource
+			private OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
+
+			@Value("${server.ssl.enabled}")
+			private boolean sslEnabled;
+
+
+
+
+			@Bean
+			public SecurityFilterChain securityFilterChain(HttpSecurity aHttpSecurity) throws Exception {
+
+				if (sslEnabled) {
+
+				    // Running in production mode using OAuth2 authentication
+				    aHttpSecurity.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
+				            .and()
+				                .authorizeRequests()
+				                    .antMatchers("/assets/**",  "**.js", "**.css",  "/error").permitAll()
+				                    .antMatchers("/**").access("hasRole('ROLE_SF328_USER')")   // All users must have the grantedAuthority called ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS to view all pages
+				                    .anyRequest()
+				                    .authenticated()
+				            .and()
+				                .oauth2Login()
+
+				                      /* The oAuth2LoginSuccessHandler success handler class will do 2 things:
+				                       *   1) Create the UserInfo object and set it as the principal
+				                       *   2) Redirect the user from keycloak to the user's ORIGINAL requested url
+				                       */
+				                    .successHandler(this.oAuth2LoginSuccessHandler)
+				            .and()
+				                .csrf().disable();
+
+
+				}
+
+				else {
+				    // Running in http / local dev mode
+
+				     aHttpSecurity.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
+				            .and()
+				                .authorizeRequests()     // Filters out any URLs that are ignored.  This should be before any authorization filters
+				                .antMatchers("/assets/**",  "**.js", "**.css",  "/error").permitAll()
+				                .antMatchers("/**").access("hasRole('ROLE_SF328_USER')")   // All users must have the grantedAuthority called ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS to view all pages
+				                .anyRequest()
+				                .authenticated()
+				            .and()
+				                .requiresChannel().antMatchers("/**").requiresInsecure()
+				            .and()
+				                .addFilter(requestHeaderAuthFilter)
+				                .headers().frameOptions().disable()                       // By default X-Frame-Options is set to denied.
+				             .and()
+				                .anonymous().disable()
+				                .csrf().disable();
+
+				}
+
+
+				return aHttpSecurity.build();
+			}
+
+		}
+
+
+ 6. Update your MyRequestHeaderAuthFilter
+
+
+		package com.lessons.security;
+
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import org.springframework.beans.factory.annotation.Value;
+		import org.springframework.security.web.authentication.preauth.RequestHeaderAuthenticationFilter;
+		import org.springframework.stereotype.Component;
+
+		import javax.annotation.PostConstruct;
+		import javax.annotation.Resource;
+		import javax.servlet.http.HttpServletRequest;
+
+
+		@Component("com.lessons.security.RequestHeaderAuthFilter")
+		public class MyRequestHeaderAuthFilter extends RequestHeaderAuthenticationFilter
+		{
+			private static final Logger logger = LoggerFactory.getLogger(MyRequestHeaderAuthFilter.class);
+
+			@Resource
+			private MyAuthenticationManager myAuthenticationManager;
+
+			@Value("${use.hardcoded.authenticated.principal}")
+			private boolean useHardcodedAuthenticatedPrincipal;
+
+			@PostConstruct
+			public void init() {
+				this.setAuthenticationManager(myAuthenticationManager);
+			}
+
+
+			/*
+			 * getPreAuthenticatedPrincipal()
+			 *
+			 * This is called when a request is made, the returned object identifies the
+			 * user and will either be {@literal null} or a String.
+			 *
+			 * This method will throw an exception if
+			 * exceptionIfHeaderMissing is set to true (default) and the required header is missing.
+			 */
+			@Override
+			protected Object getPreAuthenticatedPrincipal(HttpServletRequest request)
+			{
+				logger.debug("getPreAuthenticatedPrincipal() called");
+
+				// Get the principal from the header
+				String userDnFromHeader = request.getHeader("SSL_CLIENT_S_DN");
+				logger.debug("userDnFromHeader from header -->{}<---", userDnFromHeader);
+
+				if (userDnFromHeader == null) {
+
+				    if (useHardcodedAuthenticatedPrincipal) {
+				        // No header was found, but I am in dev mode or "local prod" mode.  So, set a hard-coded user name
+				        logger.debug("No header was found, so using hard-coded header 'Bogus_user'");
+				        userDnFromHeader = "Bogus_user";
+				    }
+				}
+
+				// If this method returns null, then the user will see a 403 Forbidden Message
+				logger.debug("getPreAuthenticatedPrincipal() returns -->{}<--", userDnFromHeader);
+				return userDnFromHeader;
+			}
+
+
+
+		}
+
+
+ 7. Startup keycloak with ssl
+
+ 8. Startup the backend with this profile  -Dspring.profiles.active=local_oauth2
+
+ 9. Connect to https://localhost.localdomain:8443/sf
+    -- You should be prompted for your pki cert
+    -- You should be redirected to keycloak at http://localhost.localdomain:8444/
+    -- You should be redirected back to https://localhost.localdomain:8443/sf
+
+
+
+
