@@ -312,18 +312,66 @@ Part 2:  Tell Kubernetes to Upgrade to a Newer Version
 
 NOTE:  In AWS to get the external service to work
 -------------------------------------------------
- 1. *FIRST* We create the deployment
+ 1. Delete existing deployment
+    unix> kubtectl delete sf328-deployment
+
+ 2. Add the "env" section to the deployment script
+    unix> vi sf328-deployment-v1.yaml
+
+#############################################################################
+#  sf328-deployment-v2.yaml
+#############################################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sf328-deployment spec:
+  selector:
+    matchLabels:
+      app: sf328-backend
+  replicas: 1
+  strategy:
+    type:  Recreate
+  template:
+    metadata:
+      name: kubia
+      labels:
+         app: sf328-backend
+    spec:
+      containers:
+      - image: 527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/poc:sf328-backend-1.0.21-SNAPSHOT
+        imagePullPolicy: Always
+        name: java-backend
+        env:
+          - name: JAVA_TOOL_OPTIONS
+            value: -Xms250m -Xmx250m -Djavax.net.debug=off -Djavax.net.ssl.trustStore=/sf328-backend/src/main/prod_resources/custom.cacerts -Djavax.net.ssl.trustStorePassword=changeit -Dspr
+ing.security.oath2.registration.keycloak.client-id=ABCDEFG12345689090
+
+
+
+ 3. Verify that there are no special chars in the file by looking for them
+    unix> using cat -v -e sf328-deployment-v1.yaml
+
+ 4. *FIRST* We create the deployment
     unix> kubectl create -f sf328-deployment-v1.yaml
 
- 2. *SECOND* Have AWS create and expose the load balancer service
-    unix> kubectl expose deployment sf328-deployment --type=LoadBalancer --name=sf328-loadBalancer --port=443
+ 5. *SECOND* Have AWS create and expose the load balancer service
+    unix> kubectl expose deployment sf328-deployment --type=LoadBalancer --name=sf328-loadbalancer --port=443
 
     NOTE: At this point, the load balancer service should have an external ip
 
 
- 3. We modify the created load balancer service by setting
-    unix> kubectl edit service sf328-loadBalancer
+ 6. Modify the created load balancer service by setting
+    unix> kubectl edit service sf328-loadbalancer
 
       targetPort=8443
       sessionAffinity=ClientIP
+
+
+ 7. Attempt to hit it
+    a. Get the external IP address from the services
+       unix> kubectl get services sf328-loadbalancer
+
+             Get the hostname from the EXTERNAL-IP and port
+
+    b. Use a browser to connect to it
 
