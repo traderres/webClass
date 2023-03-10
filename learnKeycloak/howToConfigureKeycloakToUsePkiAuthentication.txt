@@ -33,18 +33,24 @@ Procedure for approach #2  (Automatic / Spring Security Redirect)
 
 Part 1: Configure Keycloak to run in SSL
 ----------------------------------------
- 1. Create a java keystore and truststore for a server cert
+ 1. Create a Certificate Authority
+
+ 2. Use the Certificate Authority to create a client cert with the CN=smith.john
+
+ 3. Use the Certificate Authority to create a server cert
     Put the keystore here:   /home/adam/intellijProjects/sf328/sf328-backend/src/main/prod_resources/my_keystore.jks
     Put the truststore here: /home/adam/intellijProjects/sf328/sf328-backend/src/main/prod_resources/my_truststore.jks
 
-    NOTE:  When creating the server cert use this:
-              cn=localhost.localdomain
+    NOTE:  When creating the server cert use -dname -dname "cn=localhost.localdomain, ou=Components, ou=whatever, c=US"
+           So, the first step in creating the server cert should look something like this:
+            unix> export ALIAS=devKeystore
+            unix> keytool -genkey -v -alias ${ALIAS}  -dname "cn=localhost.localdomain, ou=Components, ou=whatever, c=US"  -keysize 4096 -keyalg RSA -sigalg SHA256withRSA  -keystore myKeystore.jks -validity 3600
+
+           The name should be a hostname that matches in /etc/hosts or is a real DNS name
+           We use localhost.localdomain because it is found in /etc/hosts with the IP of 127.0.0.1
 
 
- 2. Create a server cert with CN=localhost.localdomain    (this entry is found in my /etc/hosts)
-
-
- 3. Enable SSL in keycloak
+ 4. Enable SSL in keycloak
 
     a. Create a unix script that will startup keycloak with SSL
        unix> cd ~/Downloads/keycloak-21.0.1/
@@ -79,12 +85,12 @@ bin/kc.sh start --http-enabled=false --https-port=8444 --https-key-store-file=/h
        unix> bin/kc.sh build   # To rebuild the configuration
 
 
- 4. Startup Keycloak in SSL
+ 5. Startup Keycloak in SSL
     unix> cd ~/Downloads/keycloak-21.0.1/
     unix> ./start.kc.ssl.sh
 
 
- 5. Verify that you can connect to keycloak at https://localhost.localdomain:8444/
+ 6. Verify that you can connect to keycloak at https://localhost.localdomain:8444/
 
 
 
