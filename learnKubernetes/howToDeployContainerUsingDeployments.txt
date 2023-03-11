@@ -315,44 +315,51 @@ NOTE:  In AWS to get the external service to work
  1. Delete existing deployment
     unix> kubtectl delete sf328-deployment
 
- 2. Add the "env" section to the deployment script
-    unix> vi sf328-deployment-v1.yaml
+ 2. Update the deployment script by adding the "env" section with Java settings
+    Update the deployment script by adding hostAliases  (so it adds an entry to the container's /etc/hosts with to the deployment script)
+    NOTE:  The container does not have DNS so we enter this so it can resolve the URL of the keycloak server
+
+    unix> vi sf328-deployment-v3.yaml
 
 #############################################################################
-#  sf328-deployment-v2.yaml
+#  sf328-deployment-v3.yaml
 #############################################################################
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: sf328-deployment spec:
-  selector:
-    matchLabels:
-      app: sf328-backend
-  replicas: 1
-  strategy:
-    type:  Recreate
-  template:
-    metadata:
-      name: kubia
-      labels:
-         app: sf328-backend
-    spec:
-      containers:
-      - image: 527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/poc:sf328-backend-1.0.21-SNAPSHOT
-        imagePullPolicy: Always
-        name: java-backend
-        env:
-          - name: JAVA_TOOL_OPTIONS
-            value: -Xms250m -Xmx250m -Djavax.net.debug=off -Djavax.net.ssl.trustStore=/sf328-backend/src/main/prod_resources/custom.cacerts -Djavax.net.ssl.trustStorePassword=changeit -Dspr
-ing.security.oath2.registration.keycloak.client-id=ABCDEFG12345689090
+  name: sf328-deployment
 
+spec:
+  selector:
+    matchLabels:
+      app: sf328-backend
+  replicas: 1
+  strategy:
+    type:  Recreate
+  template:
+    metadata:
+      name: kubia
+      labels:
+         app: sf328-backend
+    spec:
+      hostAliases:
+      - ip: "160.1.28.118"
+        hostnames:
+          - "ec2-160-1-28-118.us-gov-west-1.compute.amazonaws.com"
+      containers:
+      - image: 527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/poc:sf328-backend-1.0.24-SNAPSHOT
+        imagePullPolicy: Always
+        name: java-backend
+        env:
+          - name: JAVA_TOOL_OPTIONS
+            value: -Xms250m -Xmx250m -Djavax.net.debug=off -Dserver.forward-headers-strategy=NATIVE -Djavax.net.ssl.trustStore=/sf328-backend/src/main/prod_resources/custom.cacerts -Djavax.net.ssl.trustStorePassword=changeit -Dspring.security.oath2.registration.keycloak.client-id=ENTER_CLIENT_ID_HERE
 
 
  3. Verify that there are no special chars in the file by looking for them
-    unix> using cat -v -e sf328-deployment-v1.yaml
+    unix> using cat -v -e sf328-deployment-v3.yaml
 
  4. *FIRST* We create the deployment
-    unix> kubectl create -f sf328-deployment-v1.yaml
+    unix> kubectl create -f sf328-deployment-v3.yaml
 
  5. *SECOND* Have AWS create and expose the load balancer service
     unix> kubectl expose deployment sf328-deployment --type=LoadBalancer --name=sf328-loadbalancer --port=443
