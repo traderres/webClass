@@ -183,6 +183,7 @@ Part 2: Configure Keycloak's realm and client
  6. Create the realm role
     a. CReate a role called SF328_USER
 
+
  7. Assign that role to your test user
     a. Click on Users
     b. Press "Add User"
@@ -191,6 +192,7 @@ Part 2: Configure Keycloak's realm and client
     d. Click on "role Mappings"
     e. Press Assign Role
     f. Assign the SF328_USER role to this user
+
 
  8. Tell keycloak to provide the roles to spring boot
     a. Click on Client Scopes
@@ -353,8 +355,8 @@ Part 3: Configure Web App to use oauth2 for authentication
 			 * @throws Exception
 			 */
 			public void onAuthenticationSuccessForOauth2(HttpServletRequest aRequest,
-				                                         HttpServletResponse aResponse,
-				                                         Authentication aAuthentication) throws IOException, ServletException {
+														 HttpServletResponse aResponse,
+														 Authentication aAuthentication) throws IOException, ServletException {
 
 				// Get the info from the OAuth2 server (keycloak) and build a UserInfo object
 				UserInfo userInfo = loadUserDetailsFromOauth2Server(aRequest, aResponse, aAuthentication);
@@ -370,8 +372,8 @@ Part 3: Configure Web App to use oauth2 for authentication
 
 
 			public UserInfo loadUserDetailsFromOauth2Server(HttpServletRequest aRequest,
-				                                            HttpServletResponse aResponse,
-				                                            Authentication aAuthentication) {
+															HttpServletResponse aResponse,
+															Authentication aAuthentication) {
 				OidcUser oidcUser = (OidcUser) aAuthentication.getPrincipal();
 				String userUID = oidcUser.getName();
 
@@ -379,22 +381,22 @@ Part 3: Configure Web App to use oauth2 for authentication
 
 				// Get the roles from keycloak and put them into the object called oauth2RolesGranted
 				Map<String, Object> realmAccessMap = (Map<String, Object>) oidcUser.getAttributes().get("realm_access");
-				if (realmAccessMap.size() == 1) {
-				    List<String> roleNames = (List<String>) realmAccessMap.get("roles");
+				if ((realmAccessMap != null) && (realmAccessMap.size() == 1)) {
+					List<String> roleNames = (List<String>) realmAccessMap.get("roles");
 
-				    if (roleNames != null) {
-				        for (String roleName: roleNames) {
-				            GrantedAuthority grantedAuthority = new SimpleGrantedAuthority("ROLE_" + roleName);
-				            oauth2RolesGranted.add(grantedAuthority);
-				        }
-				    }
+					if (roleNames != null) {
+						for (String roleName: roleNames) {
+							GrantedAuthority grantedAuthority = new SimpleGrantedAuthority("ROLE_" + roleName);
+							oauth2RolesGranted.add(grantedAuthority);
+						}
+					}
 
 				}
 
 				// Get the list of the Citadel Roles from the db
-				List<String> citadelRoles = getCitadelRolesList();
+				List<String> allCitadelRolesInDatabase = getListOfCitadelRolesFromDatabase();
 
-				ConflictingRolesDTO conflictingRolesDTO = new ConflictingRolesDTO(oauth2RolesGranted, citadelRoles);
+				ConflictingRolesDTO conflictingRolesDTO = new ConflictingRolesDTO(oauth2RolesGranted, allCitadelRolesInDatabase);
 
 
 				// Get the user's userId from the database (or generate one)
@@ -408,16 +410,17 @@ Part 3: Configure Web App to use oauth2 for authentication
 
 				// Create a UserInfo object with information from the database and the keycloak server
 				UserInfo userInfo = new UserInfo()
-				        .withId( userInfoDTO.getUserId() )
-				        .withIsLocked( userInfoDTO.getIsLocked() )
-				        .withUsernameUID(oidcUser.getName())
-				        .withUsernameDn(oidcUser.getName())
-				        .withGrantedAuthorities(allRolesGranted)
-				        .withRolesAreConflicting(conflictingRolesDTO.isRolesAreConflicting())
-				        .withRolesAreConflictingMessage(conflictingRolesDTO.getRolesAreConflictingMessage());
+						.withId( userInfoDTO.getUserId() )
+						.withIsLocked( userInfoDTO.getIsLocked() )
+						.withUsernameUID(oidcUser.getName())
+						.withUsernameDn(oidcUser.getName())
+						.withGrantedAuthorities(allRolesGranted)
+						.withRolesAreConflicting(conflictingRolesDTO.isRolesAreConflicting())
+						.withRolesAreConflictingMessage(conflictingRolesDTO.getRolesAreConflictingMessage());
 
 				return userInfo;
 			}
+
 
 
 
@@ -427,11 +430,11 @@ Part 3: Configure Web App to use oauth2 for authentication
 				String userDN = "3.2.12.144549.1.9.1=#161760312e646576,CN=my_test_user2,OU=Hosts,O=ZZTop.Org,C=ZZ";
 
 				if ((authentication != null) && (authentication.getPrincipal() != null)) {
-				    userDN = authentication.getPrincipal().toString();
-				    userUID = getCnValueFromLongDnString(userDN);
-				    if (userUID == null) {
-				        userUID = "my_sf328_user2";
-				    }
+					userDN = authentication.getPrincipal().toString();
+					userUID = getCnValueFromLongDnString(userDN);
+					if (userUID == null) {
+						userUID = "my_sf328_user2";
+					}
 				}
 
 				// Create a list of granted authorities
@@ -441,7 +444,7 @@ Part 3: Configure Web App to use oauth2 for authentication
 				citadelRolesGranted.add(new SimpleGrantedAuthority("ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS"));
 
 				// Get the list of the Citadel Roles from the db
-				List<String> citadelRoles = getCitadelRolesList();
+				List<String> citadelRoles = getListOfCitadelRolesFromDatabase();
 
 				ConflictingRolesDTO conflictingRolesDTO = new ConflictingRolesDTO(citadelRolesGranted, citadelRoles);
 
@@ -458,16 +461,16 @@ Part 3: Configure Web App to use oauth2 for authentication
 				// Create a bogus UserInfo object
 				// NOTE:  I am hard-coding the user's userid=25
 				UserInfo userInfo = new UserInfo()
-				        .withId( userInfoDTO.getUserId() )
-				        .withIsLocked( userInfoDTO.getIsLocked() )
-				        .withUsernameUID(userUID)
-				        .withUsernameDn(userDN)
-				        .withGrantedAuthorities(allRolesGranted)
-				        .withRolesAreConflicting(conflictingRolesDTO.isRolesAreConflicting())
-				        .withRolesAreConflictingMessage(conflictingRolesDTO.getRolesAreConflictingMessage());
+						.withId( userInfoDTO.getUserId() )
+						.withIsLocked( userInfoDTO.getIsLocked() )
+						.withUsernameUID(userUID)
+						.withUsernameDn(userDN)
+						.withGrantedAuthorities(allRolesGranted)
+						.withRolesAreConflicting(conflictingRolesDTO.isRolesAreConflicting())
+						.withRolesAreConflictingMessage(conflictingRolesDTO.getRolesAreConflictingMessage());
 
 				if (userInfoDTO.getIsLocked() ) {
-				    logger.info("{} successfully logged-in.", userUID);
+					logger.info("{} successfully logged-in.", userUID);
 				}
 
 
@@ -480,7 +483,7 @@ Part 3: Configure Web App to use oauth2 for authentication
 
 
 
-			private List<String> getCitadelRolesList() {
+			private List<String> getListOfCitadelRolesFromDatabase() {
 				JdbcTemplate jt = new JdbcTemplate(this.dataSource);
 
 				String sql = "select name from roles where is_citadel_role=true";
@@ -496,7 +499,7 @@ Part 3: Configure Web App to use oauth2 for authentication
 				// Use the regular expression pattern to getByUserId the value part of "CN=value"
 				Matcher matcher = patExtractCN.matcher(userDN);
 				if (matcher.find()) {
-				    cnValue = matcher.group(1);
+					cnValue = matcher.group(1);
 				}
 
 				logger.debug("getCnValueFromLongDnString() returns -->{}<--", cnValue);
@@ -505,6 +508,8 @@ Part 3: Configure Web App to use oauth2 for authentication
 
 
 		}
+
+
 
 
  4. Create this class:  OAuth2LoginSuccessHandler
@@ -555,15 +560,19 @@ Part 3: Configure Web App to use oauth2 for authentication
 		package com.lessons.security;
 
 		import org.springframework.beans.factory.annotation.Value;
+		import org.springframework.boot.web.servlet.FilterRegistrationBean;
 		import org.springframework.context.annotation.Bean;
 		import org.springframework.context.annotation.Configuration;
+		import org.springframework.core.Ordered;
 		import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 		import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 		import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 		import org.springframework.security.config.http.SessionCreationPolicy;
 		import org.springframework.security.web.SecurityFilterChain;
+		import org.springframework.web.filter.ForwardedHeaderFilter;
 
 		import javax.annotation.Resource;
+		import javax.servlet.DispatcherType;
 
 
 		@Configuration
@@ -588,54 +597,72 @@ Part 3: Configure Web App to use oauth2 for authentication
 
 				if (sslEnabled) {
 
-				    // Running in production mode using OAuth2 authentication
-				    aHttpSecurity.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
-				            .and()
-				                .authorizeRequests()
-				                    .antMatchers("/assets/**",  "**.js", "**.css",  "/error").permitAll()
-				                    .antMatchers("/**").access("hasRole('ROLE_SF328_USER')")   // All users must have the grantedAuthority called ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS to view all pages
-				                    .anyRequest()
-				                    .authenticated()
-				            .and()
-				                .oauth2Login()
+					// Running in production mode using OAuth2 authentication
+					aHttpSecurity.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
+							.and()
+								.authorizeRequests()
+									.antMatchers("/assets/**",  "**.js", "**.css",  "/error").permitAll()
+									.antMatchers("/**").access("hasRole('ROLE_SF328_USER')")   // All users must have the grantedAuthority called ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS to view all pages
+									.anyRequest()
+									.authenticated()
+							.and()
+								.requiresChannel().anyRequest().requiresSecure()
+							.and()
+								.oauth2Login()
 
-				                      /* The oAuth2LoginSuccessHandler success handler class will do 2 things:
-				                       *   1) Create the UserInfo object and set it as the principal
-				                       *   2) Redirect the user from keycloak to the user's ORIGINAL requested url
-				                       */
-				                    .successHandler(this.oAuth2LoginSuccessHandler)
-				            .and()
-				                .csrf().disable();
+									  /* The oAuth2LoginSuccessHandler success handler class will do 2 things:
+									   *   1) Create the UserInfo object and set it as the principal
+									   *   2) Redirect the user from keycloak to the user's ORIGINAL requested url
+									   */
+									.successHandler(this.oAuth2LoginSuccessHandler)
+							.and()
+								.csrf().disable();
 
 
 				}
 
 				else {
-				    // Running in http / local dev mode
 
-				     aHttpSecurity.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
-				            .and()
-				                .authorizeRequests()     // Filters out any URLs that are ignored.  This should be before any authorization filters
-				                .antMatchers("/assets/**",  "**.js", "**.css",  "/error").permitAll()
-				                .antMatchers("/**").access("hasRole('ROLE_SF328_USER')")   // All users must have the grantedAuthority called ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS to view all pages
-				                .anyRequest()
-				                .authenticated()
-				            .and()
-				                .requiresChannel().antMatchers("/**").requiresInsecure()
-				            .and()
-				                .addFilter(requestHeaderAuthFilter)
-				                .headers().frameOptions().disable()                       // By default X-Frame-Options is set to denied.
-				             .and()
-				                .anonymous().disable()
-				                .csrf().disable();
+
+					// Running in http / local dev mode
+
+					 aHttpSecurity.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
+							.and()
+								.authorizeRequests()     // Filters out any URLs that are ignored.  This should be before any authorization filters
+								.antMatchers("/assets/**",  "**.js", "**.css",  "/error").permitAll()
+								.antMatchers("/**").access("hasRole('ROLE_SF328_USER')")   // All users must have the grantedAuthority called ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS to view all pages
+								.anyRequest()
+								.authenticated()
+							.and()
+								.requiresChannel().antMatchers("/**").requiresInsecure()
+							.and()
+								.addFilter(requestHeaderAuthFilter)
+								.headers().frameOptions().disable()                       // By default X-Frame-Options is set to denied.
+							 .and()
+								.anonymous().disable()
+								.csrf().disable();
 
 				}
-
 
 				return aHttpSecurity.build();
 			}
 
+
+			@Bean
+			public FilterRegistrationBean<ForwardedHeaderFilter> forwardedHeaderFilter() {
+			  // ForwardedHeaderFilter handles non-standard headers
+			  //   X-Forwarded-Host, X-Forwarded-Port, X-Forwarded-Proto, X-Forwarded-Ssl, and X-Forwarded-Prefix.
+			  ForwardedHeaderFilter filter = new ForwardedHeaderFilter();
+
+			  FilterRegistrationBean<ForwardedHeaderFilter> registration = new FilterRegistrationBean<>(filter);
+			  registration.setDispatcherTypes(DispatcherType.REQUEST, DispatcherType.ASYNC, DispatcherType.ERROR);
+			  registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
+			  return registration;
+			}
+
 		}
+
+
 
 
  6. Update your MyRequestHeaderAuthFilter
