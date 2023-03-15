@@ -38,6 +38,8 @@ Part 1: Configure Keycloak to run in SSL
  2. Use the Certificate Authority to create a client cert with the CN=smith.john
 
  3. Use the Certificate Authority to create a server cert with "cn=localhost.localdomain, ou=Components, ou=whatever, c=US"
+    NOTE:  Firefox uses subject alternative names.  So make sure you have a subject alternative name with this hostname
+
     Put the keystore here:   /home/adam/intellijProjects/sf328/sf328-backend/src/main/prod_resources/my_keystore.jks
     Put the truststore here: /home/adam/intellijProjects/sf328/sf328-backend/src/main/prod_resources/my_truststore.jks
 
@@ -230,9 +232,10 @@ Part 3: Configure Web App to use oauth2 for authentication
     </dependency>
 
 
+
  2. Add this profile to your application.yaml
 
-
+		---
 		#################################################################################################
 		#            L O C A L      O A U T H 2        P R O F I L E
 		# Prod Profile
@@ -281,6 +284,7 @@ Part 3: Configure Web App to use oauth2 for authentication
 		server.servlet.session.cookie.http-only: true
 
 
+
 		##########################################################
 		# Database Settings
 		##########################################################
@@ -295,9 +299,9 @@ Part 3: Configure Web App to use oauth2 for authentication
 		  database-name: sf328_db
 
 
-		##########################################################
-		# ElasticSearch Settings
-		##########################################################
+		###########################################################
+		## ElasticSearch Settings
+		###########################################################
 		es:
 		  url: http://localhost:9201
 		  ssl_enabled: false
@@ -305,22 +309,198 @@ Part 3: Configure Web App to use oauth2 for authentication
 
 
 
- 3. Create this class:  AuthenticationService (that loads data into the principal)
+		##########################################################
+		# File System Settings
+		##########################################################
+		root.dir:        ${java.io.tmpdir}             # Root directory to hold all DAS files
+		sf328.root.dir:  ${root.dir}/sf328             # Root directory to hold all sf328 files
+		das.user.dir:    ${root.dir}/das/users         # Root directory to hold all DAS user files
+
+
+
+
+		##########################################################
+		# SF328 Lifespan Settings
+		##########################################################
+		sf328.out.of.date.after.days:     365    # Number of days after an SF328 has been submitted before it's considered obsolete
+
+
+
+ 3. Create this class:  MyUserInfo   (holds additional information stored in the session)
+
+		 package com.lessons.security;
+
+		 import org.apache.commons.lang3.StringUtils;
+		 import org.springframework.security.core.GrantedAuthority;
+		 import java.io.Serializable;
+		 import java.util.Collection;
+		 import java.util.List;
+
+
+		 public class MyUserInfo implements Serializable {
+
+			 private String usernameUID;                           // The part of the Cn=.... that holds this user's client name (from PKI client cert)
+			 private String usernameDN;                            // The entire DN string    (from the PKI client cert)
+			 private List<GrantedAuthority> grantedAuthorities;    // List of roles for this user (found in the database)
+			 private Integer id;                                   // Holds the user's ID in the database
+			 private boolean userAcknowledgedMessage = false;
+			 private boolean isLocked;
+			 private boolean rolesAreConflicting = false;
+			 private String rolesAreConflictingMessage;
+
+
+			 public String getUsername() {
+				 return this.usernameUID;
+			 }
+
+
+			 /**
+			  * @return an array of GrantedAuthority objects for this user
+			  */
+			 public Collection<? extends GrantedAuthority> getAuthorities() {
+				 // Must implement this method in order to implement the UserDetails interface
+				 return this.grantedAuthorities;
+			 }
+
+
+			 public boolean getIsLockedOut() {
+				 return this.isLocked;
+			 }
+
+
+			 public List<GrantedAuthority> getGrantedAuthorities() {
+				 return grantedAuthorities;
+			 }
+
+
+
+			 public Integer getId() {
+				 return id;
+			 }
+
+			 public String toString() {
+				 return ("Roles=" + StringUtils.join(this.grantedAuthorities, ",") +
+						 " UID=" + this.usernameUID +
+						 " DN=" + this.usernameDN);
+			 }
+
+			 public MyUserInfo withId(Integer id) {
+				 this.id = id;
+				 return this;
+			 }
+
+			 public MyUserInfo withUsernameUID(String usernameUID) {
+				 this.usernameUID = usernameUID;
+				 return this;
+			 }
+
+			 public MyUserInfo withUsernameDn(String usernameDN) {
+				 this.usernameDN = usernameDN;
+				 return this;
+			 }
+
+			 public MyUserInfo withGrantedAuthorities(List<GrantedAuthority> grantedAuthorities) {
+				 this.grantedAuthorities = grantedAuthorities;
+				 return this;
+			 }
+
+
+			 public MyUserInfo withIsLocked(boolean aIsLocked) {
+				 this.isLocked = aIsLocked;
+				 return this;
+			 }
+
+			 public MyUserInfo withRolesAreConflicting(boolean aRolesAreConflicting) {
+				 this.rolesAreConflicting = aRolesAreConflicting;
+				 return this;
+			 }
+
+			 public MyUserInfo withRolesAreConflictingMessage(String aRolesAreConflictingMessage) {
+				 this.rolesAreConflictingMessage = aRolesAreConflictingMessage;
+				 return this;
+			 }
+
+			 public boolean getUserAcknowledgedMessage() {
+				 return userAcknowledgedMessage;
+			 }
+
+			 public void setUserAcknowledgedMessage() {
+				 this.userAcknowledgedMessage = true;
+			 }
+
+			 public boolean isRolesAreConflicting() {
+				 return rolesAreConflicting;
+			 }
+
+			 public String getRolesAreConflictingMessage() {
+				 return rolesAreConflictingMessage;
+			 }
+
+		 }
+
+
+
+ 4. Create this clsas:  MyDefaultOidcUser         (Replaces the DefaultOidcUser class)
+
+		 package com.lessons.security;
+
+		 import org.springframework.security.core.GrantedAuthority;
+		 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
+		 import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
+		 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
+
+		 import java.util.Collection;
+
+		 public class MyDefaultOidcUser extends DefaultOidcUser {
+
+			 private MyUserInfo myUserInfo;
+
+			 public MyDefaultOidcUser(Collection<? extends GrantedAuthority> authorities, OidcIdToken idToken) {
+				 super(authorities, idToken);
+			 }
+
+			 public MyDefaultOidcUser(Collection<? extends GrantedAuthority> authorities, OidcIdToken idToken, String nameAttributeKey) {
+				 super(authorities, idToken, nameAttributeKey);
+			 }
+
+			 public MyDefaultOidcUser(Collection<? extends GrantedAuthority> authorities, OidcIdToken idToken, OidcUserInfo userInfo) {
+				 super(authorities, idToken, userInfo);
+			 }
+
+			 public MyDefaultOidcUser(Collection<? extends GrantedAuthority> authorities, OidcIdToken idToken, OidcUserInfo userInfo, String nameAttributeKey) {
+				 super(authorities, idToken, userInfo, nameAttributeKey);
+			 }
+
+			 public MyDefaultOidcUser(MyUserInfo aUserInfo, Collection<? extends GrantedAuthority> authorities, OidcIdToken idToken, OidcUserInfo userInfo) {
+				 super(authorities, idToken, userInfo);
+				 this.myUserInfo = aUserInfo;
+			 }
+
+
+			 public MyUserInfo getMyUserInfo() {
+				 return this.myUserInfo;
+			 }
+		 }
+
+
+
+
+
+ 5. Create this class:  AuthenticationService (that loads data into the principal)
 
 		package com.lessons.services;
 
 		import com.lessons.models.ConflictingRolesDTO;
 		import com.lessons.models.InitialUserInfoDTO;
-		import com.lessons.security.UserInfo;
+		import com.lessons.security.MyDefaultOidcUser;
+		import com.lessons.security.MyUserInfo;
 		import org.slf4j.Logger;
 		import org.slf4j.LoggerFactory;
 		import org.springframework.jdbc.core.JdbcTemplate;
 		import org.springframework.security.core.Authentication;
 		import org.springframework.security.core.GrantedAuthority;
 		import org.springframework.security.core.authority.SimpleGrantedAuthority;
-		import org.springframework.security.core.context.SecurityContextHolder;
 		import org.springframework.security.oauth2.core.oidc.user.OidcUser;
-		import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 		import org.springframework.stereotype.Service;
 
 		import javax.annotation.Resource;
@@ -359,30 +539,25 @@ Part 3: Configure Web App to use oauth2 for authentication
 			public void onAuthenticationSuccessForOauth2(HttpServletRequest aRequest,
 														 HttpServletResponse aResponse,
 														 Authentication aAuthentication) throws IOException, ServletException {
+				logger.debug("onAuthenticationSuccessForOauth2() started");
 
-				// Get the info from the OAuth2 server (keycloak) and build a UserInfo object
-				UserInfo userInfo = loadUserDetailsFromOauth2Server(aRequest, aResponse, aAuthentication);
+				MyDefaultOidcUser myDefaultOidcUser = (MyDefaultOidcUser) aAuthentication.getPrincipal();
 
-				// Create a new authentication object
-				PreAuthenticatedAuthenticationToken authenticationToken = new PreAuthenticatedAuthenticationToken(userInfo, null, userInfo.getAuthorities());
-				authenticationToken.setAuthenticated(true);
+				// TODO: Mark this user as authenticated
 
-				// Replace the old authentication object with this new one
-				SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+
+				logger.debug("onAuthenticationSuccessForOauth2() finished");
 			}
 
 
 
-			public UserInfo loadUserDetailsFromOauth2Server(HttpServletRequest aRequest,
-															HttpServletResponse aResponse,
-															Authentication aAuthentication) {
-				OidcUser oidcUser = (OidcUser) aAuthentication.getPrincipal();
-				String userUID = oidcUser.getName();
+			public MyUserInfo generateUserInfoUsingOauth2Roles(OidcUser aOidcUser) {
+				String userUID = aOidcUser.getName();
 
 				List<GrantedAuthority> oauth2RolesGranted = new ArrayList<>();
 
 				// Get the roles from keycloak and put them into the object called oauth2RolesGranted
-				Map<String, Object> realmAccessMap = (Map<String, Object>) oidcUser.getAttributes().get("realm_access");
+				Map<String, Object> realmAccessMap = (Map<String, Object>) aOidcUser.getAttributes().get("realm_access");
 				if ((realmAccessMap != null) && (realmAccessMap.size() == 1)) {
 					List<String> roleNames = (List<String>) realmAccessMap.get("roles");
 
@@ -411,11 +586,10 @@ Part 3: Configure Web App to use oauth2 for authentication
 				allRolesGranted.addAll( userInfoDTO.getInternalRolesGranted());
 
 				// Create a UserInfo object with information from the database and the keycloak server
-				UserInfo userInfo = new UserInfo()
+				MyUserInfo userInfo = new MyUserInfo()
 						.withId( userInfoDTO.getUserId() )
 						.withIsLocked( userInfoDTO.getIsLocked() )
-						.withUsernameUID(oidcUser.getName())
-						.withUsernameDn(oidcUser.getName())
+						.withUsernameUID( aOidcUser.getName() )
 						.withGrantedAuthorities(allRolesGranted)
 						.withRolesAreConflicting(conflictingRolesDTO.isRolesAreConflicting())
 						.withRolesAreConflictingMessage(conflictingRolesDTO.getRolesAreConflictingMessage());
@@ -426,7 +600,7 @@ Part 3: Configure Web App to use oauth2 for authentication
 
 
 
-			public UserInfo loadUserDetailsForDevelopment(Authentication authentication) {
+			public MyUserInfo generateUserInfoForDevelopment(Authentication authentication) {
 
 				String userUID = "my_sf328_user2";
 				String userDN = "3.2.12.144549.1.9.1=#161760312e646576,CN=my_test_user2,OU=Hosts,O=ZZTop.Org,C=ZZ";
@@ -462,7 +636,7 @@ Part 3: Configure Web App to use oauth2 for authentication
 
 				// Create a bogus UserInfo object
 				// NOTE:  I am hard-coding the user's userid=25
-				UserInfo userInfo = new UserInfo()
+				MyUserInfo userInfo = new MyUserInfo()
 						.withId( userInfoDTO.getUserId() )
 						.withIsLocked( userInfoDTO.getIsLocked() )
 						.withUsernameUID(userUID)
@@ -477,7 +651,7 @@ Part 3: Configure Web App to use oauth2 for authentication
 
 
 				// When running in local development, disable the acknowledgement popup
-				userInfo.setUserAcknoledgedMessage();
+				userInfo.setUserAcknowledgedMessage();
 
 				return userInfo;
 			}
@@ -485,7 +659,7 @@ Part 3: Configure Web App to use oauth2 for authentication
 
 
 
-			private List<String> getListOfCitadelRolesFromDatabase() {
+			public List<String> getListOfCitadelRolesFromDatabase() {
 				JdbcTemplate jt = new JdbcTemplate(this.dataSource);
 
 				String sql = "select name from roles where is_citadel_role=true";
@@ -494,6 +668,8 @@ Part 3: Configure Web App to use oauth2 for authentication
 
 				return citadelRolesList;
 			}
+
+
 
 			private static String getCnValueFromLongDnString(String userDN) {
 				logger.debug("getCnValueFromLongDnString()  userDN={}", userDN);
@@ -514,11 +690,14 @@ Part 3: Configure Web App to use oauth2 for authentication
 
 
 
- 4. Create this class:  OAuth2LoginSuccessHandler
+
+ 6. Create this class:  OAuth2LoginSuccessHandler
 
 		package com.lessons.security;
 
 		import com.lessons.services.AuthenticationService;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
 		import org.springframework.security.core.Authentication;
 		import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 		import org.springframework.stereotype.Component;
@@ -535,13 +714,16 @@ Part 3: Configure Web App to use oauth2 for authentication
 		 */
 		@Component
 		public class OAuth2LoginSuccessHandler extends SavedRequestAwareAuthenticationSuccessHandler {
+			private static final Logger logger = LoggerFactory.getLogger(OAuth2LoginSuccessHandler.class);
 
 			@Resource
 			private AuthenticationService authenticationService;
 
 			@Override
 			public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
-				                                Authentication authentication) throws IOException, ServletException {
+												Authentication authentication) throws IOException, ServletException {
+
+				logger.debug("onAuthenticationSuccess() started");
 
 				// The user successfully authenticated against the OAUTH2 Server
 
@@ -554,13 +736,17 @@ Part 3: Configure Web App to use oauth2 for authentication
 			   // Proceed to the user's original URL
 			   super.onAuthenticationSuccess(request, response, authentication);
 			}
+
+
 		}
 
 
- 5. Update your SpringSecurityConfig with this:
+
+ 7. Update your SpringSecurityConfig with this:
 
 		package com.lessons.security;
 
+		import com.lessons.services.AuthenticationService;
 		import org.springframework.beans.factory.annotation.Value;
 		import org.springframework.boot.web.servlet.FilterRegistrationBean;
 		import org.springframework.context.annotation.Bean;
@@ -570,6 +756,10 @@ Part 3: Configure Web App to use oauth2 for authentication
 		import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 		import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 		import org.springframework.security.config.http.SessionCreationPolicy;
+		import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
+		import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
+		import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
+		import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 		import org.springframework.security.web.SecurityFilterChain;
 		import org.springframework.web.filter.ForwardedHeaderFilter;
 
@@ -588,9 +778,30 @@ Part 3: Configure Web App to use oauth2 for authentication
 			@Resource
 			private OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
 
+			@Resource
+			private AuthenticationService authenticationService;
+
 			@Value("${server.ssl.enabled}")
 			private boolean sslEnabled;
 
+
+
+
+			private OAuth2UserService<OidcUserRequest, OidcUser> oidcUserService() {
+				final OidcUserService delegate = new OidcUserService();
+
+				return (OidcUserRequest aOidcUserRequest) -> {
+					// Get the OidcUser object (that holds information from Keycloak)
+					OidcUser oidcUser = delegate.loadUser(aOidcUserRequest);
+
+					// Get the MyUserInfo object (that holds additional info from our database)
+					MyUserInfo myUserInfo = this.authenticationService.generateUserInfoUsingOauth2Roles(oidcUser);
+
+					// Create a new Principal object that holds MyUserInfo *AND* the original token information from keycloak
+					MyDefaultOidcUser myDefaultOidcUser = new MyDefaultOidcUser(myUserInfo, myUserInfo.getGrantedAuthorities(), oidcUser.getIdToken(), oidcUser.getUserInfo());
+					return myDefaultOidcUser;
+				};
+			}
 
 
 
@@ -612,11 +823,21 @@ Part 3: Configure Web App to use oauth2 for authentication
 							.and()
 								.oauth2Login()
 
-									  /* The oAuth2LoginSuccessHandler success handler class will do 2 things:
-									   *   1) Create the UserInfo object and set it as the principal
-									   *   2) Redirect the user from keycloak to the user's ORIGINAL requested url
+									/*
+									 * Update the Principal object stored in the session
+									 * Replace the defaultOidcUser with MyDefaultOidcUser object   (that holds the additional MyUserInfo)
+									 */
+									.userInfoEndpoint(userInfo -> userInfo
+											.oidcUserService(this.oidcUserService()))
+
+
+									  /*
+									   * The oAuth2LoginSuccessHandler success handler class will do 2 things:
+									   *   1) Update the database to indicate that the user successfully authenticated
+									   *   2) Redirect the user from keycloak to the user's ORIGINAL requested url (because it extends SavedRequestAwareAuthenticationSuccessHandler)
 									   */
 									.successHandler(this.oAuth2LoginSuccessHandler)
+
 							.and()
 								.csrf().disable();
 
@@ -661,13 +882,12 @@ Part 3: Configure Web App to use oauth2 for authentication
 			  registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
 			  return registration;
 			}
-
 		}
 
 
 
 
- 6. Update your MyRequestHeaderAuthFilter
+ 8. Update your MyRequestHeaderAuthFilter
 
 
 		package com.lessons.security;
@@ -720,11 +940,11 @@ Part 3: Configure Web App to use oauth2 for authentication
 
 				if (userDnFromHeader == null) {
 
-				    if (useHardcodedAuthenticatedPrincipal) {
-				        // No header was found, but I am in dev mode or "local prod" mode.  So, set a hard-coded user name
-				        logger.debug("No header was found, so using hard-coded header 'Bogus_user'");
-				        userDnFromHeader = "Bogus_user";
-				    }
+					if (useHardcodedAuthenticatedPrincipal) {
+						// No header was found, but I am in dev mode or "local prod" mode.  So, set a hard-coded user name
+						logger.debug("No header was found, so using hard-coded header 'Bogus_user'");
+						userDnFromHeader = "Bogus_user";
+					}
 				}
 
 				// If this method returns null, then the user will see a 403 Forbidden Message
@@ -737,11 +957,13 @@ Part 3: Configure Web App to use oauth2 for authentication
 		}
 
 
- 7. Startup keycloak with ssl
 
- 8. Startup the backend with this profile  -Dspring.profiles.active=local_oauth2
 
- 9. Connect to https://localhost.localdomain:8443/sf
+ 9. Startup keycloak with ssl
+
+10. Startup the backend with this profile  -Dspring.profiles.active=local_oauth2
+
+11. Connect to https://localhost.localdomain:8443/sf
     -- You should be prompted for your pki cert
     -- You should be redirected to keycloak at http://localhost.localdomain:8444/
     -- You should be redirected back to https://localhost.localdomain:8443/sf
