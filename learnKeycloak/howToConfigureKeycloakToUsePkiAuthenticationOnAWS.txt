@@ -1,34 +1,552 @@
-How to configure keycloak client to use mutual SSL
---------------------------------------------------
-
-APPROACHES
- 1. Manual
-    -- Spring Security to gets PKI cert
-    -- Spring Security invokes separate REST call to keycloak to get roles
-    -- Spring Security then proceeds (MyAuthenticationManager approach)
-	   PROBLEM:  if we want to change from pki security to passwords in the future, it's not easy
-                 It goes around security (because users do not go through the keycloak fron door)
+How to Setup Java Spring Boot Web App to use PKI Credentials against Keycloak server running in AWS
+---------------------------------------------------------------------------------------------------
 
 
- 2. Automatic / Using Spring Security & Redirect to keycloak login page
-    -- Spring Security invokes separate REST call to keycloak to get roles
-    -- Spring Security then proceeds
-       PROBLEM:  Having issues with outgoing call from Spring Security to KeyCloak
+General Approach
+ 1. User uses a browser to hit Java Web App
+    -- User presents PKI certificate to Java Web App
 
-	NOTE:  This uses the oauth2Login() which should cause a redirect
+ 2. Spring Security redirects user to the Keycloak server
+    -- User presents PKI certificate to keycloak
+
+ 3. User is presented a keycloak login page  (or it can be bypassed)
+    -- User presses "Submit" button on keycloak login page
+    -- User is redirected to the Java Web App with keycloak credentials
+       *OR*
+    -- If bypass setting is enabled, user goes directly to Java Web App with keycloak credentials
+
+ 4. Spring Security detects that authentication is successful
+    -- Java code gets the user's roles and any additoinal info and adds MyUserInfo to the principal object
+
+
+NOTE:  Redirecting the user to the keycloak server is the most secure way of implementing security (according to the Keycloak folks)
+
+
+ASSUMPTIONS:
+ A) You have an AWS account
+ B) You have installed the AWS CLI tool
+ C) You have a registered domain called "traderres.com"
+
+Goal: Deploy this webapp so anyone can get to it using https://www.traderres.com/sf
+
+
+General Approach
+----------------
+ 1. Setup AWS Account / Identify Mgmt / with CLI credentials (so we can push up builds to our AWS ECR Registry)
+
+ 2. Setup AWS CNI Policy (so we can control EKS)
+
+ 3. Setup AWS ECR Registry (which will hold our builds to be deployed)
+
+ 4. Initialize AWS-hosted resources (exist outside of the kubernetes cluster)
+    NOTE:  postgres and OpenSearch do not run inside kubernetes
+    a. Setup 2 RDS / postgres instances (one for the webapp and one for keycloak)
+    b. Setup OpenSearch
+
+ 5. Create our own certificate authority (for pki client certs)
+
+ 6. Register the url in GoDaddy and configure
+    a. Setup the CNAME for www.traderres.com --> AWS long hostname
+
+ 7. Create certs with Let's Encrypt for the load-balancer and keycloak
+    NOTE:  The public Let's Encrypt certs are required to make sure that it all works in Firefox
+
+ 8. Initialize EKS  (setting up kubernetes cluster)
+    a. Install Keycloak
+    b. Configure certificates for keycloak
+    c. Configure certificates for the load-balancer (external hostname used to access the webapp)
+
+ 9. Build & Push the webapp
+    a. Build the webapp with some certificates embedded (for now)
+    b. Push the webapp up to the Amazon ECR Registry
+    c. Deploy the webapp
+
+10. Verify it works
+    a. Create a pki client cert
+    b. Import it into a browser
+    c. Attempt to connect to https://www.traderres.som/sf
 
 
 
- 3. Automatic / Using KeyCloak Adapter
-     PROBLEM:  KeyCloak Adapter is deprecated with Spring Boot 3  (so we cannot upgrade to Spring Boot 3 easily in the future)
+
+Procedure
+---------
+ 1. Setup AWS Account / Identify Mgmt / with CLI credentials (so we can push up builds to our AWS ECR Registry)
+    Goal:  Setup a user that can run the CLI to push-up builds
+
+    a. In AWS, go to Services -> IAM
+    b. On the left, click on Users
+    c. Press "Add Users"
+       In "User details"
+       User name:  dev.user
+       Uncheck "Provide user access to the AWS Management Console"
+       Press "Next"
+
+    d. In "Set permissions"
+       Select Add user to group
+       Press "Next"
+
+    e. In "Review and create"
+       Press "Create user"
+
+    f. Select "User Groups"
+       Press "Create group"
+       User group name:  admins
+       Select "dev.user"
+       Check  "AdministratorAccess"
+       Press "Create Group"
+
+    g. Create the access keys for the dev.user
+       a. Click on "Users"
+       b. Click on dev.user
+       c. Click on "Security Credentials"
+       d. Click on "Create access key"
+       e. Select Command Line interface
+          Select "I understand the above"
+          Press "Next"
+
+       f. Description tag value:  leave it blank
+          Press "Create access key"
+
+       g. Download the key by pressing "Download .csv file"
+          --> Save dev.user_accessKeys.csv to your ~/Downloads
+
+         -- Now, the user called "dev.user" should have the authority to push up to the AWS ECR Registry
+
+
+
+ 2. Setup AWS CNI Policy (so we can control EKS)
+    See https://docs.aws.amazon.com/eks/latest/userguide/cni-iam-role.html
+
+    a. Create this role: eksClusterRole
+       1) Go to AWS IAM page
+       2) Click on Roles
+       3) Press "Create Role"
+       4) In Select trusted entity, choose "AWS service"
+          In Use Cases for other AWS services, select EKS
+          Select EKS - Cluster
+          Press "Next"
+
+       5) In "Add permissions", go with defaults and press "Next"
+       6) In Name, review, and create
+          Role name:  eksClusterRole
+          Press "Create Role"
+
+       7) In Roles, Click on eksClusterRole
+       8) Select "Add permissions" -> Attach Policies
+          Search for AmazonEKS and press Enter
+          Check AmazonEKS_CNI_Policy
+          Press "Add Permission"
+
+       9) In the "Roles/ eksClusterRole page, select Trust relationships
+          Verify that you see this:
+			  {
+				  "Version": "2012-10-17",
+				  "Statement": [
+					  {
+						  "Effect": "Allow",
+						  "Principal": {
+							  "Service": "eks.amazonaws.com"
+						  },
+						  "Action": "sts:AssumeRole"
+					  }
+				  ]
+			  }
+
+    b. Create this role:  eksNodeRole
+       1) Go to AWS IAM page
+       2) Click on Roles
+       3) Press "Create Role"
+       4) In Select trusted entity, choose "AWS service"
+          In Use Cases for other AWS services, select EKS
+          Select EKS - Cluster
+          Press "Next"
+       5) In "Add permissions", go with defaults and press "Next"
+       6) In Name, review, and create
+          Role name:  eksNodeRole
+          Press "Create Role"
+
+       7) In Roles, Click on eksNodeRole
+       8) Select "Add permissions" -> Attach Policies
+          Search for AmazonEKS and press Enter
+          Check AmazonEKS_CNI_Policy
+          Check AmazonEKSWorkerNodePolicy
+          Press "Add Permission"
+
+       9) In the Roles / eksNodeRole, remove the AmazonEKSClusterPolicy
+          -- In Permissions policies, check AmazonEKSClusterPolicy
+          -- Press "Remove"
+
+      10) In the Roles / eksNodeRole, remove the AmazonEKSClusterPolicy
+          -- In Permissions policies, select Add permissions -> Attach policies
+          -- Search for AmazonEC2containers
+          -- Check AmazonEC2ContainerRegistryReadOnly
+          -- Press "Add permissions"
+
+          At this point eksNodeRole, should have 3 policies:  AmazonEC2ContainerRegistryReadOnly, AmazonEKS_CNI_Policy, AmazonEKSWorkerNodePolicy
+
+     11) Click on "Trust relationships"
+         Press "Edit trust policy"
+
+         Find this line:
+           "Service": "eks.amazonaws.com"
+
+         Raplce with this line:
+           "Service": "ec2.amazonaws.com"
+
+         Press "Update policy"
+
+
+
+    c. Create this role:  AmazonEKS_VPC_CNI_Role
+       1) Go to AWS IAM page
+       2) Click on Roles
+       3) Press "Create Role"
+       4) In Select trusted entity, choose "AWS service"
+          In Use Cases for other AWS services, select EKS
+          Select EKS - Cluster
+          Press "Next"
+       5) In "Add permissions", go with defaults and press "Next"
+       6) In Name, review, and create
+          Role name:  AmazonEKS_VPC_CNI_Role
+          Press "Create Role"
+
+       7) In Roles, Click on AmazonEKS_VPC_CNI_Role
+       8) Select "Add permissions" -> Attach Policies
+          Search for cni and press Enter
+          Check AmazonEKS_CNI_Policy
+          Press "Add Permission"
+       9) In Permissions policies, remove AmazonEKSClusterPolicy policy
+          -- Check AmazonEKSClusterPolicy and press "Remove"
+
+
+ 3. Setup AWS ECR Registry (which will hold our builds to be deployed)
+    a. Connect to AWS and go to your console
+    b. Search Services for ECR -> Select Elastic Container Registry
+    c. Press "Get Started"
+    d. In "Create repository"
+       Visibility settings:  Private
+       Repository name:      traderres
+       In DOD:               Turn on KMS encryption
+       Press "Create repository"
+
+    e. Copy the URI:  524647912468.dkr.ecr.us-east-1.amazonaws.com/traderres
+
+    f. Check your repostiroy and press "View push commands"
+       -- This has the procedures for using the AWS CLI to connect
+
+ 4. Create the Amazon VPC
+     a. Connect to AWS and go to your console
+     b. Search Services for VPC -> Select VPC
+     c. Press "Create VPC"
+     d. In "Create VPC"
+        Resources to create:  VPC only    (if you need subnets select VPC and more)
+        Name tag:             vpcForSF
+        IPv4 CIDE Block:      IPv4 CIDR manual input
+        IPv4 CIDR:            10.0.0.0/24
+
+        IPv6 Cidr blocK:      No IPv6 CIDR block
+        Tenancy:              Default     (For DOD, use Dedicated)
+
+        Press "Create VPC"
+
+      e. In your VPC, on the left, choose "Subnets"
+         1) Press "Create subnet"
+         2) In "Create subnet"
+          VPC:   Choose vpcForSF
+
+          Subnet 1 of 1
+            Subnet name:        my-subnet-for-sf1
+            Availability Zone:  US East / us-east-1a
+            IPv4 CIDR blocK:    10.0.0.0/25            (get the first 128 IPs are in us-east-1a)
+
+          Press "Add new subnet"
+
+		  Subnet 2 of 2
+	        Subnet name:        my-subnet-for-sf2
+            Availability Zone:  US East / us-east-1b
+            IPv4 CIDR blocK:    10.0.0.128/25          (specify that the 2nd 128 IPs are in us-east-1b)
+
+
+          press "Create subnet"
+
+     f. In VPC, select Subnets,
+        Check your 1st subnet
+        Press Action -> Edit Subnet Settings
+        check "Enable auto-assign public IPv4 address"
+        Press "Save"
+
+        Check your 2nd subnet
+        Press Action -> Edit Subnet Settings
+        check "Enable auto-assign public IPv4 address"
+        Press "Save"
+
+      g. Let your VPC get an public Inrnet Address
+         a. In VPC -> Select Intenet Gateways
+         b. Press "Create internet gateway"
+         c. In "Create internet gateway"
+            Name tag:   sf-internet-gateway
+            Press "Create internet gateway"
+
+         d. In details for this internet gateway, select Actions -> Attach to VPC
+          In "Attach to VPC"
+          Select your vpc  (there should be only one)
+          press "Attach internet gateway"
+
+
+ 4. Create the EKS Cluster
+    a. Connect to AWS and go to your console
+    b. Search Services for EKS -> Select Elastic Kubernetes Service
+    c. Select "Add Cluster" -> Create
+    d. In "Configure Cluster"
+       Name:                  sf
+       Kubernetes version:    1.25  (or the latest)
+       Cluster service role:  eksClusterRole
+       Press "Next"
+
+    e. In Networking
+       VPC:                     vpcForSF
+       Subnets:                 auto-selected both subnets for you
+       Security groups:         Choose the defualt security group
+       Cluster endpoint access: Public
+       Press "Next"
+
+    f. In Configure Logging
+       Leave it all off for now
+       Press "Next"
+
+    g. In "Select add-ons"
+       Press "Next"
+
+    h. In "Configure selected add-ons settings"
+       Go with default and press "Next"
+
+    i. In "Review and Create"
+       Press "Create"
+
+    -- Right now, we have a cluster with no nodes
+
+
+ 5. Finish configuring CNI Policy
+    a. Configure your AWS CLI to talk to your new cluster
+       unix> aws configure
+
+       AWS Access Key ID:     <enter the first entry form the downloaded csv file>
+       AWS Secret Access Key: <enter the 2nd entry from the downloaded csv file>
+       Default region name:   us-east-1    (you get this from the AWS console, look next to your name and look at the default region)
+       Default output format  json
+
+    b. Get the cluster info:
+       unix> aws eks describe-cluster --name sf --query "cluster.identity.oidc.issuer" --output text
+       https://oidc.eks.us-east-1.amazonaws.com/id/B68AF174C094E8D42E925066EE72C940
+
+    c. Go to the IAM dashboard
+       1) Click on Users
+       2) Click on dev.user
+       3) Copy the ARN
+          arn:aws:iam::524647912468:user/dev.user
+
+       4) Click on IAM dashboard
+       5) Click on Roles
+       6) Click on AmazonEKS_VPC_CNI_Role
+       7) Open "Trust relationships"
+
+          Replace it with this (no tabs):
+
+{
+    "Version": "2012-10-17",
+    "Statement": [
+    {
+        "Effect": "Allow",
+        "Principal": {
+              "Federated": "arn:aws:iam::524647912468:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/B68AF174C094E8D42E925066EE72C940"
+         },
+         "Action": "sts:AssumeRoleWithWebIdentity",
+         "Condition": {
+         "StringEquals": {
+              "oidc.eks.us-east-1.amazonaws.com/id/B68AF174C094E8D42E925066EE72C940:aud": "sts.amazonaws.com",
+              "oidc.eks.us-east-1.amazonaws.com/id/B68AF174C094E8D42E925066EE72C940:sub": "system:serviceaccount:kube-system:aws-node"
+              }
+            }
+        }
+   ]
+}
+
+     8) Press "Update policy"
+
+
+
+
+
+ 6. Create the Node Group for the EKS Cluster (called sf)
+
+     a. Create a keypair
+        -- In ssh key pair, press the icon to open a new page to Key pairs"
+           1) Press "Create key pair"
+           2) In Create key pair"
+              Name:   node-for-kubunetes-instance
+              Type:   RSA
+              Format: PEM
+              Press "Create key pair"
+
+              -- You will be prompted to save the node-for-kubernetes-instance.pem
+
+     b. Add an inbound rule for this node so that ssh from anywhere
+        1) Go to EC2 Dashboard
+        2) Click on Resoures -> Security groups
+        3) Check the default security group and press Action -> Edit Inbound Rules
+        4) Press "Add Rule"
+           Type:   SSH
+           Source: Anywhere-IPv4
+           Press "Save rule"
+
+
+     c. Finish configuring EKS
+        a. Go to Amazon Elastic Kuberentes Services
+        b. Click on your cluster (sf)
+        c. Click on "Compute"
+        d. Press "Add node group"
+        e. In "Configure node group"
+               Name:           sf-node-group
+               Node IAM Role:  eksNodeRole
+               Press "Next"
+
+        f. In "Node group compute configuration"
+		   AMI Type:       Amazon Linux 2 (AL2_x86_64)
+		   Capacity Type:  On-Demand                        (in DOD, we would have reserved instances)
+		   Instance types  t3.large only
+		   Disk size:      20 GiB
+
+		   In Node group scaling configuration
+			 Desired Size:   1 nodes
+			 Minimum size:   1 nodes
+			 Maximum size:   1 nodes         (so the whole kubernetes env is run on a SINGLE server)
+
+		   In Node group update configuration   (this is the part of the auto-scaling features built into EKS)
+		   -- Go with defaults
+
+		   Pres "Next"
+
+
+	    g. In "Specify Networking"
+			-- Select the both subnets
+			-- Select "Configure ssh access for nodes"
+			-- In the warning, press "Enable"
+
+			   SSH Key pair:                  Select node-for-kubernetes-instance
+			   Allow SSH rmeote access from:  Selected security groups
+			   For security groups:           Select default "VPC Security Group"
+			Press "Next"
+
+		h. In "Review and Create"
+			Press "Create"
+
+			NOTE:  At this point, I'm being charged for the t3.large (which costs $2/day)
+
+		i. Wait a minute for AWS to create the instance
+
+        j. Get the public IP of your instance
+           a. Go to the EC2 Dashboard
+           b. Check the checkbox on your newly-created instance
+           c. Look at the bottom details
+              -- You should see your public IP address
+
+
+
+ 7. Initialize AWS-hosted resources (exist outside of the kubernetes cluster)
+    NOTE:  postgres and OpenSearch do not run inside kubernetes
+    a. Create the keycloak database / postgres instances
+       1) In AWS, search for RDS / Select RDS
+       2) Select Databases -> Press "Create database"
+       3) In "Create database"
+          Database creation method:  standard create
+          Engine type:               PostgreSQL
+          Engine version:            PostreSQL 14.6-R1
+          Templates:                 Dev/Test
+          Availability:              Single DB Instance
+
+          Settings
+             DB Instance identifier     keycloak
+             Master usrename:           keycloak_user
+             Master password            secret123
+
+          Instance configuration
+             DB Instance class:             Burstable / db.t3.micro
+             Include previous gen classes:  Unchecked
+
+          Storage
+             Storage Type:                General Purpose SSD (gp2)
+             Allocated storage:           20 GB
+             Enable storage autoscaling:  Unchecked
+
+		  Connectivity:
+		     Compute resource:               Connect to an EC2 compute resource
+             EC2 instance;                   <Select the instance that should be found in EC2 -> Instances -> You should see your 1 instance running>
+             DB Subnet Group:                Automatic Setup
+             Public Acces:                   No   (you can only access this database from sindie the cluster)
+             VPC Security group (firewall):  Choose Existing
+             Additional VPC security group:  Empty
+
+          Additional Configuration:
+             Databae Port:                   5432
+
+          Database authentication:           Password authentication
+
+          Monitoring:
+            Uncheck "Turn on Performance Insights"
+            Uncheck "Enable enhanced monitoring"
+
+          Additional Configuration
+            Uncheck "Enable automated backups"
+            Check   "Enable encryption"
+
+          Maintenance
+            Uncheck "Enable auto minor version upgrade"
+
+          Press "Create database"
+
+
+    b. Setup OpenSearch
+
+
+ 8. Create our own certificate authority (for pki client certs)
+
+ 9. Register the url in GoDaddy and configure
+    a. Setup the CNAME for www.traderres.com --> AWS long hostname
+
+10. Create certs with Let's Encrypt for the load-balancer and keycloak
+    NOTE:  The public Let's Encrypt certs are required to make sure that it all works in Firefox
+
+11. Initialize EKS  (setting up kubernetes cluster)
+    a. Install Keycloak
+    b. Configure certificates for keycloak
+    c. Configure certificates for the load-balancer (external hostname used to access the webapp)
+
+12. Build & Push the webapp
+    a. Build the webapp with some certificates embedded (for now)
+    b. Push the webapp up to the Amazon ECR Registry
+    c. Deploy the webapp
+
+13. Verify it works
+    a. Create a pki client cert
+    b. Import it into a browser
+    c. Attempt to connect to https://www.traderres.som/sf
 
 
 
 
 
 
-Procedure for approach #2  (Automatic / Spring Security Redirect)
------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
 
 
 Part 1: Configure Keycloak to run in SSL
