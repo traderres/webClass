@@ -30,6 +30,35 @@ ASSUMPTIONS:
 Goal: Deploy this webapp so anyone can get to it using https://www.traderres.com/sf
 
 
+Setup local kubectl that is *NOT* part of minikube
+---------------------------------------------------
+ 1. Remove the existing mini kube setup
+    unix> mv ~/.kube ~/.kube-localhost
+
+ 2. Comment out this alias
+    unix> vi ~/.bashrc
+    ##   alias kubectl="minikube kubectl --"
+
+ 3. Download & install kubectl
+    unix> cd /tmp
+    unix> curl -LO https://dl.k8s.io/release/v1.26.0/bin/linux/amd64/kubectl
+    unix> sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+    unix> which kubectl
+    /usr/local/bin/kubectl
+
+ 4. Set my config
+    unix> aws eks update-kubeconfig --region us-east-1 --name sf
+
+    You should see this:
+        Added new context arn:aws:eks:us-east-1:524647912468:cluster/sf to /home/adam/.kube/config
+
+ 5. Login to the server
+
+    -- Now, your kubectl is setup to your cluster
+
+
+
 General Approach
 ----------------
  1. Setup AWS Account / Identify Mgmt / with CLI credentials (so we can push up builds to our AWS ECR Registry)
@@ -71,48 +100,72 @@ General Approach
 
 Procedure
 ---------
- 1. Setup AWS Account / Identify Mgmt / with CLI credentials (so we can push up builds to our AWS ECR Registry)
+ 1. Setup AWS Account / Create Users / Grant CLI Access  (so we can push up builds to our AWS ECR Registry)
     Goal:  Setup a user that can run the CLI to push-up builds
+    a. Go to https://aws.com/
 
-    a. In AWS, go to Services -> IAM
-    b. On the left, click on Users
-    c. Press "Add Users"
-       In "User details"
-       User name:  dev.user
-       Uncheck "Provide user access to the AWS Management Console"
-       Press "Next"
+    b. Create the dev.user
+       1) In AWS, go to Services -> IAM
+       2) On the left, click on Users
+       3) Press "Add Users"
+       4) In "User details"
+          User name:  dev.user
+          Uncheck "Provide user access to the AWS Management Console"
+          Press "Next"
 
-    d. In "Set permissions"
-       Select Add user to group
-       Press "Next"
+       5) In "Set permissions"
+          Select Add user to group
+          Press "Next"
 
-    e. In "Review and create"
-       Press "Create user"
+       6) In "Review and create"
+          Press "Create user"
 
-    f. Select "User Groups"
-       Press "Create group"
-       User group name:  admins
-       Select "dev.user"
-       Check  "AdministratorAccess"
-       Press "Create Group"
+       7) Select "User Groups"
+          Press "Create group"
+          User group name:  admins
+          Select "dev.user"
+          Check  "AdministratorAccess"
+          Press "Create Group"
 
-    g. Create the access keys for the dev.user
-       a. Click on "Users"
-       b. Click on dev.user
-       c. Click on "Security Credentials"
-       d. Click on "Create access key"
-       e. Select Command Line interface
+    c. Create the access keys for the dev.user
+       1) Click on "Users"
+       2) Click on dev.user
+       3) Click on "Security Credentials"
+       4) Click on "Create access key"
+       5) Select Command Line interface
           Select "I understand the above"
           Press "Next"
 
-       f. Description tag value:  leave it blank
+       6) Description tag value:  leave it blank
           Press "Create access key"
 
-       g. Download the key by pressing "Download .csv file"
+       7) Download the key by pressing "Download .csv file"
           --> Save dev.user_accessKeys.csv to your ~/Downloads
 
          -- Now, the user called "dev.user" should have the authority to push up to the AWS ECR Registry
 
+    d. Grant the dev.user CNI additional access (so that dev.user can actually deploy stuff in kubernetes)
+       1) Click on "Users"
+       2) Click on dev.user
+       3) In "Permissions policies" select "Add permissions" -> "Add Permission"
+       4) Select "Attach policies directly"
+       5) Search for cni
+       6) Check off "AmazonEKS_CNI_Policy"
+       7) In the "Review" page, press "Add permissions"
+
+ 2. More user administration
+    a. Grant the dev.user console access (so that dev.user can run kubectl commands)
+       1) Click on "Users"
+       2) Click on dev.user
+       3) Click on "Security credentials"
+       4) Press "Enable console access"
+       5) In "Manage console access"
+          Console Access:  Enable
+          Set Password
+             Custom Password:
+          Press "Apply"
+       6) Get the url for the console access.  Should look something like this:
+          https://524647912468.signin.aws.amazon.com/console
 
 
  2. Setup AWS CNI Policy (so we can control EKS)
@@ -293,15 +346,30 @@ Procedure
           Select your vpc  (there should be only one)
           press "Attach internet gateway"
 
+      h. Add DNS hostname to your VPC
+         1) Go to VPCs -> Check your VPC
+         2) Check your VPC and selection Action -> Edit VPC Settings
+         3) Check "Enable DNS resolution"
+            Check "Enable DNS hostnames"
+            Press "Save"
 
- 4. Create the EKS Cluster
-    a. Connect to AWS and go to your console
-    b. Search Services for EKS -> Select Elastic Kubernetes Service
+
+ 4. Create the EKS Cluster (as dev.user)
+    a. Login as the dev.user
+       a. Logout of AWS
+       b. Go to https://524647912468.signin.aws.amazon.com/console       (from the above step)
+       c. Enter the IAM User name:  dev.user
+          Enter the password
+
+    b. Search Services for EKS -> Select Elastic Kubernetes Service  (as dev.user)
+
     c. Select "Add Cluster" -> Create
+
     d. In "Configure Cluster"
        Name:                  sf
        Kubernetes version:    1.25  (or the latest)
        Cluster service role:  eksClusterRole
+       Configure Kubernetes service IP address range:  Unchecked
        Press "Next"
 
     e. In Networking
@@ -324,34 +392,36 @@ Procedure
     i. In "Review and Create"
        Press "Create"
 
-    -- Right now, we have a cluster with no nodes
+       W A I T    U P T O    1 0     M I N      (for AWS to create it)
+
+       -- Right now, we have a cluster with no nodes
 
 
  5. Finish configuring CNI Policy
-    a. Configure your AWS CLI to talk to your new cluster
-       unix> aws configure
+    a. Get the OpenID Connect provider URL
+       1) Configure your AWS CLI to talk to your new cluster
+           unix> aws configure
 
-       AWS Access Key ID:     <enter the first entry form the downloaded csv file>
-       AWS Secret Access Key: <enter the 2nd entry from the downloaded csv file>
-       Default region name:   us-east-1    (you get this from the AWS console, look next to your name and look at the default region)
-       Default output format  json
+	       	AWS Access Key ID:     <enter the first entry form the downloaded csv file>
+    	   	AWS Secret Access Key: <enter the 2nd entry from the downloaded csv file>
+       		Default region name:   us-east-1    (you get this from the AWS console, look next to your name and look at the default region)
+       		Default output format  json
 
-    b. Get the cluster info:
-       unix> aws eks describe-cluster --name sf --query "cluster.identity.oidc.issuer" --output text
-       https://oidc.eks.us-east-1.amazonaws.com/id/B68AF174C094E8D42E925066EE72C940
+       2) Get the cluster info:
+          unix> aws eks describe-cluster --name sf --query "cluster.identity.oidc.issuer" --output text
+          https://oidc.eks.us-east-1.amazonaws.com/id/ID_FROM_DESCRIBE_CLUSTER
 
-    c. Go to the IAM dashboard
-       1) Click on Users
-       2) Click on dev.user
-       3) Copy the ARN
-          arn:aws:iam::524647912468:user/dev.user
 
-       4) Click on IAM dashboard
-       5) Click on Roles
-       6) Click on AmazonEKS_VPC_CNI_Role
-       7) Open "Trust relationships"
+
+
+    b. Grant anyone in our account to EKS/VPC/CNI
+       1) Click on Roles
+       2) Click on AmazonEKS_VPC_CNI_Role
+       3) Click on "Trust relationships"
+       4) Edit trust policy
 
           Replace it with this (no tabs):
+          Replace ID_FROM_DESCRIBE_CLUSTER with the value from the step above
 
 {
     "Version": "2012-10-17",
@@ -359,13 +429,13 @@ Procedure
     {
         "Effect": "Allow",
         "Principal": {
-              "Federated": "arn:aws:iam::524647912468:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/B68AF174C094E8D42E925066EE72C940"
+              "Federated": "arn:aws:iam::524647912468:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/ID_FROM_DESCRIBE_CLUSTER"
          },
          "Action": "sts:AssumeRoleWithWebIdentity",
          "Condition": {
          "StringEquals": {
-              "oidc.eks.us-east-1.amazonaws.com/id/B68AF174C094E8D42E925066EE72C940:aud": "sts.amazonaws.com",
-              "oidc.eks.us-east-1.amazonaws.com/id/B68AF174C094E8D42E925066EE72C940:sub": "system:serviceaccount:kube-system:aws-node"
+              "oidc.eks.us-east-1.amazonaws.com/id/ID_FROM_DESCRIBE_CLUSTER:aud": "sts.amazonaws.com",
+              "oidc.eks.us-east-1.amazonaws.com/id/ID_FROM_DESCRIBE_CLUSTER:sub": "system:serviceaccount:kube-system:aws-node"
               }
             }
         }
@@ -378,7 +448,7 @@ Procedure
 
 
 
- 6. Create the Node Group for the EKS Cluster (called sf)
+6a. Create the keypair and inbound rule
 
      a. Create a keypair
         -- In ssh key pair, press the icon to open a new page to Key pairs"
@@ -400,56 +470,69 @@ Procedure
            Source: Anywhere-IPv4
            Press "Save rule"
 
-
-     c. Finish configuring EKS
-        a. Go to Amazon Elastic Kuberentes Services
-        b. Click on your cluster (sf)
-        c. Click on "Compute"
-        d. Press "Add node group"
-        e. In "Configure node group"
-               Name:           sf-node-group
-               Node IAM Role:  eksNodeRole
-               Press "Next"
-
-        f. In "Node group compute configuration"
-		   AMI Type:       Amazon Linux 2 (AL2_x86_64)
-		   Capacity Type:  On-Demand                        (in DOD, we would have reserved instances)
-		   Instance types  t3.large only
-		   Disk size:      20 GiB
-
-		   In Node group scaling configuration
-			 Desired Size:   1 nodes
-			 Minimum size:   1 nodes
-			 Maximum size:   1 nodes         (so the whole kubernetes env is run on a SINGLE server)
-
-		   In Node group update configuration   (this is the part of the auto-scaling features built into EKS)
-		   -- Go with defaults
-
-		   Pres "Next"
+     c. FIX?  Add another inbound rule for our default security group  (to let all traffic in and out)
+           1) Go to EC2 Dashboard
+           2) Click on Resoures -> Security groups
+           3) Check the default security group and press Action -> Edit Inbound Rules
+           4) Press "Add Rule"
+              Type:   SSH
+              Source: All Traffic
+                      0.0.0.0/0
+              Press "Save rule"
 
 
-	    g. In "Specify Networking"
-			-- Select the both subnets
-			-- Select "Configure ssh access for nodes"
-			-- In the warning, press "Enable"
+6b. Create Kubernetes Node Group  (as dev.user)
+	a. Go to Amazon Elastic Kuberentes Services
+	b. Click on your cluster (sf)
+	c. Click on "Compute"
+	d. Press "Add node group"
+	e. In "Configure node group"
+		   Name:           sf-node-group
+		   Node IAM Role:  eksNodeRole
+		   Press "Next"
 
-			   SSH Key pair:                  Select node-for-kubernetes-instance
-			   Allow SSH rmeote access from:  Selected security groups
-			   For security groups:           Select default "VPC Security Group"
-			Press "Next"
+	f. In "Node group compute configuration"
+	   AMI Type:       Amazon Linux 2 (AL2_x86_64)
+	   Capacity Type:  On-Demand                        (in DOD, we would have reserved instances)
+	   Instance types  t3.large only
+	   Disk size:      20 GiB
 
-		h. In "Review and Create"
-			Press "Create"
+	   In Node group scaling configuration
+		 Desired Size:   1 nodes
+		 Minimum size:   1 nodes
+		 Maximum size:   1 nodes         (so the whole kubernetes env is run on a SINGLE server)
 
-			NOTE:  At this point, I'm being charged for the t3.large (which costs $2/day)
+	   In Node group update configuration   (this is the part of the auto-scaling features built into EKS)
+	   -- Go with defaults
 
-		i. Wait a minute for AWS to create the instance
+	   Pres "Next"
 
-        j. Get the public IP of your instance
-           a. Go to the EC2 Dashboard
-           b. Check the checkbox on your newly-created instance
-           c. Look at the bottom details
-              -- You should see your public IP address
+
+	g. In "Specify Networking"
+		1) Select the both subnets
+		2) Select "Configure ssh access for nodes"
+		   -- In the warning, press "Enable"
+           -- Subnets:                       Select both
+		   -- SSH Key pair:                  Select node-for-kubernetes-instance
+		   -- Allow SSH rmeote access from:  Selected security groups
+		   For security groups:              Select default "VPC Security Group" *AND* select the other security group
+
+		Press "Next"
+
+	h. In "Review and Create"
+		Press "Create"
+
+		NOTE:  At this point, I'm being charged for the t3.large (which costs $2/day)
+
+	i. W A I T      U P T O       1 0      M I N       F O R     A W S    (to create the node group)
+
+	j. While waiting, get the public IP of your instance
+	   a. Go to the EC2 Dashboard
+	   b. Check the checkbox on your newly-created instance
+	   c. Look at the bottom details
+		  -- You should see your public IP address
+
+    k. When the intance status check = , then it is fully up
 
 
 
