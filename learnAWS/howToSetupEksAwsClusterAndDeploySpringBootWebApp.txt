@@ -917,6 +917,9 @@ spec:
 
 
 16. Create & install the keycloak certificates on the running instance
+    NOTE:  Keycloak Server has Java 11 JDK's keytool
+           If your development env uses an older Java JDK, then build the cert with the older Java JDK
+
     We need to install the files to here:
         /opt/keycloak/keycloak.keystore.jks
         /opt/keycloak/keycloak.truststore.jks
@@ -1094,20 +1097,467 @@ spec:
 
 18. Configure keycloak
     a. Setup the admin account
+       1) Stop keycloak
+          ssh to the running instance
+          unix> ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.218.246.201
+          unix> sudo systemctl stop keycloak
+
+       2) Set the admin username and password with ENV variables
+          unix> sudo vi /etc/systemd/system/keycloak.service
+
+          Add these 2 environment variables
+
+          		Environment=KEYCLOAK_ADMIN=keycloak
+          		Environment=KEYCLOAK_ADMIN_PASSWORD=secret12
+
+
+          When finished, the systemd file should look like this:
+			###################################################################################
+			# Filename:  keycloak.service
+			#
+			# Purpose:
+			#   Describe how the keycloak service runs
+			#
+			# Notes:
+			#   If you update this file, then follow these steps:
+			#   unix> sudo systemctl daemon-reload
+			#   unix> sudo systemctl start keycloak
+			#
+			#   Look at the log
+			#   unix> sudo journalctl -fu keycloak
+			###################################################################################
+			[Unit]
+			Description=Keycloak Application Server
+			After=syslog.target network.target
+			StartLimitIntervalSec=1d
+			StartLimitBurst=3
+
+			[Service]
+			Type=simple
+			Restart=on-failure
+			RestartSec=2s
+
+			# Disable timeout logic and wait until process is stopped
+			TimeoutStopSec=0
+
+			# SIGTERM signal is used to stop the Java process
+			KillSignal=SIGTERM
+
+			# Send the signal only to the JVM rather than its control group
+			KillMode=process
+			User=keycloak
+			Group=keycloak
+			RemainAfterExit=yes
+			LimitNOFILE=102642
+			ExecStart=/opt/keycloak/keycloak-21.0.1/bin/kc.sh start --http-enabled=false --https-port=8444 --https-key-store-file=/opt/keycloak/keycloak.keystore.jks --https-key-store-type=JKS --https-key-store-password=changeit --https-trust-store-file=/opt/keycloak/keycloak.truststore.jks --https-trust-store-type=JKS --https-trust-store-password=changeit --https-client-auth=request --log-level=INFO --hostname-strict-https=false --hostname-strict=false --hostname=keycloak.traderres.com
+
+			# Database Options
+			Environment=KC_DB=postgres
+			Environment=KC_DB_URL=jdbc:postgresql://keycloak.csbk2jnrc8ao.us-east-2.rds.amazonaws.com/keycloak_db
+			Environment=KC_DB_USERNAME=keycloak_user
+			Environment=KC_DB_PASSWORD=secret123
+
+			Environment=KEYCLOAK_ADMIN=keycloak
+			Environment=KEYCLOAK_ADMIN_PASSWORD=secret12
+
+			[Install]
+			WantedBy=multi-user.target
+
+
+
+       3) Update the service
+          unix> sudo systemctl daemon-reload
+
+       4) Startup the service
+          unix> sudo systemctl start keycloak
+
+       5) Use a browser to connect to keycloak
+          Connect to https://keycloak.traderres.com:8444/
+          Press "Admin Console"
+          Enter admin username
+          Enter admin password
+          -- Verify that you can get in
+
 
     b. Configure the keycloak settings
+       1) Connect to https://keycloak.traderres.com:8444/admin/master/console/
+
+       2) Select Realms -> Create new realm: MyRealm
+
+
+	   3) Create an x509 authentication flow
+		a. Click on Authentication
+		b. Click on browser
+		c. Selection Action -> Duplicate
+		   Name:  x509 authentication flow
+		d. Delete Everything
+		e. Press "Add execution"
+		   Select  Cookie and press "Add"
+		   Change Cookie's Requirement to "Alternaive"
+
+		f. Press "Add step"
+		   1) Press the "next" button a few times until you see x509/Validate Username Form
+		   2) Select x509/Validate Username Form
+		   3) Change X509/Validate Username From to Alternate
+		   4) Press the "Settings" button
+
+		   5) In the X509/Validate Username Form Config
+
+			  Alias:                                        x509 configuration
+			  User Identity Source:                         Match SubjectDN using regular expression
+			  Regular expression to extract user identity:  cn=(.*?)(?:,|$)
+			  User mapping method:                          Username or Email
+			  Check certificate validity:                   On
+			  Bypass identity confirmation                  On
+
+		   6) In x509 authentication flow, select Action -> Bind flow
+			  Choose "Browser flow"
+			  Press "Save"
+
+
+
+
+		 4) Create the client: sf328-webapp
+			a. Click on Clients
+			b. Press "Create client"
+
+			General Settings
+			  Client type:           OpenID Connect
+			  Client ID:             sf328-webapp
+			  Name:                  SF328 Submissions
+			  Always display in UI:  Off
+			  Press "Next"
+			  Press "Next"
+			  Press "Save"
+
+			Access Settings:
+			Root URL:              https://app.traderres.com/sf
+			Home URL:              https://app.traderres.com/sf
+
+			Capability Config:
+			  Client authentication  On
+			  Authorization          On
+			  Authentication Flow:   Check Standard flow
+
+			Login Settings
+			   Login theme:               keycloak
+			   Consent required:          Off
+			   Display client on screen:  Off
+
+			Press "Save"
+
+
+		 5) Click on SF328-webapp / Credentials Tab
+			Client Authenticator:  Client ID and Secret
+
+		 6) Click on "Advanced"
+			Go to Authentication flow overrides
+			Browser Flow:  x509 authentication flow
+			Press "Save"
+
+
+		 7) Create the realm role
+		    a. Press Relam roles
+		    b. Press "Create role"
+			a. Create a role called SF328_USER
+
+
+		 8) Assign that role to your test user
+			a. Click on Users
+			b. Press "Add User"
+			c. Username:       Lastname.first
+            d. Press "create"
+
+			d. Click on "role Mappings"
+			e. Press Assign Role
+			f. Assign the SF328_USER role to this user
+
+
+		 9) Tell keycloak to provide the roles to spring boot
+			a. Click on Client Scopes
+			b. Select roles
+			c. In the settings for 'roles'
+			   Include in token scope: On
+
+			d. Click on Client Scopes
+			e. Select roles
+			f. Select Mappers
+			g. Select Realm Roles
+			f. In the settings for "Realm Role'
+				  Add to ID Token:     On
+				  Add to access token: On
+				  Add to userinfo:     On
+
 
 
 
 19. Configure certificates for the load-balancer (external hostname used to access the webapp)
+    NOTE:  The webapp needs a load-balancer truststore to work correctly
+           The webapp needs a special custom.cacerts file (that has the lob chain and self-signed CA)
+
+    NOTE:  You should have the signed cert files for app.traderres.com here:
+			/home/adam/certbot/archive/app.traderres.com/cert1.pem
+			/home/adam/certbot/archive/app.traderres.com/privkey1.pem
+			/home/adam/certbot/archive/app.traderres.com/chain1.pem
+			/home/adam/certbot/archive/app.traderres.com/fullchain1.pem
+
+    a. Generate this file:  webapp.keystore.jks
+       NOTE:  This file should should have the server cert for app.traderres.com in it
+
+       1) Examine the 3 files that makeup the full chain of the fullchain1.pem / Split it up into 3 files / Find the server cert
+           NOTE:  The server cert has this:
+                        CN=app.traderres.com
+
+           unix> cd /home/adam/certbot/archive/app.traderres.com
+           unix> cat fullchain1.pem
+           -- Split this up into 3 files called fullchainkc1.pem, fullchainkc2.pem, fullchainkc3.pem
+
+		   unix> openssl x509 -in fullchain_part1.pem -noout -text | grep 'app.traderres.com'        # Holds the server cert
+		   unix> openssl x509 -in fullchain_part2.pem -noout -text | grep 'app.traderres.com'
+		   unix> openssl x509 -in fullchain_part3.pem -noout -text | grep 'app.traderres.com'
+
+        3) Generate the server.p12 file from the server cert
+           unix> export SERVER_CRT=fullchain_part1.pem
+		   unix> export SERVER_KEY=privkey1.pem
+		   unix> export INTERMEDIATE_CA=fullchain_part2.pem
+           unix> openssl pkcs12 -export -in $SERVER_CRT -inkey $SERVER_KEY -out server.p12 -name 'my-server-cert' -CAfile $INTERMEDIATE_CA -caname root
+           Enter Export Password: changeit
+           Verify Password:       changeit
+
+        4) Convert the server.p12 into webapp.keystore.jks
+           unix> rm webapp.keystore.jks
+           unix> keytool -importkeystore -deststorepass changeit -destkeypass changeit -destkeystore webapp.keystore.jks  -srckeystore server.p12 -srcstoretype PKCS12 -srcstorepass changeit -alias 'my-server-cert'
 
 
-20. Build and Deploy the webapp
+
+
+    b. Generate this file:  webapp.truststore.jks
+       1) Break-up the app.traderres.com/fullchain1.pem file into 3 files:
+               fullchain_part1.pem
+               fullchain_part2.pem
+               fullchain_part3.pem
+
+       2) Import each file into the new webapp.truststore.jks file
+          unix> cd /home/adam/certbot/archive/app.traderres.com
+          unix> keytool -import -alias "new-lb1"  -keystore webapp.truststore.jks -file fullchain_part1.pem  -storepass changeit
+          unix> keytool -import -alias "new-lb2"  -keystore webapp.truststore.jks -file fullchain_part2.pem  -storepass changeit
+          unix> keytool -import -alias "new-lb3"  -keystore webapp.truststore.jks -file fullchain_part3.pem  -storepass changeit
+
+          # Import the self-signed root CA pem file into webapp.truststore.jks
+          unix> keytool -import -alias "our-ca"  -keystore webapp.truststore.jks -file /path/to/own-self-signed/root-ca/pem  -storepass changeit
+
+
+    c. Generate this file:  custom.cacerts
+       NOTE:  This is needed so that the spring security oauth2 authenticator can talk to the keycloak server
+       unix> cp /usr/lib/jvm/java-1.8.0-openjdk/jre/lib/security/cacerts custom.cacerts
+       unix> chmod ugo+rw custom.cacerts
+
+       unix> keytool -import -alias "new-lb1"  -keystore  custom.cacerts  -file fullchain_part1.pem  -storepass changeit
+       unix> keytool -import -alias "new-lb2"  -keystore  custom.cacerts  -file fullchain_part2.pem  -storepass changeit
+       unix> keytool -import -alias "new-lb3"  -keystore  custom.cacerts  -file fullchain_part3.pem  -storepass changeit
+       unix> keytool -import -alias "our-ca"   -keystore  custom.cacerts  -file /path/to/own-self-signed/root-ca/pem   -storepass changeit
+
+
+20. Build and Push the webapp to Amazon ECR
+    NOTE:  Normally, your kubernetes pod would refer to a volume and read the files from there
+           But, we are going to embed the custom.cacerts, webapp.keystore.jks, and webapp.truststore.jks in the webapp (for now)
+
+    a. Get the client id secret key
+       1) Go to  https://keycloak.traderres.com:8444/
+       2) Click on Admin Console
+       3) Enter the admin user/password
+       4) Click on Realms -> MyRealm
+       5) Click on Clients
+       6) Click on sf328-webapp
+       7) Click on the "Credentials" tab
+          -- Get the client secret
+
     a. Build the webapp with some certificates embedded (for now)
-    b. Push the webapp up to the Amazon ECR Registry
-    c. Deploy the webapp
+       Copy the custom.cacerts, webapp.keystore.jks, webapp.truststore.jks to the sf328/sf328-backend/src/main/prod_resources/ directory
 
-21. Verify it works
+    b. Make sure the production application.yaml has these setting:
+
+			##########################################################
+			# SSL Settings
+			##########################################################
+			server:
+			  port: 8443
+			  ssl:
+				key-store: sf328-backend/src/main/prod_resources/webapp.keystore.jks
+				key-store-password: changeit
+				key-store-type: JKS
+				client-auth: need
+				trust-store: sf328-backend/src/main/prod_resources/webapp.truststore.jks
+				trust-store-password: changeit
+				trust-store-type: JKS
+				enabled: true
+
+    c. Make sure the production application.yaml has these keycloak settings:
+
+			##########################################################
+			# Keycloak Settings for Spring Security
+			##########################################################
+			spring.security.oauth2.client.registration.keycloak.client-id: sf328-webapp
+			spring.security.oauth2.client.registration.keycloak.client-secret: <CLIENT_SECRET_FROM_KEYCLOAK_SERVER>
+			spring.security.oauth2.client.registration.keycloak.authorization-grant-type: authorization_code
+			spring.security.oauth2.client.registration.keycloak.scope: openid,email,profile
+			spring.security.oauth2.client.provider.keycloak.issuer-uri: https://keycloak.traderres.com:8444/realms/MyRealm
+			spring.security.oauth2.client.provider.keycloak.user-name-attribute: preferred_username
+			spring.security.oauth2.resourceserver.jwt.issuer-uri: https://keycloak.traderres.com:8444/realms/MyRealm
+
+
+    d. Get the procedures to push up the build up to the Amazon ECR
+       1) Connect to aws.com as dev.user
+       2) Go to the ECR
+       3) Check the "traderres" repository
+       4) Press "View push commands"
+
+          The REPOSITORY_URL is 524647912468.dkr.ecr.us-east-2.amazonaws.com/traderres
+
+
+    e. Get the AWS ECR authentication token  (so docker push will push it up to our Amazon ECR)
+       Retrieve the authentication token  (from the "view push commands" step)
+       unix> aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 524647912468.dkr.ecr.us-east-2.amazonaws.com
+
+
+
+    f. Build & Push the tag
+       1) Edit the sf328-backend/pom.xml
+
+          Change the <to><image> to this:
+
+			  <to>
+				   <image>REPOSITORY_URL:${project.artifactId}-${project.version}</image>
+			  </to>
+
+          So, it should appear as this:
+              <to>
+                <image>524647912468.dkr.ecr.us-east-2.amazonaws.com/traderres:${project.artifactId}-${project.version}</image>
+              </to>
+
+       2) Set the versoin to be 2.0.1-SNAPSHOT
+          unix> mvn versions:set -DnewVersion=2.0.1-SNAPSHOT  -DgenerateBackupPoms=false
+
+       3) Build the image
+          unix> mvn clean package -Pprod -PbuildImage
+
+       4) Push the image to our Amazon ECR
+          unix> docker push 524647912468.dkr.ecr.us-east-2.amazonaws.com/traderres:sf328-backend-2.0.1-SNAPSHOT
+
+
+21. Use Kubernetes to deploy the webapp
+    a. Get the token
+       unix> aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 524647912468.dkr.ecr.us-east-2.amazonaws.com
+
+    a. Delete existing deployment
+       unix> kubectl delete deployment sf328-deployment
+
+    b. Create the deployment script by adding the "env" section with Java settings
+       unix> vi sf328-deployment-v1.yaml
+
+#############################################################################
+#  sf328-deployment-v1.yaml
+#
+# Notes:
+#  1) The running pods do not have DNS so we need hostAliases to create an entry in /etc/hosts
+#     that can resolve the keycloak.traderres.com to 18.218.246.201
+#     Use nslookup keycloak.traderres.com to verify the IP
+#
+#############################################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sf328-deployment
+
+spec:
+  selector:
+    matchLabels:
+      app: sf328-backend
+  replicas: 1
+  strategy:
+    type:  Recreate
+  template:
+    metadata:
+      name: kubia
+      labels:
+         app: sf328-backend
+    spec:
+      hostAliases:
+      - ip: "18.218.246.201"
+        hostnames:
+          - "keycloak.traderres.com"
+      containers:
+      - image: 524647912468.dkr.ecr.us-east-2.amazonaws.com/traderres:sf328-backend-2.0.1-SNAPSHOT
+        imagePullPolicy: Always
+        name: java-backend
+        env:
+          - name: JAVA_TOOL_OPTIONS
+            value: -Xms250m -Xmx250m -Djavax.net.debug=ssl -Djavax.net.ssl.trustStore=/sf328-backend/src/main/prod_resources/custom.cacerts -Djavax.net.ssl.trustStorePassword=changeit
+
+
+
+
+	 c. Verify that there are no special chars in the file by looking for them
+		unix> cat -v -e sf328-deployment-v1.yaml
+
+	 d. We create the deployment
+		unix> kubectl create -f sf328-deployment-v1.yaml
+
+	 e. Get a listing of the pods
+		unix> kubectl get pods
+
+		NAME                               READY   STATUS    RESTARTS   AGE
+		sf328-deployment-c469974cb-tj4kk   1/1     Running   0          10s
+
+
+	 f. Delete the existing load balancer service  (that was temporary)
+		unix> kubectl delete service sf328-loadbalancer
+
+	 g. Have AWS create and expose the load balancer service
+		unix> kubectl expose deployment sf328-deployment --type=LoadBalancer --name=sf328-loadbalancer --port=443
+		NOTE:  This create a new external hostname and IP address
+
+
+	 h. Modify the created load balancer service by setting
+		unix> kubectl edit service sf328-loadbalancer
+
+		   targetPort=8443
+		   sessionAffinity=ClientIP
+
+
+	 i. Get the external hostname for this load balancer service
+		unix> kubectl get services
+
+		NAME                 TYPE           CLUSTER-IP     EXTERNAL-IP                                                               PORT(S)         AGE
+		kubernetes           ClusterIP      10.100.0.1     <none>                                                                    443/TCP         27h
+		sf328-loadbalancer   LoadBalancer   10.100.66.32   a913ec0732a4d4726a6d186c8233e52f-1165139498.us-east-2.elb.amazonaws.com   443:30493/TCP   5s
+
+
+
+	 j. Update godaddy's cname record for app.traderres.com so that it corresponds to the new external hostname
+		a. Login to godaddy.com
+		b. Go to "Manage DNS" for traderres.com
+		   *OR*
+		   https://dcc.godaddy.com/control/traderres.com/dns
+
+		c. Edit the old CNAME record for app.traderres.com
+		   Type:  CNAME
+		   Name:  app
+		   Value: a913ec0732a4d4726a6d186c8233e52f-1165139498.us-east-2.elb.amazonaws.com
+
+		d. Press "Save"
+
+
+
+	 k. Restart the keycloak server
+		ssh to the running instance
+		unix> ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.218.246.201
+		unix> sudo systemctl restart keycloak
+
+
+
+
+22. Verify it works
     a. Create a pki client cert
     b. Import it into a browser
     c. Attempt to connect to https://app.traderres.som/sf
@@ -1115,8 +1565,14 @@ spec:
 
 
 
+Troubleshooting
+---------------
+ A. Ssh to the running pod
+    unix> kubectl get pods
 
-
+    unix> kubectl exec -it sf328-deployment-5c944dc79f-sb8lc /bin/bash
+    unix> curl https://keycloak.traderres.com:8444/realms/MyRealm
+    -- Verify that you get info cleanly (without error)
 
 
 
