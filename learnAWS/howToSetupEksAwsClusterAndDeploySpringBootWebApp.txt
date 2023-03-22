@@ -18,14 +18,15 @@ General Approach
  4. Spring Security detects that authentication is successful
     -- Java code gets the user's roles and any additoinal info and adds MyUserInfo to the principal object
 
+    NOTE:  Redirecting the user to the keycloak server is the most secure way of implementing security (according to the Keycloak folks)
 
-NOTE:  Redirecting the user to the keycloak server is the most secure way of implementing security (according to the Keycloak folks)
 
 
 ASSUMPTIONS:
  A) You have an AWS account
  B) You have installed the AWS CLI tool
  C) You have a registered domain called "traderres.com"
+
 
 Goal: Deploy this webapp so anyone can get to it using https://www.traderres.com/sf
 
@@ -61,62 +62,31 @@ Setup local kubectl that is *NOT* part of minikube
 
 General Approach
 ----------------
- 1. Setup AWS Account / Identify Mgmt / with CLI credentials (so we can push up builds to our AWS ECR Registry)
-    a. Create dev.user account
-       NOTE:  grant dev.user console access
-    b. Create role called "dev_users"
-
- 2. Setup AWS CNI Policy (so we can control EKS)
-    a. Create roles:  eksClusterRole, eksNodeRole, AmazonEKS_VPC_CNI_Role
-    b. Assign AwsEKS_CNI to dev.user itself
-
- 3. Setup AWS ECR Registry (which will hold our builds to be deployed)
-
-
+ 1. Setup AWS Account / Create Users / Grant CLI Access  (so we can push up builds to our AWS ECR Registry)
+ 2. Setup AWS CNI Policy / so dev.user can make changes to kubernetes
+ 3. Setup AWS ECR Registry (as dev.user)   which will hold our builds to be deployed)
  4. Configure the Amazon VPC (created by default for the dev.user)
-
-
  5. Create the EKS Cluster (as dev.user)
-
-
  6. Finish configuring CNI Policy
-    Grant anyone in our account to EKS/VPC/CNI
-
- 7. Create a keypair
-    Create an inbound rule for this node
-
- 8. Create the Kubernetes node groups
-
+ 7. Create the keypair and inbound rule
+ 8. Create Kubernetes Node Group
  9. SSH to the node instance to update the yum packages of the running instance
-
 10. Initialize AWS-hosted resources (exist outside of the kubernetes cluster)
     NOTE:  postgres and OpenSearch do not run inside kubernetes
     a. Setup 2 RDS / postgres instances (one for the webapp and one for keycloak)
     b. Setup OpenSearch
-
 11. Create our own certificate authority (for pki client certs)
-
-12. Create certs with Let's Encrypt for the load-balancer and keycloak
-    NOTE:  The public Let's Encrypt certs are required to make sure that it all works in Firefox
-
-13. Initialize Keycloak
-    a. Install Keycloak
-    b. Configure certificates for keycloak
-    c. Configure certificates for the load-balancer (external hostname used to access the webapp)
-
-14. Build and Deploy the webapp
-    a. Build the webapp with some certificates embedded (for now)
-    b. Push the webapp up to the Amazon ECR Registry
-    c. Deploy the webapp
-
-15. Register the url in GoDaddy and configure
-    a. Register the domain traderres.com
-    b. Setup the CNAME for www.traderres.com --> AWS long hostname
-
-15. Verify it works
-    a. Create a pki client cert
-    b. Import it into a browser
-    c. Attempt to connect to https://www.traderres.som/sf
+12. Configure your local kubectl command to talk to our new Kubernetes cluster
+13. Get the aws external hostnames for keycloak and the app's loadbalancer
+14. Register the godayy domain name that correspond to the external AWS keycloak and external AWS load balancer names
+15. Create server certs with Let's Encrypt for the load-balancer (app.traderres.com) and keycloak (keycloak.traderres.com)
+16. Create & install the keycloak certificates on the running instance
+17. Initialize Keycloak as a service on the running instsance
+18. Configure keycloak
+19. Configure certificates for the load-balancer (external hostname used to access the webapp)
+20. Build and Push the webapp to Amazon ECR
+21. Use Kubernetes to deploy the webapp
+22. Verify it works
 
 
 
@@ -1577,9 +1547,33 @@ Troubleshooting
 
 
 
+How to Shutdown the entire AWS cluster (so you're not being billed for anything)
+--------------------------------------------------------------------------------
+ 1. Go into ECR, and delete the repository images
 
+ 2. Delete the node group
+    Go into EKS -> Clusters -> sf -> Compute
+    Highlight the node group -> Delete
 
+ 3. Delete the OpenSearch domain
+    Go into OpenSearch -> Click on sf328 domain ->
 
+ 4. Delete Postgres RDS
+    Go into RDS -> Database
+    Select the keycloak -> Action -> Delete
+    Uncheck "Create final snapshot"
+    Delete
+
+    Go into RDS -> Database
+    Select the sf328 -> Action -> Delete
+    Uncheck "Create final snapshot"
+    Delete
+
+ 5. Delete the EKS Cluster (lsat)
+    Go into EKS -> Clusters -> sf -> delete
+
+ 6. Delete the EC2 Load balancer
+    Go into EC2 -> Load balancers -> Action -> Delete
 
 
 
@@ -1657,115 +1651,6 @@ bin/kc.sh start --http-enabled=false --https-port=8444 --https-key-store-file=/h
 
 
  6. Verify that you can connect to keycloak at https://localhost.localdomain:8444/
-
-
-
-
-Part 2: Configure Keycloak's realm and client
----------------------------------------------
- 1. Select Realms -> Create new realm: MyRealm
-
-
- 2. Create an x509 authentication flow
-    a. Click on Authentication
-    b. Click on browser
-    c. Selection Action -> Duplicate
-       Name:  x509 authentication flow
-    d. Delete Everything
-    e. Add Cookie   with Requirement=Alternative
-
-    f. Press "Add step"
-       1) Press the "next" button a few times until you see x509/Validate Username Form
-       2) Select x509/Validate Username Form
-       3) Change X509/Validate Username From to Alternate
-       4) Press the "Settings" button
-
-       5) In the X509/Validate Username Form Config
-
-          Alias:                                        x509 configuration
-          User Identity Source:                         Match SubjectDN using regular expression
-          Regular expression to extract user identity:  cn=(.*?)(?:,|$)
-          User mapping method:                          Username or Email
-          Check certificate validity:                   On
-          Bypass identity confirmation                  On
-
-       6) In x509 authentication flow, select Action -> Bind flow
-          Choose "Browser flow"
-          Press "Save"
-
-
-
-
- 3. Create the client: sf328-webapp
-    a. Click on Clients
-    b. Press "Create client"
-
-    General Settings
-      Client type:           OpenID Connect
-      Client ID:             sf328-webapp
-      Name:                  SF328 Submissions
-      Always display in UI:  Off
-      Press "Next"
-      Press "Next"
-      Press "Save"
-
-    Access Settings:
-    Root URL:              https://localhost.localdomain:8443/sf
-    Home URL:              https://localhost.localdomain:8443/sf
-
-    Capability Config:
-      Client authentication  On
-      Authorization          On
-      Authentication Flow:   Check Standard flow
-
-    Login Settings
-       Login theme:               keycloak
-       Consent required:          Off
-       Display client on screen:  Off
-
-    Press "Save"
-
-
- 4. Click on SF328-webapp / Credentials Tab
-    Client Authenticator:  Client ID and Secret
-
-
- 5. Click on "Advanced"
-    Go to Authentication flow overrides
-    Browser Flow:  x509 authentication flow
-    Press "Save"
-
-
- 6. Create the realm role
-    a. CReate a role called SF328_USER
-
-
- 7. Assign that role to your test user
-    a. Click on Users
-    b. Press "Add User"
-    c. Username:       Lastname.first
-
-    d. Click on "role Mappings"
-    e. Press Assign Role
-    f. Assign the SF328_USER role to this user
-
-
- 8. Tell keycloak to provide the roles to spring boot
-    a. Click on Client Scopes
-    b. Select roles
-    c. In the settings for 'roles'
-       Include in token scope: On
-
-    d. Click on Client Scopes
-    e. Select roles
-    f. Select Mappers
-    g. Select Realm Roles
-    f. In the settings for "Realm Role'
-          Add to ID Token:     On
-          Add to access token: On
-          Add to userinfo:     On
-
-
 
 
 
