@@ -62,39 +62,61 @@ Setup local kubectl that is *NOT* part of minikube
 General Approach
 ----------------
  1. Setup AWS Account / Identify Mgmt / with CLI credentials (so we can push up builds to our AWS ECR Registry)
+    a. Create dev.user account
+       NOTE:  grant dev.user console access
+    b. Create role called "dev_users"
 
  2. Setup AWS CNI Policy (so we can control EKS)
+    a. Create roles:  eksClusterRole, eksNodeRole, AmazonEKS_VPC_CNI_Role
+    b. Assign AwsEKS_CNI to dev.user itself
 
  3. Setup AWS ECR Registry (which will hold our builds to be deployed)
 
- 4. Initialize AWS-hosted resources (exist outside of the kubernetes cluster)
+
+ 4. Configure the Amazon VPC (created by default for the dev.user)
+
+
+ 5. Create the EKS Cluster (as dev.user)
+
+
+ 6. Finish configuring CNI Policy
+    Grant anyone in our account to EKS/VPC/CNI
+
+ 7. Create a keypair
+    Create an inbound rule for this node
+
+ 8. Create the Kubernetes node groups
+
+ 9. SSH to the node instance to update the yum packages of the running instance
+
+10. Initialize AWS-hosted resources (exist outside of the kubernetes cluster)
     NOTE:  postgres and OpenSearch do not run inside kubernetes
     a. Setup 2 RDS / postgres instances (one for the webapp and one for keycloak)
     b. Setup OpenSearch
 
- 5. Create our own certificate authority (for pki client certs)
+11. Create our own certificate authority (for pki client certs)
 
- 6. Register the url in GoDaddy and configure
-    a. Setup the CNAME for www.traderres.com --> AWS long hostname
-
- 7. Create certs with Let's Encrypt for the load-balancer and keycloak
+12. Create certs with Let's Encrypt for the load-balancer and keycloak
     NOTE:  The public Let's Encrypt certs are required to make sure that it all works in Firefox
 
- 8. Initialize EKS  (setting up kubernetes cluster)
+13. Initialize Keycloak
     a. Install Keycloak
     b. Configure certificates for keycloak
     c. Configure certificates for the load-balancer (external hostname used to access the webapp)
 
- 9. Build & Push the webapp
+14. Build and Deploy the webapp
     a. Build the webapp with some certificates embedded (for now)
     b. Push the webapp up to the Amazon ECR Registry
     c. Deploy the webapp
 
-10. Verify it works
+15. Register the url in GoDaddy and configure
+    a. Register the domain traderres.com
+    b. Setup the CNAME for www.traderres.com --> AWS long hostname
+
+15. Verify it works
     a. Create a pki client cert
     b. Import it into a browser
     c. Attempt to connect to https://www.traderres.som/sf
-
 
 
 
@@ -104,74 +126,84 @@ Procedure
     Goal:  Setup a user that can run the CLI to push-up builds
     a. Go to https://aws.com/
 
+    b. Create the "administrators" group
+       1) In AWS, go to Services -> IAM
+       2) On the left, click on User groups
+       3) Press "Create cgroup"
+          User group name:  administrators
+
+       4) In the "Attach permissions policies"
+          Add these role:
+            AdministratorAccess
+
+
     b. Create the dev.user
        1) In AWS, go to Services -> IAM
        2) On the left, click on Users
        3) Press "Add Users"
        4) In "User details"
           User name:  dev.user
-          Uncheck "Provide user access to the AWS Management Console"
+          Check "Provide user access to the AWS Management Console"
+          Check "I want to create an IAM user"
+
+
+          Consoel password
+             custom password:  enter it
+             Uncheck "User must create a new password at next sign-in)
+
           Press "Next"
 
        5) In "Set permissions"
-          Select Add user to group
+          Select "Attach policies directly"
+          Search for CNI
+          Check Off theses roles:  AmazonEKS_CNI_Policy
           Press "Next"
 
-       6) In "Review and create"
-          Press "Create user"
+       6) Press "Create user"
+          NOTE:  Grab the console sign-in link:   https://524647912468.signin.aws.amazon.com/console
 
-       7) Select "User Groups"
-          Press "Create group"
-          User group name:  admins
-          Select "dev.user"
-          Check  "AdministratorAccess"
-          Press "Create Group"
-
-    c. Create the access keys for the dev.user
-       1) Click on "Users"
-       2) Click on dev.user
-       3) Click on "Security Credentials"
-       4) Click on "Create access key"
-       5) Select Command Line interface
-          Select "I understand the above"
-          Press "Next"
-
-       6) Description tag value:  leave it blank
-          Press "Create access key"
-
-       7) Download the key by pressing "Download .csv file"
-          --> Save dev.user_accessKeys.csv to your ~/Downloads
-
-         -- Now, the user called "dev.user" should have the authority to push up to the AWS ECR Registry
-
-    d. Grant the dev.user CNI additional access (so that dev.user can actually deploy stuff in kubernetes)
-       1) Click on "Users"
-       2) Click on dev.user
-       3) In "Permissions policies" select "Add permissions" -> "Add Permission"
-       4) Select "Attach policies directly"
-       5) Search for cni
-       6) Check off "AmazonEKS_CNI_Policy"
-       7) In the "Review" page, press "Add permissions"
-
- 2. More user administration
-    a. Grant the dev.user console access (so that dev.user can run kubectl commands)
-       1) Click on "Users"
-       2) Click on dev.user
-       3) Click on "Security credentials"
-       4) Press "Enable console access"
-       5) In "Manage console access"
-          Console Access:  Enable
-          Set Password
-             Custom Password:
-          Press "Apply"
-       6) Get the url for the console access.  Should look something like this:
-          https://524647912468.signin.aws.amazon.com/console
+       7) Add this user to the "administrators group"
+          Return the user lists
+          Click on the "dev.user" link
+          Click on "Groups"
+          Press "Add user to groups"
+          Check "administrators"
+          Press "Add user to group(s)"
 
 
- 2. Setup AWS CNI Policy (so we can control EKS)
-    See https://docs.aws.amazon.com/eks/latest/userguide/cni-iam-role.html
+       8) Create access keys for the dev.user
+          1) Click on "Users"
+          2) Click on dev.user
+          3) Click on "Security Credentials"
+          4) Click on "Create access key"
+          5) Select Command Line interface
+             Select "I understand the above"
+             Press "Next"
 
-    a. Create this role: eksClusterRole
+          6) Description tag value:  leave it blank
+             Press "Create access key"
+
+          7) Download the key by pressing "Download .csv file"
+            --> Save dev.user_accessKeys.csv to your ~/Downloads
+
+           -- Now, the user called "dev.user" should have the authority to push up to the AWS ECR Registry
+
+
+    c. Logout as root user
+
+
+ 2. Setup AWS CNI Policy (as the dev.user)
+    a. Login as dev.user
+       https://524647912468.signin.aws.amazon.com/console
+
+    b. Verify that you have a VPC (created for you)
+       Select your VPC, Press Action -> Edit VPC Settings
+       -- Verify that "Enable DNS resolution" is checked
+       -- Verify that "Enable DNS hostnames"  is checked
+       -- Verify that you have subnets already created for you
+       -- Verify that you have an Internet gateway created for you
+
+    c. Create this role: eksClusterRole
        1) Go to AWS IAM page
        2) Click on Roles
        3) Press "Create Role"
@@ -181,12 +213,13 @@ Procedure
           Press "Next"
 
        5) In "Add permissions", go with defaults and press "Next"
+
        6) In Name, review, and create
           Role name:  eksClusterRole
           Press "Create Role"
 
-       7) In Roles, Click on eksClusterRole
-       8) Select "Add permissions" -> Attach Policies
+       7) In Roles, Check on eksClusterRole
+          Select "Add permissions" -> Attach Policies
           Search for AmazonEKS and press Enter
           Check AmazonEKS_CNI_Policy
           Press "Add Permission"
@@ -236,9 +269,12 @@ Procedure
           -- Check AmazonEC2ContainerRegistryReadOnly
           -- Press "Add permissions"
 
-          At this point eksNodeRole, should have 3 policies:  AmazonEC2ContainerRegistryReadOnly, AmazonEKS_CNI_Policy, AmazonEKSWorkerNodePolicy
+          At this point eksNodeRole, should have 3 policies:
+          		AmazonEKSWorkerNodePolicy
+           		AmazonEC2ContainerRegistryReadOnly
+           		AmazonEKS_CNI_Policy,
 
-     11) Click on "Trust relationships"
+     11) Click on "Trust relationships" (all of the worker nodes are running on ec2 hosted servers / this granting rights to the ec2 hosted instsances)
          Press "Edit trust policy"
 
          Find this line:
@@ -273,8 +309,8 @@ Procedure
           -- Check AmazonEKSClusterPolicy and press "Remove"
 
 
- 3. Setup AWS ECR Registry (which will hold our builds to be deployed)
-    a. Connect to AWS and go to your console
+ 3. Setup AWS ECR Registry (as dev.user)   which will hold our builds to be deployed)
+    a. Connect to AWS as dev.user and go to your console
     b. Search Services for ECR -> Select Elastic Container Registry
     c. Press "Get Started"
     d. In "Create repository"
@@ -283,83 +319,20 @@ Procedure
        In DOD:               Turn on KMS encryption
        Press "Create repository"
 
-    e. Copy the URI:  524647912468.dkr.ecr.us-east-1.amazonaws.com/traderres
+    e. Copy the URI:  524647912468.dkr.ecr.us-east-2.amazonaws.com/traderres
 
-    f. Check your repostiroy and press "View push commands"
+    f. Check your repository and press "View push commands"
        -- This has the procedures for using the AWS CLI to connect
 
- 4. Create the Amazon VPC
-     a. Connect to AWS and go to your console
-     b. Search Services for VPC -> Select VPC
-     c. Press "Create VPC"
-     d. In "Create VPC"
-        Resources to create:  VPC only    (if you need subnets select VPC and more)
-        Name tag:             vpcForSF
-        IPv4 CIDE Block:      IPv4 CIDR manual input
-        IPv4 CIDR:            10.0.0.0/24
 
-        IPv6 Cidr blocK:      No IPv6 CIDR block
-        Tenancy:              Default     (For DOD, use Dedicated)
-
-        Press "Create VPC"
-
-      e. In your VPC, on the left, choose "Subnets"
-         1) Press "Create subnet"
-         2) In "Create subnet"
-          VPC:   Choose vpcForSF
-
-          Subnet 1 of 1
-            Subnet name:        my-subnet-for-sf1
-            Availability Zone:  US East / us-east-1a
-            IPv4 CIDR blocK:    10.0.0.0/25            (get the first 128 IPs are in us-east-1a)
-
-          Press "Add new subnet"
-
-		  Subnet 2 of 2
-	        Subnet name:        my-subnet-for-sf2
-            Availability Zone:  US East / us-east-1b
-            IPv4 CIDR blocK:    10.0.0.128/25          (specify that the 2nd 128 IPs are in us-east-1b)
+ 4. Configure the Amazon VPC (created by default for the dev.user)
+    NOTE:  Default settings should be fine
+    NOTE:  We can change the subnets are this point
 
 
-          press "Create subnet"
 
-     f. In VPC, select Subnets,
-        Check your 1st subnet
-        Press Action -> Edit Subnet Settings
-        check "Enable auto-assign public IPv4 address"
-        Press "Save"
-
-        Check your 2nd subnet
-        Press Action -> Edit Subnet Settings
-        check "Enable auto-assign public IPv4 address"
-        Press "Save"
-
-      g. Let your VPC get an public Inrnet Address
-         a. In VPC -> Select Intenet Gateways
-         b. Press "Create internet gateway"
-         c. In "Create internet gateway"
-            Name tag:   sf-internet-gateway
-            Press "Create internet gateway"
-
-         d. In details for this internet gateway, select Actions -> Attach to VPC
-          In "Attach to VPC"
-          Select your vpc  (there should be only one)
-          press "Attach internet gateway"
-
-      h. Add DNS hostname to your VPC
-         1) Go to VPCs -> Check your VPC
-         2) Check your VPC and selection Action -> Edit VPC Settings
-         3) Check "Enable DNS resolution"
-            Check "Enable DNS hostnames"
-            Press "Save"
-
-
- 4. Create the EKS Cluster (as dev.user)
+ 5. Create the EKS Cluster (as dev.user)
     a. Login as the dev.user
-       a. Logout of AWS
-       b. Go to https://524647912468.signin.aws.amazon.com/console       (from the above step)
-       c. Enter the IAM User name:  dev.user
-          Enter the password
 
     b. Search Services for EKS -> Select Elastic Kubernetes Service  (as dev.user)
 
@@ -369,14 +342,17 @@ Procedure
        Name:                  sf
        Kubernetes version:    1.25  (or the latest)
        Cluster service role:  eksClusterRole
-       Configure Kubernetes service IP address range:  Unchecked
        Press "Next"
 
+       Configure Kubernetes service IP address range:  Unchecked
+
+
     e. In Networking
-       VPC:                     vpcForSF
-       Subnets:                 auto-selected both subnets for you
-       Security groups:         Choose the defualt security group
-       Cluster endpoint access: Public
+       VPC:                               Choose default vpc
+       Subnets:                           auto-selected both subnets for you
+       Security groups:                   Choose the defualt security group
+       Choose cluster IP address family:  IPv4
+       Cluster endpoint access:           Public
        Press "Next"
 
     f. In Configure Logging
@@ -392,19 +368,19 @@ Procedure
     i. In "Review and Create"
        Press "Create"
 
-       W A I T    U P T O    1 0     M I N      (for AWS to create it)
+       W A I T    U P    T O    1 0     M I N      (for AWS to create it)
 
        -- Right now, we have a cluster with no nodes
 
 
- 5. Finish configuring CNI Policy
+ 6. Finish configuring CNI Policy
     a. Get the OpenID Connect provider URL
        1) Configure your AWS CLI to talk to your new cluster
            unix> aws configure
 
 	       	AWS Access Key ID:     <enter the first entry form the downloaded csv file>
     	   	AWS Secret Access Key: <enter the 2nd entry from the downloaded csv file>
-       		Default region name:   us-east-1    (you get this from the AWS console, look next to your name and look at the default region)
+       		Default region name:   us-east-2    (you get this from the AWS console, look next to your name and look at the default region)
        		Default output format  json
 
        2) Get the cluster info:
@@ -420,8 +396,9 @@ Procedure
        3) Click on "Trust relationships"
        4) Edit trust policy
 
-          Replace it with this (no tabs):
+          Replace the trust policy with this  (no tabs):
           Replace ID_FROM_DESCRIBE_CLUSTER with the value from the step above
+          REPLACE us-east-2 with us-east-2 (if needed)
 
 {
     "Version": "2012-10-17",
@@ -448,21 +425,18 @@ Procedure
 
 
 
-6a. Create the keypair and inbound rule
+ 7. Create the keypair and inbound rule
+    a. Go to EC2
+    b. Look for Network & Security -> Key Pairs
+    c. Press "Create key pair"
+       Name:   node-for-kubunetes-instance
+       Type:   RSA
+       Format: PEM
+       Press "Create key pair"
+              -- You will be prompted to download the node-for-kubernetes-instance.pem
 
-     a. Create a keypair
-        -- In ssh key pair, press the icon to open a new page to Key pairs"
-           1) Press "Create key pair"
-           2) In Create key pair"
-              Name:   node-for-kubunetes-instance
-              Type:   RSA
-              Format: PEM
-              Press "Create key pair"
-
-              -- You will be prompted to save the node-for-kubernetes-instance.pem
-
-     b. Add an inbound rule for this node so that ssh from anywhere
-        1) Go to EC2 Dashboard
+     b. Add an inbound rule for this node so that you can ssh from anywhere
+        1) Go to EC2
         2) Click on Resoures -> Security groups
         3) Check the default security group and press Action -> Edit Inbound Rules
         4) Press "Add Rule"
@@ -470,18 +444,18 @@ Procedure
            Source: Anywhere-IPv4
            Press "Save rule"
 
-     c. FIX?  Add another inbound rule for our default security group  (to let all traffic in and out)
+     c. Add another inbound rule for our default security group  (to let all traffic in and out)
            1) Go to EC2 Dashboard
            2) Click on Resoures -> Security groups
            3) Check the default security group and press Action -> Edit Inbound Rules
            4) Press "Add Rule"
-              Type:   SSH
-              Source: All Traffic
+              Type:   All Traffic
+              Source: Anywhere-IPv4
                       0.0.0.0/0
               Press "Save rule"
 
 
-6b. Create Kubernetes Node Group  (as dev.user)
+ 8. Create Kubernetes Node Group  (as dev.user)
 	a. Go to Amazon Elastic Kuberentes Services
 	b. Click on your cluster (sf)
 	c. Click on "Compute"
@@ -515,7 +489,7 @@ Procedure
            -- Subnets:                       Select both
 		   -- SSH Key pair:                  Select node-for-kubernetes-instance
 		   -- Allow SSH rmeote access from:  Selected security groups
-		   For security groups:              Select default "VPC Security Group" *AND* select the other security group
+		   For security groups:              Select default security group
 
 		Press "Next"
 
@@ -524,7 +498,7 @@ Procedure
 
 		NOTE:  At this point, I'm being charged for the t3.large (which costs $2/day)
 
-	i. W A I T      U P T O       1 0      M I N       F O R     A W S    (to create the node group)
+	i. W A I T      U P    T O       1 0      M I N       F O R     A W S    (to create the node group)
 
 	j. While waiting, get the public IP of your instance
 	   a. Go to the EC2 Dashboard
@@ -532,14 +506,42 @@ Procedure
 	   c. Look at the bottom details
 		  -- You should see your public IP address
 
-    k. When the intance status check = , then it is fully up
+    k. Add the default security group to our running instance
+       a. Go to EC2 -> Instances
+       b. Check the checkbox next to our running instance
+       c. Selection Actions -> Security -> Change security groups
+       d. In "Associated security groups"
+          Search for default
+          Add it to the list
+          press "Save"
 
 
+ 9. SSH to the node instance to update the yum packages of the running instance
+    a. Get the public hostname or IP
+       1) Go to EC2 -> Instances -> Check our running instance
+       2) Get the public IPv4 address or Public IPv4 DNS hostname from the details
 
- 7. Initialize AWS-hosted resources (exist outside of the kubernetes cluster)
+    b. Attmept to ssh to it
+       1) Copy your node-for-kubunetes-instance.pem to your ~/.ssh directory
+          unix> cp ~/Downloads/node-for-kubunetes-instance.pem  ~/.ssh
+
+       2) Adjust the permissions so only you can read it:
+          unix> chmod go-rwx ~/.ssh/node-for-kubunetes-instance.pem
+
+       3) Attempt to ssh
+          unix> ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.218.246.201
+
+       4) Once connected, then do a yum update
+          unix> sudo yum update
+
+          NOTE:  If there is a linux kernel update, then you should reboot the instance
+                 with sudo reboot
+
+
+10. Initialize AWS-hosted resources (exist outside of the kubernetes cluster)   (as dev.user)
     NOTE:  postgres and OpenSearch do not run inside kubernetes
-    a. Create the keycloak database / postgres instances
-       1) In AWS, search for RDS / Select RDS
+    a. Create the keycloak database
+       1) In AWS, search for RDS / Select RDS   (as dev.user)
        2) Select Databases -> Press "Create database"
        3) In "Create database"
           Database creation method:  standard create
@@ -549,7 +551,7 @@ Procedure
           Availability:              Single DB Instance
 
           Settings
-             DB Instance identifier     keycloak
+             DB Instance identifier     keycloak          NOTE:  This is not the same as the database name
              Master usrename:           keycloak_user
              Master password            secret123
 
@@ -570,8 +572,11 @@ Procedure
              VPC Security group (firewall):  Choose Existing
              Additional VPC security group:  Empty
 
+                                             NOTE:  If I want to make the database open to all, set the VPC security group to include "Default"
+
           Additional Configuration:
-             Databae Port:                   5432
+             Database Port:                   5432
+             Initial database name:           sf328_db
 
           Database authentication:           Password authentication
 
@@ -589,31 +594,521 @@ Procedure
           Press "Create database"
 
 
-    b. Setup OpenSearch
+    b. Create the app database
+       1) In AWS, search for RDS / Select RDS   (as dev.user)
+       2) Select Databases -> Press "Create database"
+       3) In "Create database"
+          Database creation method:  standard create
+          Engine type:               PostgreSQL
+          Engine version:            PostreSQL 14.6-R1
+          Templates:                 Dev/Test
+          Availability:              Single DB Instance
+
+          Settings
+             DB Instance identifier     sf328
+             Master usrename:           sf328_user
+             Master password            secret12
+
+          Instance configuration
+             DB Instance class:              Burstable / db.t3.micro
+             Include previous gen classes:   Unchecked
+
+          Storage
+             Storage Type:                   General Purpose SSD (gp2)
+             Allocated storage:              20 GB
+             Enable storage autoscaling:     Unchecked
 
 
- 8. Create our own certificate authority (for pki client certs)
+		  Connectivity:
+		     Compute resource:               Connect to an EC2 compute resource
+             EC2 instance;                   <Select the instance that should be found in EC2 -> Instances -> You should see your 1 instance running>
+             DB Subnet Group:                Automatic Setup
+             Public Acces:                   No   (you can only access this database from sindie the cluster)
+             VPC Security group (firewall):  Choose Existing
+             Additional VPC security group:  Empty
+                                             NOTE:  Choose "Default" security group as it is wide open
 
- 9. Register the url in GoDaddy and configure
-    a. Setup the CNAME for www.traderres.com --> AWS long hostname
 
-10. Create certs with Let's Encrypt for the load-balancer and keycloak
+          Additional Configuration:
+             Database Port:                   5432
+             Initial database name:           sf328_db
+
+          Database authentication:           Password authentication
+
+          Monitoring:
+            Uncheck "Turn on Performance Insights"
+            Uncheck "Enable enhanced monitoring"
+
+          Additional Configuration
+            Uncheck "Enable automated backups"
+            Check   "Enable encryption"
+
+          Maintenance
+            Uncheck "Enable auto minor version upgrade"
+
+          Press "Create database"
+
+
+
+    c. Setup OpenSearch
+       1) In AWS -> Amazon OpenSearch Service   (as dev.user)
+       2) Press "Create domain"
+          In "Create domain"
+             Domain Name:               sf328
+             Enable custom endpoint:    Unchecked
+             Deployment type:           Development and testing
+             Version:                   7.10
+
+             Availability Zone:         1-AZ
+             Instance Type:             t3.small.search
+
+             Number of nodes:           2
+
+             Storage Type:              EBS   (Elastic Block Store)
+             EBS Volumne Type:          gp3         NOTE:  gp3 is faster than gp2
+             EBS Storage size per node   10
+
+             Total Privisions IPOS:        <default of 3000>
+             Total Provisioned Throughput  <default of 125 MiB/s>
+
+             Enable Dedicated master nodes:       Unchecked
+
+             Enable automatic software update:    Unchecked
+
+             Network
+                Check "Public access"
+
+             Fine-grained access control:       Checked
+             Create master user:                Checked
+                 master username:               sf328_user             # This must match the production application.yaml es.authentication.principal
+                 master password:               Secret1@               # This must match the production application.yaml es.authentication.password
+
+             Access Policy:
+                Do not set domain level access policy
+
+             Press "Create"
+
+             W A I T        U P         T O        1 0     M I N U T E S    (for AWS to create the OpenSearch domain)
+
+
+
+
+11. Create our own certificate authority (for pki client certs)
+    a. Create certificate authority:
+       learnSSL / howToUseYourCertAuthority_InitialSetup_centos7.txt
+
+    b. Create PKI Client cert with john.smith.12345
+       learnSSL / howToUseYourCertAuthority_MakeClientCert_centos7.txt
+       NOTE:  Make the Common Name:  JOHN.SMITH.12345
+
+    c. Create PKI client cert with WILL.FRANKLIN.22222
+       learnSSL / howToUseYourCertAuthority_MakeClientCert_centos7.txt
+       NOTE:  Make the Common Name:  WILL.FRANKLIN.22222
+
+
+12. Configure your local kubectl command to talk to our new Kubernetes cluster
+    NOTE:  Kubernetes is running but there are no pods running at this time
+    a. Download the kubectl command
+
+    b. Erase or move the existing .kube
+       unix> rm -rf ~/.kube
+
+    c. Setup kubectl to be configured with your AWS cluster
+       unix> aws eks update-kubeconfig --region <REGION_CODE> --name <MY CLUSTER NAME>
+       *OR*
+       unix> aws eks update-kubeconfig --region us-east-2  --name sf
+
+    d. Verify that you can see the running nodes
+       unix> kubectl get nodes
+
+       NAME                                          STATUS   ROLES    AGE     VERSION
+       ip-172-31-42-143.us-east-2.compute.internal   Ready    <none>   4h16m   v1.25.6-eks-48e63af
+
+
+    e. List existing services
+       unix> kubectl get services
+
+       NAME         TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
+       kubernetes   ClusterIP   10.100.0.1   <none>        443/TCP   4h37m
+
+
+
+13. Get the aws external hostnames for keycloak and the app's loadbalancer
+    Keycloak will run locally in your running node
+    Keycloak's public IP will be the same as the running node's public IP
+    a. Get keycloak's external hostname
+       1) Go to AWS -> EC2 -> instances
+       2) Check the checkbox for the running instance
+       3) Get the Public IPv4 DNS
+          ec2-18-218-246-201.us-east-2.compute.amazonaws.com
+
+    b. Create a kubernetes load balancer service file
+       unix> vi /tmp/load-balancer-service.yaml
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: sf328-load-balancer-service
+spec:
+  selector:
+    app: example
+  ports:
+    - port: 443
+      targetPort: 8443
+  type: LoadBalancer
+
+
+    c. Create the externa load-balancer service  (should generate an external IP and hostname)
+  	   unix> kubectl create -f /tmp/load-balancer-service.yaml
+
+	d. Get the external load-balancer's hostname
+	   unix> kubectl get services
+
+	   NAME                          TYPE           CLUSTER-IP     EXTERNAL-IP                                                              PORT(S)         AGE
+       kubernetes                    ClusterIP      10.100.0.1     <none>                                                                   443/TCP         4h47m
+       sf328-load-balancer-service   LoadBalancer   10.100.98.77   ae512df1bdc3646ac961142b36441bc8-225527351.us-east-2.elb.amazonaws.com   443:30896/TCP   2m
+
+       The app's external hostname will be this:  ae512df1bdc3646ac961142b36441bc8-225527351.us-east-2.elb.amazonaws.com
+
+
+
+
+14. Register the godayy domain name that correspond to the external AWS keycloak and external AWS load balancer names
+    a. Use godaddy to register ec2-18-218-246-201.us-east-2.compute.amazonaws.com with a CNAME of keycloak.traderres.com
+       1) Login to godaddy.com
+       2) Go to My Account -> My Products
+       3) Click on the "Domain" link for traderres.com
+       4) Click "View Domain Settings"
+          *or
+          https://dcc.godaddy.com/control/traderres.com/settings
+
+       5) In the menu select DNS -> Manage Zones
+       6) Click on "View traderres.com"
+       7) Under DNS Records, press "Add New Record"
+          Type:   CNAME
+          Name:   keycloak
+          Value   ec2-18-218-246-201.us-east-2.compute.amazonaws.com
+          TTL:    Default
+
+    b. Verify that keycloak.traderres.com is found in a DNS lookup
+       unix> nslookup keycloak.traderres.com
+
+       Non-authoritative answer:
+       keycloak.traderres.com	canonical name = ec2-18-218-246-201.us-east-2.compute.amazonaws.com.
+       Name:	ec2-18-218-246-201.us-east-2.compute.amazonaws.com
+       Address: 18.218.246.201
+
+
+	c. Use godaddy to register ae512df1bdc3646ac961142b36441bc8-225527351.us-east-2.elb.amazonaws.com with a CNAME of app.traderres.com
+		1) Login to godaddy.com
+		2) Go to My Account -> My Products
+		3) Click on the "Domain" link for traderres.com
+		4) Click "View Domain Settings"
+		   *or
+		   https://dcc.godaddy.com/control/traderres.com/settings
+
+		5) In the menu select DNS -> Manage Zones
+		6) Click on "View traderres.com"
+		7) Under DNS Records, press "Add New Record"
+		   Type:   CNAME
+		   Name:   app
+		   Value   ae512df1bdc3646ac961142b36441bc8-225527351.us-east-2.elb.amazonaws.com
+		   TTL:    Default
+
+
+    d. Verify that app.traderres.com is found in a DNS lookup
+       unix> nslookup app.traderres.com
+
+		Non-authoritative answer:
+		app.traderres.com	canonical name = ae512df1bdc3646ac961142b36441bc8-225527351.us-east-2.elb.amazonaws.com.
+		Name:	ae512df1bdc3646ac961142b36441bc8-225527351.us-east-2.elb.amazonaws.com
+		Address: 3.133.203.102
+		Name:	ae512df1bdc3646ac961142b36441bc8-225527351.us-east-2.elb.amazonaws.com
+		Address: 3.131.215.226
+
+
+
+15. Create server certs with Let's Encrypt for the load-balancer (app.traderres.com) and keycloak (keycloak.traderres.com)
     NOTE:  The public Let's Encrypt certs are required to make sure that it all works in Firefox
+    a. Create API keys in godaddy.com
+       1) Go to https://developer.godaddy.com/
+       2) Login with your godaddy account
+       3) Click on API keys
+          *OR*
+          https://developer.godaddy.com/keys
+       4) Create New API Key
+       5) In the popup
+          Give it a name
+          Select production
+          Press "Next"
+       6) Copy the "key" and "secret" values
 
-11. Initialize EKS  (setting up kubernetes cluster)
-    a. Install Keycloak
-    b. Configure certificates for keycloak
-    c. Configure certificates for the load-balancer (external hostname used to access the webapp)
+    b. Set the "key" and "secret" values in the authenticate.sh script
+       1) Download the authenticate.sh script by going here:
+               https://raw.githubusercontent.com/traderres/webClass/master/learnAWS/authenticate.sh
 
-12. Build & Push the webapp
+       2) Modify the authenticate.sh
+          unix> vi /home/adam/certbot/authenticate.sh
+
+          Change these values
+             GODADDY_API_KEY="go-daddy-api-key-is-here"
+             GODADDY_API_SECRET="go-daddy-secret-value-is-here"
+
+
+    c. Install snapd on your linux box
+       unix> sudo dnf install snapd          # Install snapd on centos 8
+
+    d. Enable the snapd.socket
+       unix> sudo systemctl enable --now snapd.socket
+
+    e. Enable classic snap support
+       unix> sudo ln -s /var/lib/snapd/snap /snap
+
+    f. Install the Certbot
+       unix> sudo snap install --classic certbot
+
+    g. Prepare the Certbot command
+       unix> sudo ln -s /snap/bin/certbot /usr/bin/certbot
+
+    h. Use certbot to generate a signed server certificate for keycloak.traderres.com
+       NOTE:  this command uses the authenticate.sh script to verify that the dns entry is valid
+       unix> sudo certbot certonly --manual --preferred-challenges dns --manual-auth-hook /home/adam/certbot/authenticate.sh --config-dir /home/adam/certbot/ -d keycloak.traderres.com
+
+       You should see this:
+		   Successfully received certificate.
+		   Certificate is saved at: /home/adam/certbot/live/keycloak.traderres.com/fullchain.pem
+		   Key is saved at:         /home/adam/certbot/live/keycloak.traderres.com/privkey.pem
+		   This certificate expires on 2023-06-19.
+		   These files will be updated when the certificate renews.
+		   Certbot has set up a scheduled task to automatically renew this certificate in the background.
+
+
+    i. Use certbot to generate a signed server certificate for app.traderres.com
+       unix> sudo certbot certonly --manual --preferred-challenges dns --manual-auth-hook /home/adam/certbot/authenticate.sh --config-dir /home/adam/certbot/ -d app.traderres.com
+
+       You should see this:
+			Successfully received certificate.
+			Certificate is saved at: /home/adam/certbot/live/app.traderres.com/fullchain.pem
+			Key is saved at:         /home/adam/certbot/live/app.traderres.com/privkey.pem
+			This certificate expires on 2023-06-19.
+			These files will be updated when the certificate renews.
+			Certbot has set up a scheduled task to automatically renew this certificate in the background.
+
+
+       You should have these files:
+			/home/adam/certbot/accounts/acme-v02.api.letsencrypt.org/directory/dca0cb294974effc7178f301802f3366/private_key.json
+			/home/adam/certbot/accounts/acme-v02.api.letsencrypt.org/directory/dca0cb294974effc7178f301802f3366/meta.json
+			/home/adam/certbot/accounts/acme-v02.api.letsencrypt.org/directory/dca0cb294974effc7178f301802f3366/regr.json
+			/home/adam/certbot/renewal/keycloak.traderres.com.conf
+			/home/adam/certbot/renewal/app.traderres.com.conf
+			/home/adam/certbot/archive/keycloak.traderres.com/cert1.pem
+			/home/adam/certbot/archive/keycloak.traderres.com/privkey1.pem
+			/home/adam/certbot/archive/keycloak.traderres.com/chain1.pem
+			/home/adam/certbot/archive/keycloak.traderres.com/fullchain1.pem
+			/home/adam/certbot/archive/app.traderres.com/cert1.pem
+			/home/adam/certbot/archive/app.traderres.com/privkey1.pem
+			/home/adam/certbot/archive/app.traderres.com/chain1.pem
+			/home/adam/certbot/archive/app.traderres.com/fullchain1.pem
+			/home/adam/certbot/live/README
+			/home/adam/certbot/live/keycloak.traderres.com/README
+			/home/adam/certbot/live/app.traderres.com/README
+			/home/adam/certbot/authenticate.sh
+
+
+
+16. Create & install the keycloak certificates on the running instance
+    We need to install the files to here:
+        /opt/keycloak/keycloak.keystore.jks
+        /opt/keycloak/keycloak.truststore.jks
+
+    a. Upload the let's encrypt certs to the running instance
+       unix> chown adam:adam -R /home/adam/certbot
+       unix> scp  -i ~/.ssh/node-for-kubunetes-instance.pem  -r /home/adam/certbot/archive ec2-user@18.218.246.201:/tmp
+
+    b. Upload our public/root.pem (from our custom.ca) to the running instance
+       unix> scp  -i ~/.ssh/node-for-kubunetes-instance.pem  /home/adam/root-ca/public/root.pem ec2-user@18.218.246.201:/tmp/self-signed.ca.pem
+
+    c. Create the keycloak keystore
+        1) ssh to the running instance
+           unix> ssh  -i ~/.ssh/node-for-kubunetes-instance.pem  ec2-user@18.218.246.201
+
+        2) Examine the 3 files that makeup the full chain / Split it up into 3 files / Find the server cert
+           NOTE:  The server cert has this:
+                        CN=keycloak.traderres.com
+
+           unix> cd /tmp/archive/keycloak.traderres.com
+           unix> cat fullchain1.pem
+           -- Split this up into 3 files called fullchainkc1.pem, fullchainkc2.pem, fullchainkc3.pem
+
+		   unix> openssl x509 -in fullchainkc1.pem -noout -text | grep 'CN=keycloak.traderres.com'     # This one holds the server cert
+		   unix> openssl x509 -in fullchainkc2.pem -noout -text | grep 'CN=keycloak.traderres.com'
+		   unix> openssl x509 -in fullchainkc3.pem -noout -text | grep 'CN=keycloak.traderres.com'
+
+        3) Generate the server.p12 file from the server cert
+           unix> export SERVER_CRT=fullchainkc1.pem
+		   unix> export SERVER_KEY=privkey1.pem
+		   unix> export INTERMEDIATE_CA=fullchainkc2.pem
+           unix> openssl pkcs12 -export -in $SERVER_CRT -inkey $SERVER_KEY -out server.p12 -name 'my-server-cert' -CAfile $INTERMEDIATE_CA -caname root
+           Enter Export Password: changeit
+           Verify Password:       changeit
+
+        4) Convert the server.p12 into keycloak.keystore.jks
+           unix> mkdir -p /opt/keycloak
+           unix> keytool -importkeystore -deststorepass changeit -destkeypass changeit -destkeystore /opt/keycloak/keycloak.keystore.jks  -srckeystore server.p12 -srcstoretype PKCS12 -srcstorepass changeit -alias 'my-server-cert'
+
+        5) For keycloak keystore, import the 3 pem files into the keycloak.keystore.jks
+           unix> keytool -import -alias "keycloak1"  -keystore /opt/keycloak/keycloak.keystore.jks  -file fullchainkc1.pem   # If it's already imported, then don't bother
+           unix> keytool -import -alias "keycloak2"  -keystore /opt/keycloak/keycloak.keystore.jks  -file fullchainkc2.pem
+           unix> keytool -import -alias "keycloak3"  -keystore /opt/keycloak/keycloak.keystore.jks  -file fullchainkc3.pem
+
+
+    d. Generate the keycloak truststore
+       truststore needs to include the godaddy CA used for keycloak.traderres.com and intermediate CA
+       truststore needs to include the self-signed CA used for PKI clients   (no intermediate)
+       unix> cd /tmp/archive/keycloak.traderres.com
+       unix> keytool -import -alias "keycloak1"  -keystore /opt/keycloak/keycloak.truststore.jks  -file fullchainkc1.pem
+             password: change it
+             verify:   changeit
+
+       unix> keytool -import -alias "keycloak2"  -keystore /opt/keycloak/keycloak.truststore.jks  -file fullchainkc2.pem
+       unix> keytool -import -alias "keycloak3"  -keystore /opt/keycloak/keycloak.truststore.jks  -file fullchainkc3.pem
+       unix> keytool -import -alias "our-ca"     -keystore /opt/keycloak/keycloak.truststore.jks  -file /tmp/self-signed.ca.pem
+
+
+	   At this point, we have these 2 files:
+	        /opt/keycloak/keycloak.keystore.jks
+	        /opt/keycloak/keycloak.truststore.jks
+
+
+
+17. Initialize Keycloak as a service on the running instsance
+    NOTE:  Keycloak is a container running on the kubernetes instance
+    a. Ssh to the kubernetes instance
+       unix> ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.218.246.201
+
+    b. Install Java JDK 11 or later
+       unix> sudo amazon-linux-extras install java-openjdk11
+
+    c. Verify Java JDK 11 is installed
+       unix> java -version
+       openjdk version "11.0.18" 2023-01-17 LTS
+       OpenJDK Runtime Environment (Red_Hat-11.0.18.0.10-1.amzn2.0.1) (build 11.0.18+10-LTS)
+       OpenJDK 64-Bit Server VM (Red_Hat-11.0.18.0.10-1.amzn2.0.1) (build 11.0.18+10-LTS, mixed mode, sharing)
+
+    d. Download keycloak 21.0.1 to the /opt/keycloak directory
+       unix> sudo -s
+       unix> cd /tmp
+       unix> wget https://github.com/keycloak/keycloak/releases/download/21.0.1/keycloak-21.0.1.zip
+       unix> unzip keycloak-21.0.1.zip
+
+    e. Install keycloak to the /opt/keycloak directory
+       unix> mkdir -p /opt/keycloak
+	   unix> unzip /tmp/keycloak-21.0.1.zip -d /opt/keycloak
+       -- Now, you should have /opt/keycloak/keycloak-21.0.1
+
+    f. Create a keycloak user
+       unix> sudo groupadd keycloak
+       unix> sudo useradd keycloak -c "Mr Keycloak" -g "keycloak" -m
+
+    g. Change ownership so that the /opt/keycloak directory is owned by the keycloak user
+       unix> sudo chown keycloak:keycloak -R /opt/keycloak
+
+    h. Build keycloak
+       unix> cd /opt/keycloak/keycloak-21.0.1
+       unix> bin/kc.sh build
+
+    i. Verify that keycloak froms the command line
+       unix> sudo -s
+       unix> su - keycloak
+       unix> /opt/keycloak/keycloak-21.0.1/bin/kc.sh start --http-enabled=false --https-port=8444 --https-key-store-file=/opt/keycloak/keycloak.keystore.jks --https-key-store-type=JKS --https-key-store-password=changeit --https-trust-store-file=/opt/keycloak/keycloak.truststore.jks --https-trust-store-type=JKS --https-trust-store-password=changeit --https-client-auth=request --log-level=INFO --hostname-strict-https=false --hostname-strict=false --hostname=keycloak.traderres.com
+
+       Verify it comes-up listening on port 0.0.0.0:8444
+
+       Press Control-C to kill it
+
+
+    j. Create a keycloak service
+       unix> sudo vi /etc/systemd/system/keycloak.service
+
+		###################################################################################
+		# Filename:  keycloak.service
+		#
+		# Purpose:
+		#   Describe how the keycloak service runs
+		#
+		# Notes:
+		#   If you update this file, then follow these steps:
+		#   unix> sudo systemctl daemon-reload
+		#   unix> sudo systemctl start keycloak
+		#
+		#   Look at the log
+		#   unix> sudo journalctl -fu keycloak
+		###################################################################################
+		[Unit]
+		Description=Keycloak Application Server
+		After=syslog.target network.target
+		StartLimitIntervalSec=1d
+		StartLimitBurst=3
+
+		[Service]
+		Type=simple
+		Restart=on-failure
+		RestartSec=2s
+
+		# Disable timeout logic and wait until process is stopped
+		TimeoutStopSec=0
+
+		# SIGTERM signal is used to stop the Java process
+		KillSignal=SIGTERM
+
+		# Send the signal only to the JVM rather than its control group
+		KillMode=process
+		User=keycloak
+		Group=keycloak
+		RemainAfterExit=yes
+		LimitNOFILE=102642
+		ExecStart=/opt/keycloak/keycloak-21.0.1/bin/kc.sh start --http-enabled=false --https-port=8444 --https-key-store-file=/opt/keycloak/keycloak.keystore.jks --https-key-store-type=JKS --https-key-store-password=changeit --https-trust-store-file=/opt/keycloak/keycloak.truststore.jks --https-trust-store-type=JKS --https-trust-store-password=changeit --https-client-auth=request --log-level=INFO --hostname-strict-https=false --hostname-strict=false --hostname=keycloak.traderres.com
+
+		# Database Options
+		Environment=KC_DB=postgres
+		Environment=KC_DB_URL=jdbc:postgresql://keycloak.csbk2jnrc8ao.us-east-2.rds.amazonaws.com/keycloak_db
+		Environment=KC_DB_USERNAME=keycloak_user
+		Environment=KC_DB_PASSWORD=secret123
+
+		[Install]
+		WantedBy=multi-user.target
+
+     k. Reload systemctl daemon
+        unix> sudo systemctl daemon-reload
+
+     l. Start the service
+        unix> sudo systemctl start keycloak
+
+     m. Look at the service log
+        unix> sudo journalctl -fu keycloak
+
+     n. Verify that you can connect to keycloak
+        Open a browser
+        Connect to https://keycloak.traderres.com:8444/
+
+
+
+18. Configure certificates for the load-balancer (external hostname used to access the webapp)
+
+
+19. Build and Deploy the webapp
     a. Build the webapp with some certificates embedded (for now)
     b. Push the webapp up to the Amazon ECR Registry
     c. Deploy the webapp
 
-13. Verify it works
+20. Register the url in GoDaddy and configure
+    a. Register the domain traderres.com
+    b. Setup the CNAME for www.traderres.com --> AWS long hostname
+
+21. Verify it works
     a. Create a pki client cert
     b. Import it into a browser
-    c. Attempt to connect to https://www.traderres.som/sf
+    c. Attempt to connect to https://app.traderres.som/sf
 
 
 
