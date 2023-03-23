@@ -84,7 +84,7 @@ function processCsvFile()
      # Convert the $rolesAsString string into an array of roles
      read -a roles <<< "$rolesAsString"; declare -p roles;
 
-     # Loop through the role names to command to add the roles
+     # Loop through the role names to create the command to grant roles to this user
      commandToAddRoles="";
 
      for roleName in  ${roles[*]}; do
