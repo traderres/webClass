@@ -1,0 +1,219 @@
+How to Setup Kafka to run on an AWS Instance (using plain-text)
+---------------------------------------------------------------
+
+
+Procedure
+---------
+ 1. Startup an instance w2.micro
+    NOTE:  You will need to open up port 9092
+    NOTE:  You will need to create a keystore
+
+ 2. Get the public hostname of the instance     ec2-18-222-151-111.us-east-2.compute.amazonaws.com
+
+ 3. Ssh to the instance
+    ssh -i ~/.ssh/my-kafka-instance.pem    ec2-user@EXTERNAL_HOSTNAME_OF_NEW_INSTANCE
+
+ 4. Do a yum update
+    unix> sudo yum update
+
+ 5. Install OpenJDK
+    unix> sudo yum install java-1.8.0
+
+ 6. Download kafka
+    unix> cd /tmp
+    unix> wget https://downloads.apache.org/kafka/3.3.2/kafka_2.13-3.3.2.tgz
+
+ 7. Install Kafka to /opt
+    unix> sudo -s
+    unix> cd /opt
+    unix> mv /tmp/kafka_2.13-3.3.2.tgz .
+    unix> tar zxvf kafka_2.13-3.3.2.tgz
+    unix> rm kafka_2.13-3.3.2.tgz
+
+    # Give your unix account permissions to this new directory
+    unix> chown -R ec2-user:ec2-user /opt/kafka_2.13-3.3.2
+    unix> exit
+
+
+ 8. Setup the KAFKA_HOME variable in your shell
+    unix> vi ~/.bashrc
+
+        export KAFKA_HOME=/opt/kafka_2.13-3.3.2
+
+
+ 9. Start the a quick-and-dirty single-node Zookeeper instance
+    unix> cd $KAFKA_HOME
+    unix> bin/zookeeper-server-start.sh config/zookeeper.properties
+
+10. Configure the kafka server's advertised listener to be plaintext external hostname
+    unix> vi config/server.properties
+
+      advertised.listeners=PLAINTEXT://EXTERNAL_HOSTNAME_OF_NEW_INSTANCE:9092
+
+
+10. Start the Kafka Server
+    unix> cd $KAFKA_HOME
+    unix> bin/kafka-server-start.sh config/server.properties
+
+11. Create a topic called "updates" that has more than 1 partition
+    NOTE:  The plan is to have 3 consumers so we should have 3 partitions
+    unix> cd $KAFKA_HOME
+    unix> bin/kafka-topics.sh --create --bootstrap-server localhost:9092 --replication-factor 1 --partitions 3 --topic updates
+
+12. List the topics
+    unix> cd $KAFKA_HOME
+    unix> bin/kafka-topics.sh --list --bootstrap-server localhost:9092
+
+
+13. Adjust application.yaml of the producer & consumer
+
+    a. Change the producer's application.yaml
+
+		kafka:
+			bootstrap-servers: EXTERNAL_HOSTNAME_OF_NEW_INSTANCE:9092
+
+
+    b. Change the consumer's application.yaml
+
+
+		kafka:
+			bootstrap-servers: EXTERNAL_HOSTNAME_OF_NEW_INSTANCE:9092
+
+15. Create a kafka user and group
+       unix> sudo groupadd kafka
+       unix> sudo useradd kafka -c "Mr Kafka" -g "kafka" -m
+       unix> sudo chown kafka:kafka -R /opt/kafka_2.13-3.3.2
+
+
+16. Create a service for the kafka-zookeeper
+    a. Create the systemd file
+       unix> sudo vi /etc/systemd/system/kafka-zookeeper.service
+
+        ###################################################################################
+        # Filename:  kafka-zookeeper.service
+        #
+        # Purpose:
+        #   Describe how the kafka-zookeeper service runs
+        #
+        # Notes:
+        #   If you update this file, then follow these steps:
+        #   unix> sudo systemctl daemon-reload
+        #   unix> sudo systemctl start kafka-zookeeper
+        #
+        #   Look at the log
+        #   unix> sudo journalctl -fu kafka-zookeeper
+        ###################################################################################
+        [Unit]
+        Description=Kafka Zookeeper Server
+        After=syslog.target network.target
+        StartLimitIntervalSec=1d
+        StartLimitBurst=3
+
+        [Service]
+        Type=simple
+        Restart=on-failure
+        RestartSec=2s
+
+        # Disable timeout logic and wait until process is stopped
+        TimeoutStopSec=0
+
+        # SIGTERM signal is used to stop the Java process
+        KillSignal=SIGTERM
+
+        # Send the signal only to the JVM rather than its control group
+        KillMode=process
+        User=kafka
+        Group=kafka
+        LimitNOFILE=102642
+        ExecStart=/opt/kafka_2.13-3.3.2/bin/zookeeper-server-start.sh /opt/kafka_2.13-3.3.2/config/zookeeper.properties
+        ExecStop=/opt/kafka_2.13-3.3.2/bin/zookeeper-server-stop.sh
+        ## Environment=JAVA_HOME={{must be JAVA_HOME here || /usr/lib/jvm/java-1.8.0-openjdk}}
+
+        [Install]
+        WantedBy=multi-user.target
+
+    b. Create the data directory and make sure it is owned by kafka
+       unix> sudo mkdir -p /tmp/zookeeper            # This should be the dataDir found in the zookeeper.properties file
+       unix> sudo chown -R kafka:kafka /tmp/zookeeper
+
+    c. Tell systemd to reload the services
+       unix> sudo systemctl daemon-reload
+
+    d. Make sure the services startup on reboot
+       unix> sudo systemctl enable kafka-zookeeper
+
+    e. Startup the kafka zookeeper  (must be started first)
+       unix> sudo systemctl start kafka-zookeeper
+
+    f. Look at the log file
+       unix> sudo journalctl -fu kafka-server
+
+
+
+
+17. Create a service for the kafka-server
+    a. Create the systemd file
+       unix> sudo vi /etc/systemd/system/kafka-server.service
+
+        ###################################################################################
+        # Filename:  kafka-server.service
+        #
+        # Purpose:
+        #   Describe how the kafka-server service runs
+        #
+        # Notes:
+        #   If you update this file, then follow these steps:
+        #   unix> sudo systemctl daemon-reload
+        #   unix> sudo systemctl start kafka-server
+        #
+        #   Look at the log
+        #   unix> sudo journalctl -fu kafka-server
+        ###################################################################################
+        [Unit]
+        Description=Kafka Server
+        After=syslog.target  network.target  kafka-zookeeper.service
+        StartLimitIntervalSec=1d
+        StartLimitBurst=3
+
+        [Service]
+        Type=simple
+        Restart=on-failure
+        RestartSec=2s
+
+        # Disable timeout logic and wait until process is stopped
+        TimeoutStopSec=0
+
+        # SIGTERM signal is used to stop the Java process
+        KillSignal=SIGTERM
+
+        # Send the signal only to the JVM rather than its control group
+        KillMode=process
+        User=kafka
+        Group=kafka
+        LimitNOFILE=102642
+        ExecStart=/opt/kafka_2.13-3.3.2/bin/kafka-server-start.sh  /opt/kafka_2.13-3.3.2/config/server.properties
+        ExecStop=/opt/kafka_2.13-3.3.2/bin/kafka-server-stop.sh
+        ## Environment=JAVA_HOME={{must be JAVA_HOME here || /usr/lib/jvm/java-1.8.0-openjdk}}
+
+        [Install]
+        WantedBy=multi-user.target
+
+   b. Create the log directory and make sure it is owned by kafka
+       unix> sudo mkdir -p /tmp/kafka-logs            # This should be the log.dirs found in the server.properties file
+       unix> sudo chown -R kafka:kafka /tmp/kafka-logs
+
+
+    b. Tell systemd to reload the services
+       unix> sudo systemctl daemon-reload
+
+    d. Make sure the services startup on reboot
+       unix> sudo systemctl enable kafka-server
+
+    e. Startup the kafka server
+       unix> sudo systemctl start kafka-server
+
+    f. Look at the log file
+       unix> sudo journalctl -fu kafka-server
+
+
+
