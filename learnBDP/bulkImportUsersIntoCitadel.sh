@@ -92,7 +92,7 @@ function processCsvFile()
         echo -e "\tcommandToAddRoles=${commandToAddRoles}"
      done
 
-     # Create a bunch of commands
+     # Run the command to create the certificate
      certificates create --username ${username} -p bdppassword1
      if [ $? -ne 0 ]; then
         # The last command had a problem.
@@ -100,6 +100,7 @@ function processCsvFile()
         exit 1
      fi
 
+     # Run the command to add the user to the system
      citadel user:add --username ${username} -a AUTH:U  -a AUTH:FOUO   -a AUTH:USA -a GROUP:USERS 
      if [ $? -ne 0 ]; then
         # The last command had a problem.
@@ -107,6 +108,7 @@ function processCsvFile()
         exit 1
      fi
 
+     # Run the command to assign attributes to this user
      citadel attribute:add --username ${username} ${commandToAddRoles}
      if [ $? -ne 0 ]; then
         # The last command had a problem.
@@ -122,6 +124,7 @@ function processCsvFile()
         exit 1
      fi
 
+     # Copy the p12 cert to the /tmp directory  (so it can be easily downloaded)
      cp /var/simp/environments/production/FakeCA/output/users/${username}/${username}.p12 /tmp
 
      if [ $? -ne 0 ]; then
