@@ -33,7 +33,7 @@ function main()
   # S C R I P T        S T A R T S       H E R E
   echo "${SCRIPT_NAME} started as of `date`"
 
-  # Part 1:  Process the flie
+  # Part 1:  Process the file
   processCsvFile
 
   # S C R I P T         E N D S        H E R E
@@ -56,7 +56,6 @@ function processCsvFile()
   local line;
   local username;
   local rolesAsString;
-  local commandToCreateAccount;
   local commandToAddRoles;
   local roleName;
 
