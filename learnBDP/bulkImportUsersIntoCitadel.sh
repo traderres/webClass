@@ -62,14 +62,15 @@ function processCsvFile()
   # Loop through all of the lines from the files in standard input
   while read line
   do
-    # Convert the $line string into an array
-    if [ -z "$line" ]; then
-        # The username is an empty string
+     if [ -z "$line" ]; then
+        # The line is an empty string
         echo -e "\tWARNING:  csv line is empty.  Skipping to the next line"
         continue
-    fi
+     fi
 
-    arr=(); while read -rd,|| [[ -n "$REPLY" ]]; do arr+=("$REPLY"); done <<<"$line"; declare -p arr;
+     # Each line should hold USERNAME,ROLE1,ROLE2,ROLE3
+     # Convert the line into an array of strings (and skip null values)
+     arr=(); while read -rd,|| [[ -n "$REPLY" ]]; do arr+=("$REPLY"); done <<<"$line"; declare -p arr;
 
      username=${arr[0]};
      rolesAsString=${arr[1]};
