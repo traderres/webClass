@@ -1006,14 +1006,51 @@ Part 3: Configure Web App to use oauth2 for authentication
 		 }
 
 
+10. Update the webapp to use MyUserInfo (instead of UserInfo)
+    a. Copy properties from the old UserInfo to MyUserInfo
+    b. Update the UserService.getUserInfo() to return a MyUserInfo object
+
+			/**
+			 * @return the MyUserInfo object from Spring-Security
+			 */
+			public MyUserInfo getUserInfo() {
+				// Get the UserInfo object from Spring Security
+				SecurityContext securityContext = SecurityContextHolder.getContext();
+				if (securityContext == null) {
+					throw new RuntimeException("Error in getMyUserInfo():  SecurityContext is null.  This should never happen.");
+				}
+
+				Authentication auth = securityContext.getAuthentication();
+				if (auth == null) {
+					throw new RuntimeException("Error in getMyUserInfo():  Authentication is null.  This should never happen.");
+				}
+
+		        // Get the MyDefaultOidcUser from the Principal
+				MyDefaultOidcUser myDefaultOidcUser = (MyDefaultOidcUser) auth.getPrincipal();
+				if (myDefaultOidcUser == null) {
+					throw new RuntimeException("Error in getMyUserInfo():  MyDefaultOidcUser is null.  This should never happen.");
+				}
+
+		        // Get MyUserInfo from the MyDefaultOidcUser object
+				MyUserInfo myUserInfo = myDefaultOidcUser.getMyUserInfo();
+				if (myUserInfo == null) {
+					throw new RuntimeException("Error in getMyUserInfo():  MyUserInfo is null.  This should never happen.");
+				}
+
+				return myUserInfo;
+			}
+
+    c. Rename UserService.getUserInfo() to UserService.getMyUserInfo()
+
+    d. Everywhere UserService.getMyUserInfo() is called, change the UserInfo object to MyUserInfo
 
 
 
-10. Startup keycloak with ssl  (if it's not already running)
+11. Startup keycloak with ssl  (if it's not already running)
 
-11. Startup the backend with this profile  -Dspring.profiles.active=local_oauth2
+12. Startup the backend with this profile  -Dspring.profiles.active=local_oauth2
 
-12. Connect to https://localhost.localdomain:8443/sf
+13. Connect to https://localhost.localdomain:8443/sf
     -- You should be prompted for your pki cert
     -- You should be redirected to keycloak at http://localhost.localdomain:8444/
     -- You should be redirected back to https://localhost.localdomain:8443/sf
