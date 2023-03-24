@@ -1057,6 +1057,70 @@ Part 3: Configure Web App to use oauth2 for authentication
 
 
 12. Startup the backend with this profile  -Dspring.profiles.active=local_oauth2
+    a. You may have to update your application.yaml with missing properties
+
+    b. If you get the sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+       Then, you can update your java cacerts to trust https://localhost.localdomain:8444/
+
+		 1) Get the server certificate used by keycloak
+			unix> openssl s_client -connect localhost.localdomain:8444
+
+
+		 2) Create this file:  /tmp/keycloak.cer
+
+		    Copy and save the certificate to here:
+				-----BEGIN CERTIFICATE----- and
+				-----END CERTIFICATE-----
+			into a new file called /tmp/keycloak.cer
+
+
+			So, the /tmp/keycloak.cer should look something like this:
+
+			-----BEGIN CERTIFICATE-----
+			UzEYMBYGA1UEChMPVS5TLiBHb3Zlcm5tZW50MQwwCgYDVQQLEwNEb0QxDDAKBgNV
+			BAsTA1BLSTEVMBMGA1UEAxMMRE9EIFNXIENBLTYwMB4XDTIxMTEyOTEzMjkwNFoX
+			DTIyMTIzMTEzMjkwNFoweTELMAkGA1UEBhMCVVMxGDAWBgNVBAoTD1UuUy4gR292
+			ZXJubWVudDEMMAoGA1UECxMDRG9EMQwwCgYDVQQLEwNQS0kxDDAKBgNVBAsTA0RP
+			RDEmMCQGA1UEAxMddGVzc2VyYWN0LXRlc3QuY2xvdWQuZGNzYS5taWwwggEiMA0G
+			CSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCozqDWEwwzYGZ42S5XpW/L4dWmUPBH
+			qOFdzvdOmdea6Ue94Lc5b2L3+rxGKyoIA29PIKfcz6IjcWC9ztNan1nS0nD4Mlm6
+			3J3wHoGJFV803P7dBwN8eF/QtwMRFosb1Ba2aY/xQhqtdeUd4++A5dueycpHTGt9
+			WxJgkeu+O1+xFjzTAZMZ996qm/ep3ddHyC9DQ2l0qTLXjlA+ik4W73naI5fdFCfq
+			wQAUJzBKe5FOeHf0iP7ZbJOerb329SHwGntY6lE6OUWRX+WdntRPfUgwy8OYXjSm
+			YS5taWwvY3JsL0RPRFNXQ0FfNjBfU1NMLmNybDAoBgNVHREEITAfgh10ZXNzZXJh
+			Y3QtdGVzdC5jbG91ZC5kY3NhLm1pbDAWBgNVHSAEDzANMAsGCWCGSAFlAgELJDAd
+			BgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwHQYDVR0OBBYEFDOJk590j1uS
+			lpwyT5PhN0k+t+hRMA0GCSqGSIb3DQEBCwUAA4IBAQBqKGHMo23gYjyuH4cUiu/9
+			xyFeoZR7GoR+C6fl95XzJ85BUrSfW4T7v/NscuE0qS2V1wGV6bweRfiwfwnjMyip
+			oP2z+jhbdx5bdB+xr5ishVKTJocH9ceI+t46Fdwp2E5+FKv7znek97rrtZHzB9l6
+			6Vqm/eGxvqhaKB16IPcs3oYYfLNHk9Oogiy5muI/KuQN8ZOWZ+AuxozR1XLDgoRd
+			ASDQCV+dkNRrRA2yYQw2d91cwL+5h9T+x/wLCIbj9vZMTaZcR1KFqFbuuVQftGLz
+			-----END CERTIFICATE-----
+
+		 3) Get the real path of where java is running from
+			unix> readlink -f `which java`
+			/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.352.b08-2.el7_9.x86_64/jre/bin/java
+
+			Set JAVA_HOME should be the directory that holds the jre directory
+			unix> export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.352.b08-2.el7_9.x86_64
+
+
+		 4) Verify that you have the path of the cacerts file
+			unix> ls $JAVA_HOME/jre/lib/security/cacerts
+
+			You should see this:
+			   /usr/lib/jvm/java-1.8.0-openjdk-1.8.0.352.b08-2.el7_9.x86_64/jre/lib/security/cacerts
+
+
+		 5) Update the cacerts file so it will trust the server cert
+			unix> sudo keytool -import -alias "keycloak-localhost" -keystore "$JAVA_HOME/jre/lib/security/cacerts" -file /tmp/keycloak.cer
+			password> changeit
+			Trust this certificate: yes
+
+			You should see this message:
+			   Certificate was added to keystore
+
+
 
 
 13. Connect to https://localhost.localdomain:8443/sf
