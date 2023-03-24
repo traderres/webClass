@@ -8,8 +8,10 @@ Solution: Install keycloak, configure keycloak, configure spring boot t use keyc
 Procedure
 ---------
  1. Create a Certificate Authority
+    Import the public root.pem into your browser (as a trusted authority)
 
  2. Use the Certificate Authority to create a client cert with the CN=smith.john
+    Import the client cert into your browser
 
  3. Use the Certificate Authority to create a server cert with "cn=localhost.localdomain, ou=Components, ou=whatever, c=US"
     NOTE:  Firefox uses subject alternative names.  So make sure you have a subject alternative name with this hostname
@@ -423,7 +425,7 @@ Part 3: Configure Web App to use oauth2 for authentication
 
 
 
- 4. Create this clsas:  MyDefaultOidcUser         (Replaces the DefaultOidcUser class)
+ 4. Create this class:  MyDefaultOidcUser         (Replaces the DefaultOidcUser class)
 
 		 package com.lessons.security;
 
@@ -560,8 +562,7 @@ Part 3: Configure Web App to use oauth2 for authentication
 
 
 				// Get the user's userId from the database (or generate one)
-				// NOTE:  Use the synchronized version of this method when running in local dev mode
-				InitialUserInfoDTO userInfoDTO = userService.getInitialUserInfoOrInsertRecordSynchronized(userUID);
+				InitialUserInfoDTO userInfoDTO = userService.getInitialUserInfoOrInsertRecord(userUID);
 
 				// The list of allRolesGranted = all citadel roles + all internal roles granted
 				List<GrantedAuthority> allRolesGranted = new ArrayList<>(oauth2RolesGranted.size() + userInfoDTO.getInternalRolesGranted().size() );
@@ -940,13 +941,79 @@ Part 3: Configure Web App to use oauth2 for authentication
 		}
 
 
+ 9. Update MyAuthenticationManager  (so it creates a fake user when running locally)
+
+		 package com.lessons.security;
+
+		 import com.lessons.services.AuthenticationService;
+		 import org.slf4j.Logger;
+		 import org.slf4j.LoggerFactory;
+		 import org.springframework.security.authentication.AuthenticationManager;
+		 import org.springframework.security.core.Authentication;
+		 import org.springframework.security.core.AuthenticationException;
+		 import org.springframework.security.core.context.SecurityContextHolder;
+		 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
+		 import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
+		 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
+		 import org.springframework.stereotype.Component;
+
+		 import javax.annotation.Resource;
+		 import java.time.Instant;
+		 import java.time.temporal.ChronoUnit;
+		 import java.util.HashMap;
+		 import java.util.Map;
+
+		 @Component("com.lessons.security.MyAuthenticationManager")
+		 public class MyAuthenticationManager implements AuthenticationManager {
+			 private static final Logger logger = LoggerFactory.getLogger(MyAuthenticationManager.class);
+
+			 @Resource
+			 private AuthenticationService authenticationService;
 
 
- 9. Startup keycloak with ssl  (if it's not already running)
+			 @Override
+			 public Authentication authenticate(Authentication authentication) throws AuthenticationException {
+				 logger.debug("authenticate() started.   authentication={}", authentication);
 
-10. Startup the backend with this profile  -Dspring.profiles.active=local_oauth2
+				 if (SecurityContextHolder.getContext().getAuthentication() != null) {
+					 // Users is already authenticated, so do nothing
+					 return  SecurityContextHolder.getContext().getAuthentication();
+				 }
 
-11. Connect to https://localhost.localdomain:8443/sf
+				 // Load the fake data
+				 MyUserInfo userInfo = this.authenticationService.generateUserInfoForDevelopment(authentication);
+
+				 String tokenValue = "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICI2UEtSMURxUk9IS29lZ0s5ODJSWEhFRmlUVjZRcmc1emdXNUxPQVZCTkV3In0.eyJleHAiOjE2Nzg4Mjg0NTMsImlhdCI6MTY3ODgyODE1MywiYXV0aF90aW1lIjoxNjc4ODI4MTUzLCJqdGkiOiI0ZWNkMWM3Yi1jMzU4LTQ4MDktOGI5OS01MzAzZDNhMGYxNjciLCJpc3MiOiJodHRwczovL2xvY2FsaG9zdC5sb2NhbGRvbWFpbjo4NDQ0L3JlYWxtcy9NeVJlYWxtIiwiYXVkIjoic2YzMjgtd2ViYXBwIiwic3ViIjoiMDZkNGY2NTYtZTI3OC00Y2VkLWI4ODctYTRkY2IxZjdiZDdmIiwidHlwIjoiSUQiLCJhenAiOiJzZjMyOC13ZWJhcHAiLCJub25jZSI6Ii00cUk3WUk4ampTaXhobkFQaFR2VXhQY1pMVkg5d0pYa0FBMm9yd3B2RnciLCJzZXNzaW9uX3N0YXRlIjoiYjg5MDczNmItZDkzMy00NGRlLWI2NjktNTIzNjQ3YWI3NDczIiwiYXRfaGFzaCI6InhCZ1Ftd0FMeGFqTEtIaTVxQ1RrMmciLCJhY3IiOiIxIiwic2lkIjoiYjg5MDczNmItZDkzMy00NGRlLWI2NjktNTIzNjQ3YWI3NDczIiwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sImVtYWlsX3ZlcmlmaWVkIjpmYWxzZSwicmVhbG1fYWNjZXNzIjp7InJvbGVzIjpbImRlZmF1bHQtcm9sZXMtbXlyZWFsbSIsIm9mZmxpbmVfYWNjZXNzIiwidW1hX2F1dGhvcml6YXRpb24iLCJTRjMyOF9VU0VSIl19LCJuYW1lIjoiQWRhbSBSZXNuaWNrIiwicHJlZmVycmVkX3VzZXJuYW1lIjoicmVzbmljay5hZGFtIiwiZ2l2ZW5fbmFtZSI6IkFkYW0iLCJmYW1pbHlfbmFtZSI6IlJlc25pY2sifQ.Qsbo5hFtjbiexBgGpohno-nRi-0z4g-jBKtlYv_2My_nITfQeezKhiO-GnhgR5jbLXKf2y2v5-cHAZcPyX8lCUepU68B77m9M23PRnT7os-dW0HTpFqbTIJwaOAljOW7LMMJbuUi6TpRVltMWZyP8DfeMJTtRB97Auf6bPNREAMUSSBZqw-7T30hQih7S_ZJN6BohdiPxbJ5BGidthoUOO_l8pfoGTGn66gARiGIBZpHjHP5d92WvARJKif1g5LXXkpd0I-SkCIGvBU3LS_EKpNVzTadTWwhhPPht_13Z73LtmI1Clm4FO_vSqbYeqY6PwCHTE6zf201tpzaagY0pQ";
+				 Map<String, Object> claimsMap = new HashMap<>();
+				 claimsMap.put("email_verified", false);
+				 claimsMap.put("sub", "06d4f656-e278-4ced-b887-a4dcb1f7bd7f");
+				 OidcIdToken oidcIdToken = new OidcIdToken(tokenValue, Instant.now(), Instant.now().plus(30, ChronoUnit.MINUTES), claimsMap);
+
+				 // Create a fake keycloak UserInfo map
+				 OidcUserInfo oidcUserInfo = new OidcUserInfo(claimsMap);
+
+				 // Create a fake principal object
+				 MyDefaultOidcUser myDefaultOidcUser = new MyDefaultOidcUser(userInfo, userInfo.getAuthorities(), oidcIdToken, oidcUserInfo);
+
+				 // Return an AuthenticationToken object
+				 PreAuthenticatedAuthenticationToken preApproved = new PreAuthenticatedAuthenticationToken(myDefaultOidcUser, null, userInfo.getAuthorities());
+				 preApproved.setAuthenticated(true);
+				 return preApproved;
+			 }
+
+
+
+		 }
+
+
+
+
+
+10. Startup keycloak with ssl  (if it's not already running)
+
+11. Startup the backend with this profile  -Dspring.profiles.active=local_oauth2
+
+12. Connect to https://localhost.localdomain:8443/sf
     -- You should be prompted for your pki cert
     -- You should be redirected to keycloak at http://localhost.localdomain:8444/
     -- You should be redirected back to https://localhost.localdomain:8443/sf
