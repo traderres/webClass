@@ -1,5 +1,7 @@
-How to Configure Keycloak to run in SSL
----------------------------------------
+How to Configure Keycloak to run in SSL and Configure Spring Boot to use it
+---------------------------------------------------------------------------
+Problem:  I want to update my spring boot webapp to use keycloak for security
+Solution: Install keycloak, configure keycloak, configure spring boot t use keycloak openid for security
 
 
 
@@ -26,7 +28,7 @@ Procedure
 
     NOTE:
       A) The keycloak startup script should have --hostname=localhost.localdomain   (so it is listening with this host)
-      B) The keycloak's server cert  should have CN=localhost.localdomain
+      B) The keycloak's server cert  should have CN=localhost.localdomain *AND*
       C) The application.yaml in the spring security should have
              		spring.security.oauth2.client.provider.keycloak.issuer-uri: https://localhost.localdomain:8444/realms/MyRealm
              		spring.security.oauth2.resourceserver.jwt.issuer-uri: https://localhost.localdomain:8444/realms/MyRealm
@@ -35,6 +37,8 @@ Procedure
 
 
  4. Enable SSL in keycloak
+    NOTE:  To run locally, we are using the *SAME* keystore and truststore for the webapp and keycloak
+           To run on AWS,  we would have    *DIFFERENT* keystores for the webapp and keycloak
 
     a. Create a unix script that will startup keycloak with SSL
        unix> cd ~/Downloads/keycloak-21.0.1/
@@ -57,7 +61,9 @@ Procedure
 ####################################################################################################################
 export JAVA_HOME=/usr/java/jdk-11.0.12
 export PATH=${JAVA_HOME}/bin:$PATH
-bin/kc.sh start --http-enabled=false --https-port=8444 --https-key-store-file=/home/adam/intellijProjects/sf328/sf328-backend/src/main/prod_resources/my_keystore.jks --https-key-store-type=JKS --https-key-store-password=changeit --https-trust-store-file=/home/adam/intellijProjects/sf328/sf328-backend/src/main/prod_resources/my_truststore.jks --https-trust-store-type=JKS  --https-trust-store-password=changeit --https-client-auth=request  --log-level=INFO --hostname-strict-https=false --hostname-strict=false --hostname=localhost.localdomain
+export KEYCLOAK_ADMIN=admin
+export KEYCLOAK_ADMIN_PASSWORD=secret
+bin/kc.sh start --http-enabled=false --https-port=8444 --https-key-store-file=/home/adam/intellijProjects/sf328/sf328-backend/src/main/prod_resources/webapp.keystore.jks --https-key-store-type=JKS --https-key-store-password=changeit --https-trust-store-file=/home/adam/intellijProjects/sf328/sf328-backend/src/main/prod_resources/webapp.truststore.jks --https-trust-store-type=JKS  --https-trust-store-password=changeit --https-client-auth=request  --log-level=INFO --hostname-strict-https=false --hostname-strict=false --hostname=localhost.localdomain
 
 
     b. Make the script executable
@@ -73,9 +79,14 @@ bin/kc.sh start --http-enabled=false --https-port=8444 --https-key-store-file=/h
     unix> cd ~/Downloads/keycloak-21.0.1/
     unix> ./start.kc.ssl.sh
 
+ 6. Import the root.pem (public cert of your self-signed CA into your browser)
 
- 6. Verify that you can connect to keycloak at https://localhost.localdomain:8444/
-
+ 7. Verify that you can connect to keycloak
+    a. Connect to https://localhost.localdomain:8444/
+    b. Press "Administration Console"
+    c. Enter the Keycloak admin credentials
+       username=admin
+       password=secret
 
 
 
@@ -931,7 +942,7 @@ Part 3: Configure Web App to use oauth2 for authentication
 
 
 
- 9. Startup keycloak with ssl
+ 9. Startup keycloak with ssl  (if it's not already running)
 
 10. Startup the backend with this profile  -Dspring.profiles.active=local_oauth2
 
