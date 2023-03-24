@@ -811,7 +811,6 @@ Part 3: Configure Web App to use oauth2 for authentication
 							.and()
 								.authorizeRequests()
 									.antMatchers("/assets/**",  "**.js", "**.css",  "/error").permitAll()
-									.antMatchers("/**").access("hasRole('ROLE_SF328_USER')")   // All users must have the grantedAuthority called ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS to view all pages
 									.anyRequest()
 									.authenticated()
 							.and()
@@ -849,7 +848,6 @@ Part 3: Configure Web App to use oauth2 for authentication
 							.and()
 								.authorizeRequests()     // Filters out any URLs that are ignored.  This should be before any authorization filters
 								.antMatchers("/assets/**",  "**.js", "**.css",  "/error").permitAll()
-								.antMatchers("/**").access("hasRole('ROLE_SF328_USER')")   // All users must have the grantedAuthority called ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS to view all pages
 								.anyRequest()
 								.authenticated()
 							.and()
@@ -1141,6 +1139,96 @@ Part 3: Configure Web App to use oauth2 for authentication
     -- You should be redirected to webapp   at https://localhost.localdomain:8443/sf
 
 
+14. Create 2 profiles:  "buildImage" and "buildImageWithoutDocker"
+    a. Edit backend/pom.xml
+
+    b. Add the "buildImage" maven profile:
+
+        <profile>
+            <!--    B U I L D    I M A G E       P R O F I L E    -->
+            <id>buildImage</id>
+
+            <build>
+              <plugins>
+                <plugin>
+                  <groupId>com.google.cloud.tools</groupId>
+                  <artifactId>jib-maven-plugin</artifactId>
+                  <version>3.3.1</version>
+                  <configuration>
+                    <from>
+                      <!-- The source image runs linux with JDK 1.8-362 -->
+                      <image>eclipse-temurin:8u362-b09-jdk@sha256:3b83f3fc0d016d7536dfd5e8a98ece451061b7dbb6d5db3ddea2db30b6153b28</image>
+                    </from>
+
+                    <to>
+                      <image>traderres/my-public-repo:${project.artifactId}-${project.version}</image>
+                    </to>
+                  </configuration>
+
+                  <executions>
+                    <execution>
+                      <phase>package</phase>
+                      <goals>
+                        <!-- The "dockerBuild" goal requires docker to be installed -->
+                        <goal>dockerBuild</goal>
+                      </goals>
+                    </execution>
+                  </executions>
+
+                </plugin>
+              </plugins>
+            </build>
+          </profile>
+
+
+
+          <profile>
+             <!--    B U I L D      I M A G E      W I T H O U T    D O C K E R     P R O F I L E    -->
+            <id>buildImageWithoutDocker</id>
+
+            <build>
+              <plugins>
+                <plugin>
+                  <groupId>com.google.cloud.tools</groupId>
+                  <artifactId>jib-maven-plugin</artifactId>
+                  <version>3.3.1</version>
+                  <configuration>
+                    <from>
+                      <!-- The source image runs linux with JDK 1.8-362 -->
+                      <image>eclipse-temurin:8u362-b09-jdk@sha256:3b83f3fc0d016d7536dfd5e8a98ece451061b7dbb6d5db3ddea2db30b6153b28</image>
+                    </from>
+
+                    <to>
+                      <image>traderres/my-public-repo:${project.artifactId}-${project.version}</image>
+                    </to>
+                  </configuration>
+
+                  <executions>
+                    <execution>
+                      <phase>package</phase>
+                      <goals>
+                        <!-- The "build" goal does not require docker to be installed -->
+                        <goal>build</goal>
+                      </goals>
+                    </execution>
+                  </executions>
+
+                </plugin>
+              </plugins>
+            </build>
+          </profile>
+
+
+15. Build the image (without pushing it)
+ 	unix> mvn clean package -Pprod -PbuildImage
+
+16. Build the image and push to the repo
+    unix> cd ~/intellijProjects/app
+    unix> export USERNAME=traderres      # This is the username for the  <to><image>...</image></to repository
+	unix> export PASSWORD=secret         # This is the password for the <to><image>...</image></to> repository
+	unix> mvn clean package -Pprod -PbuildImageWithoutDocker  -Djib.to.auth.username=$USERNAME -Djib.to.auth.password=$PASSWORD
+
+    See learnDocker / howToBuildAndPushSpringBootImagesUsingJibMavenPlugin.txt for more approaches
 
 
 When deploying on AWS, remember that you need 2 signed server-certs
