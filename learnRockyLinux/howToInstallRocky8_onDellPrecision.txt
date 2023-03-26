@@ -1,0 +1,674 @@
+How to Install Rocky Linux 8 on Dell Precision
+----------------------------------------------
+I had a number of problems installing CentOS 8 on my Dell Precision 3530 laptop
+
+
+
+References
+----------
+
+
+
+Procedure
+---------
+ 1. Download the Rocky 8  ISO file
+    a. Go to https://rockylinux.org/download
+    b. Scroll Down to Rocky 8
+    c. Click on x86_64 DVD
+       *OR*
+       Go to https://download.rockylinux.org/pub/rocky/8/isos/x86_64/Rocky-8.7-x86_64-dvd1.iso
+
+
+2. Write the Centos ISO file to your USB flash Drive
+    If you downloaded the Centos ISO using Windows, then use Rufus to write your ISO to your USB flash drive
+        a. Connect your USB flash drive to your computer
+
+        b. Download Rufus portable
+           NOTE:  You do not need to install it
+           1) Go to https://rufus.akeo.ie/
+           2) Scroll down to downloads, click on a "portable" version
+              *or*
+                Go to https://rufus.akeo.ie/downloads/rufus-2.12p.exe     [the portable version ends with p.exe]
+
+           3) Save rufus-2.12p.exe to your Downloads/
+
+        c. Run rufus.exe (to write your ISO image to your USB drive)
+           1) Run rufus-2.12p.exe
+           2) It will prompt you to check for application updates
+              Press No
+           3) In the Rufus popup
+              a) Set the Device:            (the drive letter of your USB drive)
+              b) Set the Partition Scheme:  "MBR partition scheme for BIOS or UEFI"
+              c) Check the checkbox "Create a bootable disk" using "ISO Image"
+              d) Press the button next to "ISO Image"
+                -- Browse to where you saved your Centos 8 ISO file
+              e) Press "Start"
+
+           4) If you get an ISOHybrid image detected warning, then
+                Select "Write in ISO Image mode (Recommended)
+                press OK
+
+           5) You will get a warning that all data will be destroyed.
+              Press OK
+
+          NOTE:  Leave the USB drive connected to your computer
+
+    If you downloaded the Centos ISO using Linux, then use dd to write the ISO to your USB flash drive
+        a. Connect your USB flash drive to your computer
+
+        b. Run the fdisk -l command to find your flash drive
+           In this case, mine is /dev/sdf
+           unix> fdisk -l
+
+            Disk /dev/sdf: 32.1 GB, 32086425600 bytes, 62668800 sectors
+            Units = sectors of 1 * 512 = 512 bytes
+            Sector size (logical/physical): 512 bytes / 512 bytes
+            I/O size (minimum/optimal): 512 bytes / 512 bytes
+
+        c. Setup your USB drive to have a FAT32 filesystem
+           unix> sudo umount /dev/sdf
+           unix> sudo umount /dev/sdf1
+           unix> sudo umount /dev/sdf2
+           unix> sudo mkfs.vfat /dev/sdf -I
+
+        d. Optional:  Assign random numbers to the usb drive
+           unix> dd if=/dev/urandom of=/dev/sdf status=progress      # Optional step
+
+        e. Write the Centos ISO to the USB Flash Drive *and* sync
+           NOTES
+           1) IMPORTANT:  Make sure the output device is the entire /dev/sdf  (not /dev/sdf1)
+           2) The status=progress option tells dd to show progress info
+           3) The bs=8MB          option tells dd to read and write 8 MB at a time
+           4) The sync command is important as sometimes dd returns before it is finished
+
+           unix> cd ~/Downloads
+           unix> sudo dd if=Rocky-8.6-x86_64-dvd1.iso of=/dev/sdf status=progress bs=8MB && sync
+
+           W A I T     1 0     M I N U T E S
+
+
+      Disconnect the USB Flash Drive (with the Centos distribution)
+
+      Now, you should have a Rocky Linux 8 bootable USB Flash Drive
+
+
+ 3. Change the BIOS settings so that the hard drive is in AHCI mode and secure boot is disabled
+    a. Enter the BIOS settings by pressing FN-F2 repeatedly
+    b. Change System configuration to use AHCI
+			Click on System Configuration
+			Click on Sata Operation
+			-- Set it to AHCI
+
+
+ 4. Boot from the flash drive (containing the Rocky 8 installation)
+    Press FN-F12 repeatedly on startup to boot from USB drive
+    Select the UEFI: Flash Drive
+
+
+ 5. On the Install Centos 8 menu, add some custom installation settings
+    a. Use the up/down arrows to stop the 3-second timer
+    b. Highlight "Install CentOS 8" and press e
+
+       You should see:
+          setparams 'Install CentOS 8'
+
+          linuxefi /images/pxeboot/vmlinuz inst.image2=hd:LABEL=CentOS\x207\x20x86_64 quiet
+          initrdefi /images/pgxeboot/initrd.img
+
+       Change this line:
+           linuxefi /images/pxeboot/vmlinuz inst.image2=hd:LABEL=CentOS\x207\x20x86_64 quiet
+
+       To this:
+            linuxefi /images/pxeboot/vmlinuz inst.image2=hd:LABEL=CentOS\x207\x20x86_64 quiet module_blacklist=nouveau,amdgpu,radeon i915.alpha_support=1
+
+    c. Press Ctrl-X to start
+     -- Now, you should see the graphics installer
+
+
+ 6. Proceed with the usual installation
+    a. In the "Device Selection" screen, you will probably see the disks for your computer hard-drive
+       1) If you have only one hard drive on your computer, then your disk is selected
+          If you have multiple hard drives, then select the hard-drive
+
+       2) Click on "custom" partitionts
+       3) Click "Encrypt my data..."
+          NOTE:  Encrypting the hard-drive is **OPTIONAL** but highly recommended
+       4) Click "Done"
+
+
+    b. In the "Manual Partitioning" page,
+	   WARNING:  If you are dual-booting        then do *NOT* touch/change/adjust the existing partitions (as those are Windows partitions)
+	             If you are *NOT* dual-booting, then delete the existing partitions first
+
+
+       Create the following 3 mount points
+          /boot       1 GIB   # Holds the grub boot loader
+          /boot/efi   1 GIB
+          swap       24 GiB   # Holds your swap file.    If 16 GB of RAM, set for somewhere between 16 and 32 GIB
+          /         136 GiB   # Remaining space on your centos operating system
+
+
+       1) Press the "+" to create a mount point
+             Mount Point:  /boot
+             Capacity:     1 GiB         # NOTE:  1 GB=1000 MB  and  1 GIB=1024 MB
+             Press "Add mount point"
+
+       2) Press the "+" to create a mount point
+             Mount Point:  /boot/efi
+             Capacity:     1 GiB         # NOTE:  1 GB=1000 MB  and  1 GIB=1024 MB
+             Press "Add mount point"
+
+       3) Press the "+" to create a mount point
+             Mount Point:  swap
+             Capacity:     24 GiB       (assumes laptop has 16 GB of RAM)
+             Press "Add mount point"
+
+       4) Press the "+" to create a mount point
+             Mount Point:  /
+             Capacity:     (leave blank to use the remaining space)
+             Press "Add mount point"
+
+       5) Press "Done"
+
+       6) If you selected to encrypt your disk, you will be prompted to enter your disk ecnryption passphrase
+          -- You will be prompted for this password every time you startup your centos operating system
+          -- Enter the pass phrase twice and press "Save Passphrase"
+
+    i. You will be prompted with a summary of changes
+         Press "Accept Changes"
+
+    j. Back In the Installation Summary, select "Software Selection"
+       1) Select "Workstation" [on the left]
+       2) Under the "Add-ons for Selected Environment", select the following:
+       		GNOME Applications
+       		Office Suite and Productivity
+       		Graphical Administration Tools
+       		Smart Card Support
+       		Scientific Support
+       		Security Tools
+       		System Tools
+       		RPM Development Tools
+       3) Press Done
+
+
+
+ 7. After Reboot, you will see the CentOS Linux menu
+    a. Press the up/down arrow (to stop the timer)
+    b. Press the up/down arrow so that you highlight the 1st entry
+    c. Press e
+
+    d. Adjust the line with some additional settings
+
+       You should see a long line that looks like this:
+         linux ($root)/vmliuz-4.18.0-193...... rhgb quiet
+
+       At the end of this line, add this to it:
+          linux ($root)/vmliuz-4.18.0-193...... rhgb quiet  module_blacklist=nouveau,amdgpu,radeon i915.alpha_support=1
+
+
+    e. Press Ctrl-x  (to start)
+
+
+
+
+ 8. On the final Centos 8 Install Page
+    a. Click on Licensing / License Information
+        -- Click "I accept the license agreement"
+        -- Press Done
+    b. Click "Finish Configuration"
+
+
+ 9. You should see the login screen
+    a. Click on your username
+    b. Enter your password
+
+
+10. Adjust Grub so that grub applies those special boot times *every* time you startup Centos 8
+    a. unix> su -
+        unix> vi /etc/default/grub
+
+             # If you see GRUB_CMDLINE_LINUX_DEFAULT, then add this to the end of the line
+             # If you do not see GRUB_CMDLINE_LINUX_DEFAULT, then add this entry
+             GRUB_CMDLINE_LINUX_DEFAULT=" module_blacklist=nouveau,amdgpu,radeon i915.alpha_support=1 "
+
+
+    b. Rebuild the grub boot loader
+       1. Find your grub.cfg
+          unix> find / -type f -name "grub.cfg"
+
+       2. Rebuild the grub boot loader
+          unix> grub2-mkconfig -o  <path of above >
+
+           Possible examples:
+             unix> grub2-mkconfig -o /boot/grub2/grub.cfg
+             *OR*
+             unix> grub2-mkconfig -o /boot/efi/EFI/centos/grub.cfg
+
+
+    c. Reboot your operating system (with the additional settings applied)
+        unix> reboot
+
+
+11. On startup, let Centos 8 startup automatically
+    -- You should see the Login screen
+
+
+
+
+Part 2: Customize your unix user account
+-----------------------------------------
+ 1. Give your unix account sudo access by adding it to the "sudoers" list
+    a. Right-click on the desktop -> Open in Terminal
+    b. unix> su -
+          <Enter the root password>
+
+    c. Run the visudo command as root
+       unix> visudo
+
+          # Add this line to the end:
+          <your unix username> ALL=(ALL) ALL
+
+    unix> exit       # exit root and become your regular unix account
+    unix> sudo -l    # Run this command as your own regular unix account (not as root)
+
+    Now, your personal unix account can run "sudo -s" to become root
+
+
+ 2. Customize your bash shell with a few aliases
+    unix> vi ~/.bashrc
+
+      # User specific aliases and functions
+      alias c=clear
+      alias r='fc -e -'
+      alias ls='ls -F'
+      alias rls='while [ 1 ]; do clear; date; ls -ltr; sleep 3; done'
+      alias x=exit
+
+      # **OPTIONAL** Set bash prompt editing using vi-style
+      set -o vi
+
+      # Setup the prompt to show the username, hostname, and working directory
+      export PS1='\u@\h $PWD > '
+
+
+  3. Setup vi defaults
+     NOTE:  Add the :syntax off line to your .vimrc
+
+     unix> vi ~/.vimrc
+       # Add this to the file
+       :syntax off
+
+
+ 4. Setup a shortcut (Control-T) to open a terminal
+    Pull Activities -> Settings
+    Search for keyboard
+    In the Keyboard Shortcuts
+      Scroll to the bottom and click +
+
+    In the "Add Custom Shortcut"
+      Name:    Terminal
+      Command:  gnome-terminal
+      Shortcut: Press Ctrl-T
+      Press "Add"
+
+
+ 5. Increase the maximum number of open files from 1024 to 65535
+    Increase the number of inotify user watches from 8192 to 524288
+    a. Show max open files
+       unix> sudo -s
+       unix> ulimit -a | grep 'open file'
+             open files      (-n) 1024
+
+    b. Increase the max number of open files to 65536
+       unix> vi /etc/sysctl.conf
+
+         # Increase max number of open files
+         fs.file-max = 65536
+
+
+       unix> vi /etc/security/limits.conf
+
+         # Increase max number of open files
+         *          soft     nproc          65535
+         *          hard     nproc          65535
+         *          soft     nofile         65535
+         *          hard     nofile         65535
+
+   c. Increase the number of user watches by editing this file:
+      unix> vi /etc/sysctl.conf
+
+         # Increase the number of user watches
+         fs.inotify.max_user_watches=524288
+
+   d. Save the changes
+      unix> sysctl --system
+      unix> sysctl -p
+
+   e. Reboot the operating system
+      unix> reboot
+
+   f. Verify the limit is greater by running ulimit again
+      unix> sudo -s
+      unix> ulimit -a | grep 'open file'
+      -- You should see 65535
+
+   g. Verify the number of user watches increased
+      unix> cat /proc/sys/fs/inotify/max_user_watches
+      -- You should see 524288
+
+
+Part 3:  Install the Mate Window Manager
+----------------------------------------
+[see learnCentOS / howToInstallMateOnCentos8.txt]
+
+*OR*
+
+Part 3:  Custome the Wayland Window Manager
+-------------------------------------------
+ 1. Install and use gnome tweaks to adjust the Desktop
+    a. Install gnome tweaks
+       unix> sudo dnf install gnome-tweaks
+
+    b. Configure the desktop
+       unix> gnome-tweaks
+       Click on Extensions
+       Application Menus:  On     (So We have an Applications menu on the top)
+       Desktop Icons:      On
+       Windows list:       On     (So we have a windows list on the bottom)
+
+    c. Add minimize/maximize windows to the top bar
+	   unix> gnome-tweaks
+	   Click on Windows
+	   Titlebar Buttons
+	      Maximize        On
+		  Minimize        On
+
+	d. Tell the laptop to do nothing when the lid is closed
+	   unix> gnome-tweaks
+	   Click on Power
+	   Suspend when laptop lid is closed   Off
+
+
+
+ 2. Add additional gnome extensions
+    a. Pull Applications -> System Tools -> Software
+    b. Click "Add-ons"
+	c. Click "Shell Extensions" tab
+	d. Install these add-ons
+		   User Themes
+		   Places Status Indicator
+		   Launch new instance
+		   Applications Menu
+		   Horizontal Workspaces
+		   Desktop Icons
+		   Frippery Panel Favorites
+		   No Topleft Hot Corner
+		   Top Icons
+
+	e. Turn on these shell extensions
+	   1) Startup Shell Extensions and *turn on* these extensions
+	      unix> gnome-shell-extension-prefs
+
+	   2) Make sure that these extensions are turned on
+		   User Themes
+		   Places Status Indicator
+		   Launch new instance
+		   Applications Menu
+		   Horizontal Workspaces
+		   Desktop Icons
+		   Frippery Panel Favorites
+		   No Topleft Hot Corner
+		   Top Icons
+
+ 3. Manually add Gnome Shell Extension called "frippery-clock"
+    a. Make sure you know your gnome shell version
+	   unix> gnome-shell --version
+	   GNOME Shell 3.32.2
+
+	b. Download the extension for that version
+	   Go to https://extensions.gnome.org/extension/2/move-clock/
+	   Select the 3.32.2 versoin
+	   Select the latest extension version
+
+	c. Save the Move_cClockrmy.pobox.com.v21.shell-extension.zip to your ~/Downloads
+
+	d. Unzip the file to ~/.local/share/gnome-shell/extensions/<uuid of metadata.json>
+	   unix> cd  ~/.local/share/gnome-shell/extensions
+	   unix> mkdir new
+	   unix> cd new
+	   unix> mv ~/Downloads/Move_Clockrmy.pobox.com.v21.shell-extension.zip  .
+	   unix> unzip Move_Clockrmy.pobox.com.v21.shell-extension.zip
+
+	e. Get the uuid of the metadata.json
+	   unix> grep uuid metadata.json
+	     "uuid": "Move_Clock@rmy.pobox.com",
+
+    f. Rename the "new" directory to be "Move_Clock@rmy.pobox.com"
+	   unix> cd  ~/.local/share/gnome-shell/extensions
+	   unix> mv new Move_Clock@rmy.pobox.com
+
+	   -- Now, we have the files installed to:  ~/.local/share/gnome-shell/extensions/Move_Clock@rmy.pobox.com
+
+	g. Turn on the shell extension
+	   a. Startup the Shell Extensions
+	      unix> gnome-shell-extension-prefs
+
+	   b. Find Frippery Move Clock and select *ON*
+
+	h. Logout & Login (to restart you window manager)
+	   -- You should see the clock on the right side
+
+
+ 4. Add Gnome Shell Extension called "TaskBar"
+    a. Make sure you know your gnome shell version
+	   unix> gnome-shell --version
+	   GNOME Shell 3.32.2
+
+	b. Download the extension for that version
+	   Go to  https://extensions.gnome.org/extension/584/taskbar/
+	   Select the 3.32.2 versoin
+	   Select the latest extension version
+
+	c. Save the TaskBar@zpydr.v57.shell-extension.zip to your ~/Downloads
+
+	d. Get the uuid from the metadata (whithin the zip file)
+	   unix> cd  ~/.local/share/gnome-shell/extensions
+	   unix> mkdir new
+	   unix> cd new
+	   unix> mv ~/Downloads/TaskBar@zpydr.v57.shell-extension.zip  .
+	   unix> unzip TaskBar@zpydr.v57.shell-extension.zip
+
+	e. Get the uuid of the metadata.json
+	   unix> grep uuid metadata.json
+	     "uuid": "TaskBar@zpydr",
+
+
+    f. Rename the "new" directory to be "TaskBar@zpydr"
+	   unix> cd  ~/.local/share/gnome-shell/extensions
+	   unix> mv new TaskBar@zpydr
+	   -- Now, we have the files installed to:  ~/.local/share/gnome-shell/extensions/TaskBar@zpydr
+
+	g. Turn on the shell extension
+	   a. Startup the Shell Extensions
+	      unix> gnome-shell-extension-prefs
+
+	   b. Find Taskbar to Dock Move Clock and select *ON*
+
+	h. Logout & Login (to restart you window manager)
+	   -- You should see the clock on the right side
+
+
+
+ 5. **OPTIONAL** Manually add Gnome Shell Extension called "Dash-to-Dock"
+    a. Make sure you know your gnome shell version
+	   unix> gnome-shell --version
+	   GNOME Shell 3.32.2
+
+	b. Download the extension for that version
+	   Go to https://extensions.gnome.org/extension/307/dash-to-dock/
+	   Select the 3.32.2 versoin
+	   Select the latest extension version
+
+	c. Save the dash-to-dockmicxgx.gmail.com.v66.shell-extension.zip to your ~/Downloads
+
+	d. Unzip the file to ~/.local/share/gnome-shell/extensions/<uuid of metadata.json>
+	   unix> cd  ~/.local/share/gnome-shell/extensions
+	   unix> mkdir new
+	   unix> cd new
+	   unix> mv ~/Downloads/dash-to-dockmicxgx.gmail.com.v66.shell-extension.zip  .
+	   unix> unzip dash-to-dockmicxgx.gmail.com.v66.shell-extension.zip
+
+	e. Get the uuid of the metadata.json
+	   unix> grep uuid metadata.json
+	     "uuid": "dash-to-dock@micxgx.gmail.com",
+
+
+    f. Rename the "new" directory to be "Move_Clock@rmy.pobox.com"
+	   unix> cd  ~/.local/share/gnome-shell/extensions
+	   unix> mv new dash-to-dock@micxgx.gmail.com
+
+	   -- Now, we have the files installed to:  ~/.local/share/gnome-shell/extensions/Move_Clock@rmy.pobox.com
+
+	g. Turn on the shell extension
+	   a. Startup the Shell Extensions
+	      unix> gnome-shell-extension-prefs
+
+	   b. Find Dash to Dock Move Clock and select *ON*
+
+	h. Logout & Login (to restart you window manager)
+	   -- You should see the clock on the right side
+
+
+Part 4: Install Other Software
+------------------------------
+ 1. Install a more recent version of Firefox that automatically updates
+    [see learnCentOS / howToInstallFirefoxAutoUpdate.txt]
+
+
+ 2. Install Teams
+    a. Download the Teams Linux RPM (64-bit RPM)
+	   Go to office.com
+	   Download the Teams Linux RPM (64-bit RPM) to your ~/Downloads directory
+	   -- The file is called something like teams-1.3.00.16851-1.x86_64.rpm
+
+	b. Install the rpm
+	   unix> cd ~/Downloads
+	   unix>  dnf localinstall ./teams-1.3.00.16851-1.x86_64.rpm
+
+    c. Startup Teams
+	   unix> teams
+
+    d. Get Teams to work with the window Manager
+       NOTE:  The Teams linux client crashes when sharing the screen with Wayland.  This document has fixes
+	   [See learnCentOS / howToGetTeamsClientToWorkWithWayland.txt]
+
+
+ 3. Update Everything
+    a. Run dnf Update
+       unix> sudo dnf update
+             Press Y <Enter>
+
+          W A I T     1 0     M I N U T E S
+
+    b. Reboot
+	   unix> sudo reboot
+
+    NOTE:  If the systemd-udev-settle service takes 2 minutes (or lonager) on startup, then run these commands to fix it:
+           unix> sudo systemctl mask systemd-udev-settle
+           unix> sudo reboot
+
+
+
+ 4. **IMPORTANT** Add an entry to your /etc/hosts
+    NOTE:  This is important to run Accumulo or HDFS locally
+
+     For example:  If your hostname is "myCentos", then add this entry to your /etc/hosts
+     unix> sudo vi /etc/hosts
+             127.0.0.1    myCentos
+
+ 5. Hide user info from the login screen
+    [see learnCentOS / howToHideUsersFromLoginScreenOnCentos8.txt]
+
+ 6. Install ElasticSearch 6.8.0
+    [see learnElasticSearch / howToInstallElasticSearch6.8.0OnCentos8UsingRpm.txt]
+
+ 7. Install Kibana 6.8.0
+    [see learnElasticSearch / howToInstallKibana6.8.0OnCentos7.txt]
+
+ 8. Install Development Tools -- IntelliJ, Mavne, Git, Postman
+    [see learnSpringBoot / lessons / lesson01a_setupDevelopmentEnvForUnix.txt]
+    [see learnIntellij / howToShowLocalChangesInIntellij2020.txt]
+
+ 9. Install Postgres 9.6 Database
+    [see learnPostgreSQL / howToInstallPostgresOnCentos8.txt]
+
+10. Install the OpenVpn Client
+    [see learnCentOS / howToInstallOpenVpnClientOnCentos8.txt]
+
+11. Install Network Printer
+    [see learnCentOS / howToSetupPrintingToCanonMx922.txt_centos8.txt]
+
+12. Install an Antivirus Package
+    (a) Install ClamAV  (free)          [see learnCentOS / howToInstallAntiVirus_clamav.txt]
+
+13. Install Chrome
+    [see learnCentOS / howToInstallChromeOnCentos7.txt]
+
+14. Change the Firefox scrolling speed
+    [see learnFirefox / howToChangeScrollingSpeed.txt]
+
+15. Install Print-to-PDF capability
+    [see learnCentOS / howToPrintToPDF.txt]
+
+16. Update LibreOffice to the latest version
+    [see learnCentOS / howToInstallLibreOffice.txt
+
+17. Install Card Reader driver
+    [see learnCentOS / howToSetupCardReader_IOGear_gsr202.txt]
+
+18. Disable unneeded services
+    a. Disable the ModemManager service
+       unix> sudo systemctl  | grep -i modem            # Check to see if it's running
+       unix> sudo systemctl stop ModemManager      # Stop the service
+       unix> sudo systemctl disable ModemManager   # Disable the service
+
+    b. Disable postfix
+       unix> sudo systemctl  | grep -i postfix          # Check to see if it's running
+       unix> sudo systemctl stop postfix           # Stop the service
+       unix> sudo systemctl disable postfix        # Disable the service
+
+19. Install Node & NPM
+    [see learnNode / howToInstallNodeOnCentos7.txt
+
+20. Install Printer Driver
+    [see learnCentOS / howToSetupPrintingToKonicaMinolta.txt]
+    NOTE:  These procedures will work with most printers
+
+21. If using an SSD, startup the fstrim.timer service
+    unix> sudo systemctl enable fstrim.timer   # Enable the service so it turns on when booting up
+    unix> sudo systemctl start fstrim.timer    # Start the service
+
+22. Configure firefox to use my Card Reader driver on Centos 8
+    [see learnCentOS / howToGetCacWorkingOnCentos8]
+
+23. Install ffmpeg (so that your browsers can display lots of video forms)
+    [see learnCentOS / howToInstallMpegLibrariesForCentos8.txt]
+
+24. Grant yourself cups admin
+    [see learnCentOS / howToGrantYourselfCupsAdmin.txt]
+
+25. Configure cups to not keep job history or job files
+    [see learnCentOS / howToRemoveCupsPrintHistory.txt]
+
+26. Setup CD/DVD burning software
+    [see learnCentOS / howtoBurnCD_onCentOS8.txt]
+
+27. Install Teams
+    [see learnCentOS / howToInstallTeamsOnCentos8.txt]
+
+28. Install Master PDF Editor  (used for displaying PDFs that have fillable forms)
+    [see learnCentOS / howToInstallMasterPdfEditor.txt]
+
+29. Adjust the laptop brightness
+    [see learnCentOS / howToChangeScreenBrightnessOnCentos8.txt]
+
