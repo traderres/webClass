@@ -1,0 +1,326 @@
+How to Deploy Spring Boot Webapp to Minikube that uses KeyCloak
+----------------------------------------------------------------
+Problem:  I want to deploy my spring boot webapp to minikube but everything is running locally
+
+
+                         Minikube
+                         +---------------------------------------------------------------
+                         |
+   Chrome                |   sf328-loadbalancer
+   Browser               |   listens on 10.102.14.34:443
+                         |
+                         |
+                         |   sf328-deployment
+                         |   -- Runs 1 pod with SF webapp listening on 8443
+                         +----------------------------------------------------------------------
+
+
+                         +-------------------+               +-------------------+
+   						 |   Postgres DB     |               |   ElasticSearch   |
+   						 |   localhost:5432  |               |   localhost:9201  |
+   						 +-------------------+               +-------------------+
+
+                         +---------------------------------------+
+    					 |   Keycloak                            |
+    					 |   https://localhost.localdomain:8444  |
+    					 +---------------------------------------+
+
+Part 1: Create the Build
+------------------------
+ 1. Startup keycloak with ssl
+
+
+ 2. Update your custom.cacerts file (in src/main/prod_resources/custom.cacerts) to have the server cert of keycloak
+    a. unix> openssl s_client -connect localhost.localdomain:8444
+
+
+    b. Copy and save the lines between
+            -----BEGIN CERTIFICATE----- and
+            -----END CERTIFICATE-----
+        into a new file called /tmp/local-keycloak.cer
+
+
+        So, the file should look something like this:
+
+        -----BEGIN CERTIFICATE-----
+        UzEYMBYGA1UEChMPVS5TLiBHb3Zlcm5tZW50MQwwCgYDVQQLEwNEb0QxDDAKBgNV
+        BAsTA1BLSTEVMBMGA1UEAxMMRE9EIFNXIENBLTYwMB4XDTIxMTEyOTEzMjkwNFoX
+        DTIyMTIzMTEzMjkwNFoweTELMAkGA1UEBhMCVVMxGDAWBgNVBAoTD1UuUy4gR292
+        ZXJubWVudDEMMAoGA1UECxMDRG9EMQwwCgYDVQQLEwNQS0kxDDAKBgNVBAsTA0RP
+        RDEmMCQGA1UEAxMddGVzc2VyYWN0LXRlc3QuY2xvdWQuZGNzYS5taWwwggEiMA0G
+        CSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCozqDWEwwzYGZ42S5XpW/L4dWmUPBH
+        qOFdzvdOmdea6Ue94Lc5b2L3+rxGKyoIA29PIKfcz6IjcWC9ztNan1nS0nD4Mlm6
+        3J3wHoGJFV803P7dBwN8eF/QtwMRFosb1Ba2aY/xQhqtdeUd4++A5dueycpHTGt9
+        WxJgkeu+O1+xFjzTAZMZ996qm/ep3ddHyC9DQ2l0qTLXjlA+ik4W73naI5fdFCfq
+        wQAUJzBKe5FOeHf0iP7ZbJOerb329SHwGntY6lE6OUWRX+WdntRPfUgwy8OYXjSm
+        YS5taWwvY3JsL0RPRFNXQ0FfNjBfU1NMLmNybDAoBgNVHREEITAfgh10ZXNzZXJh
+        Y3QtdGVzdC5jbG91ZC5kY3NhLm1pbDAWBgNVHSAEDzANMAsGCWCGSAFlAgELJDAd
+        BgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwHQYDVR0OBBYEFDOJk590j1uS
+        lpwyT5PhN0k+t+hRMA0GCSqGSIb3DQEBCwUAA4IBAQBqKGHMo23gYjyuH4cUiu/9
+        xyFeoZR7GoR+C6fl95XzJ85BUrSfW4T7v/NscuE0qS2V1wGV6bweRfiwfwnjMyip
+        oP2z+jhbdx5bdB+xr5ishVKTJocH9ceI+t46Fdwp2E5+FKv7znek97rrtZHzB9l6
+        6Vqm/eGxvqhaKB16IPcs3oYYfLNHk9Oogiy5muI/KuQN8ZOWZ+AuxozR1XLDgoRd
+        ASDQCV+dkNRrRA2yYQw2d91cwL+5h9T+x/wLCIbj9vZMTaZcR1KFqFbuuVQftGLz
+        -----END CERTIFICATE-----
+
+    c. Update the custom.cacerts file so it will trust the server cert
+       unix> cd ~/intellijProjects/sf328/sf328-backend/src/main/prod_resources
+       unix> keytool -import -alias "local-keycloak-server" -keystore custom.cacerts" -file /tmp/local-keycloak.cer
+       password> changeit
+       Trust this certificate: yes
+
+        You should see this message:
+           Certificate was added to keystore
+
+
+
+
+ 2. Update your spring boot webapp with a new profile called "local_oauth2"
+    a. Add this profile
+    b. Change the hostname of your database to be host.minikube.internal
+    		app.datasource:
+ 				url: jdbc:postgresql://host.minikube.internal:5432/sf328_db
+
+    c. Change the hostname of your ElasticSearch to be host.minikube.internal
+		  	es:
+				url: http://host.minikube.internal:9201
+
+
+---
+#################################################################################################
+#            L O C A L      O A U T H 2        P R O F I L E
+# Prod Profile
+#  1) use the local database
+#################################################################################################
+spring.profiles: local_oauth2
+
+# So, we're running in HTTPS mode but using a hard-coded principal for security
+use.hardcoded.authenticated.principal: false
+
+
+##########################################################
+# Keycloak Settings for Spring Security
+##########################################################
+spring.security.oauth2.client.registration.keycloak.client-id: sf328-webapp
+spring.security.oauth2.client.registration.keycloak.client-secret: EZNI1jBMiWikhmYuIF2aIL0ULfkgzZHA
+spring.security.oauth2.client.registration.keycloak.authorization-grant-type: authorization_code
+spring.security.oauth2.client.registration.keycloak.scope: openid,email,profile
+
+spring.security.oauth2.client.provider.keycloak.issuer-uri: https://localhost.localdomain:8444/realms/MyRealm
+spring.security.oauth2.client.provider.keycloak.user-name-attribute: preferred_username
+
+spring.security.oauth2.resourceserver.jwt.issuer-uri: https://localhost.localdomain:8444/realms/MyRealm
+
+
+
+
+##########################################################
+# SSL Settings
+##########################################################
+server:
+  port: 8443
+  ssl:
+    key-store: sf328-backend/src/main/prod_resources/webapp.keystore.jks
+    key-store-password: changeit
+    key-store-type: JKS
+    client-auth: need
+    trust-store: sf328-backend/src/main/prod_resources/webapp.truststore.jks
+    trust-store-password: changeit
+    trust-store-type: JKS
+    enabled: true
+
+
+# Secure the cookies
+server.servlet.session.cookie.secure: true
+server.servlet.session.cookie.http-only: true
+
+
+
+##########################################################
+# Database Settings
+##########################################################
+app.datasource:
+  driver-class-name: org.postgresql.Driver
+  url: jdbc:postgresql://host.minikube.internal:5432/sf328_db
+  username: sf328_user
+  password: secret
+  schema: sf328_db
+  maxPoolSize: 15
+  connectionTimeout: 60000
+  database-name: sf328_db
+
+
+###########################################################
+## ElasticSearch Settings
+###########################################################
+es:
+  url: http://host.minikube.internal:9201
+  ssl_enabled: false
+
+
+
+
+###########################################################
+# Upload  Settings
+##########################################################
+# Set the maximum file upload size for one file   (-1 is infinite)
+spring.servlet.multipart.max-file-size: 100MB
+
+# Set the maximum request size   (-1 is infinite)
+spring.servlet.multipart.max-request-size: 100MB
+
+# Set the *REAL* maximum file size (in bytes)
+max.upload.size.bytes: 26214400
+
+# Set the maximum number of uploads per question
+max.upload.files.per.question: 5
+
+
+
+##########################################################
+# Virus Scanning Settings
+##########################################################
+virus-scanning.enabled: false
+qlack.util.clamav.host: localhost
+qlack.util.clamav.port: 3310
+qlack.util.clamav.socket.timeout: 100000
+
+
+
+
+
+ 3. Build the webapp
+    unix> cd ~/intellijProjects/sf328
+    unix> mvn clean package -Pprod -PbuildImage
+
+ 4. Push the image up to your repository
+    unix> docker login
+
+    unix> docker push traderres/my-public-repo:sf328-backend-1.0.43-SNAPSHOT
+
+
+
+Part 2: Deploy the build to your minikube cluster
+-------------------------------------------------
+ 1. Startup minikube
+    unix> minikube start
+
+
+ 2. Startup the tunnel
+    unix> minikube tunnel
+
+
+ 3. Get the IP of host alias
+    unix> minikube ssh 'cat /etc/hosts' | grep -i host.minikube.internal
+
+    You should see something like this:
+      192.168.49.1	host.minikube.internal
+
+
+ 4. Create the deployment with the a hostAliases of localhost.localdomain --> IP of host.minikube.internal
+    unix> vi sf328-deployment-v1.yaml
+
+#############################################################################
+#  sf328-deployment-v1.yaml
+#############################################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sf328-deployment
+
+spec:
+  selector:
+    matchLabels:
+      app: sf328-backend
+  replicas: 1
+  strategy:
+    type:  Recreate
+  template:
+    metadata:
+      name: kubia
+      labels:
+         app: sf328-backend
+    spec:
+      hostAliases:
+      - ip: "192.168.49.1"
+        hostnames:
+        - "localhost.localdomain"
+
+      containers:
+      - image: traderres/my-public-repo:sf328-backend-1.0.43-SNAPSHOT
+        imagePullPolicy: Always
+        name: java-backend
+        env:
+          - name: JAVA_TOOL_OPTIONS
+            value: -Xms250m -Xmx250m  -Demail.mode=off -Dspring.profiles.active=local_oauth2 -Djavax.net.ssl.trustStore=/sf328-backend/src/main/prod_resources/custom.cacerts -Djavax.net.ssl.trustStorePassword=changeit
+
+
+ 5. Deploy the webapp
+    unix> kubectl create -f sf328-deployment-v1.yaml
+
+
+ 6. Verify that the pod is running
+    unix> kubectl get pods
+
+    NAME                                READY   STATUS    RESTARTS   AGE
+    sf328-deployment-75446bc756-hsjc9   1/1     Running   0          18m
+
+
+ 7. Look at the log
+    unix> kubectl -f logs sf328-deployment-75446bc756-hsjc9
+
+
+ 8. Create an external load balancer service
+    unix> vi sf328-svc-loadbalancer.yaml
+
+#############################################################################
+# sf328-svc-loadbalancer.yaml
+#
+# Use sessionAffinity=ClientIP so that requests go to the same app server
+#############################################################################
+apiVersion: v1
+kind: Service
+metadata:
+  name: sf328-loadbalancer
+spec:
+  type: LoadBalancer
+  sessionAffinity: ClientIP
+  ports:
+  - port: 443
+    targetPort: 8443
+  selector:
+    app: sf328-backend
+
+
+ 9. Startup the service (to generate an external IP)
+    unix> kubectl create -f  sf328-svc-loadbalancer.yaml
+
+
+10. Get the external IP of the load balancer service
+    unix> kubectl get services
+
+    NAME                 TYPE           CLUSTER-IP     EXTERNAL-IP    PORT(S)         AGE
+    kubernetes           ClusterIP      10.96.0.1      <none>         443/TCP         101d
+    sf328-loadbalancer   LoadBalancer   10.102.14.34   10.102.14.34   443:31815/TCP   30m
+                                                          ^
+                                                          This is the external IP
+
+
+11. Configure Keycloak to use that external IP for the root url
+    a. Connect to keycloak at https://localhost.localdomain:8444/
+    b. Go to MyRealm
+    c. Click on Clients -> SF328-webapp
+    d. Go to Access Settings
+          Root URL:  https://10.102.14.34/sf          # This IP is the external-IP from above
+          Home URL:  https://10.102.14.34/sf
+    e. Press "Save"
+
+
+12. Connect to the webapp
+    a. Startup Chrome
+    b. Import the client cert into Chrome
+    c. Import the public root.ca as a trusted authority
+    d. Go to https://10.102.14.34/sf
+
+
+
