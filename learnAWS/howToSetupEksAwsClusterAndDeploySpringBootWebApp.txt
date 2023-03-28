@@ -112,13 +112,14 @@ General Approach
 13. Get the aws external hostnames for keycloak and the app's loadbalancer
 14. Register the godayy domain name that correspond to the external AWS keycloak and external AWS load balancer names
 15. Create server certs with Let's Encrypt for the load-balancer (app.traderres.com) and keycloak (keycloak.traderres.com)
-16. Create & install the keycloak certificates on the running instance
-17. Initialize Keycloak as a service on the running instsance
-18. Configure keycloak
-19. Configure certificates for the load-balancer (external hostname used to access the webapp)
-20. Build and Push the webapp to Amazon ECR
-21. Use Kubernetes to deploy the webapp
-22. Verify it works
+16. Install Java 11 JDK on the keycloak server
+17. Create & install the keycloak certificates on the running instance
+18. Initialize Keycloak as a service on the running instsance
+19. Configure keycloak
+20. Configure certificates for the load-balancer (external hostname used to access the webapp)
+21. Build and Push the webapp to Amazon ECR
+22. Use Kubernetes to deploy the webapp
+23. Verify it works
 
 
 
@@ -933,7 +934,23 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
 
-16. Create & install the keycloak certificates on the running instance
+16. Install Java 11 JDK on the keycloak server
+    NOTE:  Keycloak is an app running on the kubernetes instance
+    a. Ssh to the kubernetes instance
+       unix> ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.218.246.201
+
+    b. Install Java JDK 11 or later
+       unix> sudo amazon-linux-extras install java-openjdk11
+
+    c. Verify Java JDK 11 is installed
+       unix> java -version
+       openjdk version "11.0.18" 2023-01-17 LTS
+       OpenJDK Runtime Environment (Red_Hat-11.0.18.0.10-1.amzn2.0.1) (build 11.0.18+10-LTS)
+       OpenJDK 64-Bit Server VM (Red_Hat-11.0.18.0.10-1.amzn2.0.1) (build 11.0.18+10-LTS, mixed mode, sharing)
+
+
+
+17. Create & install the keycloak certificates on the running instance
     NOTE:  Keycloak Server has Java 11 JDK's keytool
            If your development env uses an older Java JDK, then build the cert with the older Java JDK
 
@@ -960,9 +977,9 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
            unix> cat fullchain1.pem
            -- Split this up into 3 files called fullchainkc1.pem, fullchainkc2.pem, fullchainkc3.pem
 
-		   unix> openssl x509 -in fullchainkc1.pem -noout -text | grep 'CN=keycloak.traderres.com'     # This one holds the server cert
-		   unix> openssl x509 -in fullchainkc2.pem -noout -text | grep 'CN=keycloak.traderres.com'
-		   unix> openssl x509 -in fullchainkc3.pem -noout -text | grep 'CN=keycloak.traderres.com'
+		   unix> openssl x509 -in fullchainkc1.pem -noout -text | grep 'keycloak.traderres.com'     # This one holds the server cert
+		   unix> openssl x509 -in fullchainkc2.pem -noout -text | grep 'keycloak.traderres.com'
+		   unix> openssl x509 -in fullchainkc3.pem -noout -text | grep 'keycloak.traderres.com'
 
         3) Generate the server.p12 file from the server cert
            unix> export SERVER_CRT=fullchainkc1.pem
@@ -987,13 +1004,13 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
        truststore needs to include the godaddy CA used for keycloak.traderres.com and intermediate CA
        truststore needs to include the self-signed CA used for PKI clients   (no intermediate)
        unix> cd /tmp/archive/keycloak.traderres.com
-       unix> keytool -import -alias "keycloak1"  -keystore /opt/keycloak/keycloak.truststore.jks  -file fullchainkc1.pem
+       unix> keytool -import -alias "keycloak1"  -keystore /opt/keycloak/keycloak.truststore.jks  -file fullchainkc1.pem  -storepass changeit
              password: change it
              verify:   changeit
 
-       unix> keytool -import -alias "keycloak2"  -keystore /opt/keycloak/keycloak.truststore.jks  -file fullchainkc2.pem
-       unix> keytool -import -alias "keycloak3"  -keystore /opt/keycloak/keycloak.truststore.jks  -file fullchainkc3.pem
-       unix> keytool -import -alias "our-ca"     -keystore /opt/keycloak/keycloak.truststore.jks  -file /tmp/self-signed.ca.pem
+       unix> keytool -import -alias "keycloak2"  -keystore /opt/keycloak/keycloak.truststore.jks  -file fullchainkc2.pem -storepass changeit
+       unix> keytool -import -alias "keycloak3"  -keystore /opt/keycloak/keycloak.truststore.jks  -file fullchainkc3.pem  -storepass changeit
+       unix> keytool -import -alias "our-ca"     -keystore /opt/keycloak/keycloak.truststore.jks  -file /tmp/self-signed.ca.pem  -storepass changeit
 
 
 	   At this point, we have these 2 files:
@@ -1002,48 +1019,46 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
 
-17. Initialize Keycloak as a service on the running instsance
+18. Initialize Keycloak as a service on the running instsance
     NOTE:  Keycloak is a container running on the kubernetes instance
     a. Ssh to the kubernetes instance
        unix> ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.218.246.201
 
-    b. Install Java JDK 11 or later
-       unix> sudo amazon-linux-extras install java-openjdk11
-
-    c. Verify Java JDK 11 is installed
-       unix> java -version
-       openjdk version "11.0.18" 2023-01-17 LTS
-       OpenJDK Runtime Environment (Red_Hat-11.0.18.0.10-1.amzn2.0.1) (build 11.0.18+10-LTS)
-       OpenJDK 64-Bit Server VM (Red_Hat-11.0.18.0.10-1.amzn2.0.1) (build 11.0.18+10-LTS, mixed mode, sharing)
-
-    d. Download keycloak 21.0.1 to the /opt/keycloak directory
+    b. Download keycloak 21.0.1 to the /opt/keycloak directory
        unix> sudo -s
        unix> cd /tmp
        unix> wget https://github.com/keycloak/keycloak/releases/download/21.0.1/keycloak-21.0.1.zip
 
-    e. Install keycloak to the /opt/keycloak directory
+    c. Install keycloak to the /opt/keycloak directory
        unix> mkdir -p /opt/keycloak
 	   unix> unzip /tmp/keycloak-21.0.1.zip -d /opt/keycloak
        -- Now, you should have /opt/keycloak/keycloak-21.0.1
 
-    f. Create a keycloak user
+
+    d. Build keycloak (as root)
+       unix> sudo -s
+       unix> cd /opt/keycloak/keycloak-21.0.1
+       unix> bin/kc.sh build
+       unix> exit
+
+    e. Create a keycloak user
        unix> sudo groupadd keycloak
        unix> sudo useradd keycloak -c "Mr Keycloak" -g "keycloak" -m
 
-    g. Change ownership so that the /opt/keycloak directory is owned by the keycloak user
+    f. Change ownership so that the /opt/keycloak directory is owned by the keycloak user
        unix> sudo chown keycloak:keycloak -R /opt/keycloak
 
-    h. Build keycloak
-       unix> cd /opt/keycloak/keycloak-21.0.1
-       unix> bin/kc.sh build
-
-    i. Verify that keycloak runs from the command line
+    g. Verify that keycloak runs from the command line
        NOTE:  Assumes that keycloak's default JRE is Java 11
+              To find a version of java in your path
+              unix> readlink -f `which java`
 
               If it's not, then adjust the /opt/keycloak/keycloak-21.0.1/bin/kc.sh and add these entries on line 2:
+              unix> sudo -s
+              unix> su - keycloak
               unix> vi /opt/keycloak/keycloak-21.0.1/bin/kc.sh
 
-                   export JAVA_HOME=/usr/java/jdk-11.0.12        # REPLACE this with your real Java JDK 11 path
+                   export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-11.0.18.0.10-1.amzn2.0.1.x86_64       # REPLACE this with your real Java JDK 11 path
                    export PATH=${JAVA_HOME}/bin:$PATH
 
 
@@ -1058,7 +1073,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
 
-    j. Create a keycloak service
+    h. Create a keycloak service
        unix> sudo vi /etc/systemd/system/keycloak.service
 
 		###################################################################################
@@ -1109,21 +1124,21 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 		[Install]
 		WantedBy=multi-user.target
 
-     k. Reload systemctl daemon
+     i. Reload systemctl daemon
         unix> sudo systemctl daemon-reload
 
-     l. Start the service
+     j. Start the service
         unix> sudo systemctl start keycloak
 
-     m. Look at the service log
+     k. Look at the service log
         unix> sudo journalctl -fu keycloak
 
-     n. Verify that you can connect to keycloak
+     l. Verify that you can connect to keycloak
         Open a browser
         Connect to https://keycloak.traderres.com:8444/
 
 
-18. Configure keycloak
+19. Configure keycloak's admin account
     a. Setup the admin account
        1) Stop keycloak
           ssh to the running instance
@@ -1208,9 +1223,9 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
     b. Configure the keycloak settings
-       1) Connect to https://keycloak.traderres.com:8444/admin/master/console/
+       1) Connect to https://keycloak.traderres.com:8444/
 
-       2) Select Realms -> Create new realm: MyRealm
+       2) Select Realms -> Create realm: MyRealm
 
 
 	   3) Create an x509 authentication flow
@@ -1236,7 +1251,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 			  Regular expression to extract user identity:  cn=(.*?)(?:,|$)
 			  User mapping method:                          Username or Email
 			  Check certificate validity:                   On
-			  Bypass identity confirmation                  On
+			  Bypass identity confirmation                  Off
 
 		   6) In x509 authentication flow, select Action -> Bind flow
 			  Choose "Browser flow"
@@ -1319,7 +1334,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
 
-19. Configure certificates for the load-balancer (external hostname used to access the webapp)
+20. Configure certificates for the load-balancer (external hostname used to access the webapp)
     NOTE:  The webapp needs a load-balancer truststore to work correctly
            The webapp needs a special custom.cacerts file (that has the lob chain and self-signed CA)
 
@@ -1387,7 +1402,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
        unix> keytool -import -alias "our-ca"   -keystore  custom.cacerts  -file /path/to/own-self-signed/root-ca/pem   -storepass changeit
 
 
-20. Build and Push the webapp to Amazon ECR
+21. Build and Push the webapp to Amazon ECR
     NOTE:  Normally, your kubernetes pod would refer to a volume and read the files from there
            But, we are going to embed the custom.cacerts, webapp.keystore.jks, and webapp.truststore.jks in the webapp (for now)
 
@@ -1474,7 +1489,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
           unix> docker push 524647912468.dkr.ecr.us-east-2.amazonaws.com/traderres:sf328-backend-2.0.1-SNAPSHOT
 
 
-21. Use Kubernetes to deploy the webapp
+22. Use Kubernetes to deploy the webapp
     a. Get the token
        unix> aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 524647912468.dkr.ecr.us-east-2.amazonaws.com
 
@@ -1586,7 +1601,7 @@ spec:
 
 
 
-22. Verify it works
+23. Verify it works
     a. Create a pki client cert
     b. Import it into a browser
     c. Attempt to connect to https://app.traderres.som/sf
