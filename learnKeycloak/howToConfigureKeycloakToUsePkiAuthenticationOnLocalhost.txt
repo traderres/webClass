@@ -1061,12 +1061,148 @@ Part 3: Configure Web App to use oauth2 for authentication
     f. Erase the original UserInfo object
 
 
+11. Update ElasticSearchResourcesConfig (to pass-in an ElasticSearch user/password with requests)
+    Update this file so it looks like this:
 
-11. Startup keycloak with ssl  (if it's not already running)
+    package com.lessons.config;
+
+    import com.lessons.security.SSLContextFactory;
+    import com.ning.http.client.AsyncHttpClient;
+    import com.ning.http.client.Realm;
+    import org.apache.commons.lang3.StringUtils;
+    import org.slf4j.Logger;
+    import org.slf4j.LoggerFactory;
+    import org.springframework.beans.factory.annotation.Value;
+    import org.springframework.context.annotation.Bean;
+    import org.springframework.context.annotation.Configuration;
+
+    import javax.net.ssl.SSLContext;
+    import java.io.File;
+
+
+    @Configuration
+    public class ElasticSearchResourcesConfig {
+
+        private static final Logger logger = LoggerFactory.getLogger(ElasticSearchResourcesConfig.class);
+
+        @Value("${es.url:}")
+        private String elasticSearchUrl;
+
+        @Value("${es.ssl_enabled:false}")
+        private boolean sslEnabled;
+
+
+        // -------------- Optional SSL Parameters ------------------------
+        @Value("${es.key-store:}")
+        private String keyStoreFilePath;
+
+        @Value("${es.key-store-password:}")
+        private String keyStorePassword;
+
+        @Value("${es.key-store-type:}")
+        private String keyStoreType;
+
+        @Value("${es.trust-store:}")
+        private String trustStoreFilePath;
+
+        @Value("${es.trust-store-password:}")
+        private String trustStorePassword;
+
+        @Value("${es.trust-store-type:}")
+        private String trustStoreType;
+
+        @Value("${es.authentication.principal:}")
+        private String esPrincipal;
+
+        @Value("${es.authentication.password:}")
+        private String esPassword;
+
+
+        @Bean
+        public ElasticSearchResources elasticSearchResources() throws Exception {
+            logger.debug("elasticSearchResources()  sslEnabled={} principal={} password={}", this.sslEnabled, this.esPrincipal, this.esPassword);
+
+            // Set the AsyncHttpClient settings
+            com.ning.http.client.AsyncHttpClientConfig.Builder configBuilder = new com.ning.http.client.AsyncHttpClientConfig.Builder();
+            configBuilder.setReadTimeout(-1);
+            configBuilder.setAcceptAnyCertificate(true);
+            configBuilder.setFollowRedirect(true);
+
+            // Set the ES connection username/password
+            Realm realm = new Realm.RealmBuilder()
+                    .setPrincipal(esPrincipal)
+                    .setPassword(esPassword)
+                    .setUsePreemptiveAuth(true)
+                    .setScheme(Realm.AuthScheme.BASIC)
+                    .build();
+            configBuilder.setRealm(realm);
+
+            if (sslEnabled) {
+                // initialize the sslContext and store it in the configBuilder object
+                SSLContext sslContext = generateSslContext();
+                configBuilder.setSSLContext(sslContext);
+            }
+
+            // Create a new AsyncHttpClient object
+            com.ning.http.client.AsyncHttpClientConfig config = configBuilder.build();
+            AsyncHttpClient asyncHttpClient = new AsyncHttpClient(config);
+
+
+            // Store the AsyncHttpClient and elasticSearc url in the ElasticSearchResources object
+            // NOTE:  THe elastic search url is injected from the application.yaml
+            //        The AsyncHttpClient is constructed with java code
+            ElasticSearchResources elasticSearchResources = new ElasticSearchResources(this.elasticSearchUrl, asyncHttpClient);
+
+            // Return a spring bean that holds the AsyncHttpClient and elasticsearch url
+            return elasticSearchResources;
+        }
+
+
+        /**
+         * Helper method to generate the SSL Context
+         * @return a SSLContext object
+         */
+        private SSLContext generateSslContext() throws Exception {
+
+            if (StringUtils.isEmpty(this.keyStorePassword)) {
+                throw new RuntimeException("Critical Error Creating SSL Context:  The keystore jks password is empty.  Check this property 'es.key-store-password' in the application.yaml");
+            }
+            else if (StringUtils.isEmpty(this.trustStorePassword)) {
+                throw new RuntimeException("Critical Error Creating SSL Context:  The truststore jks password is empty.  Check this property 'es.trust-store-password' in the application.yaml");
+            }
+            else if ((StringUtils.isEmpty(this.keyStoreType)) || (! this.keyStoreType.equalsIgnoreCase("JKS"))) {
+                throw new RuntimeException("Critical Error Creating SSL Context:  The truststore type must be JKS.   Check this property 'es.trust-store-type'");
+            }
+            else if ((StringUtils.isEmpty(this.trustStoreType)) || (! this.trustStoreType.equalsIgnoreCase("JKS"))) {
+                throw new RuntimeException("Critical Error Creating SSL Context:  The truststore type must be JKS.   Check this property 'es.trust-store-type'");
+            }
+
+            File keyStoreJkdFile = new File(this.keyStoreFilePath);
+            if (! keyStoreJkdFile.exists()) {
+                throw new RuntimeException("Critical Error:  This keystore JKS file was not found: " + this.keyStoreFilePath + "  Check this property 'es.key-store' in the application.yaml");
+            }
+
+            File trustStoreJkdFile = new File(this.trustStoreFilePath);
+            if (! trustStoreJkdFile.exists()) {
+                throw new RuntimeException("Critical Error:  This truststore JKS file was not found: " + this.trustStoreFilePath + "  Check this property 'es.trust-store' in the application.yaml");
+
+            }
+
+            logger.debug("Generating SSL Context from keystore {} and truststore {}", this.keyStoreFilePath, this.trustStoreFilePath);
+            SSLContext sslContext = SSLContextFactory.makeContext(keyStoreJkdFile, this.keyStorePassword, trustStoreJkdFile, this.trustStorePassword);
+            return sslContext;
+        }
+
+    }
+
+
+
+
+12. Startup keycloak with ssl  (if it's not already running)
     So, it's listening on https://localhost.localdomain:8444/
 
 
-12. Startup the backend with this profile  -Dspring.profiles.active=local_oauth2
+13. Startup the backend with this profile  -Dspring.profiles.active=local_oauth2
     a. Compile the webapp to a JAR
        unix> mvn clean package -Pprod
 
@@ -1152,13 +1288,13 @@ Part 3: Configure Web App to use oauth2 for authentication
 
 
 
-13. Connect to https://localhost.localdomain:8443/sf
+14. Connect to https://localhost.localdomain:8443/sf
     -- You should be prompted for your pki cert
     -- You should be redirected to keycloak at https://localhost.localdomain:8444/
     -- You should be redirected to webapp   at https://localhost.localdomain:8443/sf
 
 
-14. Create 2 profiles:  "buildImage" and "buildImageWithoutDocker"
+15. Create 2 profiles:  "buildImage" and "buildImageWithoutDocker"
     a. Edit backend/pom.xml
 
     b. Add the "buildImage" maven profile:
@@ -1182,6 +1318,23 @@ Part 3: Configure Web App to use oauth2 for authentication
                     <to>
                       <image>traderres/my-public-repo:${project.artifactId}-${project.version}</image>
                     </to>
+
+					<extraDirectories>
+						<paths>
+						  <path>
+							<!-- Copies from 'src/main/prod_resources' into '/sf328-backend/src/main/prod_resources' on the container. -->
+							<from>src/main/prod_resources</from>
+							<into>/sf328-backend/src/main/prod_resources</into>
+						  </path>
+						</paths>
+				     </extraDirectories>
+
+					 <container>
+						<jvmFlags>
+						  <jvmFlag> -Dspring.config.location=/sf328-backend/src/main/prod_resources/application.yaml</jvmFlag>
+						</jvmFlags>
+					 </container>
+
                   </configuration>
 
                   <executions>
@@ -1238,10 +1391,10 @@ Part 3: Configure Web App to use oauth2 for authentication
           </profile>
 
 
-15. Build the image (without pushing it)
+16. Build the image (without pushing it)
  	unix> mvn clean package -Pprod -PbuildImage
 
-16. Build the image and push to the repo
+17. Build the image and push to the repo
     unix> cd ~/intellijProjects/app
     unix> export USERNAME=traderres      # This is the username for the  <to><image>...</image></to repository
 	unix> export PASSWORD=secret         # This is the password for the <to><image>...</image></to> repository
