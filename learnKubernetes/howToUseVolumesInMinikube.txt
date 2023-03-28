@@ -1,0 +1,152 @@
+How to Use Volumes in Kubernetes
+--------------------------------
+Problem:  I want my webapps to write to a directory and have that info persiste
+Solution: Create PersistentVolumes and PersistentVolumeClaims
+
+
+Procedure
+---------
+ 1. Create the yaml file for persistent volume that points to /tmp/storage/sf328
+    unix> vi sf328-pv.yaml
+
+############################################################
+# Filename:  sf328-pv.yaml
+#
+# Define a volume in minikube
+############################################################
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: sf328-pv
+spec:
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  capacity:
+    storage: 1Gi
+  hostPath:
+    path: /tmp/storage/sf328/
+    type: Directory
+
+
+
+
+ 2. Create the persistent volume
+    unix> kubectl create -f sf328-pv.yaml
+
+ 3. Verify it is available
+    unix> kubectl get pv
+
+	NAME            CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM   STORAGECLASS   REASON   AGE
+	sf328-pv        1Gi        RWO            Retain           Available                                   24s
+
+
+ 4. Create the yaml file for a persistentVolumeClaim
+    unix> vi sf328-pvc.yaml
+
+############################################################
+# Filename:  sf328-pvc.yaml
+############################################################
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+   name: sf328-pvc
+
+spec:
+   resources:
+     requests:
+       storage: 1Gi
+   accessModes:
+   - ReadWriteMany
+   storageClassName: ""
+
+
+
+
+ 5. Create the persistent volume claim
+    unix> kubectl create -f sf328-pvc.yaml
+
+ 6. Get the status of persistent volume claims
+    unix> kubectl get pvc
+
+	NAME        STATUS   VOLUME          CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+	sf328-pvc   Bound    sf328-pv   1Gi        RWO                           4s
+
+
+  NOTE:  At this point the persistnt volume is now available to be used
+
+
+ 7. Update the sf328-deployment to make a claim against the pvc
+    unix> vi sf328-deployment-v2.yaml
+
+#############################################################################
+#  sf328-deployment-v2.yaml
+#############################################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sf328-deployment
+
+spec:
+  selector:
+    matchLabels:
+      app: sf328-backend
+  replicas: 1
+  strategy:
+    type:  Recreate
+  template:
+    metadata:
+      name: kubia
+      labels:
+         app: sf328-backend
+    spec:
+      hostAliases:
+      - ip: "192.168.49.1"
+        hostnames:
+        - "localhost.localdomain"
+
+      containers:
+      - image: traderres/my-public-repo:sf328-backend-1.0.43-SNAPSHOT
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: sf328-pv
+          mountPath:  /data/root
+        name: java-backend
+        env:
+          - name: JAVA_TOOL_OPTIONS
+            value: -Xms250m -Xmx250m  -Demail.mode=off -Dspring.profiles.active=local_oauth2 -Djavax.net.ssl.trustStore=/sf328-backend/src/main/prod_resources/custom.cacerts -Djavax.net.ssl.trustStorePassword=changeit
+
+      volumes:
+      - name: sf328-pv
+        persistentVolumeClaim:
+            claimName: sf328-pvc
+
+
+
+
+ 8. Startup the deployment
+    unix> kubectl create -f sf328-deployment-v2.yaml
+
+ 9. Look at the log of the started pod
+    unix> kubectl get pods
+    unix> CURRENT_POD=.....
+    unix> kubectl logs -f $CURRENT_POD
+    *OR*
+    unix> CURRENT_POD=`kubectl get pods |  tail -1 | cut -d" " -f1`; kubectl logs -f $CURRENT_POD
+
+10. Shell to the pod
+    unix> kubectl exec -it $CURRENT_POD bash
+
+    shell> ls /data/root
+
+11. Add a file to the /data/root
+    shell> echo "this is stuff1.txt" > /data/root/stuff1.txt
+
+
+12. Verify that the file exists inside minikube node
+    a. SSH to the minikube node
+       unix> minikube ssh
+
+    b. Verify that you see the files:
+       shell> ls -l /tmp/storage/sf328
+
