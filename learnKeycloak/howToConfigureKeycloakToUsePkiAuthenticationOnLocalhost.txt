@@ -1196,13 +1196,92 @@ Part 3: Configure Web App to use oauth2 for authentication
     }
 
 
+12. Update DataSourceConfig
+    NOTE:  Make sure you specify a schema name
+                hikariConfig.setSchema(this.schemaName);
 
 
-12. Startup keycloak with ssl  (if it's not already running)
+
+
+    package com.lessons.config;
+
+    import com.zaxxer.hikari.HikariConfig;
+    import com.zaxxer.hikari.HikariDataSource;
+    import org.flywaydb.core.Flyway;
+    import org.slf4j.Logger;
+    import org.slf4j.LoggerFactory;
+    import org.springframework.beans.factory.annotation.Value;
+    import org.springframework.context.annotation.Bean;
+    import org.springframework.context.annotation.Configuration;
+
+    import javax.sql.DataSource;
+
+    @Configuration
+    public class DataSourceConfig {
+        private static final Logger logger = LoggerFactory.getLogger(DataSourceConfig.class);
+
+        @Value("${app.datasource.driver-class-name}")
+        private String driverClassName;
+
+        @Value("${app.datasource.url}")
+        private String url;
+
+        @Value("${app.datasource.username}")
+        private String username;
+
+        @Value("${app.datasource.password}")
+        private String password;
+
+        @Value("${app.datasource.schema}")
+        private String schemaName;
+
+        @Value("${app.datasource.maxPoolSize:20}")
+        private int maxPoolSize;
+
+        @Value("${app.datasource.flyway-migrate-on-startup:false}")
+        private boolean runFlywayMigrateOnStartup;
+
+        @Bean
+        public DataSource dataSource() {
+            HikariConfig hikariConfig = new HikariConfig();
+
+            logger.debug("Initializing the dataSource:  db username={}", this.username);
+
+            hikariConfig.setDriverClassName(this.driverClassName);
+            hikariConfig.setJdbcUrl(this.url);
+            hikariConfig.setUsername(this.username);
+            hikariConfig.setPassword(this.password);
+            hikariConfig.setMaximumPoolSize(this.maxPoolSize);
+            hikariConfig.setConnectionTestQuery("SELECT 1");
+            hikariConfig.setPoolName("my_jdbc_connection_pool");
+            hikariConfig.setSchema(this.schemaName);
+
+            // Create the DataSource
+            HikariDataSource dataSource = new HikariDataSource(hikariConfig);
+
+            if (runFlywayMigrateOnStartup) {
+                // Initialize the flyway object by setting the data source and schema name
+                Flyway flyway = Flyway.configure()
+                        .dataSource(dataSource)
+                        .schemas(schemaName)
+                        .load();
+
+                // Use the flyway object to do a migrate on webapp startup
+                flyway.migrate();
+            }
+            logger.debug("Flyway Migrate Finished.");
+
+            return dataSource;
+        }
+
+    }
+
+
+13. Startup keycloak with ssl  (if it's not already running)
     So, it's listening on https://localhost.localdomain:8444/
 
 
-13. Startup the backend with this profile  -Dspring.profiles.active=local_oauth2
+14. Startup the backend with this profile  -Dspring.profiles.active=local_oauth2
     a. Compile the webapp to a JAR
        unix> mvn clean package -Pprod
 
@@ -1288,13 +1367,13 @@ Part 3: Configure Web App to use oauth2 for authentication
 
 
 
-14. Connect to https://localhost.localdomain:8443/sf
+15. Connect to https://localhost.localdomain:8443/sf
     -- You should be prompted for your pki cert
     -- You should be redirected to keycloak at https://localhost.localdomain:8444/
     -- You should be redirected to webapp   at https://localhost.localdomain:8443/sf
 
 
-15. Create 2 profiles:  "buildImage" and "buildImageWithoutDocker"
+16. Create 2 profiles:  "buildImage" and "buildImageWithoutDocker"
     a. Edit backend/pom.xml
 
     b. Add the "buildImage" maven profile:
@@ -1391,10 +1470,10 @@ Part 3: Configure Web App to use oauth2 for authentication
           </profile>
 
 
-16. Build the image (without pushing it)
+17. Build the image (without pushing it)
  	unix> mvn clean package -Pprod -PbuildImage
 
-17. Build the image and push to the repo
+18. Build the image and push to the repo
     unix> cd ~/intellijProjects/app
     unix> export USERNAME=traderres      # This is the username for the  <to><image>...</image></to repository
 	unix> export PASSWORD=secret         # This is the password for the <to><image>...</image></to> repository
