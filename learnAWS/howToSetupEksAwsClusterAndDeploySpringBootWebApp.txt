@@ -1441,7 +1441,11 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 				trust-store-type: JKS
 				enabled: true
 
-    c. Make sure the production application.yaml has these keycloak settings:
+    c. Make sure the production application.yaml has
+            server.servlet.context-path: /sf
+
+
+    d. Make sure the production application.yaml has these keycloak settings:
 
 			##########################################################
 			# Keycloak Settings for Spring Security
@@ -1455,7 +1459,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 			spring.security.oauth2.resourceserver.jwt.issuer-uri: https://keycloak.traderres.com:8444/realms/MyRealm
 
 
-    d. Get the procedures to push up the build up to the Amazon ECR
+    e. Get the procedures to push up the build up to the Amazon ECR
        1) Connect to aws.com as dev.user
        2) Go to the ECR
        3) Check the "traderres" repository
@@ -1464,13 +1468,13 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
           The REPOSITORY_URL is 524647912468.dkr.ecr.us-east-2.amazonaws.com/traderres
 
 
-    e. Get the AWS ECR authentication token  (so docker push will push it up to our Amazon ECR)
+    f. Get the AWS ECR authentication token  (so docker push will push it up to our Amazon ECR)
        Retrieve the authentication token  (from the "view push commands" step)
        unix> aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 524647912468.dkr.ecr.us-east-2.amazonaws.com
 
 
 
-    f. Build & Push the tag
+    g. Build & Push the tag
        1) Edit the sf328-backend/pom.xml
 
           Change the <to><image> to this:
@@ -1483,6 +1487,116 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
               <to>
                 <image>524647912468.dkr.ecr.us-east-2.amazonaws.com/traderres:${project.artifactId}-${project.version}</image>
               </to>
+
+
+          When finished, your "buildImage" maven profile should look something like this:
+
+				<profile>
+					 <!--    B U I L D    I M A G E       P R O F I L E    -->
+					 <id>buildImage</id>
+
+					 <build>
+						 <plugins>
+							 <plugin>
+								 <groupId>com.google.cloud.tools</groupId>
+								 <artifactId>jib-maven-plugin</artifactId>
+								 <version>3.3.1</version>
+								 <configuration>
+									 <from>
+										 <!-- The source image runs linux with JDK 1.8-362 -->
+										 <image>eclipse-temurin:8u362-b09-jdk@sha256:3b83f3fc0d016d7536dfd5e8a98ece451061b7dbb6d5db3ddea2db30b6153b28</image>
+									 </from>
+
+									 <to>
+										 <image>527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/frms:${project.artifactId}-${project.version}</image>
+									 </to>
+
+									 <extraDirectories>
+										 <paths>
+											 <path>
+												 <!-- Copies from 'src/main/prod_resources' into '/sf328-backend/src/main/prod_resources' on the container. -->
+												 <from>src/main/prod_resources</from>
+												 <into>/backend/src/main/prod_resources</into>
+											 </path>
+										 </paths>
+									 </extraDirectories>
+
+									 <container>
+										 <jvmFlags>
+											 <jvmFlag> -Dspring.config.location=/backend/src/main/prod_resources/application.yaml</jvmFlag>
+										 </jvmFlags>
+									 </container>
+
+								 </configuration>
+
+								 <executions>
+									 <execution>
+										 <phase>package</phase>
+										 <goals>
+											 <!-- The "dockerBuild" goal requires docker to be installed -->
+											 <goal>dockerBuild</goal>
+										 </goals>
+									 </execution>
+								 </executions>
+
+							 </plugin>
+						 </plugins>
+					 </build>
+				 </profile>
+
+
+
+				 <profile>
+					 <!--    B U I L D      I M A G E      W I T H O U T    D O C K E R     P R O F I L E    -->
+					 <id>buildImageWithoutDocker</id>
+
+					 <build>
+						 <plugins>
+							 <plugin>
+								 <groupId>com.google.cloud.tools</groupId>
+								 <artifactId>jib-maven-plugin</artifactId>
+								 <version>3.3.1</version>
+								 <configuration>
+									 <from>
+										 <!-- The source image runs linux with JDK 1.8-362 -->
+										 <image>eclipse-temurin:8u362-b09-jdk@sha256:3b83f3fc0d016d7536dfd5e8a98ece451061b7dbb6d5db3ddea2db30b6153b28</image>
+									 </from>
+
+									 <to>
+										 <image>traderres/my-public-repo:${project.artifactId}-${project.version}</image>
+									 </to>
+
+									 <extraDirectories>
+										 <paths>
+											 <path>
+												 <!-- Copies from 'src/main/prod_resources' into '/sf328-backend/src/main/prod_resources' on the container. -->
+												 <from>src/main/prod_resources</from>
+												 <into>/backend/src/main/prod_resources</into>
+											 </path>
+										 </paths>
+									 </extraDirectories>
+
+									 <container>
+										 <jvmFlags>
+											 <jvmFlag> -Dspring.config.location=/backend/src/main/prod_resources/application.yaml</jvmFlag>
+										 </jvmFlags>
+									 </container>
+								 </configuration>
+
+								 <executions>
+									 <execution>
+										 <phase>package</phase>
+										 <goals>
+											 <!-- The "build" goal does not require docker to be installed -->
+											 <goal>build</goal>
+										 </goals>
+									 </execution>
+								 </executions>
+
+							 </plugin>
+						 </plugins>
+					 </build>
+				 </profile>
 
        2) Set the version to be 2.0.1-SNAPSHOT
           unix> mvn versions:set -DnewVersion=2.0.1-SNAPSHOT  -DgenerateBackupPoms=false
