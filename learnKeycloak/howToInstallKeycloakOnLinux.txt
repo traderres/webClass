@@ -1,0 +1,280 @@
+How to Install Keycloak on Linux (as a service)
+-----------------------------------------------
+
+Assumptions:
+ A) You have Java 11 JDK or later already installed on the box
+    If not, then
+
+
+Procedure
+---------
+ 1. Create & install the keycloak certificates on the running instance
+    NOTE:  Keycloak Server has Java 11 JDK's keytool
+           If your development env uses an older Java JDK, then build the cert with the older Java JDK
+
+    We need to install the files to here:
+        /opt/keycloak/keycloak.keystore.jks
+        /opt/keycloak/keycloak.truststore.jks
+
+    a. Upload the let's encrypt certs to the running instance
+       unix> chown adam:adam -R /home/adam/certbot
+       unix> scp  -i ~/.ssh/node-for-kubunetes-instance.pem  -r /home/adam/certbot/archive ec2-user@18.218.246.201:/tmp
+
+    b. Upload our public/root.pem (from our custom.ca) to the running instance
+       unix> scp  -i ~/.ssh/node-for-kubunetes-instance.pem  /home/adam/root-ca/public/root.pem ec2-user@18.218.246.201:/tmp/self-signed.ca.pem
+
+    c. Create the keycloak keystore
+        1) ssh to the running instance
+           unix> ssh  -i ~/.ssh/node-for-kubunetes-instance.pem  ec2-user@18.218.246.201
+
+        2) Examine the 3 files that makeup the full chain / Split it up into 3 files / Find the server cert
+           NOTE:  The server cert has this:
+                        CN=keycloak.traderres.com
+
+           unix> cd /tmp/archive/keycloak.traderres.com
+           unix> cat fullchain1.pem
+           -- Split this up into 3 files called fullchainkc1.pem, fullchainkc2.pem, fullchainkc3.pem
+
+		   unix> openssl x509 -in fullchainkc1.pem -noout -text | grep 'keycloak.traderres.com'     # This one holds the server cert
+		   unix> openssl x509 -in fullchainkc2.pem -noout -text | grep 'keycloak.traderres.com'
+		   unix> openssl x509 -in fullchainkc3.pem -noout -text | grep 'keycloak.traderres.com'
+
+        3) Generate the server.p12 file from the server cert
+           unix> export SERVER_CRT=fullchainkc1.pem
+		   unix> export SERVER_KEY=privkey1.pem
+		   unix> export INTERMEDIATE_CA=fullchainkc2.pem
+           unix> openssl pkcs12 -export -in $SERVER_CRT -inkey $SERVER_KEY -out server.p12 -name 'my-server-cert' -CAfile $INTERMEDIATE_CA -caname root
+           Enter Export Password: changeit
+           Verify Password:       changeit
+
+        4) Convert the server.p12 into keycloak.keystore.jks
+           unix> mkdir -p /opt/keycloak
+           unix> rm -f /opt/keycloak/keycloak.keystore.jks
+           unix> keytool -importkeystore -deststorepass changeit -destkeypass changeit -destkeystore /opt/keycloak/keycloak.keystore.jks  -srckeystore server.p12 -srcstoretype PKCS12 -srcstorepass changeit -alias 'my-server-cert'
+
+        5) For keycloak keystore, import the 3 pem files into the keycloak.keystore.jks
+           unix> keytool -import -alias "keycloak1"  -keystore /opt/keycloak/keycloak.keystore.jks  -file fullchainkc1.pem   # If it's already imported, then don't bother
+           unix> keytool -import -alias "keycloak2"  -keystore /opt/keycloak/keycloak.keystore.jks  -file fullchainkc2.pem
+           unix> keytool -import -alias "keycloak3"  -keystore /opt/keycloak/keycloak.keystore.jks  -file fullchainkc3.pem
+
+
+    d. Generate the keycloak truststore
+       truststore needs to include the godaddy CA used for keycloak.traderres.com and intermediate CA
+       truststore needs to include the self-signed CA used for PKI clients   (no intermediate)
+       unix> cd /tmp/archive/keycloak.traderres.com
+       unix> keytool -import -alias "keycloak1"  -keystore /opt/keycloak/keycloak.truststore.jks  -file fullchainkc1.pem  -storepass changeit
+             password: change it
+             verify:   changeit
+
+       unix> keytool -import -alias "keycloak2"  -keystore /opt/keycloak/keycloak.truststore.jks  -file fullchainkc2.pem -storepass changeit
+       unix> keytool -import -alias "keycloak3"  -keystore /opt/keycloak/keycloak.truststore.jks  -file fullchainkc3.pem  -storepass changeit
+       unix> keytool -import -alias "our-ca"     -keystore /opt/keycloak/keycloak.truststore.jks  -file /tmp/self-signed.ca.pem  -storepass changeit
+
+
+	   At this point, we have these 2 files:
+	        /opt/keycloak/keycloak.keystore.jks
+	        /opt/keycloak/keycloak.truststore.jks
+
+
+
+18. Initialize Keycloak as a service on the running instsance
+    NOTE:  Keycloak is a container running on the kubernetes instance
+    a. Ssh to the kubernetes instance
+       unix> ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.218.246.201
+
+    b. Download keycloak 21.0.1 to the /opt/keycloak directory
+       unix> sudo -s
+       unix> cd /tmp
+       unix> wget https://github.com/keycloak/keycloak/releases/download/21.0.1/keycloak-21.0.1.zip
+
+    c. Install keycloak to the /opt/keycloak directory
+       unix> mkdir -p /opt/keycloak
+	   unix> unzip /tmp/keycloak-21.0.1.zip -d /opt/keycloak
+       -- Now, you should have /opt/keycloak/keycloak-21.0.1
+
+
+    d. Build keycloak (as root)
+       unix> sudo -s
+       unix> cd /opt/keycloak/keycloak-21.0.1
+       unix> bin/kc.sh build
+       unix> exit
+
+    e. Create a keycloak user
+       unix> sudo groupadd keycloak
+       unix> sudo useradd keycloak -c "Mr Keycloak" -g "keycloak" -m
+
+    f. Change ownership so that the /opt/keycloak directory is owned by the keycloak user
+       unix> sudo chown keycloak:keycloak -R /opt/keycloak
+
+    g. Verify that keycloak runs from the command line
+       NOTE:  Assumes that keycloak's default JRE is Java 11
+              To find a version of java in your path
+              unix> readlink -f `which java`
+
+              If it's not, then adjust the /opt/keycloak/keycloak-21.0.1/bin/kc.sh and add these entries on line 2:
+              unix> sudo -s
+              unix> su - keycloak
+              unix> vi /opt/keycloak/keycloak-21.0.1/bin/kc.sh
+
+                   export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-11.0.18.0.10-1.amzn2.0.1.x86_64       # REPLACE this with your real Java JDK 11 path
+                   export PATH=${JAVA_HOME}/bin:$PATH
+
+
+       unix> sudo -s
+       unix> su - keycloak
+       unix> /opt/keycloak/keycloak-21.0.1/bin/kc.sh start --http-enabled=false --https-port=8444 --https-key-store-file=/opt/keycloak/keycloak.keystore.jks --https-key-store-type=JKS --https-key-store-password=changeit --https-trust-store-file=/opt/keycloak/keycloak.truststore.jks --https-trust-store-type=JKS --https-trust-store-password=changeit --https-client-auth=request --log-level=INFO --hostname-strict-https=false --hostname-strict=false --hostname=keycloak.traderres.com
+
+       Verify it comes-up listening on port 0.0.0.0:8444
+
+       Press Control-C to kill it
+
+
+
+
+    h. Create a keycloak service
+       unix> sudo vi /etc/systemd/system/keycloak.service
+
+		###################################################################################
+		# Filename:  keycloak.service
+		#
+		# Purpose:
+		#   Describe how the keycloak service runs
+		#
+		# Notes:
+		#   If you update this file, then follow these steps:
+		#   unix> sudo systemctl daemon-reload
+		#   unix> sudo systemctl start keycloak
+		#
+		#   Look at the log
+		#   unix> sudo journalctl -fu keycloak
+		###################################################################################
+		[Unit]
+		Description=Keycloak Application Server
+		After=syslog.target network.target
+		StartLimitIntervalSec=1d
+		StartLimitBurst=3
+
+		[Service]
+		Type=simple
+		Restart=on-failure
+		RestartSec=2s
+
+		# Disable timeout logic and wait until process is stopped
+		TimeoutStopSec=0
+
+		# SIGTERM signal is used to stop the Java process
+		KillSignal=SIGTERM
+
+		# Send the signal only to the JVM rather than its control group
+		KillMode=process
+		User=keycloak
+		Group=keycloak
+		RemainAfterExit=yes
+		LimitNOFILE=102642
+		ExecStart=/opt/keycloak/keycloak-21.0.1/bin/kc.sh start --http-enabled=false --https-port=8444 --https-key-store-file=/opt/keycloak/keycloak.keystore.jks --https-key-store-type=JKS --https-key-store-password=changeit --https-trust-store-file=/opt/keycloak/keycloak.truststore.jks --https-trust-store-type=JKS --https-trust-store-password=changeit --https-client-auth=request --log-level=INFO --hostname-strict-https=false --hostname-strict=false --hostname=keycloak.traderres.com
+
+		# Database Options
+		Environment=KC_DB=postgres
+		Environment=KC_DB_URL=jdbc:postgresql://keycloak.csbk2jnrc8ao.us-east-2.rds.amazonaws.com/keycloak_db
+		Environment=KC_DB_USERNAME=keycloak_user
+		Environment=KC_DB_PASSWORD=secret123
+
+		[Install]
+		WantedBy=multi-user.target
+
+     i. Reload systemctl daemon
+        unix> sudo systemctl daemon-reload
+
+     j. Start the service
+        unix> sudo systemctl start keycloak
+
+     k. Look at the service log
+        unix> sudo journalctl -fu keycloak
+
+     l. Verify that you can connect to keycloak
+        Open a browser
+        Connect to https://keycloak.traderres.com:8444/
+
+
+19. Configure keycloak's admin account
+    a. Setup the admin account
+       1) Stop keycloak
+          ssh to the running instance
+          unix> ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.218.246.201
+          unix> sudo systemctl stop keycloak
+
+       2) Set the admin username and password with ENV variables
+          unix> sudo vi /etc/systemd/system/keycloak.service
+
+          Add these 2 environment variables
+
+          		Environment=KEYCLOAK_ADMIN=keycloak
+          		Environment=KEYCLOAK_ADMIN_PASSWORD=secret12
+
+
+          When finished, the systemd file should look like this:
+			###################################################################################
+			# Filename:  keycloak.service
+			#
+			# Purpose:
+			#   Describe how the keycloak service runs
+			#
+			# Notes:
+			#   If you update this file, then follow these steps:
+			#   unix> sudo systemctl daemon-reload
+			#   unix> sudo systemctl start keycloak
+			#
+			#   Look at the log
+			#   unix> sudo journalctl -fu keycloak
+			###################################################################################
+			[Unit]
+			Description=Keycloak Application Server
+			After=syslog.target network.target
+			StartLimitIntervalSec=1d
+			StartLimitBurst=3
+
+			[Service]
+			Type=simple
+			Restart=on-failure
+			RestartSec=2s
+
+			# Disable timeout logic and wait until process is stopped
+			TimeoutStopSec=0
+
+			# SIGTERM signal is used to stop the Java process
+			KillSignal=SIGTERM
+
+			# Send the signal only to the JVM rather than its control group
+			KillMode=process
+			User=keycloak
+			Group=keycloak
+			RemainAfterExit=yes
+			LimitNOFILE=102642
+			ExecStart=/opt/keycloak/keycloak-21.0.1/bin/kc.sh start --http-enabled=false --https-port=8444 --https-key-store-file=/opt/keycloak/keycloak.keystore.jks --https-key-store-type=JKS --https-key-store-password=changeit --https-trust-store-file=/opt/keycloak/keycloak.truststore.jks --https-trust-store-type=JKS --https-trust-store-password=changeit --https-client-auth=request --log-level=INFO --hostname-strict-https=false --hostname-strict=false --hostname=keycloak.traderres.com
+
+			# Database Options
+			Environment=KC_DB=postgres
+			Environment=KC_DB_URL=jdbc:postgresql://keycloak.csbk2jnrc8ao.us-east-2.rds.amazonaws.com/keycloak_db
+			Environment=KC_DB_USERNAME=keycloak_user
+			Environment=KC_DB_PASSWORD=secret123
+
+			Environment=KEYCLOAK_ADMIN=keycloak
+			Environment=KEYCLOAK_ADMIN_PASSWORD=secret12
+
+			[Install]
+			WantedBy=multi-user.target
+
+
+
+       3) Update the service
+          unix> sudo systemctl daemon-reload
+
+       4) Startup the service
+          unix> sudo systemctl start keycloak
+
+       5) Use a browser to connect to keycloak
+          Connect to https://keycloak.traderres.com:8444/
+          Press "Admin Console"
+          Enter admin username
+          Enter admin password
+          -- Verify that you can get in
