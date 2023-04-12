@@ -1,0 +1,125 @@
+How to Search Date Fields (Advanced)
+-----------------------------------------------
+Problem:  I have a search box and want users to be able to search parts of dates
+           1) Search all dates for the the date of 08/10/2022              08/10/2022
+           2) Search all dates for August 2022                             08*2022
+           3) Match any date that has the time of 22:21:35                 "22:21:35"                                    # The colon is special so it must be placed inside the double quotes
+                                                                            22*21*35                                     # This would also match 22:21:35
+Solution:  Have the search box search created_date.text
+           which uses the whitespace analyzer
+
+
+Assumptions:
+ A) The mapping has a date field defined as this:
+
+      "created_date": {
+        "type": "date",
+        "format": "MM/dd/yyyy HH:mm:ss||MM/dd/yyyy||yyyy-MM-dd||epoch_millis||epoch_second||yyyy/MM/dd HH:mm:ss.SSS||yyyy-MM-dd HH:mm:ss.SSS||yyyy/MM/dd HH:mm:ss||yyyy-MM-dd HH:mm:ss.SSSZ||yyyy-MM-dd'T'HH:mm:ss||yyyy-MM-dd'T'HH:mm:ssZ||yyyy-MM-dd HH:mm:ss||yyyy-MM-dd HH:mm:ssZ||yyyy/MM/dd||S",
+        "ignore_malformed": false,
+        "fields": {
+          "raw": {
+            "type": "keyword"
+          },
+          "sort": {
+            "type": "date",
+            "format": "epoch_millis||MM/dd/yyyy HH:mm:ss||MM/dd/yyyy",
+            "ignore_malformed": false
+          },
+          "filtered": {
+            "type": "text",
+            "analyzer": "my_ngram_analyzer"
+          },
+          "text": {
+            "type": "text",
+            "analyzer": "whitespace"
+          }
+        }
+      }
+
+
+    So, the entire mapping could look like this:
+
+    {
+      "settings": {
+        "analysis": {
+          "analyzer" : {
+            "my_ngram_analyzer" : {
+              "tokenizer" : "my_ngram_tokenizer",
+              "filter": ["lowercase"]
+            }
+          },
+          "tokenizer" : {
+            "my_ngram_tokenizer" : {
+              "type" : "ngram",
+              "min_gram" : "1",
+              "max_gram" : "25",
+              "token_chars": [ ]
+            }
+          },
+          "normalizer": {
+            "case_insensitive_normalizer": {
+              "type": "custom",
+              "char_filter": [],
+              "filter": [ "lowercase", "asciifolding" ]
+            }
+          }
+        },
+        "max_result_window": 500000,
+        "refresh_interval": "1s",
+        "max_ngram_diff": "25"
+      },
+
+
+      "mappings": {
+        "dynamic": "strict",
+        "properties": {
+
+          "id": {
+            "type": "integer",
+            "ignore_malformed": false,
+            "fields": {
+              "raw": {
+                "type": "keyword"
+              },
+              "sort": {
+                "type": "keyword",
+                "normalizer": "case_insensitive_normalizer"
+              },
+              "filtered": {
+                "type": "text",
+                "analyzer": "my_ngram_analyzer"
+              }
+            }
+          },
+
+
+          "created_date": {
+            "type": "date",
+            "format": "MM/dd/yyyy HH:mm:ss||MM/dd/yyyy||yyyy-MM-dd||epoch_millis||epoch_second||yyyy/MM/dd HH:mm:ss.SSS||yyyy-MM-dd HH:mm:ss.SSS||yyyy/MM/dd HH:mm:ss||yyyy-MM-dd HH:mm:ss.SSSZ||yyyy-MM-dd'T'HH:mm:ss||yyyy-MM-dd'T'HH:mm:ssZ||yyyy-MM-dd HH:mm:ss||yyyy-MM-dd HH:mm:ssZ||yyyy/MM/dd||S",
+            "ignore_malformed": false,
+            "fields": {
+              "raw": {
+                "type": "keyword"
+              },
+              "sort": {
+                "type": "date",
+                "format": "epoch_millis||MM/dd/yyyy HH:mm:ss||MM/dd/yyyy",
+                "ignore_malformed": false
+              },
+              "filtered": {
+                "type": "text",
+                "analyzer": "my_ngram_analyzer"
+              },
+              "text": {
+                "type": "text",
+                "analyzer": "whitespace"
+              }
+            }
+          }
+
+        }
+      }
+    }
+
+
+
