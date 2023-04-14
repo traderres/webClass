@@ -879,3 +879,238 @@ unix> go elastic_workers_primary    # to ssh to one of the ES nodes
 unix> sudo -s
 unix> curl -k --cert /etc/pki/simp/x509/private/`hostname`.pem  -H 'Content-Type: application/json'  -XPOST "https://`hostname`:9200/company_names/_delete_by_query?pretty" -d '{   "query": {     "match_all": {}   } }'
 
+
+
+
+Part 5:  Add a parser to extract a file from HDFS and write to Kronos
+---------------------------------------------------------------------
+ 1. Add a maven module called "install-kronos-ingest-parsers"
+    a. In the project explorer, right-click on bdpParsers -> New Module
+
+    b. In the "New Module"
+       1) Select "Maven" on the left
+       2) Check "Create from archetype
+       3) select "maven-archetype-quickstart"
+       4) Press "Next"
+
+    c. In the next popup
+       1) Name:  install-kronos-ingest-parsers
+       2) Press "next"
+
+    d. Press "Finish"
+
+    e. Delete these directories:
+			install-kronos-ingest-parsers/src/main
+        	install-kronos-ingest-parsers/src/test
+
+    f. Create these directories:
+			install-kronos-ingest-parsers/src/main
+    		install-kronos-ingest-parsers/src/main/assembly
+    		install-kronos-ingest-parsers/src/main/assembly/configs
+    		install-kronos-ingest-parsers/src/main/assembly/configs/kronos
+    		install-kronos-ingest-parsers/src/main/assembly/configs/kronos/company_names
+    		install-kronos-ingest-parsers/src/main/assembly/libs
+
+    g. Copy the jar files from learnBDP/install-es-ingest-parsers/libs  to  install-es-ingest-parsers/src/main/assembly/libs
+       You will find the JARs in this directory:
+         https://github.com/traderres/webClass/tree/master/learnBDP/install-es-ingest-parsers/libs
+
+
+    h. Replace the install-kronos-ingest-parsers/pom.xml with this:
+
+		<?xml version="1.0" encoding="UTF-8"?>
+
+		<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+				 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+			<parent>
+				<artifactId>bdpParsers</artifactId>
+				<groupId>org.example</groupId>
+				<version>1.0-SNAPSHOT</version>
+			</parent>
+			<modelVersion>4.0.0</modelVersion>
+
+			<artifactId>install-kronos-ingest-parsers</artifactId>
+			<version>1.0-SNAPSHOT</version>
+
+			<!-- There is no java code so tell maven to not compile anything -->
+			<packaging>pom</packaging>
+
+			<profiles>
+				<profile>
+					<id>buildRda</id>
+					<activation>
+						<activeByDefault>false</activeByDefault>
+					</activation>
+					<build>
+						<plugins>
+							<plugin>
+								<artifactId>maven-assembly-plugin</artifactId>
+								<version>3.3.0</version>
+								<executions>
+									<execution>
+										<id>create-rda</id>
+										<phase>package</phase>
+										<goals>
+											<goal>single</goal>
+										</goals>
+									</execution>
+								</executions>
+								<configuration>
+									<appendAssemblyId>false</appendAssemblyId>
+
+									<!-- The final name of the zip file will be kronos.ingest.parsers.rda.zip -->
+									<finalName>kronos.ingest.parsers.rda</finalName>
+
+									<descriptors>
+										<descriptor>src/main/assembly/assembly.xml</descriptor>
+									</descriptors>
+								</configuration>
+							</plugin>
+						</plugins>
+					</build>
+				</profile>
+			</profiles>
+
+		</project>
+
+
+	i. Add this file:  assembly.xml
+       1) Add this file:  install-kronos-ingest-parsers/src/main/assembly/assembly.xml
+
+	   2) Replace its contents with this:
+
+			<assembly xmlns="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+					  xsi:schemaLocation="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.2 http://maven.apache.org/xsd/assembly-1.1.2.xsd">
+				<id>buildRdaZipFile</id>
+
+				<includeBaseDirectory>false</includeBaseDirectory>
+
+				<formats>
+					<format>zip</format>
+				</formats>
+
+				<fileSets>
+					<fileSet>
+						<!-- Add to the zip file:  rda.manifest -->
+						<directory>src/main/assembly</directory>
+						<outputDirectory>./</outputDirectory>
+						<includes>
+							<include>rda.manifest</include>
+						</includes>
+					</fileSet>
+
+					<fileSet>
+						<!-- Add to the zip file:  configs/ directory -->
+						<directory>src/main/assembly/configs</directory>
+						<outputDirectory>./configs</outputDirectory>
+					</fileSet>
+
+					<fileSet>
+						<!-- Add to the zip file:  libs/ directory -->
+						<directory>src/main/assembly/libs</directory>
+						<outputDirectory>./libs</outputDirectory>
+					</fileSet>
+				</fileSets>
+
+
+			</assembly>
+
+
+
+	j. Add this file:  rda.manifest
+       1) Add this file:  install-es-ingest-parsers/src/main/assembly/rda.manifest
+
+	   2) Replace its contents with this:
+
+			{
+			  "name": "My Kronos Ingest Parsers",
+			  "description": "My Kronos Ingest Parsers",
+			  "appKey": "my.kronos.ingest.parsers",
+			  "version": "2.0.0",
+			   "components": [
+				{
+				  "type": "parser",
+				  "name": "My Kronos Ingest Parsers",
+				  "description": "My Kronos Ingest Parsers",
+				  "properties": {
+					"package": {
+					  "using.bdp.ingest.extra.version": "{{{ bdp.ingest.extra:version }}}"
+					},
+					"public": {
+					  "version": "1.1.1"
+					}
+				  },
+				  "config": {
+					"libs": [
+					  {
+						"src": "libs/*"
+					  }
+					],
+					"feeds": {
+					  "kronos": [
+						{
+						  "src": "configs/kronos/*",
+						  "template": true
+						}
+					  ]
+					}
+				  }
+				}
+			  ]
+			}
+
+
+	k. Add this file:  company_names.yaml
+       1) Add this file:  install-kronos-ingest-parsers/src/main/assembly/configs/kronos/company_names.yaml
+
+	   2) Replace its contents with this:
+
+			#
+			# Create a BDP parser to watch this directory:  /bdp-ingest/usr/data/kronos/company_names
+			#
+			company_names:
+			  description: "Company Name Parser csv format"
+			  parser:
+				description: "Kronos to Accumulo Parser"
+				class: bdp.ingest.parsers.csv.CSVParser
+				vis: "U&FOUO"
+				config-file: "company_names/csv-config.yaml"
+
+
+	l. Add this file:  csv-config.yaml
+	   1) Add this file:  install-kronos-ingest-parsers/src/main/assembly/configs/kronos/company_names/csv-config.yaml
+
+	   2) Replace its contents with this:
+
+			#
+			# Configure the CSV parser to not skip headers and pull from these 5 columns
+			#
+			skip-headers: false
+			mappings:
+			  0: "alias"
+			  1: "occupation"
+			  2: "hobby"
+			  3: "favorite_date"
+			  4: "favorite_number"
+
+
+
+ 2. Tell maven to build the new Maven Module by default
+    a. Edit the parent pom.xml
+
+    b. Make sure all modules are listed:
+
+			<modules>
+			  <module>install-es-ingest-parsers</module>
+			  <module>install-ingest-extras</module>
+			  <module>install-kronos-ingest-parsers</module>
+			</modules>
+
+
+
+ 3. Build the 3 RDAs:  ingest extras, es parser, and the kronos parser
+    a. Open a terminal (in IntelliJ)
+    b. terminal> mvn clean package -PbuildRda
+       -- You should now have an RDA in this directory:   install-kronos-ingest-parsers/target
+
+
