@@ -1,0 +1,2696 @@
+How to Modify Maven and Security to build as an RDA or Docker Container
+-----------------------------------------------------------------------
+Problem:  How to modify the builds and security to build all of the artifacts as either RDA (zip files) or docker containers
+
+
+
+
+Part 1:  Configure maven so that we can build using buildRda or buildImageAndPush
+---------------------------------------------------------------------------------
+ 1.  Tell the parent pom.xml which modules to use for the buildImage profile
+     a. edit the parent pom.xml
+     b. Add this profile
+
+
+    <profile>
+      <!--    B U I L D     I M A G E      P R O F I L E      (for running this app in a container)  -->
+      <id>buildImage</id>
+
+      <modules>
+        <module>common-backend</module>
+        <module>backend</module>
+        <module>frontend</module>
+        <module>admin-backend</module>
+        <module>admin-frontend</module>
+        <module>sync-service</module>
+      </modules>
+    </profile>
+
+
+
+ 2.  Add the "buildImage" and "buildImageAndPush" profiles to sync-service/pom.xml
+
+    <!--    B U I L D     I M A G E      P R O F I L E      (for running this app in a container)  -->
+    <profile>
+      <id>buildImage</id>
+
+      <!-- When running this profile, do *NOT* include the src/main/resources/application.yaml in the build -->
+      <build>
+        <resources>
+           <resource>
+            <filtering>false</filtering>
+            <directory>src/main/resources</directory>
+            <excludes>
+              <exclude>application.yaml</exclude>
+            </excludes>
+          </resource>
+        </resources>
+
+        <plugins>
+          <plugin>
+            <!-- Use the jib-maven-plugin to build the container and push it up to a registry [without having to install Docker] -->
+            <groupId>com.google.cloud.tools</groupId>
+            <artifactId>jib-maven-plugin</artifactId>
+            <version>3.3.1</version>
+
+            <executions>
+              <execution>
+                <phase>package</phase>
+                <goals>
+                  <!-- Possible goals are build and dockerBuild   -->
+                  <!--   The "build"       goal does not require docker / build the image and push it to a repo                 -->
+                  <!--   The "dockerBuild" goal requires docker         / build the image and push to the local daemon daemon   -->
+                  <goal>dockerBuild</goal>
+                </goals>
+              </execution>
+            </executions>
+
+            <configuration>
+              <from>
+                <!-- Define the source image that will be executed            -->
+                <!-- See https://hub.docker.com/_/eclipse-temurin/tags        -->
+
+                <!-- This source image runs linux with JDK 1.8-362             -->
+                <!-- <image>eclipse-temurin:8u362-b09-jdk@sha256:3b83f3fc0d016d7536dfd5e8a98ece451061b7dbb6d5db3ddea2db30b6153b28</image>-->
+
+                <!-- This source image runs linux with JDK 17.07 -->
+                <image>eclipse-temurin:17.0.7_7-jdk@sha256:9dd6a19e4819b066aa2bd8e54d5988a49cca29736fe5447cb0a57daa975f8935</image>
+              </from>
+
+              <to>
+                <!--                <image>527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/poc:${project.artifactId}-${project.version}</image>-->
+                <image>traderres/my-private-repo:${user.name}-${project.artifactId}-${project.version}</image>
+               </to>
+
+
+              <extraDirectories>
+                <paths>
+                  <path>
+                    <!-- Copies everything from 'src/main/image_resources' into '/sync-service-/src/main/image_resources' on the container. -->
+                    <from>src/main/image_resources</from>
+                    <into>/sync-service/src/main/image_resources</into>
+                  </path>
+                </paths>
+              </extraDirectories>
+
+              <container>
+                <jvmFlags>
+                  <!-- When starting the container, tell Java where to find the application.yaml -->
+                  <jvmFlag> -Dspring.config.location=/sync-service/src/main/image_resources/application.yaml</jvmFlag>
+                </jvmFlags>
+              </container>
+
+            </configuration>
+
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
+
+
+
+    <!--    B U I L D     I M A G E    A N D    P U S H        P R O F I L E      (for running this app in a container)  -->
+    <profile>
+      <id>buildImageAndPush</id>
+
+      <!-- When running this profile, do *NOT* include the src/main/resources/application.yaml in the build -->
+      <build>
+        <resources>
+          <resource>
+            <filtering>false</filtering>
+            <directory>src/main/resources</directory>
+            <excludes>
+              <exclude>application.yaml</exclude>
+            </excludes>
+          </resource>
+        </resources>
+
+        <plugins>
+          <plugin>
+            <!-- Use the jib-maven-plugin to build the container and push it up to a registry [without having to install Docker] -->
+            <groupId>com.google.cloud.tools</groupId>
+            <artifactId>jib-maven-plugin</artifactId>
+            <version>3.3.1</version>
+
+            <executions>
+              <execution>
+                <phase>package</phase>
+                <goals>
+                  <!-- Possible goals are build and dockerBuild   -->
+                  <!--   The "build"       goal does not require docker / build the image and push it to a repo                 -->
+                  <!--   The "dockerBuild" goal requires docker         / build the image and push to the local daemon daemon   -->
+                  <goal>build</goal>
+                </goals>
+              </execution>
+            </executions>
+
+            <configuration>
+              <from>
+                <!-- Define the source image that will be executed            -->
+                <!-- See https://hub.docker.com/_/eclipse-temurin/tags        -->
+
+                <!-- This source image runs linux with JDK 1.8-362             -->
+                <!-- <image>eclipse-temurin:8u362-b09-jdk@sha256:3b83f3fc0d016d7536dfd5e8a98ece451061b7dbb6d5db3ddea2db30b6153b28</image>-->
+
+                <!-- This source image runs linux with JDK 17.07 -->
+                <image>eclipse-temurin:17.0.7_7-jdk@sha256:9dd6a19e4819b066aa2bd8e54d5988a49cca29736fe5447cb0a57daa975f8935</image>
+              </from>
+
+              <to>
+                <!--                <image>527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/poc:${project.artifactId}-${project.version}</image>-->
+                <image>traderres/my-private-repo:${user.name}-${project.artifactId}-${project.version}</image>
+              </to>
+
+
+              <extraDirectories>
+                <paths>
+                  <path>
+                    <!-- Copies everything from 'src/main/image_resources' into '/sync-service-/src/main/image_resources' on the container. -->
+                    <from>src/main/image_resources</from>
+                    <into>/sync-service/src/main/image_resources</into>
+                  </path>
+                </paths>
+              </extraDirectories>
+
+              <container>
+                <jvmFlags>
+                  <!-- When starting the container, tell Java where to find the application.yaml -->
+                  <jvmFlag> -Dspring.config.location=/sync-service/src/main/image_resources/application.yaml</jvmFlag>
+                </jvmFlags>
+              </container>
+
+            </configuration>
+
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
+
+	When finished, the sync-service/pom.xml looks something like this:
+
+		<?xml version="1.0" encoding="UTF-8"?>
+
+		<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+		  <modelVersion>4.0.0</modelVersion>
+
+		  <parent>
+			<artifactId>angularApp1</artifactId>
+			<groupId>com.lessons</groupId>
+			<version>2.2.2-SNAPSHOT</version>
+		  </parent>
+
+		  <artifactId>sync-service</artifactId>
+		  <version>2.2.2-SNAPSHOT</version>
+
+		  <name>sync-service</name>
+
+		  <properties>
+			<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+			<maven.compiler.source>1.8</maven.compiler.source>
+			<maven.compiler.target>1.8</maven.compiler.target>
+		  </properties>
+
+
+		  <dependencyManagement>
+			<dependencies>
+
+			  <dependency>
+				<!-- Tell Spring Boot to use this **OLDER** version of flyway that works with Postgres 9.6 -->
+				<groupId>org.flywaydb</groupId>
+				<artifactId>flyway-core</artifactId>
+				<version>5.2.4</version>
+			  </dependency>
+
+			  <dependency>
+				<!-- Set the Spring Boot Version -->
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-dependencies</artifactId>
+				<version>2.7.3</version>
+				<type>pom</type>
+				<scope>import</scope>
+			  </dependency>
+
+			</dependencies>
+		  </dependencyManagement>
+
+
+		  <dependencies>
+			<dependency>
+			  <!-- Spring Boot Console Application -->
+			  <groupId>org.springframework.boot</groupId>
+			  <artifactId>spring-boot-starter</artifactId>
+			</dependency>
+
+			<dependency>
+			  <!-- Send logging from Java Common Logging to SLF4J -->
+			  <groupId>org.slf4j</groupId>
+			  <artifactId>jcl-over-slf4j</artifactId>
+			  <version>1.7.5</version>
+			</dependency>
+
+			<dependency>
+			  <!-- SLF4J will use Logback-classic as its logging implementation -->
+			  <groupId>ch.qos.logback</groupId>
+			  <artifactId>logback-classic</artifactId>
+			  <version>1.2.3</version>
+			</dependency>
+
+			<dependency>
+			  <!-- Hikari Data Source / JDBC Connection Pool -->
+			  <groupId>com.zaxxer</groupId>
+			  <artifactId>HikariCP</artifactId>
+			  <version>3.4.5</version>
+			</dependency>
+
+			<dependency>
+			  <!-- Provides JdbcTemplate and TransactionTemplate objects to run SQL from Java -->
+			  <groupId>org.springframework</groupId>
+			  <artifactId>spring-jdbc</artifactId>
+			  <version>5.3.21</version>
+			</dependency>
+
+			<dependency>
+			  <!-- AsyncHttpClient Client implementation (used to make outgoing REST calls out to ES) -->
+			  <groupId>com.ning</groupId>
+			  <artifactId>async-http-client</artifactId>
+			  <version>1.9.40</version>
+			</dependency>
+
+			<dependency>
+			  <!-- StringUtils Dependency -->
+			  <groupId>org.apache.commons</groupId>
+			  <artifactId>commons-lang3</artifactId>
+			  <version>3.5</version>
+			</dependency>
+
+			<dependency>
+			  <groupId>org.apache.commons</groupId>
+			  <artifactId>commons-collections4</artifactId>
+			  <version>4.4</version>
+			</dependency>
+
+			<dependency>
+			  <!-- Implementation for converting objects to JSON -->
+			  <groupId>com.fasterxml.jackson.core</groupId>
+			  <artifactId>jackson-databind</artifactId>
+			  <version>2.13.3</version>
+			</dependency>
+
+			<dependency>
+			  <!-- Include the db-migrations as a dependency (so we can run flyway:migrate on application startup) -->
+			  <groupId>${project.groupId}</groupId>
+			  <artifactId>db-migrations</artifactId>
+			  <version>${project.version}</version>
+			</dependency>
+
+			<dependency>
+			  <!-- Add common backend as a dependency -->
+			  <groupId>${project.groupId}</groupId>
+			  <artifactId>common-backend</artifactId>
+			  <version>${project.version}</version>
+			</dependency>
+
+			<dependency>
+			  <groupId>junit</groupId>
+			  <artifactId>junit</artifactId>
+			  <version>4.12</version>
+			  <scope>test</scope>
+			</dependency>
+		  </dependencies>
+
+		  <build>
+
+			<plugins>
+
+
+			  <plugin>
+				<groupId>pl.project13.maven</groupId>
+				<artifactId>git-commit-id-plugin</artifactId>
+				<version>4.9.10</version>
+
+				<executions>
+				  <execution>
+				    <id>get-the-git-infos</id>
+				    <goals>
+				      <goal>revision</goal>
+				    </goals>
+				  </execution>
+				  <execution>
+				    <id>validate-the-git-infos</id>
+				    <goals>
+				      <goal>validateRevision</goal>
+				    </goals>
+				  </execution>
+				</executions>
+
+				<configuration>
+				  <verbose>false</verbose>
+				  <generateGitPropertiesFile>true</generateGitPropertiesFile>
+				</configuration>
+			  </plugin>
+
+
+			  <plugin>
+				<!-- This plugin provides the tools needed to repackage the Spring Boot JAR into a runnable JAR
+				     Run this command to generate the runnable Spring Boot Jar
+				        mvn clean package  *or*
+				        mvn clean package spring-boot:repackage
+				 -->
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+				<version>2.7.3</version>
+				<configuration>
+				  <addResources>true</addResources>
+				</configuration>
+
+				<executions>
+				  <execution>
+				    <goals>
+				      <goal>repackage</goal>
+				    </goals>
+				    <configuration>
+				      <classifier>exec</classifier>
+				    </configuration>
+				  </execution>
+				</executions>
+
+			  </plugin>
+			  <plugin>
+				<artifactId>maven-resources-plugin</artifactId>
+				<version>3.0.2</version>
+				<configuration>
+				  <encoding>UTF-8</encoding>
+				  <nonFilteredFileExtensions>
+				    <nonFilteredFileExtension>ttf</nonFilteredFileExtension>
+				  </nonFilteredFileExtensions>
+				</configuration>
+			  </plugin>
+			</plugins>
+		  </build>
+
+		  <profiles>
+
+			<!-- B U I L D     R D A        P R O F I L E       (for running this app within the BDP)   -->
+			<profile>
+			   <id>buildRda</id>
+			  <activation>
+				<activeByDefault>false</activeByDefault>
+			  </activation>
+
+			  <!-- When running the buildRda profile, exclude the backend/src/main/resources/application.yaml from the JAR file -->
+			  <build>
+				<resources>
+				  <resource>
+				    <filtering>false</filtering>
+				    <directory>src/main/resources</directory>
+				    <excludes>
+				      <exclude>application.yaml</exclude>
+				    </excludes>
+				  </resource>
+				</resources>
+			  </build>
+			</profile>
+
+
+			<!--    B U I L D     I M A G E      P R O F I L E      (for running this app in a container)  -->
+			<profile>
+			  <id>buildImage</id>
+
+			  <!-- When running this profile, do *NOT* include the src/main/resources/application.yaml in the build -->
+			  <build>
+				<resources>
+				   <resource>
+				    <filtering>false</filtering>
+				    <directory>src/main/resources</directory>
+				    <excludes>
+				      <exclude>application.yaml</exclude>
+				    </excludes>
+				  </resource>
+				</resources>
+
+				<plugins>
+				  <plugin>
+				    <!-- Use the jib-maven-plugin to build the container and push it up to a registry [without having to install Docker] -->
+				    <groupId>com.google.cloud.tools</groupId>
+				    <artifactId>jib-maven-plugin</artifactId>
+				    <version>3.3.1</version>
+
+				    <executions>
+				      <execution>
+				        <phase>package</phase>
+				        <goals>
+				          <!-- Possible goals are build and dockerBuild   -->
+				          <!--   The "build"       goal does not require docker / build the image and push it to a repo                 -->
+				          <!--   The "dockerBuild" goal requires docker         / build the image and push to the local daemon daemon   -->
+				          <goal>dockerBuild</goal>
+				        </goals>
+				      </execution>
+				    </executions>
+
+				    <configuration>
+				      <from>
+				        <!-- Define the source image that will be executed            -->
+				        <!-- See https://hub.docker.com/_/eclipse-temurin/tags        -->
+
+				        <!-- This source image runs linux with JDK 1.8-362             -->
+				        <!-- <image>eclipse-temurin:8u362-b09-jdk@sha256:3b83f3fc0d016d7536dfd5e8a98ece451061b7dbb6d5db3ddea2db30b6153b28</image>-->
+
+				        <!-- This source image runs linux with JDK 17.07 -->
+				        <image>eclipse-temurin:17.0.7_7-jdk@sha256:9dd6a19e4819b066aa2bd8e54d5988a49cca29736fe5447cb0a57daa975f8935</image>
+				      </from>
+
+				      <to>
+				        <!--                <image>527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/poc:${project.artifactId}-${project.version}</image>-->
+				        <image>traderres/my-private-repo:${user.name}-${project.artifactId}-${project.version}</image>
+				       </to>
+
+
+				      <extraDirectories>
+				        <paths>
+				          <path>
+				            <!-- Copies everything from 'src/main/image_resources' into '/sync-service-/src/main/image_resources' on the container. -->
+				            <from>src/main/image_resources</from>
+				            <into>/sync-service/src/main/image_resources</into>
+				          </path>
+				        </paths>
+				      </extraDirectories>
+
+				      <container>
+				        <jvmFlags>
+				          <!-- When starting the container, tell Java where to find the application.yaml -->
+				          <jvmFlag> -Dspring.config.location=/sync-service/src/main/image_resources/application.yaml</jvmFlag>
+				        </jvmFlags>
+				      </container>
+
+				    </configuration>
+
+				  </plugin>
+				</plugins>
+			  </build>
+			</profile>
+
+
+
+
+			<!--    B U I L D     I M A G E    A N D    P U S H        P R O F I L E      (for running this app in a container)  -->
+			<profile>
+			  <id>buildImageAndPush</id>
+
+			  <!-- When running this profile, do *NOT* include the src/main/resources/application.yaml in the build -->
+			  <build>
+				<resources>
+				  <resource>
+				    <filtering>false</filtering>
+				    <directory>src/main/resources</directory>
+				    <excludes>
+				      <exclude>application.yaml</exclude>
+				    </excludes>
+				  </resource>
+				</resources>
+
+				<plugins>
+				  <plugin>
+				    <!-- Use the jib-maven-plugin to build the container and push it up to a registry [without having to install Docker] -->
+				    <groupId>com.google.cloud.tools</groupId>
+				    <artifactId>jib-maven-plugin</artifactId>
+				    <version>3.3.1</version>
+
+				    <executions>
+				      <execution>
+				        <phase>package</phase>
+				        <goals>
+				          <!-- Possible goals are build and dockerBuild   -->
+				          <!--   The "build"       goal does not require docker / build the image and push it to a repo                 -->
+				          <!--   The "dockerBuild" goal requires docker         / build the image and push to the local daemon daemon   -->
+				          <goal>build</goal>
+				        </goals>
+				      </execution>
+				    </executions>
+
+				    <configuration>
+				      <from>
+				        <!-- Define the source image that will be executed            -->
+				        <!-- See https://hub.docker.com/_/eclipse-temurin/tags        -->
+
+				        <!-- This source image runs linux with JDK 1.8-362             -->
+				        <!-- <image>eclipse-temurin:8u362-b09-jdk@sha256:3b83f3fc0d016d7536dfd5e8a98ece451061b7dbb6d5db3ddea2db30b6153b28</image>-->
+
+				        <!-- This source image runs linux with JDK 17.07 -->
+				        <image>eclipse-temurin:17.0.7_7-jdk@sha256:9dd6a19e4819b066aa2bd8e54d5988a49cca29736fe5447cb0a57daa975f8935</image>
+				      </from>
+
+				      <to>
+				        <!--                <image>527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/poc:${project.artifactId}-${project.version}</image>-->
+				        <image>traderres/my-private-repo:${user.name}-${project.artifactId}-${project.version}</image>
+				      </to>
+
+
+				      <extraDirectories>
+				        <paths>
+				          <path>
+				            <!-- Copies everything from 'src/main/image_resources' into '/sync-service-/src/main/image_resources' on the container. -->
+				            <from>src/main/image_resources</from>
+				            <into>/sync-service/src/main/image_resources</into>
+				          </path>
+				        </paths>
+				      </extraDirectories>
+
+				      <container>
+				        <jvmFlags>
+				          <!-- When starting the container, tell Java where to find the application.yaml -->
+				          <jvmFlag> -Dspring.config.location=/sync-service/src/main/image_resources/application.yaml</jvmFlag>
+				        </jvmFlags>
+				      </container>
+
+				    </configuration>
+
+				  </plugin>
+				</plugins>
+			  </build>
+			</profile>
+
+
+			<profile>
+			  <!-- D E F A U L T       M A V E N      P R O F I L E -->
+			  <id>defaultProfile</id>
+			  <activation>
+				<activeByDefault>true</activeByDefault>
+			  </activation>
+
+			  <!-- When running any other build profile, include *ALL* files from the sync/src/main/resources into the JAR file -->
+			  <build>
+				<resources>
+				  <resource>
+				    <directory>src/main/resources</directory>
+				    <filtering>false</filtering>
+				  </resource>
+				</resources>
+			  </build>
+			</profile>
+		  </profiles>
+		</project>
+
+
+
+ 2.  Add the "buildImage" and "buildImageAndPush" profiles to backend/pom.xml
+
+
+
+    <!--    B U I L D     I M A G E      P R O F I L E      (for running this app in a container)  -->
+    <profile>
+      <id>buildImage</id>
+
+      <!-- When running this profile, do *NOT* include the src/main/resources/application.yaml in the build -->
+      <build>
+        <resources>
+          <resource>
+            <filtering>false</filtering>
+            <directory>src/main/resources</directory>
+            <excludes>
+              <exclude>application.yaml</exclude>
+            </excludes>
+          </resource>
+        </resources>
+
+        <plugins>
+          <plugin>
+            <!-- Use the jib-maven-plugin to build the container and push it up to a registry [without having to install Docker] -->
+            <groupId>com.google.cloud.tools</groupId>
+            <artifactId>jib-maven-plugin</artifactId>
+            <version>3.3.1</version>
+
+            <executions>
+              <execution>
+                <phase>package</phase>
+                <goals>
+                  <!-- Possible goals are build and dockerBuild   -->
+                  <!--   The "build"       goal does not require docker / build the image and push it to a repo                 -->
+                  <!--   The "dockerBuild" goal requires docker         / build the image and push to the local daemon daemon   -->
+                  <goal>dockerBuild</goal>
+                </goals>
+              </execution>
+            </executions>
+
+            <configuration>
+              <from>
+                <!-- Define the source image that will be executed            -->
+                <!-- See https://hub.docker.com/_/eclipse-temurin/tags        -->
+
+                <!-- This source image runs linux with JDK 1.8-362             -->
+                <!-- <image>eclipse-temurin:8u362-b09-jdk@sha256:3b83f3fc0d016d7536dfd5e8a98ece451061b7dbb6d5db3ddea2db30b6153b28</image>-->
+
+                <!-- This source image runs linux with JDK 17.07 -->
+                <image>eclipse-temurin:17.0.7_7-jdk@sha256:9dd6a19e4819b066aa2bd8e54d5988a49cca29736fe5447cb0a57daa975f8935</image>
+              </from>
+
+              <to>
+                <!--                <image>527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/poc:${project.artifactId}-${project.version}</image>-->
+                <image>traderres/my-private-repo:${user.name}-${project.artifactId}-${project.version}</image>
+              </to>
+
+
+              <extraDirectories>
+                <paths>
+                  <path>
+                    <!-- Copies everything from 'src/main/image_resources' into '/sync-service-/src/main/image_resources' on the container. -->
+                    <from>src/main/image_resources</from>
+                    <into>/backend/src/main/image_resources</into>
+                  </path>
+                </paths>
+              </extraDirectories>
+
+              <container>
+                <jvmFlags>
+                  <!-- When starting the container, tell Java where to find the application.yaml -->
+                  <jvmFlag> -Dspring.config.location=/backend/src/main/image_resources/application.yaml</jvmFlag>
+                </jvmFlags>
+              </container>
+
+            </configuration>
+
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
+
+
+
+    <!--    B U I L D     I M A G E    A N D     P U S H       P R O F I L E      (for running this app in a container)  -->
+    <profile>
+      <id>buildImageAndPush</id>
+
+      <!-- When running this profile, do *NOT* include the src/main/resources/application.yaml in the build -->
+      <build>
+        <resources>
+          <resource>
+            <filtering>false</filtering>
+            <directory>src/main/resources</directory>
+            <excludes>
+              <exclude>application.yaml</exclude>
+            </excludes>
+          </resource>
+        </resources>
+
+        <plugins>
+          <plugin>
+            <!-- Use the jib-maven-plugin to build the container and push it up to a registry [without having to install Docker] -->
+            <groupId>com.google.cloud.tools</groupId>
+            <artifactId>jib-maven-plugin</artifactId>
+            <version>3.3.1</version>
+
+            <executions>
+              <execution>
+                <phase>package</phase>
+                <goals>
+                  <!-- Possible goals are build and dockerBuild   -->
+                  <!--   The "build"       goal does not require docker / build the image and push it to a repo                 -->
+                  <!--   The "dockerBuild" goal requires docker         / build the image and push to the local daemon daemon   -->
+                  <goal>build</goal>
+                </goals>
+              </execution>
+            </executions>
+
+            <configuration>
+              <from>
+                <!-- Define the source image that will be executed            -->
+                <!-- See https://hub.docker.com/_/eclipse-temurin/tags        -->
+
+                <!-- This source image runs linux with JDK 1.8-362             -->
+                <!-- <image>eclipse-temurin:8u362-b09-jdk@sha256:3b83f3fc0d016d7536dfd5e8a98ece451061b7dbb6d5db3ddea2db30b6153b28</image>-->
+
+                <!-- This source image runs linux with JDK 17.07 -->
+                <image>eclipse-temurin:17.0.7_7-jdk@sha256:9dd6a19e4819b066aa2bd8e54d5988a49cca29736fe5447cb0a57daa975f8935</image>
+              </from>
+
+              <to>
+                <!--                <image>527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/poc:${project.artifactId}-${project.version}</image>-->
+                <image>traderres/my-private-repo:${user.name}-${project.artifactId}-${project.version}</image>
+              </to>
+
+
+              <extraDirectories>
+                <paths>
+                  <path>
+                    <!-- Copies everything from 'src/main/image_resources' into '/sync-service-/src/main/image_resources' on the container. -->
+                    <from>src/main/image_resources</from>
+                    <into>/backend/src/main/image_resources</into>
+                  </path>
+                </paths>
+              </extraDirectories>
+
+              <container>
+                <jvmFlags>
+                  <!-- When starting the container, tell Java where to find the application.yaml -->
+                  <jvmFlag> -Dspring.config.location=/backend/src/main/image_resources/application.yaml</jvmFlag>
+                </jvmFlags>
+              </container>
+
+            </configuration>
+
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
+
+
+	When finished, the backend/pom.xml looks something like this:
+
+			<?xml version="1.0" encoding="UTF-8"?>
+			<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+					 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+			  <modelVersion>4.0.0</modelVersion>
+
+			  <parent>
+				<artifactId>angularApp1</artifactId>
+				<groupId>com.lessons</groupId>
+				<version>2.2.2-SNAPSHOT</version>
+			  </parent>
+
+			  <artifactId>backend</artifactId>
+			  <version>2.2.2-SNAPSHOT</version>
+
+			  <name>backend</name>
+
+			  <properties>
+				<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+				<maven.compiler.source>1.8</maven.compiler.source>
+				<maven.compiler.target>1.8</maven.compiler.target>
+			  </properties>
+
+			  <dependencyManagement>
+				<dependencies>
+
+				  <dependency>
+					<!-- Tell Spring Boot to use this **OLDER** version of flyway that works with Postgres 9.6 -->
+					<groupId>org.flywaydb</groupId>
+					<artifactId>flyway-core</artifactId>
+					<version>5.2.4</version>
+				  </dependency>
+
+				  <dependency>
+					<!-- Set the Spring Boot Version -->
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-dependencies</artifactId>
+					<version>2.7.3</version>
+					<type>pom</type>
+					<scope>import</scope>
+				  </dependency>
+
+				</dependencies>
+			  </dependencyManagement>
+
+			  <dependencies>
+				<dependency>
+				  <!-- AsyncHttpClient Client implementation (used to make outgoing REST calls out to ES) -->
+				  <groupId>com.ning</groupId>
+				  <artifactId>async-http-client</artifactId>
+				  <version>1.9.40</version>
+				</dependency>
+
+				<dependency>
+				  <!-- StringUtils Dependency -->
+				  <groupId>org.apache.commons</groupId>
+				  <artifactId>commons-lang3</artifactId>
+				  <version>3.5</version>
+				</dependency>
+
+				<dependency>
+				  <!-- Jasypt is the Java Simplified Encryption Library / used to encrypt the citadel password in the production application.yaml file -->
+				  <groupId>com.github.ulisesbocchio</groupId>
+				  <artifactId>jasypt-spring-boot-starter</artifactId>
+				  <version>1.17</version>
+				</dependency>
+
+				<dependency>
+				  <groupId>org.apache.commons</groupId>
+				  <artifactId>commons-collections4</artifactId>
+				  <version>4.4</version>
+				</dependency>
+
+
+				<dependency>
+				  <groupId>org.springframework.security</groupId>
+				  <artifactId>spring-security-web</artifactId>
+				  <version>5.7.3</version>
+				</dependency>
+
+				<dependency>
+				  <groupId>org.springframework.security</groupId>
+				  <artifactId>spring-security-config</artifactId>
+				  <version>5.7.3</version>
+				</dependency>
+
+				<dependency>
+				  <!-- Sprint Boot / Keycloak Integration / Add the OAuth2/OpenID client to talk to Keycloak and authenticate users -->
+				  <groupId>org.springframework.boot</groupId>
+				  <artifactId>spring-boot-starter-oauth2-client</artifactId>
+				</dependency>
+
+				<dependency>
+				  <!-- Hikari Data Source / JDBC Connection Pool -->
+				  <groupId>com.zaxxer</groupId>
+				  <artifactId>HikariCP</artifactId>
+				  <version>3.4.5</version>
+				</dependency>
+
+				<dependency>
+				  <!-- Add common backend dependency -->
+				  <groupId>${project.groupId}</groupId>
+				  <artifactId>common-backend</artifactId>
+				  <version>${project.version}</version>
+				</dependency>
+
+				<dependency>
+				  <!-- Include the db-migrations as a dependency (so we can run flyway:migrate on application startup) -->
+				  <groupId>${project.groupId}</groupId>
+				  <artifactId>db-migrations</artifactId>
+				  <version>${project.version}</version>
+				</dependency>
+
+				<dependency>
+				  <!-- Include the front-end as a dependency so the front-end is compiled *BEFORE* the backend is compiled -->
+				  <groupId>${project.groupId}</groupId>
+				  <artifactId>frontend</artifactId>
+				  <version>${project.version}</version>
+				</dependency>
+
+				<dependency>
+				  <!--  Hadoop Common libraries -->
+				  <groupId>org.apache.hadoop</groupId>
+				  <artifactId>hadoop-common</artifactId>
+				  <version>2.9.2</version>
+
+				  <exclusions>
+					<!-- Hadoop-common comes with log4j but we will use logback so strip it out -->
+					<exclusion>
+					  <groupId>org.slf4j</groupId>
+					  <artifactId>slf4j-log4j12</artifactId>
+					</exclusion>
+					<exclusion>
+					  <groupId>log4j</groupId>
+					  <artifactId>log4j</artifactId>
+					</exclusion>
+					<exclusion>
+					  <groupId>org.slf4j</groupId>
+					  <artifactId>slf4j-log4j12</artifactId>
+					</exclusion>
+
+					<!-- Exclude javax.servlet and javax.servlet.jsp dependencies so this hadoop-client does not conflict with the Undertow App Server -->
+					<exclusion>
+					  <groupId>javax.servlet</groupId>
+					  <artifactId>servlet-api</artifactId>
+					</exclusion>
+					<exclusion>
+					  <groupId>javax.servlet.jsp</groupId>
+					  <artifactId>jsp-api</artifactId>
+					</exclusion>
+				  </exclusions>
+				</dependency>
+
+				<dependency>
+				  <!-- Hadoop HDFS libraries -->
+				  <groupId>org.apache.hadoop</groupId>
+				  <artifactId>hadoop-hdfs</artifactId>
+				  <version>2.9.2</version>
+				  <exclusions>
+					<!-- Hadoop-hdfs comes with log4j but we will use logback so strip it out -->
+					<exclusion>
+					  <groupId>log4j</groupId>
+					  <artifactId>log4j</artifactId>
+					</exclusion>
+
+					<!-- Exclude javax.servlet and javax.servlet.jsp dependencies so this hadoop-client does not conflict with the Undertow App Server -->
+					<exclusion>
+					  <groupId>javax.servlet</groupId>
+					  <artifactId>servlet-api</artifactId>
+					</exclusion>
+					<exclusion>
+					  <groupId>javax.servlet.jsp</groupId>
+					  <artifactId>jsp-api</artifactId>
+					</exclusion>
+				  </exclusions>
+				</dependency>
+
+
+				<dependency>
+				  <!-- Add wrapper to invoke virus-scanning with clamAV -->
+				  <groupId>com.eurodyn.qlack.util</groupId>
+				  <artifactId>qlack-util-clam-av</artifactId>
+				  <version>3.5.3</version>
+
+				  <exclusions>
+					<!-- The qlack-util-clam-av dependency comes with lots of stuff we do not need -->
+					<exclusion>
+					  <groupId>org.springframework.boot</groupId>
+					  <artifactId>spring-boot-configuration-processor</artifactId>
+					</exclusion>
+
+					<exclusion>
+					  <groupId>org.springframework.boot</groupId>
+					  <artifactId>spring-boot-starter</artifactId>
+					</exclusion>
+
+					<exclusion>
+					  <groupId>org.springframework.boot</groupId>
+					  <artifactId>spring-boot-starter-data-jpa</artifactId>
+					</exclusion>
+
+					<exclusion>
+					  <groupId>org.hibernate</groupId>
+					  <artifactId>hibernate-core</artifactId>
+					</exclusion>
+
+					<exclusion>
+					  <groupId>org.jboss.logging</groupId>
+					  <artifactId>jboss-logging</artifactId>
+					</exclusion>
+
+					<exclusion>
+					  <groupId>com.zaxxer</groupId>
+					  <artifactId>HikariCP</artifactId>
+					</exclusion>
+
+					<exclusion>
+					  <groupId>org.springframework</groupId>
+					  <artifactId>spring-jdbc</artifactId>
+					</exclusion>
+
+					<exclusion>
+					  <groupId>org.springframework</groupId>
+					  <artifactId>spring-aop</artifactId>
+					</exclusion>
+
+					<exclusion>
+					  <groupId>commons-codec</groupId>
+					  <artifactId>commons-codec</artifactId>
+					</exclusion>
+
+					<exclusion>
+					  <groupId>com.querydsl</groupId>
+					  <artifactId>querydsl-core</artifactId>
+					</exclusion>
+
+				  </exclusions>
+				</dependency>
+
+				<dependency>
+				  <!-- Send logging from Java Util Logging to SLF4J  (so the virus scanning logging is sent to logback) -->
+				  <groupId>org.slf4j</groupId>
+				  <artifactId>jul-to-slf4j</artifactId>
+				  <version>1.7.30</version>
+				</dependency>
+
+				<dependency>
+				  <!-- Spring Boot Web -->
+				  <groupId>org.springframework.boot</groupId>
+				  <artifactId>spring-boot-starter-web</artifactId>
+
+				  <exclusions>
+					<exclusion>
+					  <!-- Remove Tomcat from Spring Boot -->
+					  <groupId>org.springframework.boot</groupId>
+					  <artifactId>spring-boot-starter-tomcat</artifactId>
+					</exclusion>
+
+					<exclusion>
+					  <!-- Remove logging from spring as we will use logback -->
+					  <groupId>org.springframework.boot</groupId>
+					  <artifactId>spring-boot-starter-logging</artifactId>
+					</exclusion>
+				  </exclusions>
+				</dependency>
+
+				<dependency>
+				  <!-- Add Dependency for the Undertow App Server -->
+				  <groupId>org.springframework.boot</groupId>
+				  <artifactId>spring-boot-starter-undertow</artifactId>
+
+				  <exclusions>
+					<exclusion>
+					  <!-- Remove logging from undertow as we will use logback -->
+					  <groupId>org.springframework.boot</groupId>
+					  <artifactId>spring-boot-starter-logging</artifactId>
+					</exclusion>
+				  </exclusions>
+				</dependency>
+
+				<dependency>
+				  <!-- Send logging from Java Common Logging to SLF4J -->
+				  <groupId>org.slf4j</groupId>
+				  <artifactId>jcl-over-slf4j</artifactId>
+				  <version>1.7.5</version>
+				</dependency>
+
+				<dependency>
+				  <!-- SLF4J will use Logback-classic as its logging implementation -->
+				  <groupId>ch.qos.logback</groupId>
+				  <artifactId>logback-classic</artifactId>
+				  <version>1.2.3</version>
+				</dependency>
+
+				<dependency>
+				  <groupId>org.springframework</groupId>
+				  <artifactId>spring-jdbc</artifactId>
+				  <version>5.3.21</version>
+				</dependency>
+
+				<dependency>
+				  <groupId>org.springframework</groupId>
+				  <artifactId>spring-web</artifactId>
+				  <version>5.3.21</version>
+				</dependency>
+
+				<dependency>
+				  <!-- Implementation for converting objects to JSON -->
+				  <groupId>com.fasterxml.jackson.core</groupId>
+				  <artifactId>jackson-databind</artifactId>
+				  <version>2.13.3</version>
+				</dependency>
+
+				<dependency>
+				  <!-- AsyncHttpClient Client implementation           -->
+				  <!--    (used to make outgoing REST calls out to ES) -->
+				  <groupId>com.ning</groupId>
+				  <artifactId>async-http-client</artifactId>
+				  <version>1.9.40</version>
+				</dependency>
+
+				<dependency>
+				  <groupId>junit</groupId>
+				  <artifactId>junit</artifactId>
+				  <version>4.12</version>
+				  <scope>test</scope>
+				</dependency>
+
+				<dependency>
+				  <groupId>org.apache.pdfbox</groupId>
+				  <artifactId>pdfbox</artifactId>
+				  <version>2.0.24</version>
+				</dependency>
+
+				<dependency>
+				  <!-- Add the javax.mail email library (so this webapp can send out emails by connecting to an SMTP server) -->
+				  <groupId>com.sun.mail</groupId>
+				  <artifactId>javax.mail</artifactId>
+				  <version>1.6.2</version>
+				</dependency>
+
+				<dependency>
+				  <!-- Add the Spring Boot Test Harness so we can run the webapp from unit tests -->
+				  <groupId>org.springframework.boot</groupId>
+				  <artifactId>spring-boot-starter-test</artifactId>
+				  <version>2.7.3</version>
+				  <scope>test</scope>
+				</dependency>
+
+				<dependency>
+				  <!-- Apache POI dependency (used to generate xlsx files) -->
+				  <groupId>org.apache.poi</groupId>
+				  <artifactId>poi-ooxml</artifactId>
+				  <version>4.1.2</version>
+				  <scope>test</scope>
+				</dependency>
+
+				<!-- https://mvnrepository.com/artifact/org.apache.commons/commons-compress -->
+				<dependency>
+				  <groupId>org.apache.commons</groupId>
+				  <artifactId>commons-compress</artifactId>
+				  <version>1.21</version>
+				  <scope>test</scope>
+				</dependency>
+
+
+
+			  </dependencies>
+
+			  <build>
+
+				<plugins>
+
+				  <plugin>
+					<groupId>pl.project13.maven</groupId>
+					<artifactId>git-commit-id-plugin</artifactId>
+					<version>4.9.10</version>
+
+					<executions>
+					  <execution>
+						<id>get-the-git-infos</id>
+						<goals>
+						  <goal>revision</goal>
+						</goals>
+					  </execution>
+					  <execution>
+						<id>validate-the-git-infos</id>
+						<goals>
+						  <goal>validateRevision</goal>
+						</goals>
+					  </execution>
+					</executions>
+
+					<configuration>
+					  <verbose>false</verbose>
+					  <generateGitPropertiesFile>true</generateGitPropertiesFile>
+					</configuration>
+				  </plugin>
+
+
+				  <plugin>
+					<!-- This plugin provides the tools needed to repackage the Spring Boot JAR into a runnable JAR
+						 Run this command to generate the runnable Spring Boot Jar
+						    mvn clean package  *or*
+						    mvn clean package spring-boot:repackage
+					 -->
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-maven-plugin</artifactId>
+					<version>2.7.3</version>
+					<configuration>
+					  <addResources>true</addResources>
+					</configuration>
+
+					<executions>
+					  <execution>
+						<goals>
+						  <goal>repackage</goal>
+						</goals>
+						<configuration>
+						  <classifier>exec</classifier>
+						</configuration>
+					  </execution>
+					</executions>
+				  </plugin>
+
+				  <plugin>
+					<artifactId>maven-resources-plugin</artifactId>
+					<version>3.0.2</version>
+					<configuration>
+					  <encoding>UTF-8</encoding>
+					  <nonFilteredFileExtensions>
+						<nonFilteredFileExtension>ttf</nonFilteredFileExtension>
+					  </nonFilteredFileExtensions>
+					</configuration>
+				  </plugin>
+				</plugins>
+			  </build>
+
+			  <profiles>
+
+				<!-- B U I L D     R D A        P R O F I L E       (for running this app within the BDP)   -->
+				<profile>
+				  <id>buildRda</id>
+
+				  <!-- When running the buildRda profile, exclude the backend/src/main/resources/application.yaml from the JAR file -->
+				  <build>
+					<resources>
+					  <resource>
+						<filtering>true</filtering>
+						<directory>src/main/resources</directory>
+						<excludes>
+						  <exclude>application.yaml</exclude>
+						</excludes>
+					  </resource>
+					</resources>
+				  </build>
+				</profile>
+
+
+				<!--    B U I L D     I M A G E      P R O F I L E      (for running this app in a container)  -->
+				<profile>
+				  <id>buildImage</id>
+
+				  <!-- When running this profile, do *NOT* include the src/main/resources/application.yaml in the build -->
+				  <build>
+					<resources>
+					  <resource>
+						<filtering>false</filtering>
+						<directory>src/main/resources</directory>
+						<excludes>
+						  <exclude>application.yaml</exclude>
+						</excludes>
+					  </resource>
+					</resources>
+
+					<plugins>
+					  <plugin>
+						<!-- Use the jib-maven-plugin to build the container and push it up to a registry [without having to install Docker] -->
+						<groupId>com.google.cloud.tools</groupId>
+						<artifactId>jib-maven-plugin</artifactId>
+						<version>3.3.1</version>
+
+						<executions>
+						  <execution>
+						    <phase>package</phase>
+						    <goals>
+						      <!-- Possible goals are build and dockerBuild   -->
+						      <!--   The "build"       goal does not require docker / build the image and push it to a repo                 -->
+						      <!--   The "dockerBuild" goal requires docker         / build the image and push to the local daemon daemon   -->
+						      <goal>dockerBuild</goal>
+						    </goals>
+						  </execution>
+						</executions>
+
+						<configuration>
+						  <from>
+						    <!-- Define the source image that will be executed            -->
+						    <!-- See https://hub.docker.com/_/eclipse-temurin/tags        -->
+
+						    <!-- This source image runs linux with JDK 1.8-362             -->
+						    <!-- <image>eclipse-temurin:8u362-b09-jdk@sha256:3b83f3fc0d016d7536dfd5e8a98ece451061b7dbb6d5db3ddea2db30b6153b28</image>-->
+
+						    <!-- This source image runs linux with JDK 17.07 -->
+						    <image>eclipse-temurin:17.0.7_7-jdk@sha256:9dd6a19e4819b066aa2bd8e54d5988a49cca29736fe5447cb0a57daa975f8935</image>
+						  </from>
+
+						  <to>
+						    <!--                <image>527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/poc:${project.artifactId}-${project.version}</image>-->
+						    <image>traderres/my-private-repo:${user.name}-${project.artifactId}-${project.version}</image>
+						  </to>
+
+
+						  <extraDirectories>
+						    <paths>
+						      <path>
+						        <!-- Copies everything from 'src/main/image_resources' into '/sync-service-/src/main/image_resources' on the container. -->
+						        <from>src/main/image_resources</from>
+						        <into>/backend/src/main/image_resources</into>
+						      </path>
+						    </paths>
+						  </extraDirectories>
+
+						  <container>
+						    <jvmFlags>
+						      <!-- When starting the container, tell Java where to find the application.yaml -->
+						      <jvmFlag> -Dspring.config.location=/backend/src/main/image_resources/application.yaml</jvmFlag>
+						    </jvmFlags>
+						  </container>
+
+						</configuration>
+
+					  </plugin>
+					</plugins>
+				  </build>
+				</profile>
+
+
+
+
+				<!--    B U I L D     I M A G E    A N D     P U S H       P R O F I L E      (for running this app in a container)  -->
+				<profile>
+				  <id>buildImageAndPush</id>
+
+				  <!-- When running this profile, do *NOT* include the src/main/resources/application.yaml in the build -->
+				  <build>
+					<resources>
+					  <resource>
+						<filtering>false</filtering>
+						<directory>src/main/resources</directory>
+						<excludes>
+						  <exclude>application.yaml</exclude>
+						</excludes>
+					  </resource>
+					</resources>
+
+					<plugins>
+					  <plugin>
+						<!-- Use the jib-maven-plugin to build the container and push it up to a registry [without having to install Docker] -->
+						<groupId>com.google.cloud.tools</groupId>
+						<artifactId>jib-maven-plugin</artifactId>
+						<version>3.3.1</version>
+
+						<executions>
+						  <execution>
+						    <phase>package</phase>
+						    <goals>
+						      <!-- Possible goals are build and dockerBuild   -->
+						      <!--   The "build"       goal does not require docker / build the image and push it to a repo                 -->
+						      <!--   The "dockerBuild" goal requires docker         / build the image and push to the local daemon daemon   -->
+						      <goal>build</goal>
+						    </goals>
+						  </execution>
+						</executions>
+
+						<configuration>
+						  <from>
+						    <!-- Define the source image that will be executed            -->
+						    <!-- See https://hub.docker.com/_/eclipse-temurin/tags        -->
+
+						    <!-- This source image runs linux with JDK 1.8-362             -->
+						    <!-- <image>eclipse-temurin:8u362-b09-jdk@sha256:3b83f3fc0d016d7536dfd5e8a98ece451061b7dbb6d5db3ddea2db30b6153b28</image>-->
+
+						    <!-- This source image runs linux with JDK 17.07 -->
+						    <image>eclipse-temurin:17.0.7_7-jdk@sha256:9dd6a19e4819b066aa2bd8e54d5988a49cca29736fe5447cb0a57daa975f8935</image>
+						  </from>
+
+						  <to>
+						    <!--                <image>527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/poc:${project.artifactId}-${project.version}</image>-->
+						    <image>traderres/my-private-repo:${user.name}-${project.artifactId}-${project.version}</image>
+						  </to>
+
+
+						  <extraDirectories>
+						    <paths>
+						      <path>
+						        <!-- Copies everything from 'src/main/image_resources' into '/sync-service-/src/main/image_resources' on the container. -->
+						        <from>src/main/image_resources</from>
+						        <into>/backend/src/main/image_resources</into>
+						      </path>
+						    </paths>
+						  </extraDirectories>
+
+						  <container>
+						    <jvmFlags>
+						      <!-- When starting the container, tell Java where to find the application.yaml -->
+						      <jvmFlag> -Dspring.config.location=/backend/src/main/image_resources/application.yaml</jvmFlag>
+						    </jvmFlags>
+						  </container>
+
+						</configuration>
+
+					  </plugin>
+					</plugins>
+				  </build>
+				</profile>
+
+
+				<profile>
+				  <!-- When running any other build profile, include *ALL* files from the backend/src/main/resources into the JAR file -->
+				  <id>defaultProfile</id>
+				  <activation>
+					<activeByDefault>true</activeByDefault>
+				  </activation>
+				  <build>
+					<resources>
+					  <resource>
+						<directory>src/main/resources</directory>
+						<filtering>true</filtering>
+					  </resource>
+					</resources>
+				  </build>
+				</profile>
+			  </profiles>
+			</project>
+
+
+ 3. Add these directories:
+          backend/src/main/image_resources/
+          sync-service/src/main/image_resources/
+
+
+
+ 4. Update the image_resources/application.yaml for the sync-service
+    a. Copy the install-bdp/sync-service/application.yaml  to  sync-service/src/main/image_resources/application.yaml
+    b. Edit sync-service/src/main/image_resources/application.yaml
+       Replace BDP environment variables with regular environment variables
+
+		#################################################################
+		# Database Settings
+		#################################################################
+		app.datasource:
+		  driver-class-name: org.postgresql.Driver
+		  url: jdbc:postgresql://${POSTGRES_HOSTNAME}/${POSTGRES_DB_NAME}
+		  username: ${POSTGRES_DB_USERNAME}
+		  password: ${POSTGRES_DB_PASSWORD}
+		  schema: ${POSTGRES_SCHEMA_NAME}
+		  maxPoolSize: ${POSTGRES_POOL_SIZE:20}
+		  database-name: ${POSTGRES_DB_NAME}
+		  flyway-migrate-on-startup: true
+
+
+
+		##########################################################
+		# Citadel Database Settings
+		##########################################################
+		citadel.datasource:
+		  enabled: false
+
+
+
+		###########################################################
+		# ElasticSearch Settings
+		##########################################################
+		es:
+		  url: ${ES_URL}
+		  ssl_enabled: true
+		  add_bdp_security: false
+		  key-store: ${OUTGOING_KEYSTORE_FILEPATH}
+		  key-store-password: ${OUTGOING_KEYSTORE_PASSWORD}
+		  key-store-type: JKS
+		  trust-store: ${OUTGOING_TRUSTSTORE_FILEPATH}
+		  trust-store-password: ${OUTGOING_TRUSTSTORE_PASSWORD}
+		  trust-store-type: JKS
+		  authentication.principal: ${ES_USERNAME}
+		  authentication.password:  ${ES_PASSWORD}
+
+
+
+
+
+ 5. Update the image_resources/application.yaml for the backend
+    NOTE:  This has an SSL and Keycloak sections
+    a. Copy the install-bdp/webapp/application.yaml  to  backend/src/main/image_resources/application.yaml
+    b. Edit backend/src/main/image_resources/application.yaml
+       Replace BDP environment variables with regular environment variables
+
+		#################################################################
+		# Database Settings
+		#################################################################
+		app.datasource:
+		  driver-class-name: org.postgresql.Driver
+		  url: jdbc:postgresql://${POSTGRES_HOSTNAME}/${POSTGRES_DB_NAME}
+		  username: ${POSTGRES_DB_USERNAME}
+		  password: ${POSTGRES_DB_PASSWORD}
+		  schema: ${POSTGRES_SCHEMA_NAME}
+		  maxPoolSize: ${POSTGRES_POOL_SIZE:20}
+		  database-name: ${POSTGRES_DB_NAME}
+		  flyway-migrate-on-startup: true
+
+
+
+		##########################################################
+		# Citadel Database Settings
+		##########################################################
+		citadel.datasource:
+		  enabled: false
+
+
+
+		###########################################################
+		# ElasticSearch Settings
+		##########################################################
+		es:
+		  url: ${ES_URL}
+		  ssl_enabled: true
+		  add_bdp_security: false
+		  key-store: ${OUTGOING_KEYSTORE_FILEPATH}
+		  key-store-password: ${OUTGOING_KEYSTORE_PASSWORD}
+		  key-store-type: JKS
+		  trust-store: ${OUTGOING_TRUSTSTORE_FILEPATH}
+		  trust-store-password: ${OUTGOING_TRUSTSTORE_PASSWORD}
+		  trust-store-type: JKS
+		  authentication.principal: ${ES_USERNAME}
+		  authentication.password:  ${ES_PASSWORD}
+
+
+		###########################################################
+		# SSL Settings
+		##########################################################
+		security.mode: keycloak
+
+		server:
+		  ssl:
+			key-store: ${INCOMING_KEYSTORE_FILEPATH}
+			key-store-password: ${INCOMING_KEYSTORE_PASSWORD}
+			key-store-type: JKS
+			client-auth: need
+			trust-store: ${INCOMING_TRUSTSTORE_FILEPATH}
+			trust-store-password: ${INCOMING_TRUSTSTORE_PASSWORD}
+			trust-store-type: JKS
+			enabled: true
+
+		# Secure the cookies
+		server.servlet.session.cookie.secure: true
+		server.servlet.session.cookie.http-only: true
+
+		# Forward headers so that keycloak headers can be forwarded to the spring-boot webapp
+		server.use-forward-headers: true
+
+
+		##########################################################
+		# Keycloak Settings
+		#
+		# The realm url is probably something like https://keycloak.rbr-tech.com:8444/realms/MyRealm
+		##########################################################
+		spring.security.oauth2.client.registration.keycloak.client-id: ${KC_APP1_ADMIN_CLIENT_ID}
+		spring.security.oauth2.client.registration.keycloak.client-secret: ${KC_APP1_ADMIN_CLIENT_SECRET}
+		spring.security.oauth2.client.registration.keycloak.authorization-grant-type: authorization_code
+		spring.security.oauth2.client.registration.keycloak.scope: openid,email,profile
+		spring.security.oauth2.client.provider.keycloak.issuer-uri: ${KC_APP1_ADMIN_REALM_URL}
+		spring.security.oauth2.client.provider.keycloak.user-name-attribute: preferred_username
+
+
+
+
+
+ 6. Add the Spring Boot Oauth2 client to the backend/pom.xml    (so the webapp can talk to keycloak via Oauth2/OpenID
+
+		<dependency>
+		  <!-- Sprint Boot / Keycloak Integration / Add the OAuth2/OpenID client to talk to Keycloak and authenticate users -->
+		  <groupId>org.springframework.boot</groupId>
+		  <artifactId>spring-boot-starter-oauth2-client</artifactId>
+		</dependency>
+
+		<dependency>
+		  <groupId>org.apache.commons</groupId>
+		  <artifactId>commons-collections4</artifactId>
+		  <version>4.4</version>
+		</dependency>
+
+
+
+ 7. Verify that the <to><image> has the correct private repo
+    a. Edit the backend/pom.xml and sync-service.pom.xml
+
+    b. Make sure the private-repo has the correct url
+
+           <to>
+               <image>traderres/my-private-repo:${user.name}-${project.artifactId}-${project.version}</image>
+           </to>
+
+
+
+ 8. Build and push the containers (to a container repo)
+
+		Build & Push Approach 1:  Use -PbuildImageAndPush and provide username/password on the command-line
+        ---------------------------------------------------------------------------------------------------
+		unix> export USERNAME=traderres
+		unix> export PASSWORD='secret'
+		unix> mvn clean package -Pprod -PbuildImageAndPush -Djib.to.auth.username=$USERNAME -Djib.to.auth.password=$PASSWORD
+
+
+
+		Build & Push Approach  2:  Use -PbuildImageAndPush and use the "docker login" command to set credentials
+        --------------------------------------------------------------------------------------------------------
+		a. Login to docker
+		   unix> docker login
+		   username: traderres
+		   password
+
+		b. Build and push to your docker repo
+		   unix> mvn clean package -Pprod -PbuildImageAndPush
+
+
+
+		Build & Push Approach  3:  Use -PbuildImage to build it to your local docker daemon and push it up manually
+        -----------------------------------------------------------------------------------------------------------
+		a. Login to docker  (to set your docker credentials and allow you to push the tags to your private repo)
+		   unix> docker login
+
+		b. Build the image and store it in your local docker daemon
+		   unix> mvn clean package -Pprod -PbuildImage
+
+		c. Push each image up to the repo
+		   unix> docker push traderres/my-private-repo:sync-service-2.2.2-SNAPSHOT
+		   unix> docker push traderres/my-private-repo:backend-2.2.2-SNAPSHOT
+
+
+
+
+ 9. Verify that the files were uploaded to your docker repo
+    a. Go to https://hub.docker.com
+    b. Enter your docker username/password
+    c. Go to your private repo -> tags
+    d. Verify that it builds the image and pushes it to your repo:
+
+
+
+
+Part 2:  Configure the Java Security so that it has 3 modes:  localdev, citadel, and keycloak
+---------------------------------------------------------------------------------------------
+Plan:  There will be 3 security.mode values:
+            localdev  (for running in local http mode)
+            citadel   (for running in a BDP using citadel security)
+            keycloak  (for running in AWS using keycloak security)
+
+       The citadel/keycloak/localdev java packages can be reused.  What changes is the AuthenticationService.
+
+
+
+10. Rename UserInfo to MyUserInfo
+
+
+11. Add this java package:  backend/src/main/java/....security/citadel
+    a. Add this java package:   backend/src/main/java/com/lessons/security/citadel
+
+	b. Add this class:  MyAuthenticationManagerCitadel
+
+			package com.lessons.security.citadel;
+
+			import com.lessons.security.AuthenticationService;
+			import com.lessons.security.MyUserInfo;
+			import org.slf4j.Logger;
+			import org.slf4j.LoggerFactory;
+			import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+			import org.springframework.security.authentication.AuthenticationManager;
+			import org.springframework.security.core.Authentication;
+			import org.springframework.security.core.AuthenticationException;
+			import org.springframework.security.core.context.SecurityContextHolder;
+			import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
+			import org.springframework.stereotype.Component;
+
+			import javax.annotation.PostConstruct;
+			import javax.annotation.Resource;
+
+
+			@ConditionalOnProperty(name="security.mode", havingValue="citadel", matchIfMissing=false)
+			@Component
+			public class MyAuthenticationManagerCitadel implements AuthenticationManager {
+				private static final Logger logger = LoggerFactory.getLogger(MyAuthenticationManagerCitadel.class);
+
+				@Resource
+				private AuthenticationService authenticationService;
+
+
+				@PostConstruct
+				public void init() {
+					logger.debug("MyAuthenticationManagerCitadel.init() started");
+				}
+
+
+				@Override
+				public Authentication authenticate(Authentication authentication) throws AuthenticationException {
+					logger.debug("authenticate() started.   authentication={}", authentication);
+
+					if (SecurityContextHolder.getContext().getAuthentication() != null) {
+						// Users is already authenticated, so do nothing
+						return  SecurityContextHolder.getContext().getAuthentication();
+					}
+
+					// Generate the MyUserInfo object for a citadel user
+					MyUserInfo myUserInfo = authenticationService.generateUserInfoUsingCitadel(authentication);
+
+					// Return an AuthenticationToken object
+					PreAuthenticatedAuthenticationToken preApprovedToken = new PreAuthenticatedAuthenticationToken(myUserInfo, null, myUserInfo.getAuthorities());
+					preApprovedToken.setAuthenticated(true);
+
+					logger.debug("authenticate() finished.  preApprovedToken={}", preApprovedToken);
+					return preApprovedToken;
+				}
+			}
+
+
+
+    c. Add this class:  MyRequestHeaderAuthFilterCitadel
+
+			package com.lessons.security.citadel;
+
+			import org.slf4j.Logger;
+			import org.slf4j.LoggerFactory;
+			import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+			import org.springframework.security.web.authentication.preauth.RequestHeaderAuthenticationFilter;
+			import org.springframework.stereotype.Component;
+
+			import javax.annotation.PostConstruct;
+			import javax.annotation.Resource;
+			import javax.servlet.http.HttpServletRequest;
+
+			@ConditionalOnProperty(name="security.mode", havingValue="citadel", matchIfMissing=false)
+			@Component
+			public class MyRequestHeaderAuthFilterCitadel extends RequestHeaderAuthenticationFilter
+			{
+				private static final Logger logger = LoggerFactory.getLogger(MyRequestHeaderAuthFilterCitadel.class);
+
+				@Resource
+				private MyAuthenticationManagerCitadel myAuthenticationManagerCitadel;
+
+
+				@PostConstruct
+				public void init() {
+					this.setAuthenticationManager(myAuthenticationManagerCitadel);
+				}
+
+
+				/*
+				 * getPreAuthenticatedPrincipal()
+				 *
+				 * This is called when a request is made, the returned object identifies the
+				 * user and will either be {@literal null} or a String.
+				 *
+				 * This method will throw an exception if
+				 * exceptionIfHeaderMissing is set to true (default) and the required header is missing.
+				 */
+				@Override
+				protected Object getPreAuthenticatedPrincipal(HttpServletRequest request)
+				{
+					// Get the principal from the header
+					String userDnFromHeader = request.getHeader("SSL_CLIENT_S_DN");
+
+					// If this method returns null, then the user will see a 403 Forbidden Message
+					logger.debug("getPreAuthenticatedPrincipal() returns -->{}<--", userDnFromHeader);
+					return userDnFromHeader;
+				}
+
+			}
+
+
+
+    d. Add this class:  SpringSecurityConfigForCitadel
+
+			package com.lessons.security.citadel;
+
+			import org.slf4j.Logger;
+			import org.slf4j.LoggerFactory;
+			import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+			import org.springframework.context.annotation.Bean;
+			import org.springframework.context.annotation.Configuration;
+			import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
+			import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+			import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+			import org.springframework.security.config.http.SessionCreationPolicy;
+			import org.springframework.security.web.SecurityFilterChain;
+
+			import javax.annotation.PostConstruct;
+			import javax.annotation.Resource;
+
+
+			@Configuration
+			@ConditionalOnProperty(name="security.mode", havingValue="citadel", matchIfMissing=false)
+			@EnableWebSecurity
+			@EnableGlobalMethodSecurity(prePostEnabled = true)         // Needed for @PreAuthorize to work
+			public class SpringSecurityConfigForCitadel  {
+
+				private static final Logger logger = LoggerFactory.getLogger(SpringSecurityConfigForCitadel.class);
+
+
+				@Resource
+				private MyRequestHeaderAuthFilterCitadel myRequestHeaderAuthFilterCitadel;
+
+
+				public SpringSecurityConfigForCitadel() {
+					logger.debug("SpringSecurityConfigForCitadel constructor started");
+				}
+
+				@PostConstruct
+				public void init() {
+					logger.debug("SpringSecurityConfigForCitadel.init() started");
+				}
+
+
+				/**
+				 * Configure Spring Security for Citadel Authentication
+				 *
+				 * @param aHttpSecurity holds the HttpSecurity object that is configured to setup Spring Security
+				 * @return SecurityFilterChain object that will implement security
+				 * @throws Exception if something goes wrong
+				 */
+				@Bean
+				public SecurityFilterChain securityFilterChain(HttpSecurity aHttpSecurity) throws Exception {
+					logger.debug("securityFilterChain() [CITADEL] started.");
+
+					// Running in HTTPS mode using citadel for authentication
+					aHttpSecurity.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
+						    .and()
+						    .authorizeRequests()    // Filters out any URLs that are ignored.  This should be before any authorization filters
+						    .antMatchers("/resources/**", "/error").permitAll()
+						    .antMatchers("/**").access("hasRole('ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS')")   // All users must have the grantedAuthority called ROLE_UserFoundInLdap to view all pages
+						    .and()
+						    .requiresChannel().antMatchers("/**").requiresSecure()    // Redirect http to https
+						    .and()
+						    .addFilter(this.myRequestHeaderAuthFilterCitadel)          // Pull the DN from the user's X509 certificate or header
+						    .headers().frameOptions().disable()               // By default X-Frame-Options is set to denied.  Disable frameoptions to let this webapp work in OWF
+						    .and()
+						    .anonymous().disable()
+						    .csrf().disable();
+
+					return aHttpSecurity.build();
+				}
+
+			}
+
+
+12. Add this java package:  backend/src/main/java/....security/localdev
+    a. Add this java package:   backend/src/main/java/com/lessons/security/localdev
+
+	b. Add this class:  MyAuthenticationManagerLocalDev
+
+			package com.lessons.security.localdev;
+
+			import com.lessons.security.AuthenticationService;
+			import com.lessons.security.MyUserInfo;
+			import org.slf4j.Logger;
+			import org.slf4j.LoggerFactory;
+			import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+			import org.springframework.security.authentication.AuthenticationManager;
+			import org.springframework.security.core.Authentication;
+			import org.springframework.security.core.AuthenticationException;
+			import org.springframework.security.core.context.SecurityContextHolder;
+			import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
+			import org.springframework.stereotype.Component;
+
+			import javax.annotation.Resource;
+
+			@ConditionalOnProperty(name="security.mode", havingValue="localdev", matchIfMissing=false)
+			@Component
+			public class MyAuthenticationManagerLocalDev implements AuthenticationManager {
+				private static final Logger logger = LoggerFactory.getLogger(MyAuthenticationManagerLocalDev.class);
+
+				@Resource
+				private AuthenticationService authenticationService;
+
+
+				@Override
+				public Authentication authenticate(Authentication authentication) throws AuthenticationException {
+					logger.debug("authenticate() started.   authentication={}", authentication);
+
+					if (SecurityContextHolder.getContext().getAuthentication() != null) {
+						// Users is already authenticated, so do nothing
+						return SecurityContextHolder.getContext().getAuthentication();
+					}
+
+					// Generate a MyUserInfo for a local dev user
+					MyUserInfo myUserInfo = authenticationService.generateUserInfoForDevelopment(authentication);
+
+					// Return an AuthenticationToken object
+					PreAuthenticatedAuthenticationToken preApprovedToken = new PreAuthenticatedAuthenticationToken(myUserInfo, null, myUserInfo.getAuthorities());
+					preApprovedToken.setAuthenticated(true);
+
+					logger.debug("authenticate() finished.  preApprovedToken={}", preApprovedToken);
+					return preApprovedToken;
+				}
+
+			}
+
+
+
+    c. Add this class:  MyRequestHeaderAuthFilterLocalDev
+
+			package com.lessons.security.localdev;
+
+			import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+			import org.springframework.security.web.authentication.preauth.RequestHeaderAuthenticationFilter;
+			import org.springframework.stereotype.Component;
+
+			import javax.annotation.PostConstruct;
+			import javax.annotation.Resource;
+			import javax.servlet.http.HttpServletRequest;
+
+			@ConditionalOnProperty(name="security.mode", havingValue="localdev", matchIfMissing=false)
+			@Component
+			public class MyRequestHeaderAuthFilterLocalDev extends RequestHeaderAuthenticationFilter
+			{
+
+				@Resource
+				private MyAuthenticationManagerLocalDev myAuthenticationManagerLocalDev;
+
+
+				@PostConstruct
+				public void init() {
+					this.setAuthenticationManager(this.myAuthenticationManagerLocalDev);
+				}
+
+
+
+				/*
+				 * getPreAuthenticatedPrincipal()
+				 *
+				 * This is called when a request is made, the returned object identifies the
+				 * user and will either be {@literal null} or a String.
+				 */
+				@Override
+				protected Object getPreAuthenticatedPrincipal(HttpServletRequest request)
+				{
+					return "bogus_user";
+				}
+
+			}
+
+
+
+    d. Add this class:  SpringSecurityConfigForLocalDev
+
+			package com.lessons.security.localdev;
+
+			import com.lessons.security.citadel.SpringSecurityConfigForCitadel;
+			import org.slf4j.Logger;
+			import org.slf4j.LoggerFactory;
+			import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+			import org.springframework.context.annotation.Bean;
+			import org.springframework.context.annotation.Configuration;
+			import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
+			import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+			import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+			import org.springframework.security.config.http.SessionCreationPolicy;
+			import org.springframework.security.web.SecurityFilterChain;
+
+			import javax.annotation.PostConstruct;
+			import javax.annotation.Resource;
+
+
+			@Configuration
+			@ConditionalOnProperty(name="security.mode", havingValue="localdev", matchIfMissing=false)
+			@EnableWebSecurity
+			@EnableGlobalMethodSecurity(prePostEnabled = true)         // Needed for @PreAuthorize to work
+			public class SpringSecurityConfigForLocalDev {
+
+				private static final Logger logger = LoggerFactory.getLogger(SpringSecurityConfigForCitadel.class);
+
+				@Resource
+				private MyRequestHeaderAuthFilterLocalDev myRequestHeaderAuthFilterLocalDev;
+
+
+				public SpringSecurityConfigForLocalDev() {
+					logger.debug("SpringSecurityConfigForLocalDev constructor started");
+				}
+
+				@PostConstruct
+				public void init() {
+					logger.debug("SpringSecurityConfigForLocalDev.init() started");
+				}
+
+
+				/**
+				 * Configure Spring Security for Local Dev (FAKE) authentication
+				 *
+				 * @param aHttpSecurity holds the HttpSecurity object that is configured to setup Spring Security
+				 * @return SecurityFilterChain object that will implement security
+				 * @throws Exception if something goes wrong
+				 */
+				@Bean
+				public SecurityFilterChain securityFilterChain(HttpSecurity aHttpSecurity) throws Exception {
+
+					// Running in http mode    (no SSL encryption)
+					aHttpSecurity
+						    .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
+						    .and()
+						        .authorizeRequests()     // Filters out any URLs that are ignored.  This should be before any authorization filters
+						        .antMatchers("/resources/**", "/error").permitAll()
+						        .antMatchers("/**").access("hasRole('ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS')")   // All users must have the grantedAuthority called ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS to view all pages
+						        .anyRequest().authenticated()
+						    .and()
+						        .requiresChannel().antMatchers("/**").requiresInsecure()
+						    .and()
+						        .addFilter(this.myRequestHeaderAuthFilterLocalDev)
+						        .headers().frameOptions().disable()                       // By default X-Frame-Options is set to denied.
+						    .and()
+						        .anonymous().disable()
+						        .csrf().disable();
+
+
+					return aHttpSecurity.build();
+				}
+
+			}
+
+
+
+12. Add this java package:  backend/src/main/java/....security/keycloak
+    a. Add this java package:   backend/src/main/java/com/lessons/security/keycloak
+
+	b. Add this class:  MyDefaultOidcUser
+
+			package com.lessons.security.keycloak;
+
+			import com.lessons.security.MyUserInfo;
+			import org.springframework.security.core.GrantedAuthority;
+			import org.springframework.security.oauth2.core.oidc.OidcIdToken;
+			import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
+			import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
+
+			import java.util.Collection;
+
+			public class MyDefaultOidcUser extends DefaultOidcUser {
+
+				private MyUserInfo myUserInfo;
+
+				public MyDefaultOidcUser(Collection<? extends GrantedAuthority> authorities, OidcIdToken idToken) {
+					super(authorities, idToken);
+				}
+
+				public MyDefaultOidcUser(Collection<? extends GrantedAuthority> authorities, OidcIdToken idToken, String nameAttributeKey) {
+					super(authorities, idToken, nameAttributeKey);
+				}
+
+				public MyDefaultOidcUser(Collection<? extends GrantedAuthority> authorities, OidcIdToken idToken, OidcUserInfo userInfo) {
+					super(authorities, idToken, userInfo);
+				}
+
+				public MyDefaultOidcUser(Collection<? extends GrantedAuthority> authorities, OidcIdToken idToken, OidcUserInfo userInfo, String nameAttributeKey) {
+					super(authorities, idToken, userInfo, nameAttributeKey);
+				}
+
+				public MyDefaultOidcUser(MyUserInfo aUserInfo, Collection<? extends GrantedAuthority> authorities, OidcIdToken idToken, OidcUserInfo userInfo) {
+					super(authorities, idToken, userInfo);
+					this.myUserInfo = aUserInfo;
+				}
+
+
+				public MyUserInfo getMyUserInfo() {
+					return this.myUserInfo;
+				}
+			}
+
+
+    c. Add this class:  OAuth2LoginSuccessHandler
+
+			package com.lessons.security.keycloak;
+
+			import com.lessons.security.AuthenticationService;
+			import org.slf4j.Logger;
+			import org.slf4j.LoggerFactory;
+			import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+			import org.springframework.security.core.Authentication;
+			import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
+			import org.springframework.stereotype.Component;
+
+			import javax.annotation.Resource;
+			import javax.servlet.ServletException;
+			import javax.servlet.http.HttpServletRequest;
+			import javax.servlet.http.HttpServletResponse;
+			import java.io.IOException;
+
+			/*
+			 * Create a success handler class that extends SavedRequestAwareAuthenticationSuccessHandler
+			 * -- This ensures that upon successful authentication, the user is taken to the user's ORIGINAL url
+			 */
+			@Component
+			@ConditionalOnProperty(name="security.mode", havingValue="keycloak", matchIfMissing=false)
+			public class OAuth2LoginSuccessHandler extends SavedRequestAwareAuthenticationSuccessHandler {
+				private static final Logger logger = LoggerFactory.getLogger(OAuth2LoginSuccessHandler.class);
+
+				@Resource
+				private AuthenticationService authenticationService;
+
+				@Override
+				public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
+						                            Authentication authentication) throws IOException, ServletException {
+
+					logger.debug("onAuthenticationSuccess() started");
+
+					// The user successfully authenticated against the OAUTH2 Server
+
+					// Create the UserInfo object and set it as the principal
+					//   1) Replace the OAuth2 Principal object with our own UserInfo object
+					//   2) Update the database to indicate that the user successfully logged-in
+					this.authenticationService.onAuthenticationSuccessForOauth2(request, response, authentication);
+
+
+					// Proceed to the user's original URL
+					super.onAuthenticationSuccess(request, response, authentication);
+				}
+
+
+			}
+
+
+
+    d. Add this class:  SpringSecurityConfigForKeycloak
+
+			package com.lessons.security.keycloak;
+
+			import com.lessons.security.AuthenticationService;
+			import com.lessons.security.MyUserInfo;
+			import org.slf4j.Logger;
+			import org.slf4j.LoggerFactory;
+			import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+			import org.springframework.boot.web.servlet.FilterRegistrationBean;
+			import org.springframework.context.annotation.Bean;
+			import org.springframework.context.annotation.Configuration;
+			import org.springframework.core.Ordered;
+			import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
+			import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+			import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+			import org.springframework.security.config.http.SessionCreationPolicy;
+			import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
+			import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
+			import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
+			import org.springframework.security.oauth2.core.oidc.user.OidcUser;
+			import org.springframework.security.web.SecurityFilterChain;
+			import org.springframework.web.filter.ForwardedHeaderFilter;
+
+			import javax.annotation.PostConstruct;
+			import javax.annotation.Resource;
+			import javax.servlet.DispatcherType;
+
+
+			@Configuration
+			@ConditionalOnProperty(name="security.mode", havingValue="keycloak", matchIfMissing=false)
+			@EnableWebSecurity
+			@EnableGlobalMethodSecurity(prePostEnabled = true)         // Needed for @PreAuthorize to work
+			public class SpringSecurityConfigForKeycloak  {
+
+				private static final Logger logger = LoggerFactory.getLogger(SpringSecurityConfigForKeycloak.class);
+
+
+				@Resource
+				private OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
+
+				@Resource
+				private AuthenticationService authenticationService;
+
+
+				public SpringSecurityConfigForKeycloak() {
+					logger.debug("SpringSecurityConfigForKeycloak constructor started");
+				}
+
+
+				@PostConstruct
+				public void init() {
+					logger.debug("SpringSecurityConfigForKeycloak.init() started");
+				}
+
+
+				/**
+				 * Configure Spring Security for Keycloak or OAUTH2 Authentication
+				 *
+				 * @param aHttpSecurity holds the HttpSecurity object that is configured to setup Spring Security
+				 * @return SecurityFilterChain object that will implement security
+				 * @throws Exception if something goes wrong
+				 */
+				@Bean
+				public SecurityFilterChain securityFilterChain(HttpSecurity aHttpSecurity) throws Exception {
+					logger.debug("securityFilterChainF() [KEYCLOAK] started.");
+
+					// Running in https mode with OAuth2 authentication
+					aHttpSecurity.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
+						    .and()
+						        .authorizeRequests()
+						        .antMatchers("/assets/**",  "**.js", "**.css",  "/error").permitAll()
+						        .antMatchers("/**").access("hasRole('ROLE_SF328_USER')")   // All users must have the grantedAuthority called ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS to view all pages
+						        .anyRequest()
+						        .authenticated()
+						    .and()
+						        .requiresChannel().anyRequest().requiresSecure()
+						    .and()
+						    .oauth2Login()
+
+						        /*
+						         * Update the Principal object stored in the session
+						         * Replace the defaultOidcUser with MyDefaultOidcUser object   (that holds the additional MyUserInfo)
+						         */
+						        .userInfoEndpoint(userInfo -> userInfo
+						                .oidcUserService(this.oidcUserService()))
+
+
+						        /*
+						         * The oAuth2LoginSuccessHandler success handler class will do 2 things:
+						         *   1) Update the database to indicate that the user successfully authenticated
+						         *   2) Redirect the user from keycloak to the user's ORIGINAL requested url (because it extends SavedRequestAwareAuthenticationSuccessHandler)
+						         */
+						        .successHandler(this.oAuth2LoginSuccessHandler)
+
+						    .and()
+						        .csrf().disable();
+
+
+
+					return aHttpSecurity.build();
+				}
+
+
+				/**
+				 * Generate a new principal pboject that holds MyUserInfo *AND* the original token info from Keycloak
+				 *
+				 * @return MyDefaultOidcUser object
+				 */
+				private OAuth2UserService<OidcUserRequest, OidcUser> oidcUserService() {
+					final OidcUserService delegate = new OidcUserService();
+
+					return (OidcUserRequest aOidcUserRequest) -> {
+						// Get the OidcUser object (that holds information from Keycloak)
+						OidcUser oidcUser = delegate.loadUser(aOidcUserRequest);
+
+						// Get the MyUserInfo object (that holds additional info from our database)
+						MyUserInfo myUserInfo = this.authenticationService.generateUserInfoWithOauth2InfoFromKeyCloak(oidcUser);
+
+						// Create a new Principal object that holds MyUserInfo *AND* the original token information from keycloak
+						MyDefaultOidcUser myDefaultOidcUser = new MyDefaultOidcUser(myUserInfo, myUserInfo.getAuthorities(), oidcUser.getIdToken(), oidcUser.getUserInfo());
+						return myDefaultOidcUser;
+					};
+				}
+
+
+
+				@Bean
+				public FilterRegistrationBean<ForwardedHeaderFilter> forwardedHeaderFilter() {
+					// ForwardedHeaderFilter handles non-standard headers
+					//   X-Forwarded-Host, X-Forwarded-Port, X-Forwarded-Proto, X-Forwarded-Ssl, and X-Forwarded-Prefix.
+					ForwardedHeaderFilter filter = new ForwardedHeaderFilter();
+
+					FilterRegistrationBean<ForwardedHeaderFilter> registration = new FilterRegistrationBean<>(filter);
+					registration.setDispatcherTypes(DispatcherType.REQUEST, DispatcherType.ASYNC, DispatcherType.ERROR);
+					registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
+					return registration;
+				}
+			}
+
+
+14. Erase these security classes:
+		Ersae SubjectX509PrincipalExtractor
+		Erase SpringSecurityConfig
+		Erase SubjectX509PrincipalExtractor
+
+
+15. Add AuthenticationService to Security/
+
+package com.lessons.security;
+
+import com.lessons.models.ConflictingRolesDTO;
+import com.lessons.models.InitialUserInfoDTO;
+import com.lessons.security.keycloak.MyDefaultOidcUser;
+import com.lessons.services.UserService;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
+import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
+import org.springframework.stereotype.Service;
+
+import javax.annotation.Resource;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.sql.DataSource;
+import java.io.IOException;
+import java.net.URLDecoder;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+@Service
+public class AuthenticationService {
+
+    private static final Logger logger = LoggerFactory.getLogger(AuthenticationService.class);
+
+    @Resource
+    private UserService userService;
+
+    @Resource
+    private HttpServletRequest httpServletRequest;
+
+    @Value("${extract-username-from-auth-header:true}")
+    private boolean lookForUsernameInAuthoritiesHeader;
+
+
+
+    private static final Pattern patExtractCN = Pattern.compile("cn=(.*?)(?:,|/|\\z)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern patMatchRole = Pattern.compile("ROLE:(.*?)(?:;|\\z)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern patExtractName = Pattern.compile("name:(.*?)(?:;|\\z)", Pattern.CASE_INSENSITIVE);
+
+
+
+    private static String getCnValueFromLongDnString(String userDN) {
+        logger.debug("getCnValueFromLongDnString()  userDN={}", userDN);
+        String cnValue = null;
+        // Use the regular expression pattern to getByUserId the value part of "CN=value"
+        Matcher matcher = patExtractCN.matcher(userDN);
+        if (matcher.find()) {
+            cnValue = matcher.group(1);
+        }
+
+        logger.debug("getCnValueFromLongDnString() returns -->{}<--", cnValue);
+        return cnValue;
+    }
+
+
+
+    /**
+     * header(X-BDP-User) holds -AUTH:FOUO;AUTH:U;AUTH:USA;GROUP:BDPUSERS;NAME:bdptest_u_fouo;ROLE:ANALYTIC_RUNNER;ROLE:BDP_ADMIN;ROLE:CITE_USER;ROLE:DATA_ADMIN;ROLE:KIBANA_ADMIN;ROLE:LOGS;ROLE:METRICS;ROLE:OWF_ADMIN;ROLE:OWF_USER;ROLE:UNITY_ADMIN<---
+     * Pull every ROLE:role name entry out of the header and insert it into a list of GrantedAuthority objects
+     * @return List of GrantedAuthority objects
+     */
+    private List<GrantedAuthority> getAuthoritiesFromHeaderValue() {
+        List<GrantedAuthority> grantedRoles = new ArrayList<>();
+
+        // header(X-BDP-User) holds -AUTH:FOUO;AUTH:U;AUTH:USA;GROUP:BDPUSERS;NAME:bdptest_u_fouo;ROLE:ANALYTIC_RUNNER;ROLE:BDP_ADMIN;ROLE:CITE_USER;ROLE:DATA_ADMIN;ROLE:KIBANA_ADMIN;ROLE:LOGS;ROLE:METRICS;ROLE:OWF_ADMIN;ROLE:OWF_USER;ROLE:UNITY_ADMIN<---
+        String xbdpUserHeaderValue = httpServletRequest.getHeader("X-BDP-User");
+        logger.debug("In getAuthoritiesFromHeaderValue():  header-->{}<--", xbdpUserHeaderValue);
+        if (StringUtils.isEmpty(xbdpUserHeaderValue)) {
+            // The header is empty -- so return an empty list
+            logger.warn("Warning in getAuthoritiesFromHeaderValue():  The X-BDP-User header had nothing in it.  This should never happen.");
+            return grantedRoles;
+        }
+
+        // Pull every string that starts with ROLE: and add it to the list
+        Matcher matcher = patMatchRole.matcher(xbdpUserHeaderValue);
+        while (matcher.find()) {
+            String roleName = matcher.group(1);
+            logger.debug("Found a role:  roleName={}", roleName);
+            String roleNameWithPrefix = "ROLE_" + roleName;
+            grantedRoles.add(new SimpleGrantedAuthority(roleNameWithPrefix));
+        }
+
+        logger.debug("getAuthoritiesFromHeaderValue() returns -->{}<--", StringUtils.join(grantedRoles, ","));
+        return grantedRoles;
+    }
+
+
+
+
+
+    private String getUsernameFromAuthoritiesHeader() {
+        try {
+            String username = null;
+
+            // Get the contents of the header called "X-BDP-User"
+            // If using a regular CAC cert, then the header holds "AUTH:FOUO;AUTH:U;AUTH:USA;GROUP:BDPUSERS;NAME:bdptest_u_fouo;ROLE:ANALYTIC_RUNNER;ROLE:BDP_ADMIN;ROLE:CITE_USER;ROLE:DATA_ADMIN;ROLE:KIBANA_ADMIN;ROLE:LOGS;ROLE:METRICS;ROLE:OWF_ADMIN;ROLE:OWF_USER;ROLE:UNITY_ADMIN"
+            String xbdpUserHeaderValue = httpServletRequest.getHeader("X-BDP-User");
+
+            logger.debug("In getUsernameFromAuthoritiesHeader():  header-->{}<--", xbdpUserHeaderValue);
+
+
+            if (StringUtils.isEmpty(xbdpUserHeaderValue)) {
+                // The header is empty -- so return an empty list
+                throw new RuntimeException("Error in getUsernameFromAuthoritiesHeader():  The X-BDP-User header had nothing in it.  This should never happen.");
+            }
+
+
+            // Extract the username from this non-ECA cert.
+            // ASSUMPTION:  The BDP header looks like this:
+            //                  ...name:JOHN.SMITH.123456;.....
+            //
+            //              The extracted username should be this:
+            //                   JOHN.SMITH.123456
+            Matcher matcher = patExtractName.matcher(xbdpUserHeaderValue);
+            if (matcher.find()) {
+                username = matcher.group(1);
+            }
+
+            if (StringUtils.contains(username, "%20")) {
+                // The username contains encoded chars.  So, decode it.  This causes %20 --> " " and %3A --> ":"
+                username = URLDecoder.decode(username, "UTF-8");
+            }
+
+            logger.debug("getUsernameFromAuthoritiesHeader() returns -->{}<--", username);
+            return username;
+        }
+        catch (Exception e) {
+            RuntimeException re = new RuntimeException(e);
+            re.setStackTrace(e.getStackTrace());
+            throw re;
+        }
+    }
+
+
+
+
+    /**
+     * The user has successfully authenticated against an Oauth2 (Keycloak) server
+     * @param aRequest
+     * @param aResponse
+     * @param aAuthentication
+     * @throws Exception
+     */
+    public void onAuthenticationSuccessForOauth2(HttpServletRequest aRequest,
+                                                 HttpServletResponse aResponse,
+                                                 Authentication aAuthentication) throws IOException, ServletException {
+        logger.debug("onAuthenticationSuccessForOauth2() started");
+
+        MyDefaultOidcUser myDefaultOidcUser = (MyDefaultOidcUser) aAuthentication.getPrincipal();
+
+        // TODO: Mark this user as authenticated
+
+
+        logger.debug("onAuthenticationSuccessForOauth2() finished");
+    }
+
+
+
+    public MyUserInfo generateUserInfoWithOauth2InfoFromKeyCloak(OidcUser aOidcUser) {
+        String userUID = aOidcUser.getName();
+
+        List<GrantedAuthority> oauth2RolesGranted = new ArrayList<>();
+
+        // Get the roles from keycloak and put them into the object called oauth2RolesGranted
+        Map<String, Object> realmAccessMap = (Map<String, Object>) aOidcUser.getAttributes().get("realm_access");
+        if ((realmAccessMap != null) && (realmAccessMap.size() == 1)) {
+            List<String> roleNames = (List<String>) realmAccessMap.get("roles");
+
+            if (roleNames != null) {
+                for (String roleName: roleNames) {
+                    GrantedAuthority grantedAuthority = new SimpleGrantedAuthority("ROLE_" + roleName);
+                    oauth2RolesGranted.add(grantedAuthority);
+                }
+            }
+
+        }
+
+        ConflictingRolesDTO conflictingRolesDTO = new ConflictingRolesDTO(oauth2RolesGranted);
+
+
+        // Get the user's userId from the database (or generate one)
+        // NOTE:  Use the non-synchronized version of this method when running in local dev mode
+        InitialUserInfoDTO userInfoDTO = userService.getInitialUserInfoOrInsertRecord(userUID, oauth2RolesGranted);
+
+        // The list of allRolesGranted = all citadel roles + all internal roles granted
+        List<GrantedAuthority> allRolesGranted = new ArrayList<>(oauth2RolesGranted.size() + userInfoDTO.getInternalRolesGranted().size() );
+        allRolesGranted.addAll(oauth2RolesGranted);
+        allRolesGranted.addAll( userInfoDTO.getInternalRolesGranted());
+
+        // Create a UserInfo object with information from the database and the keycloak server
+        MyUserInfo userInfo = new MyUserInfo()
+                .withId( userInfoDTO.getUserId() )
+                .withIsLocked( userInfoDTO.getIsLocked() )
+                .withUsernameUID( aOidcUser.getName() )
+                .withGrantedAuthorities(allRolesGranted)
+                .withRolesAreConflicting(conflictingRolesDTO.isRolesAreConflicting())
+                .withRolesAreConflictingMessage(conflictingRolesDTO.getRolesAreConflictingMessage());
+
+        return userInfo;
+    }
+
+
+
+
+    /**
+     * Generate the MyUserInfo object for a CITADEL user
+     *
+     * @param authentication holds the Authentication objects
+     * @return MyUserInfo that holds information about the authenticated user
+     */
+    public MyUserInfo generateUserInfoUsingCitadel(Authentication authentication) {
+
+        logger.debug("generateUserInfoUsingCitadel() started authentication={}", authentication);
+        String userDN;
+        PreAuthenticatedAuthenticationToken token;
+
+        if (authentication.getPrincipal() instanceof String) {
+            userDN = authentication.getPrincipal().toString();
+        }
+        else {
+            token = (PreAuthenticatedAuthenticationToken) authentication.getPrincipal();
+            userDN = token.getName();
+        }
+        logger.debug("userDN={}", userDN);
+
+        String certUsername;
+        if (lookForUsernameInAuthoritiesHeader) {
+            // Get the user's unique username from the authorities header (X-BDP Header) / looking for name:....
+            certUsername = getUsernameFromAuthoritiesHeader();
+        }
+        else {
+            // Get the user's unique username from the CN= value in their CAC or certificate / Looking for CN=.....
+            certUsername = getCnValueFromLongDnString(userDN);
+        }
+
+        // Get the list of roles from the header
+        List<GrantedAuthority> citadelRolesGranted = getAuthoritiesFromHeaderValue();
+
+        ConflictingRolesDTO conflictingRolesDTO = new ConflictingRolesDTO(citadelRolesGranted);
+
+        if ((citadelRolesGranted != null) && (citadelRolesGranted.size() > 0)) {
+            // This user has atleast one CITADEL authority
+            // NOTE:  All granted authorities must start with the "ROLE_" prefix
+            citadelRolesGranted.add(new SimpleGrantedAuthority("ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS"));
+        }
+        else {
+            // This user has no roles so throw a runtime exception
+            throw new RuntimeException("No roles were found for this user: " + certUsername);
+        }
+
+
+        // Get information about this user from teh Users table (in the database)
+        InitialUserInfoDTO userInfoDTO = this.userService.getInitialUserInfoOrInsertRecord(certUsername, citadelRolesGranted);
+
+        // The list of allRolesGranted = all citadel roles + all internal roles granted
+        List<GrantedAuthority> allRolesGranted = new ArrayList<>(citadelRolesGranted.size() + userInfoDTO.getInternalRolesGranted().size() );
+        allRolesGranted.addAll(citadelRolesGranted);
+        allRolesGranted.addAll( userInfoDTO.getInternalRolesGranted());
+
+        // Generate the user's granted access map from all roles granted
+        Map<String, Boolean> uiControlAccesMap = userService.generateUiControlAccessMap(allRolesGranted);
+
+        // Create a bogus UserInfo object
+        // NOTE:  I am hard-coding the user's userid=25
+        MyUserInfo myUserInfo = new MyUserInfo()
+                .withId( userInfoDTO.getUserId() )
+                .withIsLocked( userInfoDTO.getIsLocked() )
+                .withUsernameUID(certUsername)
+                .withUsernameDn(userDN)
+                .withGrantedAuthorities(allRolesGranted)
+                .withUiControlAccessMap(uiControlAccesMap)
+                .withRolesAreConflicting(conflictingRolesDTO.isRolesAreConflicting())
+                .withRolesAreConflictingMessage(conflictingRolesDTO.getRolesAreConflictingMessage())
+                .withRegisteredCageCode(userInfoDTO.getRegisteredCagecode() )
+                .withUsersFullName(userInfoDTO.getFullName() )
+                .withPrimaryOrgId( userInfoDTO.getPrimaryOrgId() )
+                .withSecondaryOrgId( userInfoDTO.getSecondaryOrgId() )
+                .withUsersListOfCageCodes( userInfoDTO.getUsersListOfCageCodes() )
+                .withRegistrationStateId( userInfoDTO.getRegistrationStateId() );
+
+
+        return myUserInfo;
+    }
+
+
+
+    /**
+     * Generate the MyUserInfo object for a local developer user
+     *
+     * @param authentication holds the Authentication objects
+     * @return MyUserInfo that holds information about the authenticated user
+     */
+    public MyUserInfo generateUserInfoForDevelopment(Authentication authentication) {
+
+        final String userUID;
+        final String userDN;
+        List<GrantedAuthority> citadelRolesGranted = new ArrayList<>();
+        citadelRolesGranted.add(new SimpleGrantedAuthority("ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS"));
+
+        userUID = "my_superuser";
+        userDN = "3.2.12.144549.1.9.1=#33333333333,CN=my_superuser,OU=Hosts,O=ZZTop.Org,C=ZZ";
+        citadelRolesGranted.add(new SimpleGrantedAuthority("ROLE_MY_SUPERUSER"));
+
+
+        ConflictingRolesDTO conflictingRolesDTO = new ConflictingRolesDTO(citadelRolesGranted);
+
+        // Get information about this user from teh Users table (in the database)
+        // NOTE:  Use the synchronized version of this method in development
+        InitialUserInfoDTO userInfoDTO = this.userService.getInitialUserInfoOrInsertRecordSynchronized(userUID, citadelRolesGranted);
+
+        // The list of allRolesGranted = all citadel roles + all internal roles granted
+        List<GrantedAuthority> allRolesGranted = new ArrayList<>(citadelRolesGranted.size() + userInfoDTO.getInternalRolesGranted().size() );
+        allRolesGranted.addAll(citadelRolesGranted);
+        allRolesGranted.addAll( userInfoDTO.getInternalRolesGranted());
+
+        // Generate the user's granted access map from all roles granted
+        Map<String, Boolean> uiControlAccesMap = userService.generateUiControlAccessMap(allRolesGranted);
+
+        // Create a bogus UserInfo object
+        // NOTE:  I am hard-coding the user's userid=25
+        MyUserInfo myUserInfo = new MyUserInfo()
+                .withId( userInfoDTO.getUserId() )
+                .withIsLocked( userInfoDTO.getIsLocked() )
+                .withUsernameUID(userUID)
+                .withUsernameDn(userDN)
+                .withGrantedAuthorities(allRolesGranted)
+                .withUiControlAccessMap(uiControlAccesMap)
+                .withRolesAreConflicting(conflictingRolesDTO.isRolesAreConflicting())
+                .withRolesAreConflictingMessage(conflictingRolesDTO.getRolesAreConflictingMessage())
+                .withRegisteredCageCode(userInfoDTO.getRegisteredCagecode())
+                .withUsersFullName(userInfoDTO.getFullName() )
+                .withPrimaryOrgId( userInfoDTO.getPrimaryOrgId() )
+                .withSecondaryOrgId( userInfoDTO.getSecondaryOrgId() )
+                .withUsersListOfCageCodes( userInfoDTO.getUsersListOfCageCodes() )
+                .withRegistrationStateId( userInfoDTO.getRegistrationStateId() );
+
+
+        // When running in local development, disable the acknowledgement popup
+        myUserInfo.setUserAcknowledgedMessage();
+
+        return myUserInfo;
+    }
+
+
+}
+
+
+
+
+
+16. Adjust production settings
+    a. Need a security.mode of 'keycloak', 'citadel', or 'localdev'
+    b. If security.mode does not match, then throw RuntimeException
+    c. Adjust production application.yaml to use security.mode=keycloak
+
+
+
+
+
+17. Build the RDA / Verify it works on dev cluster
+    mvn clean package -Pprod -PbuildRda
+
+18. Build the image / Verify it works on an AWS cluster
+    docker login
+    mvn clean package -Pprod -PbuildImageAndPush
+
+
+
+
+
+
+
+
+
+
+Approaches for the 5 environments
+---------------------------------
+ 1. Create a single application.yaml with 5 profiles / Set the spring profile in the deployment yaml
+ 2. Create 5 application.yaml files -- e.g., application-test.yaml, application-prod.yaml / Set the spring.config.location=/directory that holds multiple application.yaml
+
+ 3. Create a single prod application.yaml and get env variables from yaml
+    + Only one profile called "prod" in it
+    + Only one application.yaml for "prod"
+    + The only thing that changes in a few things and they are env variables
+
+
+
+#############################################################################
+# Filename: sync-service-deployment-for-prod.yaml
+#
+# Purpose:
+#  Explains how to deploy the sync service in the production environment
+#############################################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sf328-deployment
+
+spec:
+  selector:
+    matchLabels:
+      app: sf328-backend
+  replicas: 1
+  strategy:
+    type:  Recreate
+  template:
+    metadata:
+      name: kubia
+      labels:
+         app: sf328-backend
+    spec:
+      hostAliases:
+      - ip: "160.1.28.118"
+        hostnames:
+          - "ec2-160-1-28-118.us-gov-west-1.compute.amazonaws.com"
+      containers:
+      - image: 527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/poc:sf328-backend-1.0.24-SNAPSHOT
+        imagePullPolicy: Always
+        name: java-backend
+        env:
+           - name: MY_ENV
+             value: "test"
+           - name: POSTGRES_HOSTNAME
+             value: "server-running-postgres"
+           - name: POSTGRES_DB_USERNAME
+             value: "app1_user"
+           - name: POSTGRES_DB_PASSWORD
+             value: "secret"
+           - name: POSTGRES_DB_NAME
+             value: "app1_db"
+           - name: POSTGRES_SCHEMA_NAME
+             value: "app1_db"
+           - name: ES_URL
+             value: "https://search-sf328-itwh3bby3wl3s7t6ur6pph2rti.us-gov-west-1.es.amazonaws.com:443"
+           - name: ES_USERNAME
+             value: "es_user"
+           - name: ES_PASSWORD
+             value: "es_secret"
+           - name: KEYCLOAK_CLIENT_ID
+             value: "sf328"
+           - name: KEYCLOAK_CLIENT_SECRET
+             value: "adfasdfsafdsafdjljasdfsafdasfasdfasfd"
+           - name: JAVA_TOOL_OPTIONS
+             value: -Xms250m -Xmx250m - -Demail.mode=off -Djavax.net.ssl.trustStore=/sf328-backend/src/main/prod_resources/custom.cacerts -Djavax.net.ssl.trustStorePassword=changeit  -jar .../path/to/jar
+
+
+NOTE:  We can move these env variables to a configMap as well
+
