@@ -2237,377 +2237,444 @@ Plan:  There will be 3 security.mode values:
 
 15. Add AuthenticationService to Security/
 
-package com.lessons.security;
-
-import com.lessons.models.ConflictingRolesDTO;
-import com.lessons.models.InitialUserInfoDTO;
-import com.lessons.security.keycloak.MyDefaultOidcUser;
-import com.lessons.services.UserService;
-import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.oauth2.core.oidc.user.OidcUser;
-import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
-import org.springframework.stereotype.Service;
+		package com.lessons.security;
+
+		import com.lessons.models.ConflictingRolesDTO;
+		import com.lessons.models.InitialUserInfoDTO;
+		import com.lessons.security.keycloak.MyDefaultOidcUser;
+		import com.lessons.services.UserService;
+		import org.apache.commons.lang3.StringUtils;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import org.springframework.beans.factory.annotation.Value;
+		import org.springframework.security.core.Authentication;
+		import org.springframework.security.core.GrantedAuthority;
+		import org.springframework.security.core.authority.SimpleGrantedAuthority;
+		import org.springframework.security.oauth2.core.oidc.user.OidcUser;
+		import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
+		import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.sql.DataSource;
-import java.io.IOException;
-import java.net.URLDecoder;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-@Service
-public class AuthenticationService {
-
-    private static final Logger logger = LoggerFactory.getLogger(AuthenticationService.class);
-
-    @Resource
-    private UserService userService;
-
-    @Resource
-    private HttpServletRequest httpServletRequest;
-
-    @Value("${extract-username-from-auth-header:true}")
-    private boolean lookForUsernameInAuthoritiesHeader;
-
-
-
-    private static final Pattern patExtractCN = Pattern.compile("cn=(.*?)(?:,|/|\\z)", Pattern.CASE_INSENSITIVE);
-    private static final Pattern patMatchRole = Pattern.compile("ROLE:(.*?)(?:;|\\z)", Pattern.CASE_INSENSITIVE);
-    private static final Pattern patExtractName = Pattern.compile("name:(.*?)(?:;|\\z)", Pattern.CASE_INSENSITIVE);
-
-
-
-    private static String getCnValueFromLongDnString(String userDN) {
-        logger.debug("getCnValueFromLongDnString()  userDN={}", userDN);
-        String cnValue = null;
-        // Use the regular expression pattern to getByUserId the value part of "CN=value"
-        Matcher matcher = patExtractCN.matcher(userDN);
-        if (matcher.find()) {
-            cnValue = matcher.group(1);
-        }
-
-        logger.debug("getCnValueFromLongDnString() returns -->{}<--", cnValue);
-        return cnValue;
-    }
+		import javax.annotation.Resource;
+		import javax.servlet.ServletException;
+		import javax.servlet.http.HttpServletRequest;
+		import javax.servlet.http.HttpServletResponse;
+		import javax.sql.DataSource;
+		import java.io.IOException;
+		import java.net.URLDecoder;
+		import java.util.ArrayList;
+		import java.util.List;
+		import java.util.Map;
+		import java.util.regex.Matcher;
+		import java.util.regex.Pattern;
+
+		@Service
+		public class AuthenticationService {
+
+			private static final Logger logger = LoggerFactory.getLogger(AuthenticationService.class);
+
+			@Resource
+			private UserService userService;
+
+			@Resource
+			private HttpServletRequest httpServletRequest;
+
+			@Value("${extract-username-from-auth-header:true}")
+			private boolean lookForUsernameInAuthoritiesHeader;
+
+
+
+			private static final Pattern patExtractCN = Pattern.compile("cn=(.*?)(?:,|/|\\z)", Pattern.CASE_INSENSITIVE);
+			private static final Pattern patMatchRole = Pattern.compile("ROLE:(.*?)(?:;|\\z)", Pattern.CASE_INSENSITIVE);
+			private static final Pattern patExtractName = Pattern.compile("name:(.*?)(?:;|\\z)", Pattern.CASE_INSENSITIVE);
+
+
+
+			private static String getCnValueFromLongDnString(String userDN) {
+				logger.debug("getCnValueFromLongDnString()  userDN={}", userDN);
+				String cnValue = null;
+				// Use the regular expression pattern to getByUserId the value part of "CN=value"
+				Matcher matcher = patExtractCN.matcher(userDN);
+				if (matcher.find()) {
+					cnValue = matcher.group(1);
+				}
+
+				logger.debug("getCnValueFromLongDnString() returns -->{}<--", cnValue);
+				return cnValue;
+			}
 
-
-
-    /**
-     * header(X-BDP-User) holds -AUTH:FOUO;AUTH:U;AUTH:USA;GROUP:BDPUSERS;NAME:bdptest_u_fouo;ROLE:ANALYTIC_RUNNER;ROLE:BDP_ADMIN;ROLE:CITE_USER;ROLE:DATA_ADMIN;ROLE:KIBANA_ADMIN;ROLE:LOGS;ROLE:METRICS;ROLE:OWF_ADMIN;ROLE:OWF_USER;ROLE:UNITY_ADMIN<---
-     * Pull every ROLE:role name entry out of the header and insert it into a list of GrantedAuthority objects
-     * @return List of GrantedAuthority objects
-     */
-    private List<GrantedAuthority> getAuthoritiesFromHeaderValue() {
-        List<GrantedAuthority> grantedRoles = new ArrayList<>();
+
+
+			/**
+			 * header(X-BDP-User) holds -AUTH:FOUO;AUTH:U;AUTH:USA;GROUP:BDPUSERS;NAME:bdptest_u_fouo;ROLE:ANALYTIC_RUNNER;ROLE:BDP_ADMIN;ROLE:CITE_USER;ROLE:DATA_ADMIN;ROLE:KIBANA_ADMIN;ROLE:LOGS;ROLE:METRICS;ROLE:OWF_ADMIN;ROLE:OWF_USER;ROLE:UNITY_ADMIN<---
+			 * Pull every ROLE:role name entry out of the header and insert it into a list of GrantedAuthority objects
+			 * @return List of GrantedAuthority objects
+			 */
+			private List<GrantedAuthority> getAuthoritiesFromHeaderValue() {
+				List<GrantedAuthority> grantedRoles = new ArrayList<>();
 
-        // header(X-BDP-User) holds -AUTH:FOUO;AUTH:U;AUTH:USA;GROUP:BDPUSERS;NAME:bdptest_u_fouo;ROLE:ANALYTIC_RUNNER;ROLE:BDP_ADMIN;ROLE:CITE_USER;ROLE:DATA_ADMIN;ROLE:KIBANA_ADMIN;ROLE:LOGS;ROLE:METRICS;ROLE:OWF_ADMIN;ROLE:OWF_USER;ROLE:UNITY_ADMIN<---
-        String xbdpUserHeaderValue = httpServletRequest.getHeader("X-BDP-User");
-        logger.debug("In getAuthoritiesFromHeaderValue():  header-->{}<--", xbdpUserHeaderValue);
-        if (StringUtils.isEmpty(xbdpUserHeaderValue)) {
-            // The header is empty -- so return an empty list
-            logger.warn("Warning in getAuthoritiesFromHeaderValue():  The X-BDP-User header had nothing in it.  This should never happen.");
-            return grantedRoles;
-        }
+				// header(X-BDP-User) holds -AUTH:FOUO;AUTH:U;AUTH:USA;GROUP:BDPUSERS;NAME:bdptest_u_fouo;ROLE:ANALYTIC_RUNNER;ROLE:BDP_ADMIN;ROLE:CITE_USER;ROLE:DATA_ADMIN;ROLE:KIBANA_ADMIN;ROLE:LOGS;ROLE:METRICS;ROLE:OWF_ADMIN;ROLE:OWF_USER;ROLE:UNITY_ADMIN<---
+				String xbdpUserHeaderValue = httpServletRequest.getHeader("X-BDP-User");
+				logger.debug("In getAuthoritiesFromHeaderValue():  header-->{}<--", xbdpUserHeaderValue);
+				if (StringUtils.isEmpty(xbdpUserHeaderValue)) {
+					// The header is empty -- so return an empty list
+					logger.warn("Warning in getAuthoritiesFromHeaderValue():  The X-BDP-User header had nothing in it.  This should never happen.");
+					return grantedRoles;
+				}
 
-        // Pull every string that starts with ROLE: and add it to the list
-        Matcher matcher = patMatchRole.matcher(xbdpUserHeaderValue);
-        while (matcher.find()) {
-            String roleName = matcher.group(1);
-            logger.debug("Found a role:  roleName={}", roleName);
-            String roleNameWithPrefix = "ROLE_" + roleName;
-            grantedRoles.add(new SimpleGrantedAuthority(roleNameWithPrefix));
-        }
+				// Pull every string that starts with ROLE: and add it to the list
+				Matcher matcher = patMatchRole.matcher(xbdpUserHeaderValue);
+				while (matcher.find()) {
+					String roleName = matcher.group(1);
+					logger.debug("Found a role:  roleName={}", roleName);
+					String roleNameWithPrefix = "ROLE_" + roleName;
+					grantedRoles.add(new SimpleGrantedAuthority(roleNameWithPrefix));
+				}
 
-        logger.debug("getAuthoritiesFromHeaderValue() returns -->{}<--", StringUtils.join(grantedRoles, ","));
-        return grantedRoles;
-    }
+				logger.debug("getAuthoritiesFromHeaderValue() returns -->{}<--", StringUtils.join(grantedRoles, ","));
+				return grantedRoles;
+			}
 
 
 
 
 
-    private String getUsernameFromAuthoritiesHeader() {
-        try {
-            String username = null;
+			private String getUsernameFromAuthoritiesHeader() {
+				try {
+					String username = null;
 
-            // Get the contents of the header called "X-BDP-User"
-            // If using a regular CAC cert, then the header holds "AUTH:FOUO;AUTH:U;AUTH:USA;GROUP:BDPUSERS;NAME:bdptest_u_fouo;ROLE:ANALYTIC_RUNNER;ROLE:BDP_ADMIN;ROLE:CITE_USER;ROLE:DATA_ADMIN;ROLE:KIBANA_ADMIN;ROLE:LOGS;ROLE:METRICS;ROLE:OWF_ADMIN;ROLE:OWF_USER;ROLE:UNITY_ADMIN"
-            String xbdpUserHeaderValue = httpServletRequest.getHeader("X-BDP-User");
+					// Get the contents of the header called "X-BDP-User"
+					// If using a regular CAC cert, then the header holds "AUTH:FOUO;AUTH:U;AUTH:USA;GROUP:BDPUSERS;NAME:bdptest_u_fouo;ROLE:ANALYTIC_RUNNER;ROLE:BDP_ADMIN;ROLE:CITE_USER;ROLE:DATA_ADMIN;ROLE:KIBANA_ADMIN;ROLE:LOGS;ROLE:METRICS;ROLE:OWF_ADMIN;ROLE:OWF_USER;ROLE:UNITY_ADMIN"
+					String xbdpUserHeaderValue = httpServletRequest.getHeader("X-BDP-User");
 
-            logger.debug("In getUsernameFromAuthoritiesHeader():  header-->{}<--", xbdpUserHeaderValue);
+					logger.debug("In getUsernameFromAuthoritiesHeader():  header-->{}<--", xbdpUserHeaderValue);
 
 
-            if (StringUtils.isEmpty(xbdpUserHeaderValue)) {
-                // The header is empty -- so return an empty list
-                throw new RuntimeException("Error in getUsernameFromAuthoritiesHeader():  The X-BDP-User header had nothing in it.  This should never happen.");
-            }
+					if (StringUtils.isEmpty(xbdpUserHeaderValue)) {
+						// The header is empty -- so return an empty list
+						throw new RuntimeException("Error in getUsernameFromAuthoritiesHeader():  The X-BDP-User header had nothing in it.  This should never happen.");
+					}
 
 
-            // Extract the username from this non-ECA cert.
-            // ASSUMPTION:  The BDP header looks like this:
-            //                  ...name:JOHN.SMITH.123456;.....
-            //
-            //              The extracted username should be this:
-            //                   JOHN.SMITH.123456
-            Matcher matcher = patExtractName.matcher(xbdpUserHeaderValue);
-            if (matcher.find()) {
-                username = matcher.group(1);
-            }
+					// Extract the username from this non-ECA cert.
+					// ASSUMPTION:  The BDP header looks like this:
+					//                  ...name:JOHN.SMITH.123456;.....
+					//
+					//              The extracted username should be this:
+					//                   JOHN.SMITH.123456
+					Matcher matcher = patExtractName.matcher(xbdpUserHeaderValue);
+					if (matcher.find()) {
+						username = matcher.group(1);
+					}
 
-            if (StringUtils.contains(username, "%20")) {
-                // The username contains encoded chars.  So, decode it.  This causes %20 --> " " and %3A --> ":"
-                username = URLDecoder.decode(username, "UTF-8");
-            }
+					if (StringUtils.contains(username, "%20")) {
+						// The username contains encoded chars.  So, decode it.  This causes %20 --> " " and %3A --> ":"
+						username = URLDecoder.decode(username, "UTF-8");
+					}
 
-            logger.debug("getUsernameFromAuthoritiesHeader() returns -->{}<--", username);
-            return username;
-        }
-        catch (Exception e) {
-            RuntimeException re = new RuntimeException(e);
-            re.setStackTrace(e.getStackTrace());
-            throw re;
-        }
-    }
+					logger.debug("getUsernameFromAuthoritiesHeader() returns -->{}<--", username);
+					return username;
+				}
+				catch (Exception e) {
+					RuntimeException re = new RuntimeException(e);
+					re.setStackTrace(e.getStackTrace());
+					throw re;
+				}
+			}
 
 
 
 
-    /**
-     * The user has successfully authenticated against an Oauth2 (Keycloak) server
-     * @param aRequest
-     * @param aResponse
-     * @param aAuthentication
-     * @throws Exception
-     */
-    public void onAuthenticationSuccessForOauth2(HttpServletRequest aRequest,
-                                                 HttpServletResponse aResponse,
-                                                 Authentication aAuthentication) throws IOException, ServletException {
-        logger.debug("onAuthenticationSuccessForOauth2() started");
+			/**
+			 * The user has successfully authenticated against an Oauth2 (Keycloak) server
+			 * @param aRequest
+			 * @param aResponse
+			 * @param aAuthentication
+			 * @throws Exception
+			 */
+			public void onAuthenticationSuccessForOauth2(HttpServletRequest aRequest,
+														 HttpServletResponse aResponse,
+														 Authentication aAuthentication) throws IOException, ServletException {
+				logger.debug("onAuthenticationSuccessForOauth2() started");
 
-        MyDefaultOidcUser myDefaultOidcUser = (MyDefaultOidcUser) aAuthentication.getPrincipal();
+				MyDefaultOidcUser myDefaultOidcUser = (MyDefaultOidcUser) aAuthentication.getPrincipal();
 
-        // TODO: Mark this user as authenticated
+				// TODO: Mark this user as authenticated
 
 
-        logger.debug("onAuthenticationSuccessForOauth2() finished");
-    }
+				logger.debug("onAuthenticationSuccessForOauth2() finished");
+			}
 
 
 
-    public MyUserInfo generateUserInfoWithOauth2InfoFromKeyCloak(OidcUser aOidcUser) {
-        String userUID = aOidcUser.getName();
+			public MyUserInfo generateUserInfoWithOauth2InfoFromKeyCloak(OidcUser aOidcUser) {
+				String userUID = aOidcUser.getName();
 
-        List<GrantedAuthority> oauth2RolesGranted = new ArrayList<>();
+				List<GrantedAuthority> oauth2RolesGranted = new ArrayList<>();
 
-        // Get the roles from keycloak and put them into the object called oauth2RolesGranted
-        Map<String, Object> realmAccessMap = (Map<String, Object>) aOidcUser.getAttributes().get("realm_access");
-        if ((realmAccessMap != null) && (realmAccessMap.size() == 1)) {
-            List<String> roleNames = (List<String>) realmAccessMap.get("roles");
+				// Get the roles from keycloak and put them into the object called oauth2RolesGranted
+				Map<String, Object> realmAccessMap = (Map<String, Object>) aOidcUser.getAttributes().get("realm_access");
+				if ((realmAccessMap != null) && (realmAccessMap.size() == 1)) {
+					List<String> roleNames = (List<String>) realmAccessMap.get("roles");
 
-            if (roleNames != null) {
-                for (String roleName: roleNames) {
-                    GrantedAuthority grantedAuthority = new SimpleGrantedAuthority("ROLE_" + roleName);
-                    oauth2RolesGranted.add(grantedAuthority);
-                }
-            }
-
-        }
-
-        ConflictingRolesDTO conflictingRolesDTO = new ConflictingRolesDTO(oauth2RolesGranted);
-
-
-        // Get the user's userId from the database (or generate one)
-        // NOTE:  Use the non-synchronized version of this method when running in local dev mode
-        InitialUserInfoDTO userInfoDTO = userService.getInitialUserInfoOrInsertRecord(userUID, oauth2RolesGranted);
-
-        // The list of allRolesGranted = all citadel roles + all internal roles granted
-        List<GrantedAuthority> allRolesGranted = new ArrayList<>(oauth2RolesGranted.size() + userInfoDTO.getInternalRolesGranted().size() );
-        allRolesGranted.addAll(oauth2RolesGranted);
-        allRolesGranted.addAll( userInfoDTO.getInternalRolesGranted());
+					if (roleNames != null) {
+						for (String roleName: roleNames) {
+							GrantedAuthority grantedAuthority = new SimpleGrantedAuthority("ROLE_" + roleName);
+							oauth2RolesGranted.add(grantedAuthority);
+						}
+					}
+
+				}
+
+				ConflictingRolesDTO conflictingRolesDTO = new ConflictingRolesDTO(oauth2RolesGranted);
+
+
+				// Get the user's userId from the database (or generate one)
+				// NOTE:  Use the non-synchronized version of this method when running in local dev mode
+				InitialUserInfoDTO userInfoDTO = userService.getInitialUserInfoOrInsertRecord(userUID, oauth2RolesGranted);
+
+				// The list of allRolesGranted = all citadel roles + all internal roles granted
+				List<GrantedAuthority> allRolesGranted = new ArrayList<>(oauth2RolesGranted.size() + userInfoDTO.getInternalRolesGranted().size() );
+				allRolesGranted.addAll(oauth2RolesGranted);
+				allRolesGranted.addAll( userInfoDTO.getInternalRolesGranted());
 
-        // Create a UserInfo object with information from the database and the keycloak server
-        MyUserInfo userInfo = new MyUserInfo()
-                .withId( userInfoDTO.getUserId() )
-                .withIsLocked( userInfoDTO.getIsLocked() )
-                .withUsernameUID( aOidcUser.getName() )
-                .withGrantedAuthorities(allRolesGranted)
-                .withRolesAreConflicting(conflictingRolesDTO.isRolesAreConflicting())
-                .withRolesAreConflictingMessage(conflictingRolesDTO.getRolesAreConflictingMessage());
-
-        return userInfo;
-    }
-
-
-
-
-    /**
-     * Generate the MyUserInfo object for a CITADEL user
-     *
-     * @param authentication holds the Authentication objects
-     * @return MyUserInfo that holds information about the authenticated user
-     */
-    public MyUserInfo generateUserInfoUsingCitadel(Authentication authentication) {
+				// Create a UserInfo object with information from the database and the keycloak server
+				MyUserInfo userInfo = new MyUserInfo()
+						.withId( userInfoDTO.getUserId() )
+						.withIsLocked( userInfoDTO.getIsLocked() )
+						.withUsernameUID( aOidcUser.getName() )
+						.withGrantedAuthorities(allRolesGranted)
+						.withRolesAreConflicting(conflictingRolesDTO.isRolesAreConflicting())
+						.withRolesAreConflictingMessage(conflictingRolesDTO.getRolesAreConflictingMessage());
+
+				return userInfo;
+			}
+
+
+
+
+			/**
+			 * Generate the MyUserInfo object for a CITADEL user
+			 *
+			 * @param authentication holds the Authentication objects
+			 * @return MyUserInfo that holds information about the authenticated user
+			 */
+			public MyUserInfo generateUserInfoUsingCitadel(Authentication authentication) {
 
-        logger.debug("generateUserInfoUsingCitadel() started authentication={}", authentication);
-        String userDN;
-        PreAuthenticatedAuthenticationToken token;
+				logger.debug("generateUserInfoUsingCitadel() started authentication={}", authentication);
+				String userDN;
+				PreAuthenticatedAuthenticationToken token;
 
-        if (authentication.getPrincipal() instanceof String) {
-            userDN = authentication.getPrincipal().toString();
-        }
-        else {
-            token = (PreAuthenticatedAuthenticationToken) authentication.getPrincipal();
-            userDN = token.getName();
-        }
-        logger.debug("userDN={}", userDN);
-
-        String certUsername;
-        if (lookForUsernameInAuthoritiesHeader) {
-            // Get the user's unique username from the authorities header (X-BDP Header) / looking for name:....
-            certUsername = getUsernameFromAuthoritiesHeader();
-        }
-        else {
-            // Get the user's unique username from the CN= value in their CAC or certificate / Looking for CN=.....
-            certUsername = getCnValueFromLongDnString(userDN);
-        }
-
-        // Get the list of roles from the header
-        List<GrantedAuthority> citadelRolesGranted = getAuthoritiesFromHeaderValue();
-
-        ConflictingRolesDTO conflictingRolesDTO = new ConflictingRolesDTO(citadelRolesGranted);
-
-        if ((citadelRolesGranted != null) && (citadelRolesGranted.size() > 0)) {
-            // This user has atleast one CITADEL authority
-            // NOTE:  All granted authorities must start with the "ROLE_" prefix
-            citadelRolesGranted.add(new SimpleGrantedAuthority("ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS"));
-        }
-        else {
-            // This user has no roles so throw a runtime exception
-            throw new RuntimeException("No roles were found for this user: " + certUsername);
-        }
+				if (authentication.getPrincipal() instanceof String) {
+					userDN = authentication.getPrincipal().toString();
+				}
+				else {
+					token = (PreAuthenticatedAuthenticationToken) authentication.getPrincipal();
+					userDN = token.getName();
+				}
+				logger.debug("userDN={}", userDN);
+
+				String certUsername;
+				if (lookForUsernameInAuthoritiesHeader) {
+					// Get the user's unique username from the authorities header (X-BDP Header) / looking for name:....
+					certUsername = getUsernameFromAuthoritiesHeader();
+				}
+				else {
+					// Get the user's unique username from the CN= value in their CAC or certificate / Looking for CN=.....
+					certUsername = getCnValueFromLongDnString(userDN);
+				}
+
+				// Get the list of roles from the header
+				List<GrantedAuthority> citadelRolesGranted = getAuthoritiesFromHeaderValue();
+
+				ConflictingRolesDTO conflictingRolesDTO = new ConflictingRolesDTO(citadelRolesGranted);
+
+				if ((citadelRolesGranted != null) && (citadelRolesGranted.size() > 0)) {
+					// This user has atleast one CITADEL authority
+					// NOTE:  All granted authorities must start with the "ROLE_" prefix
+					citadelRolesGranted.add(new SimpleGrantedAuthority("ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS"));
+				}
+				else {
+					// This user has no roles so throw a runtime exception
+					throw new RuntimeException("No roles were found for this user: " + certUsername);
+				}
 
 
-        // Get information about this user from teh Users table (in the database)
-        InitialUserInfoDTO userInfoDTO = this.userService.getInitialUserInfoOrInsertRecord(certUsername, citadelRolesGranted);
+				// Get information about this user from teh Users table (in the database)
+				InitialUserInfoDTO userInfoDTO = this.userService.getInitialUserInfoOrInsertRecord(certUsername, citadelRolesGranted);
 
-        // The list of allRolesGranted = all citadel roles + all internal roles granted
-        List<GrantedAuthority> allRolesGranted = new ArrayList<>(citadelRolesGranted.size() + userInfoDTO.getInternalRolesGranted().size() );
-        allRolesGranted.addAll(citadelRolesGranted);
-        allRolesGranted.addAll( userInfoDTO.getInternalRolesGranted());
+				// The list of allRolesGranted = all citadel roles + all internal roles granted
+				List<GrantedAuthority> allRolesGranted = new ArrayList<>(citadelRolesGranted.size() + userInfoDTO.getInternalRolesGranted().size() );
+				allRolesGranted.addAll(citadelRolesGranted);
+				allRolesGranted.addAll( userInfoDTO.getInternalRolesGranted());
 
-        // Generate the user's granted access map from all roles granted
-        Map<String, Boolean> uiControlAccesMap = userService.generateUiControlAccessMap(allRolesGranted);
+				// Generate the user's granted access map from all roles granted
+				Map<String, Boolean> uiControlAccesMap = userService.generateUiControlAccessMap(allRolesGranted);
 
-        // Create a bogus UserInfo object
-        // NOTE:  I am hard-coding the user's userid=25
-        MyUserInfo myUserInfo = new MyUserInfo()
-                .withId( userInfoDTO.getUserId() )
-                .withIsLocked( userInfoDTO.getIsLocked() )
-                .withUsernameUID(certUsername)
-                .withUsernameDn(userDN)
-                .withGrantedAuthorities(allRolesGranted)
-                .withUiControlAccessMap(uiControlAccesMap)
-                .withRolesAreConflicting(conflictingRolesDTO.isRolesAreConflicting())
-                .withRolesAreConflictingMessage(conflictingRolesDTO.getRolesAreConflictingMessage())
-                .withRegisteredCageCode(userInfoDTO.getRegisteredCagecode() )
-                .withUsersFullName(userInfoDTO.getFullName() )
-                .withPrimaryOrgId( userInfoDTO.getPrimaryOrgId() )
-                .withSecondaryOrgId( userInfoDTO.getSecondaryOrgId() )
-                .withUsersListOfCageCodes( userInfoDTO.getUsersListOfCageCodes() )
-                .withRegistrationStateId( userInfoDTO.getRegistrationStateId() );
+				// Create a bogus UserInfo object
+				// NOTE:  I am hard-coding the user's userid=25
+				MyUserInfo myUserInfo = new MyUserInfo()
+						.withId( userInfoDTO.getUserId() )
+						.withIsLocked( userInfoDTO.getIsLocked() )
+						.withUsernameUID(certUsername)
+						.withUsernameDn(userDN)
+						.withGrantedAuthorities(allRolesGranted)
+						.withUiControlAccessMap(uiControlAccesMap)
+						.withRolesAreConflicting(conflictingRolesDTO.isRolesAreConflicting())
+						.withRolesAreConflictingMessage(conflictingRolesDTO.getRolesAreConflictingMessage())
+						.withRegisteredCageCode(userInfoDTO.getRegisteredCagecode() )
+						.withUsersFullName(userInfoDTO.getFullName() )
+						.withPrimaryOrgId( userInfoDTO.getPrimaryOrgId() )
+						.withSecondaryOrgId( userInfoDTO.getSecondaryOrgId() )
+						.withUsersListOfCageCodes( userInfoDTO.getUsersListOfCageCodes() )
+						.withRegistrationStateId( userInfoDTO.getRegistrationStateId() );
 
 
-        return myUserInfo;
-    }
+				return myUserInfo;
+			}
 
 
 
-    /**
-     * Generate the MyUserInfo object for a local developer user
-     *
-     * @param authentication holds the Authentication objects
-     * @return MyUserInfo that holds information about the authenticated user
-     */
-    public MyUserInfo generateUserInfoForDevelopment(Authentication authentication) {
+			/**
+			 * Generate the MyUserInfo object for a local developer user
+			 *
+			 * @param authentication holds the Authentication objects
+			 * @return MyUserInfo that holds information about the authenticated user
+			 */
+			public MyUserInfo generateUserInfoForDevelopment(Authentication authentication) {
 
-        final String userUID;
-        final String userDN;
-        List<GrantedAuthority> citadelRolesGranted = new ArrayList<>();
-        citadelRolesGranted.add(new SimpleGrantedAuthority("ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS"));
+				final String userUID;
+				final String userDN;
+				List<GrantedAuthority> citadelRolesGranted = new ArrayList<>();
+				citadelRolesGranted.add(new SimpleGrantedAuthority("ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS"));
+
+				userUID = "my_superuser";
+				userDN = "3.2.12.144549.1.9.1=#33333333333,CN=my_superuser,OU=Hosts,O=ZZTop.Org,C=ZZ";
+				citadelRolesGranted.add(new SimpleGrantedAuthority("ROLE_MY_SUPERUSER"));
+
+
+				ConflictingRolesDTO conflictingRolesDTO = new ConflictingRolesDTO(citadelRolesGranted);
+
+				// Get information about this user from teh Users table (in the database)
+				// NOTE:  Use the synchronized version of this method in development
+				InitialUserInfoDTO userInfoDTO = this.userService.getInitialUserInfoOrInsertRecordSynchronized(userUID, citadelRolesGranted);
 
-        userUID = "my_superuser";
-        userDN = "3.2.12.144549.1.9.1=#33333333333,CN=my_superuser,OU=Hosts,O=ZZTop.Org,C=ZZ";
-        citadelRolesGranted.add(new SimpleGrantedAuthority("ROLE_MY_SUPERUSER"));
+				// The list of allRolesGranted = all citadel roles + all internal roles granted
+				List<GrantedAuthority> allRolesGranted = new ArrayList<>(citadelRolesGranted.size() + userInfoDTO.getInternalRolesGranted().size() );
+				allRolesGranted.addAll(citadelRolesGranted);
+				allRolesGranted.addAll( userInfoDTO.getInternalRolesGranted());
+
+				// Generate the user's granted access map from all roles granted
+				Map<String, Boolean> uiControlAccesMap = userService.generateUiControlAccessMap(allRolesGranted);
 
+				// Create a bogus UserInfo object
+				// NOTE:  I am hard-coding the user's userid=25
+				MyUserInfo myUserInfo = new MyUserInfo()
+						.withId( userInfoDTO.getUserId() )
+						.withIsLocked( userInfoDTO.getIsLocked() )
+						.withUsernameUID(userUID)
+						.withUsernameDn(userDN)
+						.withGrantedAuthorities(allRolesGranted)
+						.withUiControlAccessMap(uiControlAccesMap)
+						.withRolesAreConflicting(conflictingRolesDTO.isRolesAreConflicting())
+						.withRolesAreConflictingMessage(conflictingRolesDTO.getRolesAreConflictingMessage())
+						.withRegisteredCageCode(userInfoDTO.getRegisteredCagecode())
+						.withUsersFullName(userInfoDTO.getFullName() )
+						.withPrimaryOrgId( userInfoDTO.getPrimaryOrgId() )
+						.withSecondaryOrgId( userInfoDTO.getSecondaryOrgId() )
+						.withUsersListOfCageCodes( userInfoDTO.getUsersListOfCageCodes() )
+						.withRegistrationStateId( userInfoDTO.getRegistrationStateId() );
 
-        ConflictingRolesDTO conflictingRolesDTO = new ConflictingRolesDTO(citadelRolesGranted);
 
-        // Get information about this user from teh Users table (in the database)
-        // NOTE:  Use the synchronized version of this method in development
-        InitialUserInfoDTO userInfoDTO = this.userService.getInitialUserInfoOrInsertRecordSynchronized(userUID, citadelRolesGranted);
+				// When running in local development, disable the acknowledgement popup
+				myUserInfo.setUserAcknowledgedMessage();
 
-        // The list of allRolesGranted = all citadel roles + all internal roles granted
-        List<GrantedAuthority> allRolesGranted = new ArrayList<>(citadelRolesGranted.size() + userInfoDTO.getInternalRolesGranted().size() );
-        allRolesGranted.addAll(citadelRolesGranted);
-        allRolesGranted.addAll( userInfoDTO.getInternalRolesGranted());
+				return myUserInfo;
+			}
 
-        // Generate the user's granted access map from all roles granted
-        Map<String, Boolean> uiControlAccesMap = userService.generateUiControlAccessMap(allRolesGranted);
 
-        // Create a bogus UserInfo object
-        // NOTE:  I am hard-coding the user's userid=25
-        MyUserInfo myUserInfo = new MyUserInfo()
-                .withId( userInfoDTO.getUserId() )
-                .withIsLocked( userInfoDTO.getIsLocked() )
-                .withUsernameUID(userUID)
-                .withUsernameDn(userDN)
-                .withGrantedAuthorities(allRolesGranted)
-                .withUiControlAccessMap(uiControlAccesMap)
-                .withRolesAreConflicting(conflictingRolesDTO.isRolesAreConflicting())
-                .withRolesAreConflictingMessage(conflictingRolesDTO.getRolesAreConflictingMessage())
-                .withRegisteredCageCode(userInfoDTO.getRegisteredCagecode())
-                .withUsersFullName(userInfoDTO.getFullName() )
-                .withPrimaryOrgId( userInfoDTO.getPrimaryOrgId() )
-                .withSecondaryOrgId( userInfoDTO.getSecondaryOrgId() )
-                .withUsersListOfCageCodes( userInfoDTO.getUsersListOfCageCodes() )
-                .withRegistrationStateId( userInfoDTO.getRegistrationStateId() );
+		}
 
 
-        // When running in local development, disable the acknowledgement popup
-        myUserInfo.setUserAcknowledgedMessage();
 
-        return myUserInfo;
-    }
+16. Adjust the ElasticSearchResources to use a username and password
+    a. Edit the ElasticSearchResourcesConfig.java
 
+    b. Adds this to the top of the java class:
+			@Value("${es.authentication.principal:}")
+			private String esPrincipal;
 
-}
+			@Value("${es.authentication.password:}")
+			private String esPassword;
 
 
+    c. Add this if statement to the elasticSearchResources bean
 
+    		        if (StringUtils.isNotBlank(esPrincipal)) {
+    					// Set the ES connection username/password
+    					Realm realm = new Realm.RealmBuilder()
+    							.setPrincipal(esPrincipal)
+    							.setPassword(esPassword)
+    							.setUsePreemptiveAuth(true)
+    							.setScheme(Realm.AuthScheme.BASIC)
+    							.build();
+    					configBuilder.setRealm(realm);
+    				}
 
 
-16. Adjust production settings
+        When finished, the bean should look something like this:
+
+			@Bean
+			public ElasticSearchResources elasticSearchResources() throws Exception {
+				logger.debug("elasticSearchResources()  sslEnabled={} principal={} password={}", this.sslEnabled, this.esPrincipal, this.esPassword);
+
+				// Set the AsyncHttpClient settings
+				com.ning.http.client.AsyncHttpClientConfig.Builder configBuilder = new com.ning.http.client.AsyncHttpClientConfig.Builder();
+				configBuilder.setReadTimeout(-1);
+				configBuilder.setAcceptAnyCertificate(true);
+				configBuilder.setFollowRedirect(true);
+
+		        if (StringUtils.isNotBlank(esPrincipal)) {
+					// Set the ES connection username/password
+					Realm realm = new Realm.RealmBuilder()
+							.setPrincipal(esPrincipal)
+							.setPassword(esPassword)
+							.setUsePreemptiveAuth(true)
+							.setScheme(Realm.AuthScheme.BASIC)
+							.build();
+					configBuilder.setRealm(realm);
+				}
+
+				if (sslEnabled) {
+					// initialize the sslContext and store it in the configBuilder object
+					SSLContext sslContext = generateSslContext();
+					configBuilder.setSSLContext(sslContext);
+				}
+
+				// Create a new AsyncHttpClient object
+				com.ning.http.client.AsyncHttpClientConfig config = configBuilder.build();
+				AsyncHttpClient asyncHttpClient = new AsyncHttpClient(config);
+
+
+				// Store the AsyncHttpClient and elasticSearc url in the ElasticSearchResources object
+				// NOTE:  THe elastic search url is injected from the application.yaml
+				//        The AsyncHttpClient is constructed with java code
+				ElasticSearchResources elasticSearchResources = new ElasticSearchResources(this.elasticSearchUrl, asyncHttpClient);
+
+				// Return a spring bean that holds the AsyncHttpClient and elasticsearch url
+				return elasticSearchResources;
+			}
+
+
+17. Adjust production settings
     a. Need a security.mode of 'keycloak', 'citadel', or 'localdev'
     b. If security.mode does not match, then throw RuntimeException
     c. Adjust production application.yaml to use security.mode=keycloak
 
-17. Build the RDA / Verify it works on dev cluster
+18. Build the RDA / Verify it works on dev cluster
     unix> mvn clean package -Pprod -PbuildRda
 
 
-18. Build the image / Verify it works on an AWS cluster
+19. Build the image / Verify it works on an AWS cluster
     a. Login to docker
        unix> docker login
 
