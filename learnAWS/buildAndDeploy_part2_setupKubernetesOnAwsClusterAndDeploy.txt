@@ -122,7 +122,7 @@ General Approach
 18. Initialize Keycloak as a service on the running instsance
 19. Configure keycloak
 20. Configure certificates for the load-balancer (external hostname used to access the webapp)
-21. Build and Push the webapp to Amazon ECR
+21. Get the environment values for the kubernetes deployment yaml files
 22. Use Kubernetes to deploy the webapp
 23. Verify it works
 
@@ -1066,7 +1066,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
 
-18. Initialize Keycloak as a service on the running instsance
+18. Initialize Keycloak as a service on the running instance
     NOTE:  Keycloak is a container running on the kubernetes instance
     a. Ssh to the kubernetes instance
        unix> ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.218.246.201
@@ -1081,21 +1081,24 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 	   unix> unzip /tmp/keycloak-21.0.1.zip -d /opt/keycloak
        -- Now, you should have /opt/keycloak/keycloak-21.0.1
 
+       unix> rm /tmp/keycloak-21.0.1.zip
 
-    d. Build keycloak (as root)
+    d. **OPTIONAL** Upload any jar files with custom key cloak themes to /opt/keycloak/keycloak-21.0.1/providers
+
+    e. Build keycloak (as root)
        unix> sudo -s
        unix> cd /opt/keycloak/keycloak-21.0.1
        unix> bin/kc.sh build
        unix> exit
 
-    e. Create a keycloak user
+    f. Create a keycloak user
        unix> sudo groupadd keycloak
        unix> sudo useradd keycloak -c "Mr Keycloak" -g "keycloak" -m
 
-    f. Change ownership so that the /opt/keycloak directory is owned by the keycloak user
+    g. Change ownership so that the /opt/keycloak directory is owned by the keycloak user
        unix> sudo chown keycloak:keycloak -R /opt/keycloak
 
-    g. Verify that keycloak runs from the command line
+    h. Verify that keycloak runs from the command line
        NOTE:  Assumes that keycloak's default JRE is Java 11
               To find a version of java in your path
               unix> readlink -f `which java`
@@ -1120,7 +1123,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
 
-    h. Create a keycloak service
+    i. Create a keycloak service
        unix> sudo vi /etc/systemd/system/keycloak.service
 
 		###################################################################################
@@ -1171,16 +1174,16 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 		[Install]
 		WantedBy=multi-user.target
 
-     i. Reload systemctl daemon
+     j. Reload systemctl daemon
         unix> sudo systemctl daemon-reload
 
-     j. Start the service
+     k. Start the service
         unix> sudo systemctl start keycloak
 
-     k. Look at the service log
+     l. Look at the service log
         unix> sudo journalctl -fu keycloak
 
-     l. Verify that you can connect to keycloak
+     m. Verify that you can connect to keycloak
         Open a browser
         Connect to https://keycloak.traderres.com:8444/
 
@@ -1201,7 +1204,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
           		Environment=KEYCLOAK_ADMIN_PASSWORD=secret12
 
 
-          When finished, the systemd file should look like this:
+            When finished, the systemd file should look like this:
 			###################################################################################
 			# Filename:  keycloak.service
 			#
@@ -1340,7 +1343,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 		 5) Click on SF328-webapp / Credentials Tab
 			Client Authenticator:  Client ID and Secret
 
-		 6) Click on "Advanced"
+		 6) Click on "Advanced" Tab
 			Go to Authentication flow overrides
 			Browser Flow:  x509 authentication flow
 			Press "Save"
@@ -1366,12 +1369,13 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 		 9) Tell keycloak to provide the roles to spring boot
 			a. Click on Client Scopes
 			b. Select roles
-			c. In the settings for 'roles'
+			c. In the settings tab for 'roles'
 			   Include in token scope: On
+               press "Save"
 
 			d. Click on Client Scopes
 			e. Select roles
-			f. Select Mappers
+			f. Select Mappers Tab
 			g. Select Realm Roles
 			f. In the settings for "Realm Role'
 				  Add to ID Token:     On
@@ -1383,7 +1387,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 20. Configure certificates for the load-balancer (external hostname used to access the webapp)
     NOTE:  The webapp needs a load-balancer truststore to work correctly
-           The webapp needs a special custom.cacerts file (that has the lob chain and self-signed CA)
+           The webapp needs a special custom.cacerts file (that has the load-balancer chain and self-signed CA)
 
     NOTE:  You should have the signed cert files for app.traderres.com here:
 			/home/adam/certbot/archive/app.traderres.com/cert1.pem
@@ -1449,215 +1453,56 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
        unix> keytool -import -alias "our-ca"   -keystore  custom.cacerts  -file /path/to/own-self-signed/root-ca/pem   -storepass changeit
 
 
-21. Build and Push the webapp to Amazon ECR
-    NOTE:  Normally, your kubernetes pod would refer to a volume and read the files from there
-           But, we are going to embed the custom.cacerts, webapp.keystore.jks, and webapp.truststore.jks in the webapp (for now)
+21.  Get the environment values for the kubernetes deployment yaml files
+     a.
+     NOTE:  Fill-in this section with real values
 
-    a. Get the client id secret key
-       1) Go to  https://keycloak.traderres.com:8444/
-       2) Click on Admin Console
-       3) Enter the admin user/password
-       4) Click on Realms -> MyRealm
-       5) Click on Clients
-       6) Click on sf328-webapp
-       7) Click on the "Credentials" tab
-          -- Get the client secret
+	   env:
+		   - name: POSTGRES_HOSTNAME
+			 value: "server-running-postgres"
+		   - name: POSTGRES_DB_USERNAME
+			 value: "app1_user"
+		   - name: POSTGRES_DB_PASSWORD
+			 value: "secret"
+		   - name: POSTGRES_DB_NAME
+			 value: "app1_db"
+		   - name: POSTGRES_SCHEMA_NAME
+			 value: "app1_db"
+		   - name: POSTGRES_POOL_SIZE
+		     value: 50
+		   - name: ES_URL
+			 value: "https://search-sf328-itwh3bby3wl3s7t6ur6pph2rti.us-gov-west-1.es.amazonaws.com:443"
+		   - name: ES_USERNAME
+			 value: "es_user"
+		   - name: ES_PASSWORD
+			 value: "es_secret"
+		   - name: KEYCLOAK_CLIENT_ID
+			 value: "nccs-webapp"
+		   - name: KEYCLOAK_CLIENT_SECRET
+			 value: "gyG7oTbHbenKecReYOJIg4F2fTaUtGDp"
+		   - name: KEYCLOAK_ISSUER_URI
+        	 value: "https://keycloak.rbr-tech.com:8444/realms/MyRealm"
+		   - name: INCOMING_KEYSTORE_FILEPATH
+			 value: "/shared/incoming/keystore.jks"
+		   - name: INCOMING_KEYSTORE_PASSWORD
+			 value: "changeit"
+		   - name: INCOMING_TRUSTSTORE_FILEPATH
+			 value: "/shared/incoming/truststore.jks"
+		   - name: INCOMING_TRUSTSTORE_PASSWORD
+			 value: "changeit"
+		   - name: JAVA_TOOL_OPTIONS
+			 value: -Xms250m -Xmx250m - -Demail.mode=off -Djavax.net.ssl.trustStore=/sf328-backend/src/main/prod_resources/custom.cacerts -Djavax.net.ssl.trustStorePassword=changeit  -jar .../path/to/jar
 
-    a. Build the webapp with some certificates embedded (for now)
-       Copy the custom.cacerts, webapp.keystore.jks, webapp.truststore.jks to the sf328/sf328-backend/src/main/prod_resources/ directory
-
-    b. Make sure the production application.yaml has these setting:
-
-			##########################################################
-			# SSL Settings
-			##########################################################
-			server:
-			  port: 8443
-			  ssl:
-				key-store: sf328-backend/src/main/prod_resources/webapp.keystore.jks
-				key-store-password: changeit
-				key-store-type: JKS
-				client-auth: need
-				trust-store: sf328-backend/src/main/prod_resources/webapp.truststore.jks
-				trust-store-password: changeit
-				trust-store-type: JKS
-				enabled: true
-
-    c. Make sure the production application.yaml has
-            server.servlet.context-path: /sf
-
-
-    d. Make sure the production application.yaml has these keycloak settings:
-
-			##########################################################
-			# Keycloak Settings for Spring Security
-			##########################################################
-			spring.security.oauth2.client.registration.keycloak.client-id: sf328-webapp
-			spring.security.oauth2.client.registration.keycloak.client-secret: <CLIENT_SECRET_FROM_KEYCLOAK_SERVER>
-			spring.security.oauth2.client.registration.keycloak.authorization-grant-type: authorization_code
-			spring.security.oauth2.client.registration.keycloak.scope: openid,email,profile
-			spring.security.oauth2.client.provider.keycloak.issuer-uri: https://keycloak.traderres.com:8444/realms/MyRealm
-			spring.security.oauth2.client.provider.keycloak.user-name-attribute: preferred_username
-			spring.security.oauth2.resourceserver.jwt.issuer-uri: https://keycloak.traderres.com:8444/realms/MyRealm
-
-
-    e. Get the procedures to push up the build up to the Amazon ECR
-       1) Connect to aws.com as dev.user
-       2) Go to the ECR
-       3) Check the "traderres" repository
-       4) Press "View push commands"
-
-          The REPOSITORY_URL is 524647912468.dkr.ecr.us-east-2.amazonaws.com/traderres
-
-
-    f. Get the AWS ECR authentication token  (so docker push will push it up to our Amazon ECR)
-       Retrieve the authentication token  (from the "view push commands" step)
-       unix> aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 524647912468.dkr.ecr.us-east-2.amazonaws.com
-
-
-
-    g. Build & Push the tag
-       1) Edit the sf328-backend/pom.xml
-
-          Change the <to><image> to this:
-
-			  <to>
-				   <image>REPOSITORY_URL:${project.artifactId}-${project.version}</image>
-			  </to>
-
-          So, it should appear as this:
-              <to>
-                <image>524647912468.dkr.ecr.us-east-2.amazonaws.com/traderres:${project.artifactId}-${project.version}</image>
-              </to>
-
-
-          When finished, your "buildImage" maven profile should look something like this:
-
-				<profile>
-					 <!--    B U I L D    I M A G E       P R O F I L E    -->
-					 <id>buildImage</id>
-
-					 <build>
-						 <plugins>
-							 <plugin>
-								 <groupId>com.google.cloud.tools</groupId>
-								 <artifactId>jib-maven-plugin</artifactId>
-								 <version>3.3.1</version>
-								 <configuration>
-									 <from>
-										 <!-- The source image runs linux with JDK 1.8-362 -->
-										 <image>eclipse-temurin:8u362-b09-jdk@sha256:3b83f3fc0d016d7536dfd5e8a98ece451061b7dbb6d5db3ddea2db30b6153b28</image>
-									 </from>
-
-									 <to>
-										 <image>527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/frms:${project.artifactId}-${project.version}</image>
-									 </to>
-
-									 <extraDirectories>
-										 <paths>
-											 <path>
-												 <!-- Copies from 'src/main/prod_resources' into '/sf328-backend/src/main/prod_resources' on the container. -->
-												 <from>src/main/prod_resources</from>
-												 <into>/backend/src/main/prod_resources</into>
-											 </path>
-										 </paths>
-									 </extraDirectories>
-
-									 <container>
-										 <jvmFlags>
-											 <jvmFlag> -Dspring.config.location=/backend/src/main/prod_resources/application.yaml</jvmFlag>
-										 </jvmFlags>
-									 </container>
-
-								 </configuration>
-
-								 <executions>
-									 <execution>
-										 <phase>package</phase>
-										 <goals>
-											 <!-- The "dockerBuild" goal requires docker to be installed -->
-											 <goal>dockerBuild</goal>
-										 </goals>
-									 </execution>
-								 </executions>
-
-							 </plugin>
-						 </plugins>
-					 </build>
-				 </profile>
-
-
-
-				 <profile>
-					 <!--    B U I L D      I M A G E      W I T H O U T    D O C K E R     P R O F I L E    -->
-					 <id>buildImageWithoutDocker</id>
-
-					 <build>
-						 <plugins>
-							 <plugin>
-								 <groupId>com.google.cloud.tools</groupId>
-								 <artifactId>jib-maven-plugin</artifactId>
-								 <version>3.3.1</version>
-								 <configuration>
-									 <from>
-										 <!-- The source image runs linux with JDK 1.8-362 -->
-										 <image>eclipse-temurin:8u362-b09-jdk@sha256:3b83f3fc0d016d7536dfd5e8a98ece451061b7dbb6d5db3ddea2db30b6153b28</image>
-									 </from>
-
-									 <to>
-										 <image>traderres/my-public-repo:${project.artifactId}-${project.version}</image>
-									 </to>
-
-									 <extraDirectories>
-										 <paths>
-											 <path>
-												 <!-- Copies from 'src/main/prod_resources' into '/sf328-backend/src/main/prod_resources' on the container. -->
-												 <from>src/main/prod_resources</from>
-												 <into>/backend/src/main/prod_resources</into>
-											 </path>
-										 </paths>
-									 </extraDirectories>
-
-									 <container>
-										 <jvmFlags>
-											 <jvmFlag> -Dspring.config.location=/backend/src/main/prod_resources/application.yaml</jvmFlag>
-										 </jvmFlags>
-									 </container>
-								 </configuration>
-
-								 <executions>
-									 <execution>
-										 <phase>package</phase>
-										 <goals>
-											 <!-- The "build" goal does not require docker to be installed -->
-											 <goal>build</goal>
-										 </goals>
-									 </execution>
-								 </executions>
-
-							 </plugin>
-						 </plugins>
-					 </build>
-				 </profile>
-
-       2) Set the version to be 2.0.1-SNAPSHOT
-          unix> mvn versions:set -DnewVersion=2.0.1-SNAPSHOT  -DgenerateBackupPoms=false
-
-       3) Build the image
-          unix> mvn clean package -Pprod -PbuildImage
-
-       4) Push the image to our Amazon ECR
-          unix> docker push 524647912468.dkr.ecr.us-east-2.amazonaws.com/traderres:sf328-backend-2.0.1-SNAPSHOT
 
 
 22. Use Kubernetes to deploy the webapp
     a. Set my kubectl configuration (so running kubectl connects to the AWS cluster)
        unix> aws eks update-kubeconfig --region us-east-1 --name sf
 
-    a. Delete existing deployment
+    b. Delete existing deployment
        unix> kubectl delete deployment sf328-deployment
 
-    b. Create the deployment script by adding the "env" section with Java settings
+    c. Create the deployment script by adding the "env" section with Java settings
        unix> vi sf328-deployment-v1.yaml
 
 #############################################################################
@@ -1696,8 +1541,30 @@ spec:
         imagePullPolicy: Always
         name: java-backend
         env:
-          - name: JAVA_TOOL_OPTIONS
-            value: -Xms250m -Xmx250m -Djavax.net.debug=ssl -Djavax.net.ssl.trustStore=/sf328-backend/src/main/prod_resources/custom.cacerts -Djavax.net.ssl.trustStorePassword=changeit
+		   - name: JAVA_TOOL_OPTIONS
+             value: -Xms250m -Xmx250m -Djavax.net.debug=ssl -Djavax.net.ssl.trustStore=/sf328-backend/src/main/prod_resources/custom.cacerts -Djavax.net.ssl.trustStorePassword=changeit
+		   - name: POSTGRES_HOSTNAME
+			 value: "server-running-postgres"
+		   - name: POSTGRES_DB_USERNAME
+			 value: "app1_user"
+		   - name: POSTGRES_DB_PASSWORD
+			 value: "secret"
+		   - name: POSTGRES_DB_NAME
+			 value: "app1_db"
+		   - name: POSTGRES_SCHEMA_NAME
+			 value: "app1_db"
+		   - name: ES_URL
+			 value: "https://search-sf328-itwh3bby3wl3s7t6ur6pph2rti.us-gov-west-1.es.amazonaws.com:443"
+		   - name: ES_USERNAME
+			 value: "es_user"
+		   - name: ES_PASSWORD
+			 value: "es_secret"
+		   - name: KEYCLOAK_CLIENT_ID
+			 value: "sf328"
+		   - name: KEYCLOAK_CLIENT_SECRET
+			 value: "adfasdfsafdsafdjljasdfsafdasfasdfasfd"
+		   - name: JAVA_TOOL_OPTIONS
+			 value: -Xms250m -Xmx250m -Demail.mode=off -Djavax.net.ssl.trustStore=/sf328-backend/src/main/prod_resources/custom.cacerts -Djavax.net.ssl.trustStorePassword=changeit  -jar .../path/to/jar
 
 
 
