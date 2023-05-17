@@ -1471,7 +1471,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 		   - name: POSTGRES_SCHEMA_NAME
 			 value: "app1_db"
 		   - name: POSTGRES_POOL_SIZE
-		     value: 50
+		     value: "50"
 		   - name: ES_URL
 			 value: "https://search-sf328-itwh3bby3wl3s7t6ur6pph2rti.us-gov-west-1.es.amazonaws.com:443"
 		   - name: ES_USERNAME
@@ -1493,83 +1493,462 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 		   - name: INCOMING_TRUSTSTORE_PASSWORD
 			 value: "changeit"
 		   - name: JAVA_TOOL_OPTIONS
-			 value: -Xms250m -Xmx250m - -Demail.mode=off -Djavax.net.ssl.trustStore=/sf328-backend/src/main/prod_resources/custom.cacerts -Djavax.net.ssl.trustStorePassword=changeit  -jar .../path/to/jar
+			 value: -Xms250m -Xmx250m - -Demail.mode=off -Djavax.net.ssl.trustStore=/shared/certs/custom.cacerts -Djavax.net.ssl.trustStorePassword=changeit
+
 
 
 22. Setup PersistentVolumes so you can share certs among the pods
+    Goal is to make these files available to all pods:
+       shared/certs/custom.cacerts                           #   Used by spring-boot so it trusts keycloak server's cert
+       shared/certs/nccs.webapp.keystore.jks                 #   INCOMING_KEYSTORE_FILEPATH
+       shared/certs/nccs.webapp.truststore.jks               #   INCOMING_TRUSTSTORE_FILEPATH
+
+    See https://repost.aws/knowledge-center/eks-persistent-storage     # BE WARNED:  This is set for commercial (not aws-gov) and there are typos
+
+
+   a. Install the eksctl program for linux
+      unix> ARCH=amd64         # this is also for x86_64
+      unix> PLATFORM=$(uname -s)_$ARCH
+      unix> cd /tmp
+      unix> curl -sLO "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$PLATFORM.tar.gz"
+      unix> tar xvf eksctl_Linux_amd64.tar.gz
+      unix> sudo mv /tmp/eksctl /usr/local/bin
+
+   b. Grant the CSI Driver Policy to the eksNodeRole in AWS IAM  (so that the nodes have the authority to read/write to the EBS volumes)
+      a. Go to IAM -> Roles -> EksNodeRole
+      b. Grant this policy: AmazonEBSCSIDriverPolicy
+
+   c. Create an identify provider
+      unix> eksctl utils associate-iam-oidc-provider --cluster <MY-CLUSTER-NAME> --approve
+
+   d. Verify that you can see your identity provider
+      unix> aws iam list-open-id-connect-providers
+
+      You should see something like this:
+		{
+			"OpenIDConnectProviderList": [
+				{
+					"Arn": "arn:aws-us-gov:iam::527362555097:oidc-provider/oidc.eks.us-gov-west-1.amazonaws.com/id/DA006D8E0177E850A3A0489D305D960B"
+				}
+			]
+		}
+
+   e. Create an IAM trust policy file using the arn and id from above
+	   {
+		 "Version": "2012-10-17",
+		 "Statement": [
+		   {
+			 "Effect": "Allow",
+			 "Principal": {
+			   "Federated": "<REPLACE WITH ENTIRE Arn STRING>"
+			 },
+			 "Action": "sts:AssumeRoleWithWebIdentity",
+			 "Condition": {
+			   "StringEquals": {
+				 "<REPLACE WITH OID STRING>:aud": "sts.amazonaws.com",
+				 "<REPLACE WITH OID STRING>:sub": "system:serviceaccount:kube-system:ebs-csi-controller-sa"
+			   }
+			 }
+		   }
+		 ]
+	   }
+
+	   For us, it looks like this:
+
+	   {
+		 "Version": "2012-10-17",
+		 "Statement": [
+		   {
+			 "Effect": "Allow",
+			 "Principal": {
+			   "Federated": "arn:aws-us-gov:iam::527362555097:oidc-provider/oidc.eks.us-gov-west-1.amazonaws.com/id/DA006D8E0177E850A3A0489D305D960B"
+			 },
+			 "Action": "sts:AssumeRoleWithWebIdentity",
+			 "Condition": {
+			   "StringEquals": {
+				 "oidc.eks.us-gov-west-1.amazonaws.com/id/DA006D8E0177E850A3A0489D305D960B:aud": "sts.amazonaws.com",
+				 "oidc.eks.us-gov-west-1.amazonaws.com/id/DA006D8E0177E850A3A0489D305D960B:sub": "system:serviceaccount:kube-system:ebs-csi-controller-sa"
+			   }
+			 }
+		   }
+		 ]
+	   }
+
+
+  f. Create the role:  AmazonEKS_EBS_CSI_DriverRole
+     unix>  aws iam create-role  --role-name AmazonEKS_EBS_CSI_DriverRole  --assume-role-policy-document file://"trust-policy.json"
+
+  g. Attach this new role to the AmazonEBSCSIDriverPolicy amazon policy
+     unix> aws iam attach-role-policy  --policy-arn arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy  --role-name AmazonEKS_EBS_CSI_DriverRole
+
+  h. Deploy the driver (for aws-gov-cloud)
+     unix> export YOUR_ACCOUNT_ID=527362555097
+     unix> export YOUR_CLUSTER_NAME=nccs
+     unix> aws eks create-addon --cluster-name ${YOUR_CLUSTER_NAME} --addon-name aws-ebs-csi-driver  --service-account-role-arn arn:aws-us-gov:iam::${YOUR_ACCOUNT_ID}:role/AmazonEKS_EBS_CSI_DriverRole
+           NOTE:  This command is set for aws-gov-cloud
+
+
+  i. Test the Amazon EBS CSI driver:
+     unix> git clone https://github.com/kubernetes-sigs/aws-ebs-csi-driver.git
+     unix> cd aws-ebs-csi-driver/examples/kubernetes/dynamic-provisioning/
+     unix> kubectl apply -f manifests/
+
+		   NOTE:
+		      -- This creates a 4 Gi persistent volume claim called ebs-claim
+
+				storageclass.yaml
+				-----------------
+				apiVersion: storage.k8s.io/v1
+                kind: StorageClass
+                metadata:
+                  name: ebs-sc
+                provisioner: ebs.csi.aws.com
+                volumeBindingMode: WaitForFirstConsumer
+
+
+				claim.yaml
+				----------
+				apiVersion: v1
+				kind: PersistentVolumeClaim
+				metadata:
+				  name: ebs-claim
+				spec:
+				  accessModes:
+					- ReadWriteOnce
+				  storageClassName: ebs-sc
+				  resources:
+					requests:
+					  storage: 4Gi
+
+
+				pod.yaml   (keeps appending every 5 seconds to /data/out.txt)
+				--------
+				apiVersion: v1
+                kind: Pod
+                metadata:
+                  name: app
+                spec:
+                  containers:
+                  - name: app
+                    image: centos
+                    command: ["/bin/sh"]
+                    args: ["-c", "while true; do echo $(date -u) >> /data/out.txt; sleep 5; done"]
+                    volumeMounts:
+                    - name: persistent-storage
+                      mountPath: /data
+                  volumes:
+                  - name: persistent-storage
+                    persistentVolumeClaim:
+                      claimName: ebs-claim
 
 
 
-23. Use Kubernetes to deploy the webapp
-    a. Set my kubectl configuration (so running kubectl connects to the AWS cluster)
-       unix> aws eks update-kubeconfig --region us-east-1 --name sf
 
-    b. Delete existing deployment
+
+     You should see this:
+       persistentvolumeclaim/ebs-claim created
+       pod/app created
+       storageclass.storage.k8s.io/ebs-sc created
+
+
+ j. Describe the ebs-sc storage class:
+    unix> kubectl describe storageclass ebs-sc
+
+    You should see something like this:
+		Name:            ebs-sc
+		IsDefaultClass:  No
+		Annotations:     kubectl.kubernetes.io/last-applied-configuration={"apiVersion":"storage.k8s.io/v1","kind":"StorageClass","metadata":{"annotations":{},"name":"ebs-sc"},"provisioner":"ebs.csi.aws.com","volumeBindingMode":"WaitForFirstConsumer"}
+
+		Provisioner:           ebs.csi.aws.com
+		Parameters:            <none>
+		AllowVolumeExpansion:  <unset>
+		MountOptions:          <none>
+		ReclaimPolicy:         Delete
+		VolumeBindingMode:     WaitForFirstConsumer
+		Events:                <none>
+
+ l. Watch the pods and wait for app status to be running
+    unix> kubectl get pods --watch
+
+	You should see this:
+		NAME                               READY   STATUS             RESTARTS         AGE
+		app                                1/1     Running            0                84s
+
+
+ m. View the persistent volume that was created
+    unix> kubectl get pv
+
+    You should see this:
+		NAME                                       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM               STORAGECLASS   REASON   AGE
+		pvc-d960c622-4a01-4a2f-8209-4d6debff2090   4Gi        RWO            Delete           Bound    default/ebs-claim   ebs-sc                  112s
+
+
+ n. View the detailed information on your persistent volume
+    unix> kubectl describe pv pvc-d960c622-4a01-4a2f-8209-4d6debff2090
+
+    You should see this:
+		Name:              pvc-d960c622-4a01-4a2f-8209-4d6debff2090
+		Labels:            <none>
+		Annotations:       pv.kubernetes.io/provisioned-by: ebs.csi.aws.com
+						   volume.kubernetes.io/provisioner-deletion-secret-name:
+						   volume.kubernetes.io/provisioner-deletion-secret-namespace:
+		Finalizers:        [kubernetes.io/pv-protection external-attacher/ebs-csi-aws-com]
+		StorageClass:      ebs-sc
+		Status:            Bound
+		Claim:             default/ebs-claim
+		Reclaim Policy:    Delete
+		Access Modes:      RWO
+		VolumeMode:        Filesystem
+		Capacity:          4Gi
+		Node Affinity:
+		  Required Terms:
+			Term 0:        topology.ebs.csi.aws.com/zone in [us-gov-west-1c]
+		Message:
+		Source:
+			Type:              CSI (a Container Storage Interface (CSI) volume source)
+			Driver:            ebs.csi.aws.com
+			FSType:            ext4
+			VolumeHandle:      vol-00c084488e5310556
+			ReadOnly:          false
+			VolumeAttributes:      storage.kubernetes.io/csiProvisionerIdentity=1684347075383-8081-ebs.csi.aws.com
+		Events:                <none>
+
+  o. Verify that the pod is writing data to the volume:
+     unix> kubectl exec -it app -- cat /data/out.txt
+
+     You should see the date time repeated
+     	Wed May 17 18:37:46 UTC 2023
+        Wed May 17 18:37:51 UTC 2023
+        Wed May 17 18:37:56 UTC 2023
+        Wed May 17 18:38:01 UTC 2023
+        Wed May 17 18:38:06 UTC 2023
+        Wed May 17 18:38:11 UTC 2023
+        Wed May 17 18:38:16 UTC 2023
+        Wed May 17 18:38:21 UTC 2023
+        Wed May 17 18:38:26 UTC 2023
+        Wed May 17 18:38:31 UTC 2023
+        Wed May 17 18:38:36 UTC 2023
+        Wed May 17 18:38:41 UTC 2023
+        Wed May 17 18:38:46 UTC 2023
+        Wed May 17 18:38:51 UTC 2023
+        Wed May 17 18:38:56 UTC 2023
+        Wed May 17 18:39:01 UTC 2023
+
+  p. Stop the pod that is appending
+     a. Delete the pod
+        unix> kubectl delete pod app
+
+     b. Delete the PersistentVolumeClaim (which deletes the PersistentVolume)
+        unix> kubectl delete pvc ebs-claim
+
+     c. Delete the storage class
+        unix> kubectl delete sc ebs-sc
+
+
+  q. Create the **REAL** storage class called "app-sc" for our webapps
+     unix> vi app-storage-class.yaml
+
+#############################################################
+# app-storage-class.yaml
+#
+# volumeBindingModes include Immediate and WaitForFirstConsumer
+#############################################################
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: app-sc
+provisioner: ebs.csi.aws.com
+volumeBindingMode: Immediate
+
+		 unix> kubectl apply -f app-storage-class.yaml
+
+
+
+  r. Create the **REAL** persistent volume claim called "app-pvc-certs" for our webapps to readonly
+     unix> vi app-certs-pvc.yaml
+
+#############################################################
+#  app-certs-pvc.yaml
+#
+# Defines the PersistentVolumeClaim for our certs (so the containers can read the certs)
+#############################################################
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: app-certs-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: app-sc
+  resources:
+    requests:
+      storage: 1Gi
+
+
+     unix> kubectl apply -f app-certs-pvc.yaml
+
+
+
+ s. Add this section to the deployment.yaml
+
+    volumeMounts:
+    - name: persistent-storage
+      mountPath: /shared/certs
+  volumes:
+  - name: persistent-storage
+    persistentVolumeClaim:
+      claimName: app-certs-pvc
+
+
+
+
+23. Upload the shared certs into the /shared/certs persistent volume
+    a. Create a temporary pod (called app2) that has this PVC mounted
+       unix> vi app2-pod.yaml
+
+################################
+# app2-pod.yaml
+################################
+apiVersion: v1
+kind: Pod
+metadata:
+  name: app2
+spec:
+
+  volumes:
+  - name: app-certs-pv
+    persistentVolumeClaim:
+      claimName: app-certs-pvc
+
+  containers:
+  - name: app2
+    image: centos
+    command: ["/bin/sh"]
+    args: ["-c", "while true; do echo "hi"; sleep 5; done"]
+    volumeMounts:
+    - name: app-certs-pv
+      mountPath: /shared/certs
+
+
+
+
+
+    b. Deploy the pod
+       unix> kubectl apply -f app2-pod.yaml
+
+    c. Verify that the pod is up
+       unix> kubectl logs -f app2
+       hi
+       hi
+       hi
+
+
+    d. Use the kubectl cp command to copy the file from your local filesystem to the pod's /shared/certs directory
+       unix> cd /home/adam/certbot/archive/app.traderres.com
+       unix> kubectl cp custom.cacerts         app2:/shared/certs/custom.cacerts
+       unix> kubectl cp webapp.keystore.jks    app2:/shared/certs/webapp.keystore.jks
+       unix> kubectl cp webapp.truststore.jks  app2:/shared/certs/webapp.truststore.jks
+
+    e. Verify that the files are there
+       unix> kubectl exec app2 -it /bin/sh
+       container> cd /shared/certs
+       container> ls -l
+
+       -- You should see your 3 files
+
+    f. Delete the running pod
+       unix> kubectl delete pod app2
+
+
+24. Use Kubernetes to deploy the webapp
+
+    a. Delete existing deployment
        unix> kubectl delete deployment sf328-deployment
 
-    c. Create the deployment script by adding the "env" section with Java settings
+    b. Create the deployment script by adding the "env" section with Java settings
        unix> vi sf328-deployment-v1.yaml
 
 #############################################################################
-#  sf328-deployment-v1.yaml
+#  nccs-deployment-v1.yaml
 #
 # Notes:
 #  1) The running pods do not have DNS so we need hostAliases to create an entry in /etc/hosts
-#     that can resolve the keycloak.traderres.com to 18.218.246.201
-#     Use nslookup keycloak.traderres.com to verify the IP
+#     that can resolve the keycloak.rbr-tech.com to 160.1.14.243
+#     Use nslookup keycloak.rbr-tech.com to verify the IP
 #
 #############################################################################
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: sf328-deployment
+  name: nccs-deployment
 
 spec:
   selector:
     matchLabels:
-      app: sf328-backend
+      app: nccs-backend
   replicas: 1
   strategy:
     type:  Recreate
   template:
     metadata:
-      name: kubia
+      name: nccs-backend
       labels:
-         app: sf328-backend
+         app: nccs-backend
     spec:
       hostAliases:
-      - ip: "18.218.246.201"
+      - ip: "160.1.14.243"
         hostnames:
-          - "keycloak.traderres.com"
+          - "keycloak.rbr-tech.com"
+
+      volumes:
+      - name: app-certs-pv
+        persistentVolumeClaim:
+          claimName: app-certs-pvc
+
       containers:
-      - image: 524647912468.dkr.ecr.us-east-2.amazonaws.com/traderres:sf328-backend-2.0.1-SNAPSHOT
+      - image: 527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/nccs:backend-2.2.3-SNAPSHOT
         imagePullPolicy: Always
-        name: java-backend
+        volumeMounts:
+        - name: app-certs-pv
+          mountPath: /shared/certs
+
+        name: nccs-backend
+
         env:
-		   - name: JAVA_TOOL_OPTIONS
-             value: -Xms250m -Xmx250m -Djavax.net.debug=ssl -Djavax.net.ssl.trustStore=/sf328-backend/src/main/prod_resources/custom.cacerts -Djavax.net.ssl.trustStorePassword=changeit
-		   - name: POSTGRES_HOSTNAME
-			 value: "server-running-postgres"
-		   - name: POSTGRES_DB_USERNAME
-			 value: "app1_user"
-		   - name: POSTGRES_DB_PASSWORD
-			 value: "secret"
-		   - name: POSTGRES_DB_NAME
-			 value: "app1_db"
-		   - name: POSTGRES_SCHEMA_NAME
-			 value: "app1_db"
-		   - name: ES_URL
-			 value: "https://search-sf328-itwh3bby3wl3s7t6ur6pph2rti.us-gov-west-1.es.amazonaws.com:443"
-		   - name: ES_USERNAME
-			 value: "es_user"
-		   - name: ES_PASSWORD
-			 value: "es_secret"
-		   - name: KEYCLOAK_CLIENT_ID
-			 value: "sf328"
-		   - name: KEYCLOAK_CLIENT_SECRET
-			 value: "adfasdfsafdsafdjljasdfsafdasfasdfasfd"
-		   - name: JAVA_TOOL_OPTIONS
-			 value: -Xms250m -Xmx250m -Demail.mode=off -Djavax.net.ssl.trustStore=/sf328-backend/src/main/prod_resources/custom.cacerts -Djavax.net.ssl.trustStorePassword=changeit  -jar .../path/to/jar
+           - name: POSTGRES_HOSTNAME
+             value: "nccs.cgl3wyvjvqtu.us-gov-west-1.rds.amazonaws.com"
+           - name: POSTGRES_DB_USERNAME
+             value: "nccs_user"
+           - name: POSTGRES_DB_PASSWORD
+             value: "secret12"
+           - name: POSTGRES_DB_NAME
+             value: "nccs_db"
+           - name: POSTGRES_SCHEMA_NAME
+             value: "nccs_db"
+           - name: POSTGRES_POOL_SIZE
+             value: "50"
+           - name: ES_URL
+             value: "https://vpc-nccs-wxin7j6ech5f4i6bvhptdwldcu.us-gov-west-1.es.amazonaws.com:443"
+           - name: ES_USERNAME
+             value: "nccs_user"
+           - name: ES_PASSWORD
+             value: "Secret1@"
+           - name: KEYCLOAK_CLIENT_ID
+             value: "nccs-webapp"
+           - name: KEYCLOAK_CLIENT_SECRET
+             value: "gyG7oTbHbenKecReYOJIg4F2fTaUtGDp"
+           - name: KEYCLOAK_ISSUER_URI
+             value: "https://keycloak.rbr-tech.com:8444/realms/MyRealm"
+           - name: INCOMING_KEYSTORE_FILEPATH
+             value: "/shared/certs/nccs.webapp.keystore.jks"
+           - name: INCOMING_KEYSTORE_PASSWORD
+             value: "changeit"
+           - name: INCOMING_TRUSTSTORE_FILEPATH
+             value: "/shared/certs/nccs.webapp.truststore.jks"
+           - name: INCOMING_TRUSTSTORE_PASSWORD
+             value: "changeit"
+           - name: JAVA_TOOL_OPTIONS
+             value: -Xms1024m -Xmx1024m -Demail.mode=off -Djavax.net.ssl.trustStore=/shared/certs/custom.cacerts -Djavax.net.ssl.trustStorePassword=changeit
 
 
 
@@ -1577,25 +1956,28 @@ spec:
 	 c. Verify that there are no special chars in the file by looking for them
 		unix> cat -v -e sf328-deployment-v1.yaml
 
-	 d. We create the deployment
+     d. Convert all tabs to spaces in the yaml file
+        unix>
+
+	 e. We create the deployment
 		unix> kubectl create -f sf328-deployment-v1.yaml
 
-	 e. Get a listing of the pods
+	 f. Get a listing of the pods
 		unix> kubectl get pods
 
 		NAME                               READY   STATUS    RESTARTS   AGE
 		sf328-deployment-c469974cb-tj4kk   1/1     Running   0          10s
 
 
-	 f. Delete the existing load balancer service  (that was temporary)
+	 g. Delete the existing load balancer service  (that was temporary)
 		unix> kubectl delete service sf328-loadbalancer
 
-	 g. Have AWS create and expose the load balancer service
+	 h. Have AWS create and expose the load balancer service
 		unix> kubectl expose deployment sf328-deployment --type=LoadBalancer --name=sf328-loadbalancer --port=443
 		NOTE:  This create a new external hostname and IP address
 
 
-	 h. Modify the created load balancer service by setting
+	 i. Modify the created load balancer service by setting
 		unix> kubectl edit service sf328-loadbalancer
 
 		   targetPort=8443
@@ -1634,7 +2016,7 @@ spec:
 
 
 
-24. Verify it works
+25. Verify it works
     a. Create a pki client cert
     b. Import it into a browser
     c. Attempt to connect to https://app.traderres.som/sf
