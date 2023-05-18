@@ -2020,6 +2020,233 @@ spec:
     c. Attempt to connect to https://app.traderres.som/sf
 
 
+26. Setup an Application Load Balancer / Ingress so that we can use the same load balancer
+    See https://aws.amazon.com/blogs/containers/how-to-expose-multiple-applications-on-amazon-eks-using-a-single-application-load-balancer/
+       https://app.traderres.com/app1 --> 1st app
+       https://app.traderres.com/app2 --> 2nd app
+
+
+       App Load Balancer -->    Service1/443->8443   -->  pod for app2/8443
+            443                 Service2/443->8443   -->  pod for app1/8443
+
+    a. Installing the AWS Load Balancer Controller add-on  (formerly known as the AWS ALB Ingress Controller)
+       https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html
+        1) Setup the Amazon Certificate Manager (ACM) with our cert for the public facing url -- e.g., app.traderres.com
+           a) Go to aws.com -> ACM
+           b) Press "Import a certificate"
+              In Certificate Body:         Copy the contents of /home/adam/certbot/archive/app.traderres.com/fullchain.part1.pem  (has the actual server cert)
+              In Certificate private key:  Copy the contents of /home/adam/certbot/archive/app.traderres.com/privkey1.pem
+              In Certificate chain:        Copy the contents of /home/adam/certbot/archive/app.traderres.com/fullchain1.pem   (has the chain of all 3)
+              Press "Next"
+
+           c) In the "Add Tags" page, press "Next"
+           d) In Review and import, press "Import"
+           e) Refresh the Certificates list page
+           f) Click on your new certificate
+           g) Copy the ARN identifier -- e.g., arn:aws-us-gov:acm:us-gov-west-1:527362555097:certificate/b8a49d7f-e65d-4ff0-b533-7a22ab0f6830
+           h) Add this ARN identifier to this line in the app-load-balancer.yaml
+                     alb.ingress.kubernetes.io/certificate-arn: arn:aws-us-gov:acm:us-gov-west-1:527362555097:certificate/b8a49d7f-e65d-4ff0-b533-7a22ab0f6830
+
+		2) Download an IAM policy for the AWS Load Balancer Controller that allows it to make calls to AWS APIs on your behalf.
+           For AWS GovCloud (US-East) or AWS GovCloud (US-West) AWS Regions
+           unix> curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.4.7/docs/install/iam_policy_us-gov.json
+
+           FOr All other AWS Regions
+           unix> curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.4.7/docs/install/iam_policy.json
+
+        3) Create an IAM policy using the policy downloaded in the previous step
+           unix> aws iam create-policy --policy-name AWSLoadBalancerControllerIAMPolicy --policy-document file://iam_policy_us-gov.json
+
+        4) Create an IAM role
+           unix> export MY_ARN=arn:aws-us-gov:iam::527362555097
+           unix> export MY_CLUSTER=nccs
+           unix> eksctl create iamserviceaccount \
+                   --cluster=${MY_CLUSTER} \
+                   --namespace=kube-system \
+                   --name=aws-load-balancer-controller \
+                   --role-name AmazonEKSLoadBalancerControllerRole \
+                   --attach-policy-arn=${MY_ARN}:policy/AWSLoadBalancerControllerIAMPolicy \
+                   --approve
+
+        5) Install the AWS Load Balancer Controller cert-manager
+           unix> kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v1.5.4/cert-manager.yaml
+
+        6) Install the AWS Load Balancer Controller itself
+           unix> curl -Lo v2_4_7_full.yaml https://github.com/kubernetes-sigs/aws-load-balancer-controller/releases/download/v2.4.7/v2_4_7_full.yaml
+           unix> sed -i.bak -e '561,569d' ./v2_4_7_full.yaml
+           unix> sed -i.bak -e "s|your-cluster-name|${MY_CLUSTER}|" ./v2_4_7_full.yaml
+           unix> kubectl apply -f v2_4_7_full.yaml
+
+        6) Download the IngressClass nad IngressClassParams manifest to your cluster
+           unix> curl -Lo v2_4_7_ingclass.yaml https://github.com/kubernetes-sigs/aws-load-balancer-controller/releases/download/v2.4.7/v2_4_7_ingclass.yaml
+           unix> kubectl apply -f v2_4_7_ingclass.yaml
+
+
+    b. Delete the existing service
+
+    c. Create the yaml file for the ingress and services
+       unix> vi app-load-balancer.yaml
+
+
+#############################################################################
+# Filename: app-load-balancer.yaml
+#
+# Purpose:
+#   Setup an Application Load Balancer such
+#              https://...front-door.../nccs       --> nccs service
+#              Https://...front-door.../nccs-admin --> nccs-admin service
+#
+#
+# Usage:
+#   unix> kubectl apply -f app-load-balancer.yaml  # To create the application load balancer
+#
+#   unix> kubectl describe ingress nccs-ingress    # To see the details
+#############################################################################
+
+
+
+
+#####################################################
+# nccs-service
+#####################################################
+apiVersion: v1
+kind: Service
+metadata:
+  name: nccs-service
+  labels:
+    app: nccs-backend
+  annotations:
+    alb.ingress.kubernetes.io/healthcheck-path: /nccs/api/version
+spec:
+  type: NodePort
+  selector:
+    app: nccs-backend
+  sessionAffinity: ClientIP
+  ports:
+    - port: 443
+      targetPort: 8443
+
+
+---
+#####################################################
+# nccs-admin-service
+#####################################################
+apiVersion: v1
+kind: Service
+metadata:
+  name: nccs-admin-service
+  labels:
+    app: nccs-admin
+  annotations:
+    alb.ingress.kubernetes.io/healthcheck-path: /nccs-admin/api/version
+spec:
+  type: NodePort
+  selector:
+    app: nccs-admin
+  sessionAffinity: ClientIP
+  ports:
+    - port: 443
+      targetPort: 8443
+
+
+
+---
+#####################################################
+# Ingress (Application Load Balancer) Rules
+#####################################################
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nccs-app-ingress
+  labels:
+    app: nccs-app
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/subnets: subnet-0d6b3475610db5c29, subnet-0f4fb1cefe2a43c4c, subnet-0a67a57f98ec036a4
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ip-address-type: ipv4
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws-us-gov:acm:us-gov-west-1:527362555097:certificate/b8a49d7f-e65d-4ff0-b533-7a22ab0f6830
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTPS
+    alb.ingress.kubernetes.io/healthcheck-port: traffic-port
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '15'
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '5'
+    alb.ingress.kubernetes.io/success-codes: '200'
+    alb.ingress.kubernetes.io/healthy-threshold-count: '2'
+
+spec:
+  rules:
+    - host: nccs.rbr-tech.com
+    - http:
+        paths:
+          - path: /nccs-admin
+            pathType: Prefix
+            backend:
+              service:
+                name: nccs-admin-service
+                port:
+                  number: 443
+          - path: /nccs
+            pathType: Prefix
+            backend:
+              service:
+                name: nccs-service
+                port:
+                  number: 443
+
+    e. Apply the script
+       unix> kubectl apply -f app-load-balancer.yaml
+
+    e. Verify that the load balancer exists
+       unix> kubectl get ingress nccs-app-ingress
+
+       NAME               CLASS    HOSTS               ADDRESS                                                                     PORTS   AGE
+       nccs-app-ingress   <none>   nccs.rbr-tech.com   k8s-default-nccsappi-63918f0120-268589748.us-gov-west-1.elb.amazonaws.com   80      3m40s
+
+
+    f. Verify that the controller is installed
+           unix> kubectl get deployment -n kube-system aws-load-balancer-controller
+
+           NAME                           READY   UP-TO-DATE   AVAILABLE   AGE
+           aws-load-balancer-controller   1/1     1            1           55s
+
+
+           unix> kubectl describe ingress nccs-app-ingress
+
+				Name:             nccs-app-ingress
+				Labels:           app=nccs-app
+				Namespace:        default
+				Address:
+				Ingress Class:    <none>
+				Default backend:  <default>
+				Rules:
+				  Host        Path  Backends
+				  ----        ----  --------
+				  *
+							  /nccs-admin   nccs-admin-service:443 (172.31.43.208:8443)
+							  /nccs         nccs-service:443 (172.31.35.149:8443)
+				Annotations:  alb.ingress.kubernetes.io/certificate-arn: arn:aws-us-gov:acm:us-gov-west-1:527362555097:certificate/b8a49d7f-e65d-4ff0-b533-7a22ab0f6830
+							  alb.ingress.kubernetes.io/ip-address-type: ipv4
+							  alb.ingress.kubernetes.io/listen-ports: [{"HTTPS": 443}]
+							  alb.ingress.kubernetes.io/scheme: internet-facing
+							  alb.ingress.kubernetes.io/subnets: subnet-0d6b3475610db5c29, subnet-0f4fb1cefe2a43c4c, subnet-0a67a57f98ec036a4
+							  alb.ingress.kubernetes.io/target-type: ip
+							  kubernetes.io/ingress.class: alb
+				Events:       <none>
+
+      g. Get the hostname of the load balancer and then change that in your godaddy.com
+
+          unix> kubectl get ingress nccs-app-ingress
+
+          NAME               CLASS    HOSTS               ADDRESS                                                                     PORTS   AGE
+          nccs-app-ingress   <none>   nccs.rbr-tech.com   k8s-default-nccsappi-63918f0120-268589748.us-gov-west-1.elb.amazonaws.com   80      3m40s
+
+         Go into godaddy.com and change app.traderres.com CNAME to use the same address 8s-default-nccsappi-63918f0120-268589748.us-gov-west-1.elb.amazonaws.com
+
+
+      h. Try to use the load balancer
+          a. Go to https://nccs.rbr-tech.com/nccs
 
 
 Troubleshooting
