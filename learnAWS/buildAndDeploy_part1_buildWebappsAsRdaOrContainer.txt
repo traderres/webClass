@@ -2157,34 +2157,34 @@ Plan:  There will be 3 security.mode values:
 
 					// Running in https mode with OAuth2 authentication
 					aHttpSecurity.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
-						    .and()
-						        .authorizeRequests()
-						        .antMatchers("/assets/**",  "**.js", "**.css",  "/error").permitAll()
-						        .antMatchers("/**").access("hasRole('ROLE_SF328_USER')")   // All users must have the grantedAuthority called ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS to view all pages
-						        .anyRequest()
-						        .authenticated()
-						    .and()
-						        .requiresChannel().anyRequest().requiresSecure()
-						    .and()
-						    .oauth2Login()
+							.and()
+								.authorizeRequests()
+								.antMatchers("/assets/**",  "**.js", "**.css",  "/error").permitAll()
+								.antMatchers("/**").access("hasRole('ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS')")   // All users must have the grantedAuthority called ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS to view all pages
+								.anyRequest()
+								.authenticated()
+							.and()
+								.requiresChannel().anyRequest().requiresSecure()
+							.and()
+							.oauth2Login()
 
-						        /*
-						         * Update the Principal object stored in the session
-						         * Replace the defaultOidcUser with MyDefaultOidcUser object   (that holds the additional MyUserInfo)
-						         */
-						        .userInfoEndpoint(userInfo -> userInfo
-						                .oidcUserService(this.oidcUserService()))
+								/*
+								 * Update the Principal object stored in the session
+								 * Replace the defaultOidcUser with MyDefaultOidcUser object   (that holds the additional MyUserInfo)
+								 */
+								.userInfoEndpoint(userInfo -> userInfo
+										.oidcUserService(this.oidcUserService()))
 
 
-						        /*
-						         * The oAuth2LoginSuccessHandler success handler class will do 2 things:
-						         *   1) Update the database to indicate that the user successfully authenticated
-						         *   2) Redirect the user from keycloak to the user's ORIGINAL requested url (because it extends SavedRequestAwareAuthenticationSuccessHandler)
-						         */
-						        .successHandler(this.oAuth2LoginSuccessHandler)
+								/*
+								 * The oAuth2LoginSuccessHandler success handler class will do 2 things:
+								 *   1) Update the database to indicate that the user successfully authenticated
+								 *   2) Redirect the user from keycloak to the user's ORIGINAL requested url (because it extends SavedRequestAwareAuthenticationSuccessHandler)
+								 */
+								.successHandler(this.oAuth2LoginSuccessHandler)
 
-						    .and()
-						        .csrf().disable();
+							.and()
+								.csrf().disable();
 
 
 
@@ -2258,7 +2258,6 @@ Plan:  There will be 3 security.mode values:
 		import javax.servlet.ServletException;
 		import javax.servlet.http.HttpServletRequest;
 		import javax.servlet.http.HttpServletResponse;
-		import javax.sql.DataSource;
 		import java.io.IOException;
 		import java.net.URLDecoder;
 		import java.util.ArrayList;
@@ -2286,6 +2285,32 @@ Plan:  There will be 3 security.mode values:
 			private static final Pattern patExtractCN = Pattern.compile("cn=(.*?)(?:,|/|\\z)", Pattern.CASE_INSENSITIVE);
 			private static final Pattern patMatchRole = Pattern.compile("ROLE:(.*?)(?:;|\\z)", Pattern.CASE_INSENSITIVE);
 			private static final Pattern patExtractName = Pattern.compile("name:(.*?)(?:;|\\z)", Pattern.CASE_INSENSITIVE);
+
+
+
+			/**
+			 * The user has successfully authenticated against an Oauth2 (Keycloak) server
+			 * @param aRequest
+			 * @param aResponse
+			 * @param aAuthentication
+			 * @throws Exception
+			 */
+			public void onAuthenticationSuccessForOauth2(HttpServletRequest aRequest,
+														 HttpServletResponse aResponse,
+														 Authentication aAuthentication) throws IOException, ServletException {
+				logger.debug("onAuthenticationSuccessForOauth2() started");
+
+				MyDefaultOidcUser myDefaultOidcUser = (MyDefaultOidcUser) aAuthentication.getPrincipal();
+
+				// TODO: Mark this user as authenticated
+
+
+				logger.debug("onAuthenticationSuccessForOauth2() finished");
+			}
+
+
+
+
 
 
 
@@ -2382,31 +2407,14 @@ Plan:  There will be 3 security.mode values:
 			}
 
 
-
-
 			/**
-			 * The user has successfully authenticated against an Oauth2 (Keycloak) server
-			 * @param aRequest
-			 * @param aResponse
-			 * @param aAuthentication
-			 * @throws Exception
+			 * Generate the MyUserInfo object for a KEYCLOAK user
+			 *
+			 * @param aOidcUser holds information from keycloak
+			 * @return MyUserInfo object
 			 */
-			public void onAuthenticationSuccessForOauth2(HttpServletRequest aRequest,
-														 HttpServletResponse aResponse,
-														 Authentication aAuthentication) throws IOException, ServletException {
-				logger.debug("onAuthenticationSuccessForOauth2() started");
-
-				MyDefaultOidcUser myDefaultOidcUser = (MyDefaultOidcUser) aAuthentication.getPrincipal();
-
-				// TODO: Mark this user as authenticated
-
-
-				logger.debug("onAuthenticationSuccessForOauth2() finished");
-			}
-
-
-
 			public MyUserInfo generateUserInfoWithOauth2InfoFromKeyCloak(OidcUser aOidcUser) {
+				logger.debug("generateUserInfoWithOauth2InfoFromKeyCloak() started.  aOidcUser={}", aOidcUser);
 				String userUID = aOidcUser.getName();
 
 				List<GrantedAuthority> oauth2RolesGranted = new ArrayList<>();
@@ -2425,6 +2433,10 @@ Plan:  There will be 3 security.mode values:
 
 				}
 
+				if (oauth2RolesGranted.size() > 0) {
+					oauth2RolesGranted.add(new SimpleGrantedAuthority("ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS"));
+				}
+
 				ConflictingRolesDTO conflictingRolesDTO = new ConflictingRolesDTO(oauth2RolesGranted);
 
 
@@ -2437,18 +2449,27 @@ Plan:  There will be 3 security.mode values:
 				allRolesGranted.addAll(oauth2RolesGranted);
 				allRolesGranted.addAll( userInfoDTO.getInternalRolesGranted());
 
+				// Generate the user's granted access map from all roles granted
+				Map<String, Boolean> uiControlAccessMap = userService.generateUiControlAccessMap(allRolesGranted);
+
 				// Create a UserInfo object with information from the database and the keycloak server
 				MyUserInfo userInfo = new MyUserInfo()
 						.withId( userInfoDTO.getUserId() )
 						.withIsLocked( userInfoDTO.getIsLocked() )
-						.withUsernameUID( aOidcUser.getName() )
+						.withUsernameUID(userUID)
 						.withGrantedAuthorities(allRolesGranted)
+						.withUiControlAccessMap(uiControlAccessMap)
 						.withRolesAreConflicting(conflictingRolesDTO.isRolesAreConflicting())
-						.withRolesAreConflictingMessage(conflictingRolesDTO.getRolesAreConflictingMessage());
+						.withRolesAreConflictingMessage(conflictingRolesDTO.getRolesAreConflictingMessage())
+						.withRegisteredCageCode(   userInfoDTO.getRegisteredCagecode())
+						.withUsersFullName(        userInfoDTO.getFullName() )
+						.withPrimaryOrgId(         userInfoDTO.getPrimaryOrgId() )
+						.withSecondaryOrgId(       userInfoDTO.getSecondaryOrgId() )
+						.withUsersListOfCageCodes( userInfoDTO.getUsersListOfCageCodes() )
+						.withRegistrationStateId(  userInfoDTO.getRegistrationStateId() );
 
 				return userInfo;
 			}
-
 
 
 
@@ -2508,7 +2529,7 @@ Plan:  There will be 3 security.mode values:
 				allRolesGranted.addAll( userInfoDTO.getInternalRolesGranted());
 
 				// Generate the user's granted access map from all roles granted
-				Map<String, Boolean> uiControlAccesMap = userService.generateUiControlAccessMap(allRolesGranted);
+				Map<String, Boolean> uiControlAccessMap = userService.generateUiControlAccessMap(allRolesGranted);
 
 				// Create a bogus UserInfo object
 				// NOTE:  I am hard-coding the user's userid=25
@@ -2518,15 +2539,15 @@ Plan:  There will be 3 security.mode values:
 						.withUsernameUID(certUsername)
 						.withUsernameDn(userDN)
 						.withGrantedAuthorities(allRolesGranted)
-						.withUiControlAccessMap(uiControlAccesMap)
+						.withUiControlAccessMap(uiControlAccessMap)
 						.withRolesAreConflicting(conflictingRolesDTO.isRolesAreConflicting())
 						.withRolesAreConflictingMessage(conflictingRolesDTO.getRolesAreConflictingMessage())
-						.withRegisteredCageCode(userInfoDTO.getRegisteredCagecode() )
-						.withUsersFullName(userInfoDTO.getFullName() )
-						.withPrimaryOrgId( userInfoDTO.getPrimaryOrgId() )
-						.withSecondaryOrgId( userInfoDTO.getSecondaryOrgId() )
-						.withUsersListOfCageCodes( userInfoDTO.getUsersListOfCageCodes() )
-						.withRegistrationStateId( userInfoDTO.getRegistrationStateId() );
+						.withRegisteredCageCode(    userInfoDTO.getRegisteredCagecode() )
+						.withUsersFullName(         userInfoDTO.getFullName() )
+						.withPrimaryOrgId(          userInfoDTO.getPrimaryOrgId() )
+						.withSecondaryOrgId(        userInfoDTO.getSecondaryOrgId() )
+						.withUsersListOfCageCodes(  userInfoDTO.getUsersListOfCageCodes() )
+						.withRegistrationStateId(   userInfoDTO.getRegistrationStateId() );
 
 
 				return myUserInfo;
@@ -2541,15 +2562,14 @@ Plan:  There will be 3 security.mode values:
 			 * @return MyUserInfo that holds information about the authenticated user
 			 */
 			public MyUserInfo generateUserInfoForDevelopment(Authentication authentication) {
+				DevUsers userType = DevUsers.DEV_SUPER_USER_1;
 
-				final String userUID;
-				final String userDN;
+				final String userUID = "my_superuser";
+				final String userDN = "3.2.12.144549.1.9.1=#161760312e646576,CN=my_test_su_user,OU=Hosts,O=ZZTop.Org,C=ZZ";
 				List<GrantedAuthority> citadelRolesGranted = new ArrayList<>();
 				citadelRolesGranted.add(new SimpleGrantedAuthority("ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS"));
+				citadelRolesGranted.add(new SimpleGrantedAuthority("ROLE_SUPERUSER"));
 
-				userUID = "my_superuser";
-				userDN = "3.2.12.144549.1.9.1=#33333333333,CN=my_superuser,OU=Hosts,O=ZZTop.Org,C=ZZ";
-				citadelRolesGranted.add(new SimpleGrantedAuthority("ROLE_MY_SUPERUSER"));
 
 
 				ConflictingRolesDTO conflictingRolesDTO = new ConflictingRolesDTO(citadelRolesGranted);
@@ -2564,7 +2584,7 @@ Plan:  There will be 3 security.mode values:
 				allRolesGranted.addAll( userInfoDTO.getInternalRolesGranted());
 
 				// Generate the user's granted access map from all roles granted
-				Map<String, Boolean> uiControlAccesMap = userService.generateUiControlAccessMap(allRolesGranted);
+				Map<String, Boolean> uiControlAccessMap = userService.generateUiControlAccessMap(allRolesGranted);
 
 				// Create a bogus UserInfo object
 				// NOTE:  I am hard-coding the user's userid=25
@@ -2574,15 +2594,15 @@ Plan:  There will be 3 security.mode values:
 						.withUsernameUID(userUID)
 						.withUsernameDn(userDN)
 						.withGrantedAuthorities(allRolesGranted)
-						.withUiControlAccessMap(uiControlAccesMap)
+						.withUiControlAccessMap(uiControlAccessMap)
 						.withRolesAreConflicting(conflictingRolesDTO.isRolesAreConflicting())
 						.withRolesAreConflictingMessage(conflictingRolesDTO.getRolesAreConflictingMessage())
-						.withRegisteredCageCode(userInfoDTO.getRegisteredCagecode())
-						.withUsersFullName(userInfoDTO.getFullName() )
-						.withPrimaryOrgId( userInfoDTO.getPrimaryOrgId() )
-						.withSecondaryOrgId( userInfoDTO.getSecondaryOrgId() )
+						.withRegisteredCageCode(   userInfoDTO.getRegisteredCagecode())
+						.withUsersFullName(        userInfoDTO.getFullName() )
+						.withPrimaryOrgId(         userInfoDTO.getPrimaryOrgId() )
+						.withSecondaryOrgId(       userInfoDTO.getSecondaryOrgId() )
 						.withUsersListOfCageCodes( userInfoDTO.getUsersListOfCageCodes() )
-						.withRegistrationStateId( userInfoDTO.getRegistrationStateId() );
+						.withRegistrationStateId(  userInfoDTO.getRegistrationStateId() );
 
 
 				// When running in local development, disable the acknowledgement popup
@@ -2590,7 +2610,6 @@ Plan:  There will be 3 security.mode values:
 
 				return myUserInfo;
 			}
-
 
 		}
 
@@ -2664,17 +2683,88 @@ Plan:  There will be 3 security.mode values:
 				return elasticSearchResources;
 			}
 
+17. Change the UserService.getUserInfo() so it knows where to get MyUserInfo
 
-17. Adjust production settings
+	 public class UserService {
+
+		@Value("${security.mode}")
+		private String securityMode;
+
+
+		@PostConstruct
+		public void init() {
+			logger.debug("init() started.  citadelDataSourceEnabled={}  enableSettingLastLoginDateOnLogin={}", citadelDataSourceEnabled, enableSettingLastLoginDateOnLogin);
+		}
+
+
+		public MyUserInfo getUserInfo() {
+			if (this.securityMode.equalsIgnoreCase("keycloak")) {
+				return getUserInfoFromKeycloak();
+			} else {
+				return getUserInfoFromNonKeyCloak();
+			}
+		}
+
+
+		private MyUserInfo getUserInfoFromNonKeyCloak() {
+			// Get the UserInfo object from Spring Security
+			SecurityContext securityContext = SecurityContextHolder.getContext();
+			if (securityContext == null) {
+				throw new RuntimeException("Error in getUserInfoFromNonKeyCloak():  SecurityContext is null.  This should never happen.");
+			}
+
+			Authentication auth = securityContext.getAuthentication();
+			if (auth == null) {
+				throw new RuntimeException("Error in getUserInfoFromNonKeyCloak():  Authentication is null.  This should never happen.");
+			}
+
+			MyUserInfo userInfo = (MyUserInfo) auth.getPrincipal();
+			if (userInfo == null) {
+				throw new RuntimeException("Error in getUserInfoFromNonKeyCloak():  UserInfo is null.  This should never happen.");
+			}
+
+			return userInfo;
+		}
+
+
+		private MyUserInfo getUserInfoFromKeycloak() {
+			// Get the UserInfo object from Spring Security
+			SecurityContext securityContext = SecurityContextHolder.getContext();
+			if (securityContext == null) {
+				throw new RuntimeException("Error in getUserInfoFromKeycloak():  SecurityContext is null.  This should never happen.");
+			}
+
+			Authentication auth = securityContext.getAuthentication();
+			if (auth == null) {
+				throw new RuntimeException("Error in getUserInfoFromKeycloak():  Authentication is null.  This should never happen.");
+			}
+
+			MyDefaultOidcUser myDefaultOidcUser = (MyDefaultOidcUser) auth.getPrincipal();
+			if (myDefaultOidcUser == null) {
+				throw new RuntimeException("Error in getUserInfoFromKeycloak():  MyDefaultOidcUser is null.  This should never happen.");
+			}
+
+			MyUserInfo myUserInfo = myDefaultOidcUser.getMyUserInfo();
+			if (myUserInfo == null) {
+				throw new RuntimeException("Error in getUserInfoFromKeycloak():  MyUserInfo is null.  This should never happen.");
+			}
+
+			return myUserInfo;
+		}
+
+	}
+
+
+18. Adjust production settings
     a. Need a security.mode of 'keycloak', 'citadel', or 'localdev'
     b. If security.mode does not match, then throw RuntimeException
     c. Adjust production application.yaml to use security.mode=keycloak
 
-18. Build the RDA / Verify it works on dev cluster
+19. Build the RDA / Verify it works on dev cluster
     unix> mvn clean package -Pprod -PbuildRda
 
 
-19. Build the image / Verify it works on an AWS cluster
+20. Build the image / Verify it works on an AWS cluster
     a. Login to docker
        unix> docker login
 
