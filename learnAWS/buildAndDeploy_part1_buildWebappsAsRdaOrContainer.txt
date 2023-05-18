@@ -1436,11 +1436,11 @@ Part 1:  Configure maven so that we can build using buildRda, buildImage or buil
 		  url: ${ES_URL}
 		  ssl_enabled: true
 		  add_bdp_security: false
-		  key-store: ${OUTGOING_KEYSTORE_FILEPATH}
-		  key-store-password: ${OUTGOING_KEYSTORE_PASSWORD}
+		  key-store: ${INCOMING_KEYSTORE_FILEPATH}
+		  key-store-password:  ${INCOMING_KEYSTORE_PASSWORD}
 		  key-store-type: JKS
-		  trust-store: ${OUTGOING_TRUSTSTORE_FILEPATH}
-		  trust-store-password: ${OUTGOING_TRUSTSTORE_PASSWORD}
+		  trust-store:  ${INCOMING_TRUSTSTORE_FILEPATH}
+		  trust-store-password: ${INCOMING_TRUSTSTORE_PASSWORD}
 		  trust-store-type: JKS
 		  authentication.principal: ${ES_USERNAME}
 		  authentication.password:  ${ES_PASSWORD}
@@ -1485,22 +1485,23 @@ Part 1:  Configure maven so that we can build using buildRda, buildImage or buil
 		  url: ${ES_URL}
 		  ssl_enabled: true
 		  add_bdp_security: false
-		  key-store: ${OUTGOING_KEYSTORE_FILEPATH}
-		  key-store-password: ${OUTGOING_KEYSTORE_PASSWORD}
+		  key-store: ${INCOMING_KEYSTORE_FILEPATH}
+		  key-store-password:  ${INCOMING_KEYSTORE_PASSWORD}
 		  key-store-type: JKS
-		  trust-store: ${OUTGOING_TRUSTSTORE_FILEPATH}
-		  trust-store-password: ${OUTGOING_TRUSTSTORE_PASSWORD}
+		  trust-store:  ${INCOMING_TRUSTSTORE_FILEPATH}
+		  trust-store-password: ${INCOMING_TRUSTSTORE_PASSWORD}
 		  trust-store-type: JKS
 		  authentication.principal: ${ES_USERNAME}
 		  authentication.password:  ${ES_PASSWORD}
 
 
-		##############################################################################
+
+		##########################################################
 		# Security & SSL Settings
 		#
 		# Set the security mode to "keycloak" so it authenticates against keycloak
-		##############################################################################
-		security.mode: keycloak       # Possible values are localdev, citadel, and keycloak)
+		##########################################################
+		security.mode: keycloak    # Possible values are localdev, citadel, and keycloak / set to keycloak to use keycloak authentication
 
 		server:
 		  ssl:
@@ -1517,20 +1518,19 @@ Part 1:  Configure maven so that we can build using buildRda, buildImage or buil
 		server.servlet.session.cookie.secure: true
 		server.servlet.session.cookie.http-only: true
 
-		# Forward headers so that keycloak headers can be forwarded to the spring-boot webapp
 		server.use-forward-headers: true
 
 
 		##############################################################################
-		# Keycloak Settings
+		# Keycloak Settings for Spring Security
 		#
 		# The realm url is probably something like https://keycloak.rbr-tech.com:8444/realms/MyRealm
 		##############################################################################
-		spring.security.oauth2.client.registration.keycloak.client-id: ${KC_APP1_ADMIN_CLIENT_ID}
-		spring.security.oauth2.client.registration.keycloak.client-secret: ${KC_APP1_ADMIN_CLIENT_SECRET}
+		spring.security.oauth2.client.registration.keycloak.client-id: ${KEYCLOAK_CLIENT_ID}
+		spring.security.oauth2.client.registration.keycloak.client-secret: ${KEYCLOAK_CLIENT_SECRET}
 		spring.security.oauth2.client.registration.keycloak.authorization-grant-type: authorization_code
 		spring.security.oauth2.client.registration.keycloak.scope: openid,email,profile
-		spring.security.oauth2.client.provider.keycloak.issuer-uri: ${KC_APP1_ADMIN_REALM_URL}
+		spring.security.oauth2.client.provider.keycloak.issuer-uri: ${KEYCLOAK_ISSUER_URI}
 		spring.security.oauth2.client.provider.keycloak.user-name-attribute: preferred_username
 
 
@@ -1543,12 +1543,6 @@ Part 1:  Configure maven so that we can build using buildRda, buildImage or buil
 		  <!-- Sprint Boot / Keycloak Integration / Add the OAuth2/OpenID client to talk to Keycloak and authenticate users -->
 		  <groupId>org.springframework.boot</groupId>
 		  <artifactId>spring-boot-starter-oauth2-client</artifactId>
-		</dependency>
-
-		<dependency>
-		  <groupId>org.apache.commons</groupId>
-		  <artifactId>commons-collections4</artifactId>
-		  <version>4.4</version>
 		</dependency>
 
 
@@ -1643,7 +1637,6 @@ Plan:  There will be 3 security.mode values:
 			import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 			import org.springframework.stereotype.Component;
 
-			import javax.annotation.PostConstruct;
 			import javax.annotation.Resource;
 
 
@@ -1655,11 +1648,6 @@ Plan:  There will be 3 security.mode values:
 				@Resource
 				private AuthenticationService authenticationService;
 
-
-				@PostConstruct
-				public void init() {
-					logger.debug("MyAuthenticationManagerCitadel.init() started");
-				}
 
 
 				@Override
@@ -1754,7 +1742,6 @@ Plan:  There will be 3 security.mode values:
 			import org.springframework.security.config.http.SessionCreationPolicy;
 			import org.springframework.security.web.SecurityFilterChain;
 
-			import javax.annotation.PostConstruct;
 			import javax.annotation.Resource;
 
 
@@ -1771,16 +1758,6 @@ Plan:  There will be 3 security.mode values:
 				private MyRequestHeaderAuthFilterCitadel myRequestHeaderAuthFilterCitadel;
 
 
-				public SpringSecurityConfigForCitadel() {
-					logger.debug("SpringSecurityConfigForCitadel constructor started");
-				}
-
-				@PostConstruct
-				public void init() {
-					logger.debug("SpringSecurityConfigForCitadel.init() started");
-				}
-
-
 				/**
 				 * Configure Spring Security for Citadel Authentication
 				 *
@@ -1790,22 +1767,21 @@ Plan:  There will be 3 security.mode values:
 				 */
 				@Bean
 				public SecurityFilterChain securityFilterChain(HttpSecurity aHttpSecurity) throws Exception {
-					logger.debug("securityFilterChain() [CITADEL] started.");
 
 					// Running in HTTPS mode using citadel for authentication
 					aHttpSecurity.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
-						    .and()
-						    .authorizeRequests()    // Filters out any URLs that are ignored.  This should be before any authorization filters
-						    .antMatchers("/resources/**", "/error").permitAll()
-						    .antMatchers("/**").access("hasRole('ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS')")   // All users must have the grantedAuthority called ROLE_UserFoundInLdap to view all pages
-						    .and()
-						    .requiresChannel().antMatchers("/**").requiresSecure()    // Redirect http to https
-						    .and()
-						    .addFilter(this.myRequestHeaderAuthFilterCitadel)          // Pull the DN from the user's X509 certificate or header
-						    .headers().frameOptions().disable()               // By default X-Frame-Options is set to denied.  Disable frameoptions to let this webapp work in OWF
-						    .and()
-						    .anonymous().disable()
-						    .csrf().disable();
+							.and()
+							.authorizeRequests()    // Filters out any URLs that are ignored.  This should be before any authorization filters
+							.antMatchers("/resources/**", "/error").permitAll()
+							.antMatchers("/**").access("hasRole('ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS')")   // All users must have the grantedAuthority called ROLE_UserFoundInLdap to view all pages
+							.and()
+							.requiresChannel().antMatchers("/**").requiresSecure()    // Redirect http to https
+							.and()
+							.addFilter(this.myRequestHeaderAuthFilterCitadel)          // Pull the DN from the user's X509 certificate or header
+							.headers().frameOptions().disable()               // By default X-Frame-Options is set to denied.  Disable frameoptions to let this webapp work in OWF
+							.and()
+							.anonymous().disable()
+							.csrf().disable();
 
 					return aHttpSecurity.build();
 				}
@@ -1927,7 +1903,6 @@ Plan:  There will be 3 security.mode values:
 			import org.springframework.security.config.http.SessionCreationPolicy;
 			import org.springframework.security.web.SecurityFilterChain;
 
-			import javax.annotation.PostConstruct;
 			import javax.annotation.Resource;
 
 
@@ -1943,15 +1918,6 @@ Plan:  There will be 3 security.mode values:
 				private MyRequestHeaderAuthFilterLocalDev myRequestHeaderAuthFilterLocalDev;
 
 
-				public SpringSecurityConfigForLocalDev() {
-					logger.debug("SpringSecurityConfigForLocalDev constructor started");
-				}
-
-				@PostConstruct
-				public void init() {
-					logger.debug("SpringSecurityConfigForLocalDev.init() started");
-				}
-
 
 				/**
 				 * Configure Spring Security for Local Dev (FAKE) authentication
@@ -1965,27 +1931,27 @@ Plan:  There will be 3 security.mode values:
 
 					// Running in http mode    (no SSL encryption)
 					aHttpSecurity
-						    .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
-						    .and()
-						        .authorizeRequests()     // Filters out any URLs that are ignored.  This should be before any authorization filters
-						        .antMatchers("/resources/**", "/error").permitAll()
-						        .antMatchers("/**").access("hasRole('ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS')")   // All users must have the grantedAuthority called ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS to view all pages
-						        .anyRequest().authenticated()
-						    .and()
-						        .requiresChannel().antMatchers("/**").requiresInsecure()
-						    .and()
-						        .addFilter(this.myRequestHeaderAuthFilterLocalDev)
-						        .headers().frameOptions().disable()                       // By default X-Frame-Options is set to denied.
-						    .and()
-						        .anonymous().disable()
-						        .csrf().disable();
+							.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
+							.and()
+								.authorizeRequests()     // Filters out any URLs that are ignored.  This should be before any authorization filters
+								.antMatchers("/resources/**", "/error").permitAll()
+								.antMatchers("/**").access("hasRole('ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS')")   // All users must have the grantedAuthority called ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS to view all pages
+								.anyRequest().authenticated()
+							.and()
+								.requiresChannel().antMatchers("/**").requiresInsecure()
+							.and()
+								.addFilter(this.myRequestHeaderAuthFilterLocalDev)
+								.headers().frameOptions().disable()                       // By default X-Frame-Options is set to denied.
+							.and()
+								.anonymous().disable()
+								.csrf().disable();
 
 
 					return aHttpSecurity.build();
 				}
 
-			}
 
+			}
 
 
 12. Add this java package:  backend/src/main/java/....security/keycloak
@@ -2112,7 +2078,6 @@ Plan:  There will be 3 security.mode values:
 			import org.springframework.security.web.SecurityFilterChain;
 			import org.springframework.web.filter.ForwardedHeaderFilter;
 
-			import javax.annotation.PostConstruct;
 			import javax.annotation.Resource;
 			import javax.servlet.DispatcherType;
 
@@ -2133,16 +2098,6 @@ Plan:  There will be 3 security.mode values:
 				private AuthenticationService authenticationService;
 
 
-				public SpringSecurityConfigForKeycloak() {
-					logger.debug("SpringSecurityConfigForKeycloak constructor started");
-				}
-
-
-				@PostConstruct
-				public void init() {
-					logger.debug("SpringSecurityConfigForKeycloak.init() started");
-				}
-
 
 				/**
 				 * Configure Spring Security for Keycloak or OAUTH2 Authentication
@@ -2153,13 +2108,12 @@ Plan:  There will be 3 security.mode values:
 				 */
 				@Bean
 				public SecurityFilterChain securityFilterChain(HttpSecurity aHttpSecurity) throws Exception {
-					logger.debug("securityFilterChainF() [KEYCLOAK] started.");
 
 					// Running in https mode with OAuth2 authentication
 					aHttpSecurity.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
 							.and()
 								.authorizeRequests()
-								.antMatchers("/assets/**",  "**.js", "**.css",  "/error").permitAll()
+								.antMatchers("/assets/**",  "**.js", "**.css",  "/error", "/nccs/error", "/nccs/assets/**").permitAll()
 								.antMatchers("/**").access("hasRole('ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS')")   // All users must have the grantedAuthority called ROLE_USER_FOUND_IN_VALID_LIST_OF_USERS to view all pages
 								.anyRequest()
 								.authenticated()
@@ -2682,6 +2636,7 @@ Plan:  There will be 3 security.mode values:
 				// Return a spring bean that holds the AsyncHttpClient and elasticsearch url
 				return elasticSearchResources;
 			}
+
 
 17. Change the UserService.getUserInfo() so it knows where to get MyUserInfo
 
