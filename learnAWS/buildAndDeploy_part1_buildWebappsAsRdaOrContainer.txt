@@ -1558,7 +1558,6 @@ Part 1:  Configure maven so that we can build using buildRda, buildImage or buil
            </to>
 
 
-
  8. Build and push the containers to a container repo
 
 		Build & Push Approach 1:  Use -PbuildImageAndPush and provide username/password on the command-line
@@ -1612,10 +1611,6 @@ Part 1:  Configure maven so that we can build using buildRda, buildImage or buil
 		   unix> docker push traderres/my-private-repo:backend-2.2.2-SNAPSHOT
 
 
-
-
-
-
  9. Verify that the files were uploaded to your docker repo
     a. Go to https://hub.docker.com
     b. Enter your docker username/password
@@ -1632,8 +1627,8 @@ The application.yaml property called security.mode will have 3 possible values:
      citadel   (for running in a BDP using citadel security)
      keycloak  (for running in AWS using keycloak security)
 
-The citadel/keycloak/localdev java packages all references the AuthenticationService methods for generating the MyUserInfo object
--- So, all developers should have to do is change the AuthenticationService class
+     The citadel/keycloak/localdev java classes are all referenced by the AuthenticationService
+     -- So, all developers should have to do is change the AuthenticationService class
 
 
 10. Rename UserInfo to MyUserInfo
@@ -2384,7 +2379,7 @@ The citadel/keycloak/localdev java packages all references the AuthenticationSer
 			 */
 			public MyUserInfo generateUserInfoWithOauth2InfoFromKeyCloak(OidcUser aOidcUser) {
 				logger.debug("generateUserInfoWithOauth2InfoFromKeyCloak() started.  aOidcUser={}", aOidcUser);
-				String userUID = aOidcUser.getName();
+				String certUsername = aOidcUser.getName();
 
 				List<GrantedAuthority> oauth2RolesGranted = new ArrayList<>();
 
@@ -2411,7 +2406,7 @@ The citadel/keycloak/localdev java packages all references the AuthenticationSer
 
 				// Get the user's userId from the database (or generate one)
 				// NOTE:  Use the non-synchronized version of this method when running in local dev mode
-				InitialUserInfoDTO userInfoDTO = userService.getInitialUserInfoOrInsertRecord(userUID, oauth2RolesGranted);
+				InitialUserInfoDTO userInfoDTO = userService.getInitialUserInfoOrInsertRecord(certUsername, oauth2RolesGranted);
 
 				// The list of allRolesGranted = all citadel roles + all internal roles granted
 				List<GrantedAuthority> allRolesGranted = new ArrayList<>(oauth2RolesGranted.size() + userInfoDTO.getInternalRolesGranted().size() );
@@ -2425,7 +2420,7 @@ The citadel/keycloak/localdev java packages all references the AuthenticationSer
 				MyUserInfo userInfo = new MyUserInfo()
 						.withId( userInfoDTO.getUserId() )
 						.withIsLocked( userInfoDTO.getIsLocked() )
-						.withUsernameUID(userUID)
+						.withUsernameUID(certUsername)
 						.withGrantedAuthorities(allRolesGranted)
 						.withUiControlAccessMap(uiControlAccessMap)
 						.withRolesAreConflicting(conflictingRolesDTO.isRolesAreConflicting())
@@ -2452,13 +2447,12 @@ The citadel/keycloak/localdev java packages all references the AuthenticationSer
 
 				logger.debug("generateUserInfoUsingCitadel() started authentication={}", authentication);
 				String userDN;
-				PreAuthenticatedAuthenticationToken token;
 
 				if (authentication.getPrincipal() instanceof String) {
 					userDN = authentication.getPrincipal().toString();
 				}
 				else {
-					token = (PreAuthenticatedAuthenticationToken) authentication.getPrincipal();
+					PreAuthenticatedAuthenticationToken token = (PreAuthenticatedAuthenticationToken) authentication.getPrincipal();
 					userDN = token.getName();
 				}
 				logger.debug("userDN={}", userDN);
@@ -2765,12 +2759,10 @@ The citadel/keycloak/localdev java packages all references the AuthenticationSer
 			security.mode: localdev    # Possible values are localdev, citadel, and keycloak)
 
 
-19. Build the RDA / Verify it works on dev cluster
-    unix> mvn clean package -Pprod -PbuildRda
 
 
-20. Verify that the webapp runs locally
-    a. Verify that the intelliJ debugger worker
+19. Verify that the webapp runs locally
+    a. Verify that the IntelliJ debugger worker
        1) Activate the full debugger
        2) Verify that the webapp connects to http://localhost:4200
 
@@ -2783,6 +2775,9 @@ The citadel/keycloak/localdev java packages all references the AuthenticationSer
 
        3) Attempt to connect to http://localhost:8080/app1
 
+
+20. Build the RDA / Verify it works on dev cluster
+    unix> mvn clean package -Pprod -PbuildRda
 
 
 21. Build the image / Verify it still compiles
