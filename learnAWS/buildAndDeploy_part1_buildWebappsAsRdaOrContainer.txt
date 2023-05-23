@@ -1955,7 +1955,7 @@ The citadel/keycloak/localdev java packages all references the AuthenticationSer
 			}
 
 
-12. Add this java package:  backend/src/main/java/....security/keycloak
+13. Add this java package:  backend/src/main/java/....security/keycloak
     a. Add this java package:   backend/src/main/java/com/lessons/security/keycloak
 
 	b. Add this class:  MyDefaultOidcUser
@@ -2184,13 +2184,7 @@ The citadel/keycloak/localdev java packages all references the AuthenticationSer
 			}
 
 
-14. Erase these security classes:
-		Ersae SubjectX509PrincipalExtractor
-		Erase SpringSecurityConfig
-		Erase SubjectX509PrincipalExtractor
-
-
-15. Add AuthenticationService to Security/
+14. Add AuthenticationService to Security/
 
 		package com.lessons.security;
 
@@ -2569,8 +2563,21 @@ The citadel/keycloak/localdev java packages all references the AuthenticationSer
 		}
 
 
+15. Move code from MyAuthenticationManager to the AuthenticationService
+    a. Copy the code from MyAuthenticationManager.loadUserDetailsForDevelopment() to the AuthenticationService.generateUserInfoForDevelopment()
+    b. Copy the code from MyAuthenticationManager.loadUserDetailsFromRealSource() to the AuthenticationService.generateUserInfoUsingCitadel()
+    c. Update the AuthenticationService.generateUserInfoWithOauth2InfoFromKeyCloak() so that it generate the MyUserInfo object similarly to AuthenticationService.generateUserInfoUsingCitadel()
+    d. Copy any additional methods to AuthenticationService that are missing
 
-16. Adjust the ElasticSearchResources to use a username and password
+
+16. Erase these security classes:
+		Erase MyAuthenticationManager
+		Erase MyRequestHeaderAuthFilter
+		Erase SpringSecurityConfig
+		Erase SubjectX509PrincipalExtractor
+
+
+17. Adjust the ElasticSearchResources to use a username and password
     a. Edit the ElasticSearchResourcesConfig.java
 
     b. Adds this to the top of the java class:
@@ -2715,12 +2722,44 @@ The citadel/keycloak/localdev java packages all references the AuthenticationSer
     a. Need a security.mode of 'keycloak', 'citadel', or 'localdev'
     b. If security.mode does not match, then throw RuntimeException
     c. Adjust production application.yaml to use security.mode=keycloak
+    d. Adjust src/main/resources/application.yaml so that security.mode is set
+    e. Adjust src/test/resources/application.yaml so that security.mode holds localdev
+
+			##########################################################
+			# Citadel Database Settings
+			##########################################################
+			citadel.datasource.enabled: false
+
+
+			##########################################################
+			# Security & SSL Settings
+			#
+			# Set the security mode to "localdev" so it runs locally for a developer
+			##########################################################
+			security.mode: localdev    # Possible values are localdev, citadel, and keycloak)
+
 
 19. Build the RDA / Verify it works on dev cluster
     unix> mvn clean package -Pprod -PbuildRda
 
 
-20. Build the image / Verify it works on an AWS cluster
+20. Verify that the webapp runs locally
+    a. Verify that the intelliJ debugger worker
+       1) Activate the full debugger
+       2) Verify that the webapp connects to http://localhost:4200
+
+    b. Verify that it works from command line in local dev mode
+       1) Compile it to run locally
+          unix> mvn clean package -Pprod
+
+       2) Run it locally from command-line
+          unix> java -jar ./backend/target/backend-exec.jar
+
+       3) ttempt to connect to http://localhost:8080/app1
+
+
+
+21. Build the image / Verify it still compiles
     a. Login to docker
        unix> docker login
 
@@ -2736,79 +2775,163 @@ See learnAWS / buildAndDeploy_part2_setupKubernetesOnAwsClusterAndDeploy.txt
 
 
 
+Remember:  The goal is to have the *SAME* build used in multiple environments
+           So, the application.yaml will get its values from env variables or a kubernetes configMap
 
-
-
-
-Approaches for the 5 environments
----------------------------------
- 1. Create a single application.yaml with 5 profiles / Set the spring profile in the deployment yaml
- 2. Create 5 application.yaml files -- e.g., application-test.yaml, application-prod.yaml / Set the spring.config.location=/directory that holds multiple application.yaml
- 3. Create a single prod application.yaml and get env variables from yaml
-    + Only one profile called "prod" in it
-    + Only one application.yaml for "prod"
-    + The only thing that changes in a few things and they are env variables
 
 
 
 #############################################################################
-# Filename: sync-service-deployment-for-prod.yaml
+#  nccs-sync-service-deployment-v1.yaml
 #
-# Purpose:
-#  Explains how to deploy the sync service in the production environment
 #############################################################################
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: sf328-deployment
+  name: nccs-sync-service-deployment
 
 spec:
   selector:
     matchLabels:
-      app: sf328-backend
+      app: nccs-sync-service
   replicas: 1
   strategy:
     type:  Recreate
   template:
     metadata:
-      name: kubia
+      name: nccs-sync-service
       labels:
-         app: sf328-backend
+         app: nccs-sync-service
+    spec:
+
+      volumes:
+      - name: app-certs-pv
+        persistentVolumeClaim:
+          claimName: app-certs-pvc
+
+      containers:
+      - image: 527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/nccs:sync-service-2.2.3-SNAPSHOT
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: app-certs-pv
+          mountPath: /shared/certs
+
+        name: nccs-sync-service
+
+        env:
+           - name: POSTGRES_HOSTNAME
+             value: "nccs.cgl3wyvjvqtu.us-gov-west-1.rds.amazonaws.com"
+           - name: POSTGRES_DB_USERNAME
+             value: "nccs_user"
+           - name: POSTGRES_DB_PASSWORD
+             value: "secret12"
+           - name: POSTGRES_DB_NAME
+             value: "nccs_db"
+           - name: POSTGRES_SCHEMA_NAME
+             value: "nccs_db"
+           - name: POSTGRES_POOL_SIZE
+             value: "50"
+           - name: ES_URL
+             value: "https://vpc-nccs-wxin7j6ech5f4i6bvhptdwldcu.us-gov-west-1.es.amazonaws.com:443"
+           - name: ES_USERNAME
+             value: "nccs_user"
+           - name: ES_PASSWORD
+             value: "Secret1@"
+           - name: INCOMING_KEYSTORE_FILEPATH
+             value: "/shared/certs/nccs.webapp.keystore.jks"
+           - name: INCOMING_KEYSTORE_PASSWORD
+             value: "changeit"
+           - name: INCOMING_TRUSTSTORE_FILEPATH
+             value: "/shared/certs/nccs.webapp.truststore.jks"
+           - name: INCOMING_TRUSTSTORE_PASSWORD
+             value: "changeit"
+           - name: JAVA_TOOL_OPTIONS
+             value: -Xms1024m -Xmx1024m -Demail.mode=off -Djavax.net.ssl.trustStore=/shared/certs/custom.cacerts -Djavax.net.ssl.trustStorePassword=changeit
+
+
+
+
+#############################################################################
+#  nccs-deployment-v2.2.3.yaml
+#
+# Notes:
+#  1) The running pods do not have DNS so we need hostAliases to create an entry in /etc/hosts
+#     that can resolve the keycloak.rbr-tech.com to 160.1.14.243
+#     Use nslookup keycloak.rbr-tech.com to verify the IP
+#
+#############################################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nccs-deployment
+
+spec:
+  selector:
+    matchLabels:
+      app: nccs-backend
+
+  replicas: 1
+  strategy:
+    type:  Recreate
+  template:
+    metadata:
+      name: nccs-backend
+      labels:
+         app: nccs-backend
+
     spec:
       hostAliases:
-      - ip: "160.1.28.118"
+      - ip: "160.1.14.243"
         hostnames:
-          - "ec2-160-1-28-118.us-gov-west-1.compute.amazonaws.com"
+          - "keycloak.rbr-tech.com"
+
+      volumes:
+      - name: app-certs-pv
+        persistentVolumeClaim:
+          claimName: app-certs-pvc
+
       containers:
-      - image: 527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/poc:sf328-backend-1.0.24-SNAPSHOT
+      - image: 527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/nccs:backend-2.2.3-SNAPSHOT
         imagePullPolicy: Always
-        name: java-backend
+        volumeMounts:
+        - name: app-certs-pv
+          mountPath: /shared/certs
+
+        name: nccs-backend
+
         env:
-           - name: MY_ENV
-             value: "test"
            - name: POSTGRES_HOSTNAME
-             value: "server-running-postgres"
+             value: "nccs.cgl3wyvjvqtu.us-gov-west-1.rds.amazonaws.com"
            - name: POSTGRES_DB_USERNAME
-             value: "app1_user"
+             value: "nccs_user"
            - name: POSTGRES_DB_PASSWORD
-             value: "secret"
+             value: "secret12"
            - name: POSTGRES_DB_NAME
-             value: "app1_db"
+             value: "nccs_db"
            - name: POSTGRES_SCHEMA_NAME
-             value: "app1_db"
+             value: "nccs_db"
+           - name: POSTGRES_POOL_SIZE
+             value: "5"
            - name: ES_URL
-             value: "https://search-sf328-itwh3bby3wl3s7t6ur6pph2rti.us-gov-west-1.es.amazonaws.com:443"
+             value: "https://vpc-nccs-wxin7j6ech5f4i6bvhptdwldcu.us-gov-west-1.es.amazonaws.com:443"
            - name: ES_USERNAME
-             value: "es_user"
+             value: "nccs_user"
            - name: ES_PASSWORD
-             value: "es_secret"
+             value: "Secret1@"
            - name: KEYCLOAK_CLIENT_ID
-             value: "sf328"
+             value: "nccs-webapp"
            - name: KEYCLOAK_CLIENT_SECRET
-             value: "adfasdfsafdsafdjljasdfsafdasfasdfasfd"
+             value: "gyG7oTbHbenKecReYOJIg4F2fTaUtGDp"
+           - name: KEYCLOAK_ISSUER_URI
+             value: "https://keycloak.rbr-tech.com:8444/realms/MyRealm"
+           - name: INCOMING_KEYSTORE_FILEPATH
+             value: "/shared/certs/nccs.webapp.keystore.jks"
+           - name: INCOMING_KEYSTORE_PASSWORD
+             value: "changeit"
+           - name: INCOMING_TRUSTSTORE_FILEPATH
+             value: "/shared/certs/nccs.webapp.truststore.jks"
+           - name: INCOMING_TRUSTSTORE_PASSWORD
+             value: "changeit"
            - name: JAVA_TOOL_OPTIONS
-             value: -Xms250m -Xmx250m - -Demail.mode=off -Djavax.net.ssl.trustStore=/sf328-backend/src/main/prod_resources/custom.cacerts -Djavax.net.ssl.trustStorePassword=changeit  -jar .../path/to/jar
-
-
-NOTE:  We can move these env variables to a configMap as well
+             value: -Xms1024m -Xmx1024m -Demail.mode=off -Djavax.net.ssl.trustStore=/shared/certs/custom.cacerts -Djavax.net.ssl.trustStorePassword=changeit
 
