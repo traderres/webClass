@@ -2,8 +2,13 @@ How to Build and Push Container to Amazon ECR
 ---------------------------------------------
 
 
-Procedure (if you have docker installed)
-----------------------------------------
+Procedure  (does not require docker)
+------------------------------------
+ 1.
+
+
+Procedure (requires docker)
+---------------------------
  1. Get the access key and secret access key from AWS
     Access key ID:     AKIAXVSK767676TMTRI4E7WC
     Secret access key:  abcdef+A1AOJCj/w3BB5V21kLw
@@ -22,10 +27,93 @@ Procedure (if you have docker installed)
  3. Login to AWS
     unix> aws ecr get-login-password --region us-gov-west-1 | docker login --username AWS --password-stdin 527362555097.dkr.ecr.us-gov-west-1.amazonaws.com
 
- 4. Now build and push
+
+ 4. Verify that the pom.xml has the correct tag name
+    a. Edit backend/pom.xml
+    b. Verify that the "buildImageAndPush" profile has the correct <image><to> tag
+
+         <to>
+              <image>527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/nccs:${project.artifactId}-${project.version}</image>
+         </to>
+
+
+        Here is a complete maven profile
+
+				<profile>
+					  <id>buildImageAndPush</id>
+
+					  <!-- When running this profile, do *NOT* include the src/main/resources/application.yaml in the build -->
+					  <build>
+						<resources>
+						  <resource>
+							<filtering>false</filtering>
+							<directory>src/main/resources</directory>
+							<excludes>
+							  <exclude>application.yaml</exclude>
+							</excludes>
+						  </resource>
+						</resources>
+
+						<plugins>
+						  <plugin>
+							<!-- Use the jib-maven-plugin to build the container and push it up to a registry [without having to install Docker] -->
+							<groupId>com.google.cloud.tools</groupId>
+							<artifactId>jib-maven-plugin</artifactId>
+							<version>3.3.1</version>
+
+							<executions>
+							  <execution>
+								<phase>package</phase>
+								<goals>
+								  <!-- Possible goals are build and dockerBuild   -->
+								  <!--   The "build"       goal does not require docker / build the image and push it to a repo                 -->
+								  <!--   The "dockerBuild" goal requires docker         / build the image and push to the local daemon daemon   -->
+								  <goal>build</goal>
+								</goals>
+							  </execution>
+							</executions>
+
+							<configuration>
+							  <from>
+								<!-- Define the source image that will be executed            -->
+								<!-- See https://hub.docker.com/_/eclipse-temurin/tags        -->
+
+								<!-- This source image runs linux with JDK 17.07 -->
+								<image>eclipse-temurin:17.0.7_7-jdk@sha256:9dd6a19e4819b066aa2bd8e54d5988a49cca29736fe5447cb0a57daa975f8935</image>
+							  </from>
+
+							  <to>
+								<image>527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/nccs:${project.artifactId}-${project.version}</image>
+							  </to>
+
+
+							  <extraDirectories>
+								<paths>
+								  <path>
+									<!-- Copies everything from 'src/main/image_resources' into '/sync-service-/src/main/image_resources' on the container. -->
+									<from>src/main/image_resources</from>
+									<into>/backend/src/main/image_resources</into>
+								  </path>
+								</paths>
+							  </extraDirectories>
+
+							  <container>
+								<jvmFlags>
+								  <!-- When starting the container, tell Java where to find the application.yaml -->
+								  <jvmFlag> -Dspring.config.location=/backend/src/main/image_resources/application.yaml</jvmFlag>
+								</jvmFlags>
+							  </container>
+
+							</configuration>
+
+						  </plugin>
+						</plugins>
+					  </build>
+					</profile>
+
+
+ 5. Now build and push
     unix> mvn clean package -Pprod -PbuildImageAndPush
 
 
-Procedure  (does not require docker)
-------------------------------------
 
