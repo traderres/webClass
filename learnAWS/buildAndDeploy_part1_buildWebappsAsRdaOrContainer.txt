@@ -2805,6 +2805,34 @@ Remember:  The goal is to have the *SAME* build used in multiple environments
 #############################################################################
 #  nccs-sync-service-deployment-v1.yaml
 #
+# Purpose:   Tell kubernetes how to deploy the Sync Service
+#
+# Usage
+#  1. Follow the steps to setup AWS credentials (so you can build & deploy)
+#     https://github.com/traderres/webClass/blob/master/learnAWS/howToBuildAndPushToAmazonECR.txt
+#
+#  2. Build and push the containers to the Amazon ECR (image repository)
+#     unix> mvn -Djib.to.auth.username=AWS -Djib.to.auth.password=$PASSWORD clean package -Pprod -PbuildImageAndPush
+#
+#  3. Edit the environment variables in this yaml file to match reality -- e.g., set the POSTGRES_HOSTNAME
+#     a. Also edit the image name (in this yaml file) to make sure it matches what was pushed to the Amazon ECR
+#
+#  4. Tell kubernetes to deploy the sync service
+#     unix> kubectl delete deployment nccs-sync-service-deployment
+#     unix> kubectl apply -f nccs-sync-service-deployment-v2.2.3.yaml
+#
+#  5. Get the name of the running pod  (it changes every time)
+#     unix> kubectl get pods
+#
+#     NAME                                            READY   STATUS         RESTARTS   AGE
+#     nccs-sync-service-deployment-69c9fd9db6-6wkcf   1/1     Running        0          19s
+#
+#  6. Look at the pod log to verify that the sync-service is running
+#     uniX> kubectl logs -f nccs-sync-service-deployment-69c9fd9db6-6wkcf
+#
+# Notes:
+#  A) If you want to erase the database, then add this to JAVA_TOOL_OPTIONS:
+#        -Dapp.datasource.flyway-clean-on-startup=TRUE
 #############################################################################
 apiVersion: apps/v1
 kind: Deployment
@@ -2875,11 +2903,36 @@ spec:
 #############################################################################
 #  nccs-deployment-v2.2.3.yaml
 #
+# Purpose:   Tell kubernetes how to deploy the NCCS web app(s)
+#
+# Usage
+#  1. Follow the steps to setup AWS credentials (so you can build & deploy)
+#     https://github.com/traderres/webClass/blob/master/learnAWS/howToBuildAndPushToAmazonECR.txt
+#
+#  2. Build and push the containers to the Amazon ECR (image repository)
+#     unix> mvn -Djib.to.auth.username=AWS -Djib.to.auth.password=$PASSWORD clean package -Pprod -PbuildImageAndPush
+#
+#  3. Edit the environment variables in this yaml file to match reality -- e.g., set the POSTGRES_HOSTNAME
+#     a. Also edit the image name (in this yaml file) to make sure it matches what was pushed to the Amazon ECR
+#
+#  4. Tell kubernetes to deploy the sync service
+#     unix> kubectl delete deployment nccs-deployment
+#     unix> kubectl apply -f nccs-deployment-v2.2.3.yaml
+#
+#  5. Get the name of the running pod  (it changes every time)
+#     unix> kubectl get pods
+#
+#     NAME                                            READY   STATUS         RESTARTS   AGE
+#     nccs-deployment-69c9fd9db6-6wkcf                1/1     Running        0          19s
+#
+#  6. Look at the pod log to verify that the NCCS webapp is up
+#     uniX> kubectl logs -f nccs-deployment-69c9fd9db6-6wkcf
+#
 # Notes:
-#  1) The running pods do not have DNS so we need hostAliases to create an entry in /etc/hosts
+#  A) The running pods do not have DNS so we need hostAliases to create an entry in /etc/hosts
 #     that can resolve the keycloak.rbr-tech.com to 160.1.14.243
 #     Use nslookup keycloak.rbr-tech.com to verify the IP
-#
+#  B) If you want 5 copies of the webapp, then change replicas to 5 (in this file)
 #############################################################################
 apiVersion: apps/v1
 kind: Deployment

@@ -1317,8 +1317,8 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 			General Settings
 			  Client type:           OpenID Connect
-			  Client ID:             sf328-webapp
-			  Name:                  SF328 Submissions
+			  Client ID:             nccs-webapp
+			  Name:                  nccs Submissions
 			  Always display in UI:  Off
 			  Press "Next"
 			  Press "Next"
@@ -1341,7 +1341,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 			Press "Save"
 
 
-		 5) Click on SF328-webapp / Credentials Tab
+		 5) Click on nccs-webapp / Credentials Tab
 			Client Authenticator:  Client ID and Secret
 
 		 6) Click on "Advanced" Tab
@@ -1353,7 +1353,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 		 7) Create the realm role
 		    a. Press Realm roles
 		    b. Press "Create role"
-			a. Create a role called SF328_USER
+			a. Create a role called NCCS_SUPERUSER
 
 
 		 8) Assign that role to your test user
@@ -1364,7 +1364,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 			d. Click on "role Mappings"
 			e. Press Assign Role
-			f. Assign the SF328_USER role to this user
+			f. Assign the NCCS_SUPERUSER role to this user
 
 
 		 9) Tell keycloak to provide the roles to spring boot
@@ -1863,19 +1863,44 @@ spec:
 24. Use Kubernetes to deploy the webapp
 
     a. Delete existing deployment
-       unix> kubectl delete deployment sf328-deployment
+       unix> kubectl delete deployment nccs-deployment
 
     b. Create the deployment script by adding the "env" section with Java settings
-       unix> vi sf328-deployment-v1.yaml
+       unix> vi nccs-deployment-v1.yaml
 
 #############################################################################
 #  nccs-deployment-v1.yaml
 #
+# Purpose:   Tell kubernetes how to deploy the NCCS web app(s)
+#
+# Usage
+#  1. Follow the steps to setup AWS credentials (so you can build & deploy)
+#     https://github.com/traderres/webClass/blob/master/learnAWS/howToBuildAndPushToAmazonECR.txt
+#
+#  2. Build and push the containers to the Amazon ECR (image repository)
+#     unix> mvn -Djib.to.auth.username=AWS -Djib.to.auth.password=$PASSWORD clean package -Pprod -PbuildImageAndPush
+#
+#  3. Edit the environment variables in this yaml file to match reality -- e.g., set the POSTGRES_HOSTNAME
+#     a. Also edit the image name (in this yaml file) to make sure it matches what was pushed to the Amazon ECR
+#
+#  4. Tell kubernetes to deploy the sync service
+#     unix> kubectl delete deployment nccs-deployment
+#     unix> kubectl apply -f nccs-deployment-v2.2.3.yaml
+#
+#  5. Get the name of the running pod  (it changes every time)
+#     unix> kubectl get pods
+#
+#     NAME                                            READY   STATUS         RESTARTS   AGE
+#     nccs-deployment-69c9fd9db6-6wkcf                1/1     Running        0          19s
+#
+#  6. Look at the pod log to verify that the NCCS webapp is up
+#     uniX> kubectl logs -f nccs-deployment-69c9fd9db6-6wkcf
+#
 # Notes:
-#  1) The running pods do not have DNS so we need hostAliases to create an entry in /etc/hosts
+#  A) The running pods do not have DNS so we need hostAliases to create an entry in /etc/hosts
 #     that can resolve the keycloak.rbr-tech.com to 160.1.14.243
 #     Use nslookup keycloak.rbr-tech.com to verify the IP
-#
+#  B) If you want 5 copies of the webapp, then change replicas to 5 (in this file)
 #############################################################################
 apiVersion: apps/v1
 kind: Deployment
@@ -1954,24 +1979,24 @@ spec:
 
 
 	 c. Verify that there are no special chars in the file by looking for them
-		unix> cat -v -e sf328-deployment-v1.yaml
+		unix> cat -v -e nccs-deployment-v1.yaml
 
      d. Convert all tabs to spaces in the yaml file
         unix>
 
 	 e. We create the deployment
-		unix> kubectl create -f sf328-deployment-v1.yaml
+		unix> kubectl create -f nccs-deployment-v1.yaml
 
 	 f. Get a listing of the pods
 		unix> kubectl get pods
 
 		NAME                               READY   STATUS    RESTARTS   AGE
-		sf328-deployment-c469974cb-tj4kk   1/1     Running   0          10s
+		nccs-deployment-c469974cb-tj4kk   1/1     Running   0          10s
 
 
 
 	 g. Have AWS create and expose the load balancer service
-		unix> kubectl expose deployment sf328-deployment --type=LoadBalancer --name=sf328-loadbalancer --port=443
+		unix> kubectl expose deployment nccs-deployment --type=LoadBalancer --name=sf328-loadbalancer --port=443
 		NOTE:  This create a new external hostname and IP address
 
 
@@ -2027,7 +2052,7 @@ Troubleshooting
  A. Ssh to the running pod
     unix> kubectl get pods
 
-    unix> kubectl exec -it sf328-deployment-5c944dc79f-sb8lc /bin/bash
+    unix> kubectl exec -it nccs-deployment-5c944dc79f-sb8lc /bin/bash
     unix> curl https://keycloak.traderres.com:8444/realms/MyRealm
     -- Verify that you get info cleanly (without error)
 
