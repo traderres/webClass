@@ -338,6 +338,45 @@ Procedure
     NOTE:  Default settings should be fine
     NOTE:  We can change the subnets are this point
 
+    If you don't have any VPCs, follow these steps to manually create one
+    a. Login as the dev.user
+    b. Search Services for VPC
+    c. Press "Create VPC"
+	d. In the "Create VPC"
+	   Select "VPC and more"
+
+	   Name Tag: project       (default setting)
+	   IPv4 CIDR: 10.0.0/16    (default setting)
+	   IPv6 CIDR: No IPV6      (default setting)
+	   Tenancy:   Default      (default setting)
+
+	   Number of Avail Zones: 3     (because you have to have a minimum of 2 for lots of stuff / 3 should be auto-generated for you)
+
+	   Number of public  subsets: 3
+	   Number of private subsets: 3
+
+	   VPC Endpoints:             None
+
+	   DNS Options:
+	      Enable DNS Hostnames    <checked>
+	      Enable DNS resolution   <checked>
+
+	   Press "Create VPC"
+
+    e. Make sure your subnets enable IP/hostname resolution
+       1) Click on VPC -> Subnets
+       2) Edit your 1st public subnet -> Action -> Edit Subnet settings
+          Check "Enable auto-assign public IPv4 address"
+          Press "Save"
+
+       3) Edit your 2nd public subnet -> Action -> Edit Subnet settings
+          Check "Enable auto-assign public IPv4 address"
+          Press "Save"
+
+       4) Edit your 1st public subnet -> Action -> Edit Subnet settings
+          Check "Enable auto-assign public IPv4 address"
+          Press "Save"
+
 
 
  5. Create the EKS Cluster (as dev.user)
@@ -348,8 +387,8 @@ Procedure
     c. Select "Add Cluster" -> Create
 
     d. In "Configure Cluster"
-       Name:                  sf
-       Kubernetes version:    1.25  (or the latest)
+       Name:                  nccs
+       Kubernetes version:    1.27  (or the latest)
        Cluster service role:  eksClusterRole
        Press "Next"
 
@@ -369,10 +408,12 @@ Procedure
        Press "Next"
 
     g. In "Select add-ons"
+       By default, it select Amazon VPC CNI, kube-proxy, CoreDNS
        Press "Next"
 
     h. In "Configure selected add-ons settings"
        Go with default and press "Next"
+       Press "Next"
 
     i. In "Review and Create"
        Press "Create"
@@ -393,7 +434,7 @@ Procedure
        		Default output format  json
 
        2) Get the cluster info:
-          unix> aws eks describe-cluster --name sf --query "cluster.identity.oidc.issuer" --output text
+          unix> aws eks describe-cluster --name nccs --query "cluster.identity.oidc.issuer" --output text
           https://oidc.eks.us-east-1.amazonaws.com/id/ID_FROM_DESCRIBE_CLUSTER
 
 
@@ -407,7 +448,7 @@ Procedure
 
           Replace the trust policy with this  (no tabs):
           Replace ID_FROM_DESCRIBE_CLUSTER with the value from the step above
-          REPLACE us-east-2 with us-east-2 (if needed)
+          REPLACE MY_REGION with us-east-2 (if needed)
 
 {
     "Version": "2012-10-17",
@@ -415,13 +456,13 @@ Procedure
     {
         "Effect": "Allow",
         "Principal": {
-              "Federated": "arn:aws:iam::524647912468:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/ID_FROM_DESCRIBE_CLUSTER"
+              "Federated": "arn:aws:iam::524647912468:oidc-provider/oidc.eks.MY_REGION.amazonaws.com/id/ID_FROM_DESCRIBE_CLUSTER"
          },
          "Action": "sts:AssumeRoleWithWebIdentity",
          "Condition": {
          "StringEquals": {
-              "oidc.eks.us-east-1.amazonaws.com/id/ID_FROM_DESCRIBE_CLUSTER:aud": "sts.amazonaws.com",
-              "oidc.eks.us-east-1.amazonaws.com/id/ID_FROM_DESCRIBE_CLUSTER:sub": "system:serviceaccount:kube-system:aws-node"
+              "oidc.eks.MY_REGION.amazonaws.com/id/ID_FROM_DESCRIBE_CLUSTER:aud": "sts.amazonaws.com",
+              "oidc.eks.MY_REGION.amazonaws.com/id/ID_FROM_DESCRIBE_CLUSTER:sub": "system:serviceaccount:kube-system:aws-node"
               }
             }
         }
@@ -494,7 +535,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
     e. Add another inbound rule for our default security group  (to let all traffic in and out)
        1) Go to EC2 Dashboard
-       2) Click on Resoures -> Security groups
+       2) Click on Resources -> Security groups
        3) Check the default security group and press Action -> Edit Inbound Rules
        4) Press "Add Rule"
               Type:   All Traffic
@@ -505,18 +546,18 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
  8. Create Kubernetes Node Group  (as dev.user)
 	a. Go to Amazon Elastic Kubernetes Services
-	b. Click on your cluster (sf)
+	b. Click on your cluster (nccs)
 	c. Click on "Compute"
 	d. Press "Add node group"
 	e. In "Configure node group"
-		   Name:           sf-node-group
+		   Name:           nccs-node-group
 		   Node IAM Role:  eksNodeRole
 		   Press "Next"
 
 	f. In "Node group compute configuration"
 	   AMI Type:       Amazon Linux 2 (AL2_x86_64)
 	   Capacity Type:  On-Demand                        (in DOD, we would have reserved instances)
-	   Instance types  t3.large only
+	   Instance types  t3.medium
 	   Disk size:      20 GiB
 
 	   In Node group scaling configuration
@@ -534,17 +575,17 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 		1) Select the both subnets
 		2) Select "Configure ssh access for nodes"
 		   -- In the warning, press "Enable"
-           -- Subnets:                       Select both
+           -- Subnets:                       <Use the down arrow to ONLY select your 3 public subnets / do not select private subnets)
 		   -- SSH Key pair:                  Select node-for-kubernetes-instance
 		   -- Allow SSH remote access from:  Selected security groups
-		   -- For security groups:           Select default security group
+		   -- For security groups:           Select default VPC security group
 
 		Press "Next"
 
 	h. In "Review and Create"
 		Press "Create"
 
-		NOTE:  At this point, I'm being charged for the t3.large (which costs $2/day)
+		NOTE:  At this point, I'm being charged for the t3.medium (which costs $2/day)
 
 	i. W A I T      U P    T O       2      M I N       F O R     A W S    (to create the node group)
 
