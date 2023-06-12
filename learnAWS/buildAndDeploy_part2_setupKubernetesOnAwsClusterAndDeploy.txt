@@ -560,10 +560,10 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 	   Instance types  t3.medium
 	   Disk size:      20 GiB
 
-	   In Node group scaling configuration
-		 Desired Size:   1 nodes
-		 Minimum size:   1 nodes
-		 Maximum size:   1 nodes         (so the whole kubernetes env is run on a SINGLE server)
+	   In Node group scaling configuration         (at a minimum, you want 2 nodes as one of the nodes is running keycloak)
+		 Desired Size:   2 nodes
+		 Minimum size:   2 nodes
+		 Maximum size:   2 nodes         (so the whole kubernetes env is run on a SINGLE server)
 
 	   In Node group update configuration   (this is the part of the auto-scaling features built into EKS)
 	   -- Go with defaults
@@ -620,6 +620,9 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
        3) Attempt to ssh
           unix> ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.218.246.201
 
+          WARNING:  If you cannot ssh to the IP address of the instance, then make sure that instance has the default security group applied
+
+
        4) Once connected, then do a yum update
           unix> sudo yum update
 
@@ -648,7 +651,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
           Availability:              Single DB Instance
 
           Settings
-             DB Instance identifier     keycloak          NOTE:  This is not the same as the database name
+             DB Instance identifier     keycloak-database          NOTE:  This is not the same as the database name
              Master username:           keycloak_user
              Master password            secret123
 
@@ -662,8 +665,8 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
              Enable storage autoscaling:  Unchecked
 
 		  Connectivity:
-		     Network type:                   IPv4
-		     VPC:                            <Choose default VPC>
+		     Compute Resource:               Don't Connect to an EC2 computer resource
+		     VPC:                            <Choose default VPC / project-vpc>
 		     DB Subnet Group:                <choose default subnet>
 		     Public Access:                  No   (you can only access this database from inside the cluster)
 		     Existing VPC Security Groups:   <Select default VPC>
@@ -702,8 +705,8 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
           Availability:              Single DB Instance
 
           Settings
-             DB Instance identifier     sf328
-             Master username:           sf328_user
+             DB Instance identifier     app-database
+             Master username:           app_user
              Master password            secret12
 
           Instance configuration
@@ -713,21 +716,20 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
           Storage
              Storage Type:                   General Purpose SSD (gp2)
              Allocated storage:              20 GB
-             Enable storage autoscaling:     Unchecked
-
+             Enable storage auto-scaling:    Unchecked
 
 		  Connectivity:
+		     Compute resource:               Don't connect to an EC2 compute resource
 		     Network type:                   IPv4
-		     VPC:                            <Choose default VPC>
+		     VPC:                            <Choose default VPC / project-vpc>
 		     DB Subnet Group:                <choose default subnet>
 		     Public Access:                  No   (you can only access this database from inside the cluster)
 		     Existing VPC Security Groups:   <Select default VPC>
              Additional VPC security group:  Empty
 
-
           Additional Configuration:
              Database Port:                   5432
-             Initial database name:           sf328_db
+             Initial database name:           app_db
 
           Database authentication:           Password authentication
 
@@ -750,40 +752,51 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
        1) In AWS -> Amazon OpenSearch Service   (as dev.user)
        2) Press "Create domain"
           In "Create domain"
-             Domain Name:               sf328
+             Domain Name:               app-opensearch
 
              Domain creation method:    standard
 
-             Enable custom endpoint:    Unchecked
-             Deployment type:              Development and testing
-             Version:                   7.10
+             Templates:
+                 choose Dev/Test
 
-             Availability Zone:         1-AZ
-             Instance Type:             t3.small.search
+             Deployment Option(s)
+                 choose Domain without standby
+                 Availability zones:  1-AZ
 
-             Number of nodes:           2
 
-             Storage Type:              EBS   (Elastic Block Store)
-             EBS Volume Type:           gp3         NOTE:  gp3 is faster than gp2
-             EBS Storage size per node   10
+             Engine Options
+                 Version:            ElasticSearch 7.10
 
-             Total Privisions IPOS:        <default of 3000>
-             Total Provisioned Throughput  <default of 125 MiB/s>
+             Data nodes:
+                 Instance Type:             t3.small.search
+                 Number of nodes:           3
 
-             Enable Dedicated master nodes:       Unchecked
+                 Storage Type:              EBS   (Elastic Block Store)
+                 EBS Volume Type:           gp3         NOTE:  gp3 is faster than gp2
+                 EBS Storage size per node   10
 
-             Enable automatic software update:    Unchecked
+                 Total Provisioned IPOS:        <default of 3000>
+                 Total Provisioned Throughput   <default of 125 MiB/s>
+
+
+             Dedicated master nodeS:
+                Enable Dedicated master nodes:       Unchecked
+
+
+             Custom endpoint:
+                Enable automatic software update:    Unchecked
 
              Network
-                Check VPC (access)
-                Select subnets
-                Select default security groups
+                Network:                       Check VPC access
+                VPC:                           Select default vpc
+                Subnets:                       Select public1-us-east-2a
+                Security groups:               Select default
 
-
-             Fine-grained access control:       Checked
-             Create master user:                Checked
-                 master username:               sf328_user             # This must match the production application.yaml es.authentication.principal
-                 master password:               Secret1@               # This must match the production application.yaml es.authentication.password
+             Fine-grained access Control
+                Fine-grained access control:       Checked
+                Create master user:                Checked
+                   master username:                es_user                # This must match the production application.yaml es.authentication.principal
+                   master password:                Secret1@               # This must match the production application.yaml es.authentication.password
 
              Access Policy:
                 Do not set domain level access policy
@@ -802,7 +815,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
       d. Label instances
 		 1. Click EC2 -> Instances
 		 2. Edited one of the instance name and changed it to keycloak
-		 3.. Edited one of the instance name and changed it to webapps
+		 3. Edited one of the instance name and changed it to kubernetes-nodes
 
 
 11. Create our own certificate authority (for pki client certs)
@@ -874,9 +887,9 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
 
-14. Register the godayy domain name that corresponds to the external AWS keycloak and external AWS load balancer names
-    a. Use godaddy to register ec2-160-1-14-243.us-gov-west-1.compute.amazonaws.com with a CNAME of keycloak.traderres.com
-       1) Login to godaddy.com
+14. Register the goDaddy domain name that corresponds to the external AWS keycloak and external AWS load balancer names
+    a. Use goDaddy to register ec2-160-1-14-243.us-gov-west-1.compute.amazonaws.com with a CNAME of keycloak.traderres.com
+       1) Login to goDaddy.com
        2) Go to My Account -> My Products
        3) Click on the "Domain" link for traderres.com
        4) Click "View Domain Settings"
