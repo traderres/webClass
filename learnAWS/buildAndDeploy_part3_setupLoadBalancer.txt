@@ -294,8 +294,8 @@ Part 2:  Deploy a sample application to verify that the AWS Load Balancer works
 
 Troubleshooting
 ---------------
-    Problem #1:  I get the error "couldn't auto-discover subnets: unable to resolve at least one subnet"
-    Solution #1: The cluster-name is not correct
+    Problem #1:    I get the error "couldn't auto-discover subnets: unable to resolve at least one subnet"
+    Solution #1:   The cluster-name is not correct
     unix> kubectl edit deployment -n kube-system aws-load-balancer-controller
 
     Search for:      your-cluster-name
@@ -306,6 +306,101 @@ Troubleshooting
 
 
    Problem #2:  I get the error "couldn't auto-discover subnets: unable to resolve at least one subnet"
+   Solution #2: Make sure your ingress clsas has your 3 public subnet ids:
+                Add this to metadata.annotations:
+                   alb.ingress.kubernetes.io/subnets: subnet-05a3ee7985015400a, subnet-03e978e7176badd78, subnet-0e54fd8bbc66a8e3c
+
+
+   So, the ingress class should look something like this:
+   unix> vi 2048_full.yaml
+
+       Add this to metadata.annotations:
+               alb.ingress.kubernetes.io/subnets: subnet-05a3ee7985015400a, subnet-03e978e7176badd78, subnet-0e54fd8bbc66a8e3c
+
+
+   Apply the changes
+   unix> kubectl apply -f 2048_full.yaml
+
+   Look at the log file:
+   unix> kubectl logs -f deployment.apps/aws-load-balancer-controller -n kube-system
+
+   Get the front-door URL
+   unix> kubectl get ingress -n game-2048
+   NAME           CLASS   HOSTS   ADDRESS                                                                  PORTS   AGE
+   ingress-2048   alb     *       k8s-game2048-ingress2-7b127ca593-165518510.us-east-2.elb.amazonaws.com   80      6m33s
+
+   Attempt to connect to it
+   -- Go to http://k8s-game2048-ingress2-7b127ca593-165518510.us-east-2.elb.amazonaws.com/
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  namespace: game-2048
+  name: ingress-2048
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/subnets: subnet-05a3ee7985015400a, subnet-03e978e7176badd78, subnet-0e54fd8bbc66a8e3c # replace with 3 public subnet ids
+
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: service-2048
+              port:
+                number: 80
+
+
+
+#####################################################
+# Ingress (Application Load Balancer) Rules
+#####################################################
+#
+# INGRESS
+#
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: color-app-ingress
+  namespace: color-app
+  labels:
+    app: color-app
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+    alb.ingress.kubernetes.io/healthcheck-port: traffic-port
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '15'
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '5'
+    alb.ingress.kubernetes.io/success-codes: '200'
+    alb.ingress.kubernetes.io/healthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/subnets: subnet-05a3ee7985015400a, subnet-03e978e7176badd78, subnet-0e54fd8bbc66a8e3c # replace with 3 public subnet ids
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /yellow
+            pathType: Prefix
+            backend:
+              service:
+                name: yellow-service
+                port:
+                  number: 80
+          - path: /green
+            pathType: Prefix
+            backend:
+              service:
+                name: green-service
+                port:
+                  number: 80
 
 
 
