@@ -1550,21 +1550,21 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
     a. Generate this file:  webapp.keystore.jks
        NOTE:  This file should should have the server cert for app.traderres.com in it
 
-       1) Examine the 3 files that makeup the full chain of the fullchain1.pem / Split it up into 3 files / Find the server cert
-           unix> cd /home/ec2-user/certbot/archive/app.traderres.com
-           unix> cat fullchain1.pem | awk 'BEGIN {n=1};  split_after==1{n++;split_after=0} /-----END CERTIFICATE-----/ {split_after=1} {print > "fullchainkc" n ".pem"}'
+       1) ssh to the keycloak server
+          ssh -i
+          unix> sudo -s
 
-
+       2) Examine the 3 files that makeup the full chain of the fullchain1.pem / Split it up into 3 files / Find the server cert
            unix> cd /home/ec2-user/certbot/archive/app.traderres.com
-           unix> cat fullchain1.pem
-           -- Split this up into 3 files called fullchainkc1.pem, fullchainkc2.pem, fullchainkc3.pem
+           unix> cat fullchain1.pem | awk 'BEGIN {n=1};  split_after==1{n++;split_after=0} /-----END CERTIFICATE-----/ {split_after=1} {print > "fullchain_part" n ".pem"}'
+		   -- Now, we have 3 files called called fullchainkc1.pem, fullchainkc2.pem, fullchainkc3.pem
 
 		   unix> openssl x509 -in fullchain_part1.pem -noout -text | grep 'app.traderres.com'        # Holds the server cert
 		   unix> openssl x509 -in fullchain_part2.pem -noout -text | grep 'app.traderres.com'
 		   unix> openssl x509 -in fullchain_part3.pem -noout -text | grep 'app.traderres.com'
 
         3) Generate the server.p12 file from the server cert
-           unix> export SERVER_CRT=fullchain_part1.pem
+           unix> export SERVER_CRT=fullchain_part1.pem       # the cert that has CN=app.traderres.com
 		   unix> export SERVER_KEY=privkey1.pem
 		   unix> export INTERMEDIATE_CA=fullchain_part2.pem
            unix> openssl pkcs12 -export -in $SERVER_CRT -inkey $SERVER_KEY -out server.p12 -name 'my-server-cert' -CAfile $INTERMEDIATE_CA -caname root
@@ -1579,36 +1579,37 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
     b. Generate this file:  webapp.truststore.jks
-       1) Break-up the app.traderres.com/fullchain1.pem file into 3 files:
-               fullchain_part1.pem
-               fullchain_part2.pem
-               fullchain_part3.pem
-
-       2) Import each file into the new webapp.truststore.jks file
+       1) Import each file into the new webapp.truststore.jks file
           unix> cd /home/ec2-user/certbot/archive/app.traderres.com
           unix> rm -f webapp.truststore.jks
           unix> keytool -import -alias "new-lb1"  -keystore webapp.truststore.jks -file fullchain_part1.pem  -storepass changeit
           unix> keytool -import -alias "new-lb2"  -keystore webapp.truststore.jks -file fullchain_part2.pem  -storepass changeit
           unix> keytool -import -alias "new-lb3"  -keystore webapp.truststore.jks -file fullchain_part3.pem  -storepass changeit
 
-          # Import the self-signed root CA pem file into webapp.truststore.jks
-          unix> keytool -import -alias "our-ca"  -keystore webapp.truststore.jks -file /home/ec2-user/root-ca/public/root.pem  -storepass changeit
+        2) Import the self-signed root CA pem file into webapp.truststore.jks
+           unix> keytool -import -alias "our-ca"  -keystore webapp.truststore.jks -file /home/ec2-user/root-ca/public/root.pem  -storepass changeit
 
 
     c. Generate this file:  custom.cacerts
        NOTE:  This is needed so that the spring security oauth2 authenticator can talk to the keycloak server
-       unix> cp /usr/lib/jvm/java-1.8.0-openjdk/jre/lib/security/cacerts custom.cacerts
-       unix> chmod ugo+rw custom.cacerts
 
-       unix> keytool -import -alias "new-lb1"  -keystore  custom.cacerts  -file fullchain_part1.pem  -storepass changeit
-       unix> keytool -import -alias "new-lb2"  -keystore  custom.cacerts  -file fullchain_part2.pem  -storepass changeit
-       unix> keytool -import -alias "new-lb3"  -keystore  custom.cacerts  -file fullchain_part3.pem  -storepass changeit
-       unix> keytool -import -alias "our-ca"   -keystore  custom.cacerts  -file /home/ec2-user/root-ca/public/root.pem   -storepass changeit
+       1) Get the path of the cacerts file
+          unix> find /usr/lib/jvm -iname cacerts -print
+
+       2) Copy that file to custom.cacerts
+          unix> cd /home/ec2-user/certbot/archive/app.traderres.com
+          unix> sudo cp /usr/lib/jvm/java-11-openjdk-11.0.19.0.7-1.amzn2.0.1.x86_64/lib/security/cacerts  custom.cacerts   # Get this path from previous step
+          unix> chmod ugo+rw custom.cacerts
+
+       3) Import the certs into custom.cacerts
+          unix> keytool -import -alias "new-lb1"  -keystore  custom.cacerts  -file fullchain_part1.pem  -storepass changeit
+          unix> keytool -import -alias "new-lb2"  -keystore  custom.cacerts  -file fullchain_part2.pem  -storepass changeit
+          unix> keytool -import -alias "new-lb3"  -keystore  custom.cacerts  -file fullchain_part3.pem  -storepass changeit
+          unix> keytool -import -alias "our-ca"   -keystore  custom.cacerts  -file /home/ec2-user/root-ca/public/root.pem   -storepass changeit
 
 
 
 21.  Get the environment values for the kubernetes deployment yaml files
-     a.
      NOTE:  Fill-in this section with real values
 
 	   env:
