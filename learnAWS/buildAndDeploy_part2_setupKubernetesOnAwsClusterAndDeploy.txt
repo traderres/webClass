@@ -879,7 +879,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
     Keycloak's public IP will be the same as the running node's public IP
     a. Get keycloak's external hostname
        1) Go to AWS -> EC2 -> instances
-       2) Check the checkbox for the running instance
+       2) Check the checkbox for the running instance that is the keycloak server
        3) Get the Public IPv4 DNS
           ec2-160-1-14-243.us-gov-west-1.compute.amazonaws.com
 
@@ -965,13 +965,17 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
     b. Set the "key" and "secret" values in the authenticate.sh script
-       1) Download the authenticate.sh script by going here:
-          unix> mkdir /home/adam/certbot
-          unix> cd    /home/adam/certbot
+       1) Ssh to the kubernetes instance
+          unix> ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.218.246.201
+
+       2) Download the authenticate.sh script by going here:
+          unix> mkdir /home/ec2-user/certbot
+          unix> cd    /home/ec2-user/certbot
           unix> wget https://raw.githubusercontent.com/traderres/webClass/master/learnAWS/authenticate.sh
+          unix> chmod ugo+x authentication.sh         # Make sure this script is executable
 
        2) Modify the authenticate.sh
-          unix> vi /home/adam/certbot/authenticate.sh
+          unix> vi  /home/ec2-user/certbot/authenticate.sh
 
           Change these values
              GODADDY_API_KEY="go-daddy-api-key-is-here"
@@ -979,7 +983,15 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
     c. Install snapd on your linux box
-       unix> sudo dnf install snapd          # Install snapd on centos 8
+       If you are installing snapd on Amazon Linux 2, follow these steps:
+         ssh to amazon linux 2 box
+         unix> sudo yum-config-manager --add-repo https://people.canonical.com/~mvo/snapd/amazon-linux2/snapd-amzn2.repo
+         unix> sudo yum install snapd
+
+       If you are installing on CentOS 8, follow these steps
+         unix> unix> sudo dnf install snapd
+
+
 
     d. Enable the snapd.socket
        unix> sudo systemctl enable --now snapd.socket
@@ -989,53 +1001,88 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
     f. Install the Certbot
        unix> sudo snap install --classic certbot
+       NOTE:  If you get the warning:  too early for operation, device not yet seeded or device model not acknowledged,
+              then wait 60 seconds and try again
 
     g. Prepare the Certbot command
        unix> sudo ln -s /snap/bin/certbot /usr/bin/certbot
 
     h. Use certbot to generate a signed server certificate for keycloak.traderres.com
        NOTE:  this command uses the authenticate.sh script to verify that the dns entry is valid
-       unix> sudo certbot certonly --manual --preferred-challenges dns --manual-auth-hook /home/adam/certbot/authenticate.sh --config-dir /home/adam/certbot/ -d keycloak.traderres.com
+       unix> sudo certbot certonly --manual --preferred-challenges dns --manual-auth-hook /home/ec2-user/certbot/authenticate.sh --config-dir /home/ec2-user/certbot/ -d keycloak.traderres.com
+
+       NOTE:  First time, you will be prompted for your email address
+       	    Enter email address (used for urgent renewal and security notices)
+			- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+			Please read the Terms of Service at
+			https://letsencrypt.org/documents/LE-SA-v1.3-September-21-2022.pdf. You must
+			agree in order to register with the ACME server. Do you agree?
+			- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+			(Y)es/(N)o: Y
+
+			- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+			Would you be willing, once your first certificate is successfully issued, to
+			share your email address with the Electronic Frontier Foundation, a founding
+			partner of the Let's Encrypt project and the non-profit organization that
+			develops Certbot? We'd like to send you email about our work encrypting the web,
+			EFF news, campaigns, and ways to support digital freedom.
+			- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+			(Y)es/(N)o: N
+
 
        You should see this:
 		   Successfully received certificate.
-		   Certificate is saved at: /home/adam/certbot/live/keycloak.traderres.com/fullchain.pem
-		   Key is saved at:         /home/adam/certbot/live/keycloak.traderres.com/privkey.pem
+		   Certificate is saved at: /home/ec2-user/certbot/live/keycloak.traderres.com/fullchain.pem
+		   Key is saved at:         /home/ec2-user/certbot/live/keycloak.traderres.com/privkey.pem
 		   This certificate expires on 2023-06-19.
 		   These files will be updated when the certificate renews.
 		   Certbot has set up a scheduled task to automatically renew this certificate in the background.
 
 
-    i. Use certbot to generate a signed server certificate for app.traderres.com
-       unix> sudo certbot certonly --manual --preferred-challenges dns --manual-auth-hook /home/adam/certbot/authenticate.sh --config-dir /home/adam/certbot/ -d app.traderres.com
+    i. Delete the TXT record in goDaddy or wait 600 seconds
+       a. Go to https://dcc.godaddy.com/control/portfolio/traderres.com/settings
+       b. Click on the DNS tab
+       b. Delete the TXT _acme-challenge.app record
+
+
+    j. Use certbot to generate a signed server certificate for app.traderres.com
+       unix> sudo certbot certonly --manual --preferred-challenges dns --manual-auth-hook /home/ec2-user/certbot/authenticate.sh --config-dir /home/ec2-user/certbot/ -d app.traderres.com
 
        You should see this:
 			Successfully received certificate.
-			Certificate is saved at: /home/adam/certbot/live/app.traderres.com/fullchain.pem
-			Key is saved at:         /home/adam/certbot/live/app.traderres.com/privkey.pem
+			Certificate is saved at: /home/ec2-user/certbot/live/app.traderres.com/fullchain.pem
+			Key is saved at:         /home/ec2-user/certbot/live/app.traderres.com/privkey.pem
 			This certificate expires on 2023-06-19.
 			These files will be updated when the certificate renews.
 			Certbot has set up a scheduled task to automatically renew this certificate in the background.
 
 
-       You should have these files:
-			/home/adam/certbot/accounts/acme-v02.api.letsencrypt.org/directory/dca0cb294974effc7178f301802f3366/private_key.json
-			/home/adam/certbot/accounts/acme-v02.api.letsencrypt.org/directory/dca0cb294974effc7178f301802f3366/meta.json
-			/home/adam/certbot/accounts/acme-v02.api.letsencrypt.org/directory/dca0cb294974effc7178f301802f3366/regr.json
-			/home/adam/certbot/renewal/keycloak.traderres.com.conf
-			/home/adam/certbot/renewal/app.traderres.com.conf
-			/home/adam/certbot/archive/keycloak.traderres.com/cert1.pem
-			/home/adam/certbot/archive/keycloak.traderres.com/privkey1.pem
-			/home/adam/certbot/archive/keycloak.traderres.com/chain1.pem
-			/home/adam/certbot/archive/keycloak.traderres.com/fullchain1.pem
-			/home/adam/certbot/archive/app.traderres.com/cert1.pem
-			/home/adam/certbot/archive/app.traderres.com/privkey1.pem
-			/home/adam/certbot/archive/app.traderres.com/chain1.pem
-			/home/adam/certbot/archive/app.traderres.com/fullchain1.pem
-			/home/adam/certbot/live/README
-			/home/adam/certbot/live/keycloak.traderres.com/README
-			/home/adam/certbot/live/app.traderres.com/README
-			/home/adam/certbot/authenticate.sh
+    l. Delete the TXT record in goDaddy or wait 600 seconds
+       a. Go to https://dcc.godaddy.com/control/portfolio/traderres.com/settings
+       b. Click on the DNS tab
+       b. Delete the TXT _acme-challenge.app record
+
+
+
+       You should have these files in the /home/ec2-user/certbot/ directory
+			/home/ec2-user/certbot/authenticate.sh
+			/home/ec2-user/certbot/accounts/acme-v02.api.letsencrypt.org/directory/68b94de449e93940f9dee6a35ccf9d4d/private_key.json
+			/home/ec2-user/certbot/accounts/acme-v02.api.letsencrypt.org/directory/68b94de449e93940f9dee6a35ccf9d4d/meta.json
+			/home/ec2-user/certbot/accounts/acme-v02.api.letsencrypt.org/directory/68b94de449e93940f9dee6a35ccf9d4d/regr.json
+			/home/ec2-user/certbot/renewal/keycloak.traderres.com.conf
+			/home/ec2-user/certbot/renewal/app.traderres.com.conf
+			/home/ec2-user/certbot/archive/keycloak.traderres.com/cert1.pem
+			/home/ec2-user/certbot/archive/keycloak.traderres.com/privkey1.pem
+			/home/ec2-user/certbot/archive/keycloak.traderres.com/chain1.pem
+			/home/ec2-user/certbot/archive/keycloak.traderres.com/fullchain1.pem
+			/home/ec2-user/certbot/archive/app.traderres.com/cert1.pem
+			/home/ec2-user/certbot/archive/app.traderres.com/privkey1.pem
+			/home/ec2-user/certbot/archive/app.traderres.com/chain1.pem
+			/home/ec2-user/certbot/archive/app.traderres.com/fullchain1.pem
+			/home/ec2-user/certbot/live/README
+			/home/ec2-user/certbot/live/keycloak.traderres.com/README
+			/home/ec2-user/certbot/live/app.traderres.com/README
+
 
 
 
@@ -2074,12 +2121,9 @@ spec:
 
 
 	 j. Update godaddy's cname record for app.traderres.com so that it corresponds to the new external hostname
-		a. Login to godaddy.com
-		b. Go to "Manage DNS" for traderres.com
-		   *OR*
-		   https://dcc.godaddy.com/control/traderres.com/dns
-
-		c. Edit the old CNAME record for app.traderres.com
+		a. Go to https://dcc.godaddy.com/control/portfolio/traderres.com/settings
+        b. Click on the DNS tab
+		c. Edit the old CNAME record for "app"    (this corresponds to app.traderres.com)
 		   Type:  CNAME
 		   Name:  app
 		   Value: a913ec0732a4d4726a6d186c8233e52f-1165139498.us-east-2.elb.amazonaws.com
