@@ -201,18 +201,76 @@ Part 1:  Install the AWS Load Balancer Controller
 
 
  7. Verify that the aws-load-balancer-controller was created
-    unix> kubectl get services -n kube-system
 
-	NAME                                TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)         AGE
-	aws-load-balancer-webhook-service   ClusterIP   172.20.171.29   <none>        443/TCP         3m18s
-	kube-dns                            ClusterIP   172.20.0.10     <none>        53/UDP,53/TCP   19h
+    a. Verify that aws-load-balancer-webhook-service exists
+       unix> kubectl get services -n kube-system
+
+		NAME                                TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)         AGE
+		aws-load-balancer-webhook-service   ClusterIP   172.20.171.29   <none>        443/TCP         3m18s
+		kube-dns                            ClusterIP   172.20.0.10     <none>        53/UDP,53/TCP   19h
 
 
-    unix> kubectl get controllers -n kube-system
+    b. Verify that the aws-load-balancer-controller exists
+       unix> kubectl get controllers -n kube-system
 
-	NAME                           READY   UP-TO-DATE   AVAILABLE   AGE
-	aws-load-balancer-controller   1/1     1            1           4m9s
-	coredns                        2/2     2            2           19h
+		NAME                           READY   UP-TO-DATE   AVAILABLE   AGE
+		aws-load-balancer-controller   1/1     1            1           4m9s
+		coredns                        2/2     2            2           19h
+
+
+    c. Get the details on the aws-load-balancer-controller
+       unix> kubectl describe deployment aws-load-balancer-controller -n kube-system
+
+		  Name:                   aws-load-balancer-controller
+		  Namespace:              kube-system
+		  CreationTimestamp:      Mon, 12 Jun 2023 10:53:12 -0400
+		  Labels:                 app.kubernetes.io/component=controller
+								  app.kubernetes.io/name=aws-load-balancer-controller
+		  Annotations:            deployment.kubernetes.io/revision: 1
+		  Selector:               app.kubernetes.io/component=controller,app.kubernetes.io/name=aws-load-balancer-controller
+		  Replicas:               1 desired | 1 updated | 1 total | 1 available | 0 unavailable
+		  StrategyType:           RollingUpdate
+		  MinReadySeconds:        0
+		  RollingUpdateStrategy:  25% max unavailable, 25% max surge
+		  Pod Template:
+			Labels:           app.kubernetes.io/component=controller
+							  app.kubernetes.io/name=aws-load-balancer-controller
+			Service Account:  aws-load-balancer-controller
+			Containers:
+			 controller:
+			  Image:      public.ecr.aws/eks/aws-load-balancer-controller:v2.5.1
+			  Port:       9443/TCP
+			  Host Port:  0/TCP
+			  Args:
+				--cluster-name=your-cluster-name
+				--ingress-class=alb
+			  Limits:
+				cpu:     200m
+				memory:  500Mi
+			  Requests:
+				cpu:        100m
+				memory:     200Mi
+			  Liveness:     http-get http://:61779/healthz delay=30s timeout=10s period=10s #success=1 #failure=2
+			  Environment:  <none>
+			  Mounts:
+				/tmp/k8s-webhook-server/serving-certs from cert (ro)
+			Volumes:
+			 cert:
+			  Type:               Secret (a volume populated by a Secret)
+			  SecretName:         aws-load-balancer-webhook-tls
+			  Optional:           false
+			Priority Class Name:  system-cluster-critical
+		  Conditions:
+			Type           Status  Reason
+			----           ------  ------
+			Available      True    MinimumReplicasAvailable
+			Progressing    True    NewReplicaSetAvailable
+		  OldReplicaSets:  <none>
+		  NewReplicaSet:   aws-load-balancer-controller-6d59f749b8 (1/1 replicas created)
+		  Events:
+			Type    Reason             Age   From                   Message
+			----    ------             ----  ----                   -------
+			Normal  ScalingReplicaSet  31m   deployment-controller  Scaled up replica set aws-load-balancer-controller-6d59f749b8 to 1
 
 
 
