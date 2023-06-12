@@ -14,13 +14,367 @@ https://medium.com/devops-dudes/running-the-latest-aws-load-balancer-controller-
 https://aws.amazon.com/blogs/containers/introducing-aws-load-balancer-controller/
 https://docs.aws.amazon.com/eks/latest/userguide/alb-ingress.html
 https://aws.amazon.com/blogs/containers/how-to-expose-multiple-applications-on-amazon-eks-using-a-single-application-load-balancer/
+https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.5/deploy/installation/
 
 
-Procedure
----------
+
+Part 1:  Install the AWS Load Balancer Controller
+-------------------------------------------------
+ 1. Specify variables
+    unix> export AWS_REGION=$(aws ec2 describe-availability-zones --output text --query 'AvailabilityZones[0].[RegionName]')      # holds us-east-2
+    unix> export AWS_REGISTRY_ID=$(aws ecr describe-registry --query registryId --output text)                                    # holds 524647912468
+    unix> export AWS_ECR_REPO=${AWS_REGISTRY_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com                                              # holds 524647912468.dkr.ecr.us-east-2.amazonaws.com
+    unix> export AWS_CLUSTER_NAME=nccs
+
+
+ 2. Create an IAM OIDC provider. You can skip this step if you already have one for your cluster.
+    unix> eksctl utils associate-iam-oidc-provider --region $AWS_REGION --cluster $AWS_CLUSTER_NAME --approve
+
+    You should see this:
+      2023-06-12 10:21:18 [ℹ]  will create IAM Open ID Connect provider for cluster "nccs" in "us-east-2"
+      2023-06-12 10:21:18 [✔]  created IAM Open ID Connect provider for cluster "nccs" in "us-east-2"
+
+
+ 3. Create an IAM policy:  AWSLoadBalancerControllerIAMPolicy
+    a. Download an IAM policy for the Load Balancer Controller (LBC) using one of the following commands:
+       If using US Gov Cloud, then use this:
+       unix> curl -o iam-policy.json https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.5.1/docs/install/iam_policy_us-gov.json
+
+       If using China, then use this:
+       unix> curl -o iam-policy.json https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.5.1/docs/install/iam_policy_cn.json
+
+       If using any other region
+       unix> curl -o iam-policy.json https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.5.1/docs/install/iam_policy.json
+
+    b. Create the IAM policy:
+       unix> aws iam create-policy --policy-name AWSLoadBalancerControllerIAMPolicy --policy-document file://iam-policy.json
+
+       You should see this:
+		{
+			"Policy": {
+				"PolicyName": "AWSLoadBalancerControllerIAMPolicy",
+				"PolicyId": "ANPAXUJ3T2QKCM4ROVU4E",
+				"Arn": "arn:aws:iam::524647912468:policy/AWSLoadBalancerControllerIAMPolicy",
+				"Path": "/",
+				"DefaultVersionId": "v1",
+				"AttachmentCount": 0,
+				"PermissionsBoundaryUsageCount": 0,
+				"IsAttachable": true,
+				"CreateDate": "2023-06-12T14:24:04+00:00",
+				"UpdateDate": "2023-06-12T14:24:04+00:00"
+			}
+		}
+
+
+
+ 4. Create an IAM role and Kubernetes ServiceAccount for the Load Balancer Controller. Use the ARN from the previous step.
+    unix> eksctl create iamserviceaccount --cluster=$AWS_CLUSTER_NAME --namespace=kube-system  --name=aws-load-balancer-controller \
+          --attach-policy-arn=arn:aws:iam::<AWS_ACCOUNT_ID>:policy/AWSLoadBalancerControllerIAMPolicy \
+          --override-existing-serviceaccounts --region $AWS_REGION --approve
+
+    *OR*
+
+    unix> eksctl create iamserviceaccount --cluster=$AWS_CLUSTER_NAME --namespace=kube-system  --name=aws-load-balancer-controller \
+              --attach-policy-arn=arn:aws:iam::524647912468:policy/AWSLoadBalancerControllerIAMPolicy \
+              --override-existing-serviceaccounts --region $AWS_REGION --approve
+
+    You should see this output  (takes 60 seconds)
+		2023-06-12 10:27:24 [ℹ]  1 iamserviceaccount (kube-system/aws-load-balancer-controller) was included (based on the include/exclude rules)
+		2023-06-12 10:27:24 [!]  metadata of serviceaccounts that exist in Kubernetes will be updated, as --override-existing-serviceaccounts was set
+		2023-06-12 10:27:24 [ℹ]  1 task: {
+			2 sequential sub-tasks: {
+				create IAM role for serviceaccount "kube-system/aws-load-balancer-controller",
+				create serviceaccount "kube-system/aws-load-balancer-controller",
+			} }2023-06-12 10:27:24 [ℹ]  building iamserviceaccount stack "eksctl-nccs-addon-iamserviceaccount-kube-system-aws-load-balancer-controller"
+		2023-06-12 10:27:24 [ℹ]  deploying stack "eksctl-nccs-addon-iamserviceaccount-kube-system-aws-load-balancer-controller"
+		2023-06-12 10:27:24 [ℹ]  waiting for CloudFormation stack "eksctl-nccs-addon-iamserviceaccount-kube-system-aws-load-balancer-controller"
+		2023-06-12 10:27:54 [ℹ]  waiting for CloudFormation stack "eksctl-nccs-addon-iamserviceaccount-kube-system-aws-load-balancer-controller"
+		2023-06-12 10:27:54 [ℹ]  created serviceaccount "kube-system/aws-load-balancer-controller"
+
+
+ 5. Add the controller to the cluster
+    a. Install the cert-manager
+       unix> kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v1.5.4/cert-manager.yaml
+
+       You should see this:
+			customresourcedefinition.apiextensions.k8s.io/certificaterequests.cert-manager.io created
+			customresourcedefinition.apiextensions.k8s.io/certificates.cert-manager.io created
+			customresourcedefinition.apiextensions.k8s.io/challenges.acme.cert-manager.io created
+			customresourcedefinition.apiextensions.k8s.io/clusterissuers.cert-manager.io created
+			customresourcedefinition.apiextensions.k8s.io/issuers.cert-manager.io created
+			customresourcedefinition.apiextensions.k8s.io/orders.acme.cert-manager.io created
+			namespace/cert-manager created
+			serviceaccount/cert-manager-cainjector created
+			serviceaccount/cert-manager created
+			serviceaccount/cert-manager-webhook created
+			clusterrole.rbac.authorization.k8s.io/cert-manager-cainjector created
+			clusterrole.rbac.authorization.k8s.io/cert-manager-controller-issuers created
+			clusterrole.rbac.authorization.k8s.io/cert-manager-controller-clusterissuers created
+			clusterrole.rbac.authorization.k8s.io/cert-manager-controller-certificates created
+			clusterrole.rbac.authorization.k8s.io/cert-manager-controller-orders created
+			clusterrole.rbac.authorization.k8s.io/cert-manager-controller-challenges created
+			clusterrole.rbac.authorization.k8s.io/cert-manager-controller-ingress-shim created
+			clusterrole.rbac.authorization.k8s.io/cert-manager-view created
+			clusterrole.rbac.authorization.k8s.io/cert-manager-edit created
+			clusterrole.rbac.authorization.k8s.io/cert-manager-controller-approve:cert-manager-io created
+			clusterrole.rbac.authorization.k8s.io/cert-manager-controller-certificatesigningrequests created
+			clusterrole.rbac.authorization.k8s.io/cert-manager-webhook:subjectaccessreviews created
+			clusterrolebinding.rbac.authorization.k8s.io/cert-manager-cainjector created
+			clusterrolebinding.rbac.authorization.k8s.io/cert-manager-controller-issuers created
+			clusterrolebinding.rbac.authorization.k8s.io/cert-manager-controller-clusterissuers created
+			clusterrolebinding.rbac.authorization.k8s.io/cert-manager-controller-certificates created
+			clusterrolebinding.rbac.authorization.k8s.io/cert-manager-controller-orders created
+			clusterrolebinding.rbac.authorization.k8s.io/cert-manager-controller-challenges created
+			clusterrolebinding.rbac.authorization.k8s.io/cert-manager-controller-ingress-shim created
+			clusterrolebinding.rbac.authorization.k8s.io/cert-manager-controller-approve:cert-manager-io created
+			clusterrolebinding.rbac.authorization.k8s.io/cert-manager-controller-certificatesigningrequests created
+			clusterrolebinding.rbac.authorization.k8s.io/cert-manager-webhook:subjectaccessreviews created
+			role.rbac.authorization.k8s.io/cert-manager-cainjector:leaderelection created
+			role.rbac.authorization.k8s.io/cert-manager:leaderelection created
+			role.rbac.authorization.k8s.io/cert-manager-webhook:dynamic-serving created
+			rolebinding.rbac.authorization.k8s.io/cert-manager-cainjector:leaderelection created
+			rolebinding.rbac.authorization.k8s.io/cert-manager:leaderelection created
+			rolebinding.rbac.authorization.k8s.io/cert-manager-webhook:dynamic-serving created
+			service/cert-manager created
+			service/cert-manager-webhook created
+			deployment.apps/cert-manager-cainjector created
+			deployment.apps/cert-manager created
+			deployment.apps/cert-manager-webhook created
+			mutatingwebhookconfiguration.admissionregistration.k8s.io/cert-manager-webhook created
+			validatingwebhookconfiguration.admissionregistration.k8s.io/cert-manager-webhook created
+
+
+    b. Download the spec for the load balancer controller
+       unix> wget https://github.com/kubernetes-sigs/aws-load-balancer-controller/releases/download/v2.5.1/v2_5_1_full.yaml
+
+    c. Set your cluster name in the v2_5_1_full.yaml
+       unix> vi v2_5_1_full.yaml
+
+       Change this line:
+          - --cluster-name=your-cluster-name
+
+	   To this line:
+	   - --cluster-name=nccs
+
+    d. Because we used service account, we need to delete the ServiceAccount from the v2_5_1_full.yaml
+       unix> vi v2_5_1_full.yaml
+
+       Remove this section:
+		   ---
+		   apiVersion: v1
+		   kind: ServiceAccount
+		   metadata:
+			 labels:
+			   app.kubernetes.io/component: controller
+			   app.kubernetes.io/name: aws-load-balancer-controller
+			 name: aws-load-balancer-controller
+			 namespace: kube-system
+
+    e. Apply the script
+       unix> kubectl apply -f v2_5_1_full.yaml
+
+       You should see this:
+		 customresourcedefinition.apiextensions.k8s.io/ingressclassparams.elbv2.k8s.aws created
+		 customresourcedefinition.apiextensions.k8s.io/targetgroupbindings.elbv2.k8s.aws created
+		 role.rbac.authorization.k8s.io/aws-load-balancer-controller-leader-election-role created
+		 clusterrole.rbac.authorization.k8s.io/aws-load-balancer-controller-role created
+		 rolebinding.rbac.authorization.k8s.io/aws-load-balancer-controller-leader-election-rolebinding created
+		 clusterrolebinding.rbac.authorization.k8s.io/aws-load-balancer-controller-rolebinding created
+		 service/aws-load-balancer-webhook-service created
+		 deployment.apps/aws-load-balancer-controller created
+		 certificate.cert-manager.io/aws-load-balancer-serving-cert created
+		 issuer.cert-manager.io/aws-load-balancer-selfsigned-issuer created
+		 mutatingwebhookconfiguration.admissionregistration.k8s.io/aws-load-balancer-webhook created
+		 validatingwebhookconfiguration.admissionregistration.k8s.io/aws-load-balancer-webhook created
+
+
+ 6. Download & install the default ingressclass and ingressclass params
+    a. Download the ingressclass and ingressclass params
+       unix> wget https://github.com/kubernetes-sigs/aws-load-balancer-controller/releases/download/v2.5.1/v2_5_1_ingclass.yaml
+
+    b. Apply the ingressclass nad params
+       unix> kubectl apply -f v2_5_1_ingclass.yaml
+
+       You should see this:
+       	 ingressclassparams.elbv2.k8s.aws/alb created
+       	 ingressclass.networking.k8s.io/alb created
+
+
+ 7. Verify that the aws-load-balancer-controller was created
+    unix> kubectl get services -n kube-system
+
+	NAME                                TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)         AGE
+	aws-load-balancer-webhook-service   ClusterIP   172.20.171.29   <none>        443/TCP         3m18s
+	kube-dns                            ClusterIP   172.20.0.10     <none>        53/UDP,53/TCP   19h
+
+
+    unix> kubectl get controllers -n kube-system
+
+	NAME                           READY   UP-TO-DATE   AVAILABLE   AGE
+	aws-load-balancer-controller   1/1     1            1           4m9s
+	coredns                        2/2     2            2           19h
+
+
+
+
+Part 2:  Configure the Ingress to use the AWS Load Balancer Controller
+----------------------------------------------------------------------
+unix> vi  app-load-balancer.yaml
+
+#####################################################
+# Ingress (Application Load Balancer) Rules
+#####################################################
+#
+# INGRESS
+#
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: color-app-ingress
+  namespace: color-app
+  labels:
+    app: color-app
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+    alb.ingress.kubernetes.io/healthcheck-port: traffic-port
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '15'
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '5'
+    alb.ingress.kubernetes.io/success-codes: '200'
+    alb.ingress.kubernetes.io/healthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: '2'
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /yellow
+            pathType: Prefix
+            backend:
+              service:
+                name: yellow-service
+                port:
+                  number: 80
+          - path: /green
+            pathType: Prefix
+            backend:
+              service:
+                name: green-service
+                port:
+                  number: 80
+                                                                                                                                                                                                 132,19        Bot
+
+
+11. Apply the script
+       unix> kubectl apply -f app-load-balancer.yaml
+
+
+
+
+
+
+
+
+
+
+
+ 1. Create an Application Load Balancer
+    a. Go to EC2 -> Load Balancer   (as dev.user)
+    b. Press "Create" under "Application Load Balancer"
+    c. In Step 1: Configure Load Balancer
+
+       Basic Configuration:
+         Name:             app-load-balancer
+         Schema:           internet-facing
+         IP Address type:  ipv4
+
+       In Listener:
+          Load Balancer Protocol:   HTTP
+          Load Balancer Port is     80
+
+       Availability Zones:
+          VPC:                      project-vpc
+          Availability Zones:       Check all 3 zones
+                                    Use the dropdowns to select the Public subnet
+
+
+
+       Add-onServices
+          Go with Defaults
+
+
+       Press "Next: Configure Security Settings"
+
+       Press "Next: Configure Security Groups"
+
+     d. In Step 3: Configure Security Groups
+        select the default VPC security group
+        Press "Next: Configure Routing"
+
+     e. In Step 4: Configure Routing
+
+        In Target Group:
+               Name:         app-target-group
+               Target Type:  instance
+               Protocol:     HTTP
+               Port:         80
+
+        In health Checks
+               Protocol:     HTTP
+               Path:         /green
+
+        In Advanced health check settings:
+        -- Use the defaults
+
+        Press "Next" Register Targets
+
+      f. In Step 5: Register Targets
+         In Instances, select your eks instance, press "Add to registered"
+            -- It should appear under "Registered target"
+
+         -- Press "Next: Review"
+
+       g. In Step 6: Review
+          Press "Create"
+
+
+  2. Configure the app-load-balancer
+     a. In EC2 -> Load Balancers, chceck app-load-balancer
+     b. Click on the "Listeners" tab
+     c. Next to HTTP : 80, press "View/edit rules"
+
+     d. Press the "Insert Rule"
+     e. In the new rule
+        Press + Add condition
+
+        Path is /green  *OR*  /green*
+
+     c. In the "THEN" column press "+Add action"
+        Select Forward to....
+
+
+     In the
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
  1. Install the AWS Load Balancer Controller add-on  (formerly known as the AWS ALB Ingress Controller)
     https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html
-	1) Setup the Amazon Certificate Manager (ACM) with our cert for the public facing url -- e.g., app.traderres.com
+	Setup the Amazon Certificate Manager (ACM) with our cert for the public facing url -- e.g., app.traderres.com
 	   a) Go to aws.com -> ACM
 	   b) Press "Import a certificate"
 		  In Certificate Body:         Copy the contents of /home/adam/certbot/archive/app.traderres.com/fullchain.part1.pem  (has the actual server cert)
