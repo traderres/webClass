@@ -1123,59 +1123,66 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
         /opt/keycloak/keycloak.keystore.jks
         /opt/keycloak/keycloak.truststore.jks
 
-    a. Upload the let's encrypt certs to the running instance
-       unix> sudo chown adam:adam -R /home/adam/certbot   # give myself permission to read the files
-       unix> scp  -i ~/.ssh/node-for-kubunetes-instance.pem  -r /home/adam/certbot/archive ec2-user@18.218.246.201:/tmp
+        ASSUMPTIONS:
+           1) Your root-ca is on the keycloak server in /home/ec2-user/root-ca
 
-    b. Upload our public/root.pem (from our custom.ca) to the running instance
-       unix> scp  -i ~/.ssh/node-for-kubunetes-instance.pem  /home/adam/root-ca/public/root.pem ec2-user@18.218.246.201:/tmp/self-signed.ca.pem
+           2) Your certbot is on the keycloak server in /home/ec2-user/certbot
+                 And, so you have server cert files here:
+                        /home/ec2-user/certbot/archive/app.traderres.com/
+                        /home/ec2-user/certbot/archivee/keycloak.traderres.com/
 
-    c. Create the keycloak keystore
-        1) ssh to the running instance
-           unix> ssh  -i ~/.ssh/node-for-kubunetes-instance.pem  ec2-user@18.218.246.201
+                 If you are not running certbot on the keycloak server, then you need to upload files to
+                        /home/ec2-user/certbot/archive on the keycloak server
 
-        2) Examine the 3 files that makeup the full chain / Split it up into 3 files / Find the server cert
+                        Upload the files from my box to this keycloak server box
+                        unix> cd ~/certbot
+       					unix> scp  -i ~/.ssh/node-for-kubunetes-instance.pem  -r /home/ec2-user/certbot/archive ec2-user@18.218.246.201:/tmp
+
+
+    a. Create the keycloak keystore
+        1) ssh to the running instance that holds keycloak
+           unix> ssh -i ~/.ssh/node-for-kubunetes-instance.pem  ec2-user@18.218.246.201
+
+        2) Examine the 3 files that makeup the full chain / Split the full-chain into 3 files / Find the server cert
            NOTE:  The server cert has this:
                         CN=keycloak.traderres.com
 
-           unix> cd /tmp/archive/keycloak.traderres.com
-           unix> cat fullchain1.pem
-           -- Split this up into 3 files called fullchainkc1.pem, fullchainkc2.pem, fullchainkc3.pem
+		   unix> sudo -s
+           unix> cd /home/ec2-user/certbot/archive/keycloak.traderres.com
+           unix> cat fullchain1.pem | awk 'BEGIN {n=1};  split_after==1{n++;split_after=0} /-----END CERTIFICATE-----/ {split_after=1} {print > "fullchainkc" n ".pem"}'
+                 -- Now, you have 3 new files:  fullchainkc1.pem, fullchainkc2.pem, fullchainkc3.pem
 
-		   unix> openssl x509 -in fullchainkc1.pem -noout -text | grep 'keycloak.traderres.com'     # This one holds the server cert
+		   unix> openssl x509 -in fullchainkc1.pem -noout -text | grep 'keycloak.traderres.com'     # This one holds the server cert if you see CN=keycloak.traderres.com
 		   unix> openssl x509 -in fullchainkc2.pem -noout -text | grep 'keycloak.traderres.com'
 		   unix> openssl x509 -in fullchainkc3.pem -noout -text | grep 'keycloak.traderres.com'
 
         3) Generate the server.p12 file from the server cert
-           unix> export SERVER_CRT=fullchainkc1.pem
+           unix> export SERVER_CRT=fullchainkc1.pem    # holds the cert that has CN=keycloak.traderres.com
 		   unix> export SERVER_KEY=privkey1.pem
 		   unix> export INTERMEDIATE_CA=fullchainkc2.pem
            unix> openssl pkcs12 -export -in $SERVER_CRT -inkey $SERVER_KEY -out server.p12 -name 'my-server-cert' -CAfile $INTERMEDIATE_CA -caname root
-           Enter Export Password: changeit
-           Verify Password:       changeit
+                 Enter Export Password: changeit
+                 Verify Password:       changeit
 
         4) Convert the server.p12 into keycloak.keystore.jks
-           unix> sudo mkdir -p /opt/keycloak
-           unix> sudo rm -f /opt/keycloak/keycloak.keystore.jks
-           unix> sudo keytool -importkeystore -deststorepass changeit -destkeypass changeit -destkeystore /opt/keycloak/keycloak.keystore.jks  -srckeystore server.p12 -srcstoretype PKCS12 -srcstorepass changeit -alias 'my-server-cert'
+           unix> mkdir -p /opt/keycloak
+           unix> rm -f /opt/keycloak/keycloak.keystore.jks
+           unix> keytool -importkeystore -deststorepass changeit -destkeypass changeit -destkeystore /opt/keycloak/keycloak.keystore.jks  -srckeystore server.p12 -srcstoretype PKCS12 -srcstorepass changeit -alias 'my-server-cert'
 
-        5) For keycloak keystore, import the 3 pem files into the keycloak.keystore.jks
-           unix> sudo keytool -import -alias "keycloak1"  -keystore /opt/keycloak/keycloak.keystore.jks  -file fullchainkc1.pem   # If it's already imported, then don't bother
-           unix> sudo keytool -import -alias "keycloak2"  -keystore /opt/keycloak/keycloak.keystore.jks  -file fullchainkc2.pem
-           unix> sudo keytool -import -alias "keycloak3"  -keystore /opt/keycloak/keycloak.keystore.jks  -file fullchainkc3.pem
+        5) Import the 3 pem files into the keycloak.keystore.jks
+           unix> keytool -import -alias "keycloak1"  -keystore /opt/keycloak/keycloak.keystore.jks  -file fullchainkc1.pem    -srcstorepass changeit  -deststorepass changeit    # If it's already imported, then don't bother
+           unix> keytool -import -alias "keycloak2"  -keystore /opt/keycloak/keycloak.keystore.jks  -file fullchainkc2.pem    -srcstorepass changeit  -deststorepass changeit
+           unix> keytool -import -alias "keycloak3"  -keystore /opt/keycloak/keycloak.keystore.jks  -file fullchainkc3.pem    -srcstorepass changeit  -deststorepass changeit
 
 
     d. Generate the keycloak truststore
        truststore needs to include the godaddy CA used for keycloak.traderres.com and intermediate CA
        truststore needs to include the self-signed CA used for PKI clients   (no intermediate)
-       unix> cd /tmp/archive/keycloak.traderres.com
-       unix> sudo keytool -import -alias "keycloak1"  -keystore /opt/keycloak/keycloak.truststore.jks  -file fullchainkc1.pem  -storepass changeit
-             password: changeit
-             verify:   changeit
-
-       unix> sudo keytool -import -alias "keycloak2"  -keystore /opt/keycloak/keycloak.truststore.jks  -file fullchainkc2.pem -storepass changeit
-       unix> sudo keytool -import -alias "keycloak3"  -keystore /opt/keycloak/keycloak.truststore.jks  -file fullchainkc3.pem  -storepass changeit
-       unix> sudo keytool -import -alias "our-ca"     -keystore /opt/keycloak/keycloak.truststore.jks  -file /tmp/self-signed.ca.pem  -storepass changeit
+       unix> cd /home/ec2-user/certbot/archive/keycloak.traderres.com
+       unix> keytool -import -alias "keycloak1"  -keystore /opt/keycloak/keycloak.truststore.jks  -file fullchainkc1.pem  -storepass changeit
+       unix> keytool -import -alias "keycloak2"  -keystore /opt/keycloak/keycloak.truststore.jks  -file fullchainkc2.pem -storepass changeit
+       unix> keytool -import -alias "keycloak3"  -keystore /opt/keycloak/keycloak.truststore.jks  -file fullchainkc3.pem  -storepass changeit
+       unix> keytool -import -alias "our-ca"     -keystore /opt/keycloak/keycloak.truststore.jks  -file /home/ec2-user/root-ca/public/root.pem  -storepass changeit
 
 
 	   At this point, we have these 2 files:
@@ -1228,6 +1235,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
                    export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-11.0.18.0.10-1.amzn2.0.1.x86_64       # REPLACE this with your real Java JDK 11 path
                    export PATH=${JAVA_HOME}/bin:$PATH
+              unix> exit
 
 
        unix> sudo -s
@@ -1292,16 +1300,28 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 		[Install]
 		WantedBy=multi-user.target
 
-     j. Reload systemctl daemon
+     j. Update Database options in the /etc/systemd/system/keycloak.service to match the keycloak database in AWS
+        a. Go into AWS -> RDS
+        b. Click on the keyclaok-database
+        c. In the "Connectivity & security" tab get the endpoint
+           -- It should look something like this:  keycloak-database.csbk2jnrc8ao.us-east-2.rds.amazonaws.com
+
+        d. Set that endpoint in
+        unix> sudo vi /etc/systemd/system/keycloak.service
+
+			Environment=KC_DB_URL=jdbc:postgresql://keycloak-database.csbk2jnrc8ao.us-east-2.rds.amazonaws.com/keycloak_db
+
+
+     k. Reload systemctl daemon
         unix> sudo systemctl daemon-reload
 
-     k. Start the service
+     l. Start the service
         unix> sudo systemctl start keycloak
 
-     l. Look at the service log
+     m. Look at the service log
         unix> sudo journalctl -fu keycloak
 
-     m. Verify that you can connect to keycloak
+     n. Verify that you can connect to keycloak
         Open a browser
         Connect to https://keycloak.traderres.com:8444/
 
@@ -1385,8 +1405,8 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
        5) Use a browser to connect to keycloak
           Connect to https://keycloak.traderres.com:8444/
           Press "Admin Console"
-          Enter admin username
-          Enter admin password
+          Enter admin username:   keycloak
+          Enter admin password:   secret12
           -- Verify that you can get in
 
 
@@ -1394,10 +1414,11 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
        1) Connect to https://keycloak.traderres.com:8444/
 
        2) Select Realms -> Create realm: MyRealm
-
+          Enabled:  On
+          Press "Create"
 
 	   3) Create an x509 authentication flow
-		a. Click on Authentication
+	   	a. Click on Authentication
 		b. Click on browser
 		c. Selection Action -> Duplicate
 		   Name:  x509 authentication flow
@@ -1421,6 +1442,8 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 			  Check certificate validity:                   On
 			  Bypass identity confirmation                  Off
 
+              Press "Save"
+
 		   6) In x509 authentication flow, select Action -> Bind flow
 			  Choose "Browser flow"
 			  Press "Save"
@@ -1428,22 +1451,22 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
 
-		 4) Create the client: sf328-webapp
+		 4) Create the client: nccs-webapp
 			a. Click on Clients
 			b. Press "Create client"
 
 			General Settings
 			  Client type:           OpenID Connect
 			  Client ID:             nccs-webapp
-			  Name:                  nccs Submissions
+			  Name:                  nccs web app
 			  Always display in UI:  Off
 			  Press "Next"
 			  Press "Next"
 			  Press "Save"
 
 			Access Settings:
-			Root URL:              https://app.traderres.com/sf
-			Home URL:              https://app.traderres.com/sf
+			Root URL:              https://app.traderres.com/nccs
+			Home URL:              https://app.traderres.com/nccs
 
 			Capability Config:
 			  Client authentication  On
@@ -1460,6 +1483,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 		 5) Click on nccs-webapp / Credentials Tab
 			Client Authenticator:  Client ID and Secret
+            -- We will need this secret key in the deployment yaml file
 
 		 6) Click on "Advanced" Tab
 			Go to Authentication flow overrides
@@ -1517,8 +1541,9 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
        NOTE:  This file should should have the server cert for app.traderres.com in it
 
        1) Examine the 3 files that makeup the full chain of the fullchain1.pem / Split it up into 3 files / Find the server cert
-           NOTE:  The server cert has this:
-                        CN=app.traderres.com
+           unix> cd /home/adam/certbot/archive/app.traderres.com
+           unix> cat fullchain1.pem | awk 'BEGIN {n=1};  split_after==1{n++;split_after=0} /-----END CERTIFICATE-----/ {split_after=1} {print > "fullchainkc" n ".pem"}'
+
 
            unix> cd /home/adam/certbot/archive/app.traderres.com
            unix> cat fullchain1.pem
