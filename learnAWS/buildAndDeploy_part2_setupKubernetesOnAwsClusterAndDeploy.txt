@@ -1612,29 +1612,29 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 21.  Get the environment values for the kubernetes deployment yaml files
      NOTE:  Fill-in this section with real values
 
-	   env:
+	    env:
 		   - name: POSTGRES_HOSTNAME
-			 value: "server-running-postgres"
+			 value: "app-database.csbk2jnrc8ao.us-east-2.rds.amazonaws.com"                                         # Get from RDA -> Databases -> app-database -> Endpoint & port
 		   - name: POSTGRES_DB_USERNAME
-			 value: "app1_user"
+			 value: "app_user"
 		   - name: POSTGRES_DB_PASSWORD
-			 value: "secret"
+			 value: "secret12"
 		   - name: POSTGRES_DB_NAME
-			 value: "app1_db"
+			 value: "app_db"
 		   - name: POSTGRES_SCHEMA_NAME
-			 value: "app1_db"
+			 value: "app_db"
 		   - name: POSTGRES_POOL_SIZE
-		     value: "50"
+		     value: "5"
 		   - name: ES_URL
-			 value: "https://search-sf328-itwh3bby3wl3s7t6ur6pph2rti.us-gov-west-1.es.amazonaws.com:443"
+			 value: "https://vpc-app-opensearch-ep5v5i6jlal7ka3qraya46fpsi.us-east-2.es.amazonaws.com:443"               # Get from OpenSearch -> Domains -> app-opensearch -> domain endpoint (VPC)
 		   - name: ES_USERNAME
 			 value: "es_user"
 		   - name: ES_PASSWORD
-			 value: "es_secret"
+			 value: "Secret1@"
 		   - name: KEYCLOAK_CLIENT_ID
 			 value: "nccs-webapp"
 		   - name: KEYCLOAK_CLIENT_SECRET
-			 value: "gyG7oTbHbenKecReYOJIg4F2fTaUtGDp"
+			 value: "wnAJ5rM1BQs9YKSWLrtYL0z0YgS6LxDG"                                                                  # Get this from keycloak -> MyRealm -> Clients -> nccs-webapp -> Credentials tab
 		   - name: KEYCLOAK_ISSUER_URI
         	 value: "https://keycloak.rbr-tech.com:8444/realms/MyRealm"
 		   - name: INCOMING_KEYSTORE_FILEPATH
@@ -1667,14 +1667,24 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
       unix> tar xvf eksctl_Linux_amd64.tar.gz
       unix> sudo mv /tmp/eksctl /usr/local/bin
 
-   b. Grant the CSI Driver Policy to the eksNodeRole in AWS IAM  (so that the nodes have the authority to read/write to the EBS volumes)
-      a. Go to IAM -> Roles -> EksNodeRole
-      b. Grant this policy: AmazonEBSCSIDriverPolicy
+   b. Verify that it is installed
+      unix> eksctl version
 
-   c. Create an identify provider
+      You should see this:
+      0.141.0
+
+   c. Grant the CSI Driver Policy to the eksNodeRole in AWS IAM  (so that the nodes have the authority to read/write to the EBS volumes)
+      1) Go to IAM -> Roles -> EksNodeRole
+      2) Grant this policy: AmazonEBSCSIDriverPolicy
+         1) Add permission -> Attach policies
+         2) Search for AmazonEBSCSIDriverPolicy
+         3) Select AmazonEBSCSIDriverPolicy
+         4) Press "Add permissions"
+
+   d. Create an identify provider
       unix> eksctl utils associate-iam-oidc-provider --cluster <MY-CLUSTER-NAME> --approve
 
-   d. Verify that you can see your identity provider
+   e. Verify that you can see your identity provider
       unix> aws iam list-open-id-connect-providers
 
       You should see something like this:
@@ -1686,7 +1696,13 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 			]
 		}
 
+      So, the OID String would be this "oidc.eks.us-gov-west-1.amazonaws.com/id/DA006D8E0177E850A3A0489D305D960B"
+
+
+
    e. Create an IAM trust policy file using the arn and id from above
+      unix> vi trust-policy.json
+
 	   {
 		 "Version": "2012-10-17",
 		 "Statement": [
@@ -1735,10 +1751,17 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
      unix> aws iam attach-role-policy  --policy-arn arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy  --role-name AmazonEKS_EBS_CSI_DriverRole
 
   h. Deploy the driver (for aws-gov-cloud)
-     unix> export YOUR_ACCOUNT_ID=527362555097
+     unix> export AWS_REGISTRY_ID=$(aws ecr describe-registry --query registryId --output text)
      unix> export YOUR_CLUSTER_NAME=nccs
-     unix> aws eks create-addon --cluster-name ${YOUR_CLUSTER_NAME} --addon-name aws-ebs-csi-driver  --service-account-role-arn arn:aws-us-gov:iam::${YOUR_ACCOUNT_ID}:role/AmazonEKS_EBS_CSI_DriverRole
+
+     For Gov-Cloud:
+     unix> aws eks create-addon --cluster-name ${YOUR_CLUSTER_NAME} --addon-name aws-ebs-csi-driver  --service-account-role-arn arn:aws-us-gov:iam::${AWS_REGISTRY_ID}:role/AmazonEKS_EBS_CSI_DriverRole
            NOTE:  This command is set for aws-gov-cloud
+           *OR*
+
+     For Non-Gov-Cloud:
+     unix> aws eks create-addon --cluster-name ${YOUR_CLUSTER_NAME} --addon-name aws-ebs-csi-driver  --service-account-role-arn arn:aws:iam::${AWS_REGISTRY_ID}:role/AmazonEKS_EBS_CSI_DriverRole
+
 
 
   i. Test the Amazon EBS CSI driver:
@@ -1913,7 +1936,7 @@ metadata:
 provisioner: ebs.csi.aws.com
 volumeBindingMode: Immediate
 
-		 unix> kubectl apply -f app-storage-class.yaml
+   unix> kubectl apply -f app-storage-class.yaml
 
 
 
@@ -1942,7 +1965,7 @@ spec:
 
 
 
- s. Add this section to the deployment.yaml
+ s. Add this section to the deployment.yaml   (should already be in the nccs-deployment.yaml)
 
     volumeMounts:
     - name: persistent-storage
@@ -1977,10 +2000,11 @@ spec:
   - name: app2
     image: centos
     command: ["/bin/sh"]
-    args: ["-c", "while true; do echo "hi"; sleep 5; done"]
+    args: ["-c", "while true; do echo 'hi'; sleep 5; done"]
     volumeMounts:
     - name: app-certs-pv
       mountPath: /shared/certs
+
 
 
 
