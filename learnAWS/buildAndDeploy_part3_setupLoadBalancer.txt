@@ -409,7 +409,125 @@ Part 3:  Configure the Ingress to use the AWS Load Balancer Controller
     d. Press the Copy button next to the ARN -- e.g., arn:aws:acm:us-east-2:524647912468:certificate/18c98c70-f0a2-4dfb-b434-8317c6894367
 
 
- 3. Create teh app-load-balancer.yaml file
+ 3. Verify that the nccs-deployment looks something like this:
+######################################################################################
+# Filename:  nccs-deployment-v2.2.3.yaml
+#
+# Purpose:   Tell kubernetes how to deploy the NCCS web app(s)
+#
+# Usage
+#  1. Follow the steps to setup AWS credentials (so you can build & deploy)
+#     https://github.com/traderres/webClass/blob/master/learnAWS/howToBuildAndPushToAmazonECR.txt
+#
+#  2. Build and push the containers to the Amazon ECR (image repository)
+#     unix> mvn -Djib.to.auth.username=AWS -Djib.to.auth.password=$PASSWORD clean package -Pprod -PbuildImageAndPush
+#
+#  3. Edit the environment variables in this yaml file to match reality -- e.g., set the POSTGRES_HOSTNAME
+#     a. Also edit the image name (in this yaml file) to make sure it matches what was pushed to the Amazon ECR
+#
+#  4. Tell kubernetes to deploy the sync service
+#     unix> kubectl delete deployment nccs-deployment
+#     unix> kubectl apply -f nccs-deployment-v2.2.3.yaml
+#
+#  5. Get the name of the running pod  (it changes every time)
+#     unix> kubectl get pods
+#
+#     NAME                                            READY   STATUS         RESTARTS   AGE
+#     nccs-deployment-69c9fd9db6-6wkcf                1/1     Running        0          19s
+#
+#  6. Look at the pod log to verify that the NCCS webapp is up
+#     uniX> kubectl logs -f nccs-deployment-69c9fd9db6-6wkcf
+#
+# Notes:
+#  A) The running pods do not have DNS so we use hostAliases to create an entry in /etc/hosts
+#     that can resolve the keycloak.traderres.com to 52.15.227.187
+#     Use nslookup keycloak.traderres.com to verify the IP
+#
+#  B) If you want 5 copies of the webapp, then change replicas to 5 (in this file)
+######################################################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nccs-deployment
+
+spec:
+  selector:
+    matchLabels:
+      app:  nccs-deployment
+
+  replicas: 1
+  strategy:
+    type:  Recreate
+  template:
+    metadata:
+      name:  nccs-deployment
+      labels:
+         app:  nccs-deployment
+
+    spec:
+      hostAliases:
+      - ip: "52.15.227.187"
+        hostnames:
+          - "keycloak.traderres.com"
+
+      volumes:
+      - name: app-certs-pv
+        persistentVolumeClaim:
+          claimName: app-certs-pvc
+
+      containers:
+      - image: 524647912468.dkr.ecr.us-east-2.amazonaws.com/nccs:backend-2.3.0-SNAPSHOT
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: app-certs-pv
+          mountPath: /shared/certs
+
+        name: nccs-deployment
+
+        env:
+           - name: POSTGRES_HOSTNAME
+             value: "app-database.csbk2jnrc8ao.us-east-2.rds.amazonaws.com"
+           - name: POSTGRES_DB_USERNAME
+             value: "app_user"
+           - name: POSTGRES_DB_PASSWORD
+             value: "secret12"
+           - name: POSTGRES_DB_NAME
+             value: "app_db"
+           - name: POSTGRES_SCHEMA_NAME
+             value: "app_db"
+           - name: POSTGRES_POOL_SIZE
+             value: "5"
+           - name: ES_URL
+             value: "https://vpc-app-opensearch-ep5v5i6jlal7ka3qraya46fpsi.us-east-2.es.amazonaws.com:443"
+           - name: ES_USERNAME
+             value: "es_user"
+           - name: ES_PASSWORD
+             value: "Secret1@"
+           - name: KEYCLOAK_CLIENT_ID
+             value: "nccs-webapp"
+           - name: KEYCLOAK_CLIENT_SECRET
+             value: "wnAJ5rM1BQs9YKSWLrtYL0z0YgS6LxDG"
+           - name: KEYCLOAK_ISSUER_URI
+             value: "https://keycloak.traderres.com:8444/realms/MyRealm"
+           - name: INCOMING_KEYSTORE_FILEPATH
+             value: "/shared/certs/webapp.keystore.jks"
+           - name: INCOMING_KEYSTORE_PASSWORD
+             value: "changeit"
+           - name: INCOMING_TRUSTSTORE_FILEPATH
+             value: "/shared/certs/webapp.truststore.jks"
+           - name: INCOMING_TRUSTSTORE_PASSWORD
+             value: "changeit"
+           - name: JAVA_TOOL_OPTIONS
+             value: -Xms1024m -Xmx1024m -Demail.mode=off -Djavax.net.ssl.trustStore=/shared/certs/custom.cacerts -Djavax.net.ssl.trustStorePassword=changeit
+
+
+
+
+
+
+
+
+ 4. Create teh app-load-balancer.yaml file
     unix> vi  app-load-balancer.yaml
 
 ######################################################################################
