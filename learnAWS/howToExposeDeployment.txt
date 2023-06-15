@@ -1,0 +1,38 @@
+How to Expose Deployment in AWS
+-------------------------------
+
+Assumptions:
+ A) You have created the deployment already and it's called nccs-deployment
+
+
+
+Procedure
+---------
+ 1. Have AWS create and expose the load balancer service on port 443
+	unix> kubectl expose deployment nccs-deployment --type=LoadBalancer --name=app-load-balancer --port=443
+	NOTE:  This create a new external hostname and IP address
+
+
+ 2. Modify the created load balancer service by setting
+	unix> kubectl edit service app-load-balancer
+
+    Change these values
+	  targetPort=8443            # If your pods are listening on port 8443
+	  sessionAffinity=ClientIP   # To use sticky sessions
+
+ 3. Get the external hostname for this load balancer service
+	unix> kubectl get services
+
+		NAME                 TYPE           CLUSTER-IP     EXTERNAL-IP                                                               PORT(S)         AGE
+		kubernetes           ClusterIP      10.100.0.1     <none>                                                                    443/TCP         27h
+		app-load-balancer    LoadBalancer   10.100.66.32   a913ec0732a4d4726a6d186c8233e52f-1165139498.us-east-2.elb.amazonaws.com   443:30493/TCP   5s
+
+ 4. Update godaddy's cname record for app.traderres.com so that it corresponds to the new external hostname
+		a. Go to https://dcc.godaddy.com/control/portfolio/traderres.com/settings
+        b. Click on the DNS tab
+		c. Edit the old CNAME record for "app"    (this corresponds to app.traderres.com)
+		   Type:  CNAME
+		   Name:  app
+		   Value: a913ec0732a4d4726a6d186c8233e52f-1165139498.us-east-2.elb.amazonaws.com
+
+		d. Press "Save"
