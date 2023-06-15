@@ -449,20 +449,22 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: nccs-deployment
+  labels:
+    app: nccs-deployment
 
 spec:
   selector:
     matchLabels:
-      app:  nccs-deployment
+      app: nccs-deployment
 
   replicas: 1
   strategy:
     type:  Recreate
   template:
     metadata:
-      name:  nccs-deployment
+
       labels:
-         app:  nccs-deployment
+         app: nccs-deployment
 
     spec:
       hostAliases:
@@ -483,6 +485,11 @@ spec:
           mountPath: /shared/certs
 
         name: nccs-deployment
+        ports:
+            - containerPort: 80
+              name: health-check
+            - containerPort: 443
+              name: web-app
 
         env:
            - name: POSTGRES_HOSTNAME
@@ -567,6 +574,7 @@ spec:
     - name: http
       port: 80
       targetPort: 80
+  sessionAffinity: ClientIP
 
 
 ---
@@ -594,7 +602,7 @@ spec:
     - name: http
       port: 80
       targetPort: 80
-
+  sessionAffinity: ClientIP
 
 
 
@@ -614,21 +622,22 @@ metadata:
     app: apps
   annotations:
     alb.ingress.kubernetes.io/scheme: internet-facing
-    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/target-type: instance
     alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
     alb.ingress.kubernetes.io/healthcheck-port: '80'
-    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '15'
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '60'
     alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '5'
     alb.ingress.kubernetes.io/success-codes: '200'
     alb.ingress.kubernetes.io/healthy-threshold-count: '2'
     alb.ingress.kubernetes.io/unhealthy-threshold-count: '2'
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443},{"HTTP":80}]'
     alb.ingress.kubernetes.io/certificate-arn: 'arn:aws:acm:us-east-2:524647912468:certificate/18c98c70-f0a2-4dfb-b434-8317c6894367'
     alb.ingress.kubernetes.io/subnets: subnet-05a3ee7985015400a, subnet-03e978e7176badd78, subnet-0e54fd8bbc66a8e3c    # replace with 3 public subnet ids
 spec:
   ingressClassName: alb
   rules:
-    - http:
+    - host: app.traderres.com
+      http:
         paths:
           - path: /nccs-admin
             pathType: Prefix
@@ -636,7 +645,7 @@ spec:
               service:
                 name: nccs-admin-service
                 port:
-                  number: 443
+                  number: 80
           - path: /nccs
             pathType: Prefix
             backend:
@@ -644,6 +653,7 @@ spec:
                 name: nccs-service
                 port:
                   number: 443
+
 
 
 
