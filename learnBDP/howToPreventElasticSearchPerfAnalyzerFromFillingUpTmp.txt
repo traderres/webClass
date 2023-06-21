@@ -1,0 +1,54 @@
+How to Prevent the BDP Performance Analyzer Service from creating massive log files
+-----------------------------------------------------------------------------------
+Problem:  The /tmp directory is filled-up with massive log files from the ElasticSearch Performance Analyzer service
+
+
+Short Term Fix
+--------------
+Erase the /tmp files and restart the service
+ 1. ssh to the puppet master
+
+ 2. go datanodes
+
+ 3. unix> sudo -s
+    unix> df -h /tmp       # Look at the disk space that is being used in /tmp
+
+ 4. Erase the 2 large files  (that were using-up all of the disk space in /tmp)
+    unix> rm /tmp/performance_analyzer_agent_stats.log
+    unix> rm /tmp/PerformanceAnalyzer.log
+
+ 5. Restart the ElasticSearch service
+    unix> systemctl restart elasticsearch_primary_performance_analyzer
+
+ 6. Look at the amount of disk space in /tmp
+    unix> df -h /tmp
+
+
+
+
+Long Term Fix
+-------------
+ 1. ssh to the puppet master
+
+ 2. edit the /etc/bdp/config.yaml
+
+    Add this entry:
+
+bdp_elasticsearch::performance_analyzed_instances:
+  - ""
+
+
+    When finished, the end of the file should look something like this:
+
+bdp_config::kafka_disk_size_gb: 15
+bdp_config::kafka_ingest_partitions: '2'
+bdp_elasticsearch::performance_analyzed_instances:
+  - ""
+bdp_logstash::es_index_expiry: 3
+
+
+
+ 3. Push the changes out
+    unix> bdp roles -o
+
+
