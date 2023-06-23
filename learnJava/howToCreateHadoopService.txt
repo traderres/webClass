@@ -252,9 +252,8 @@ hdfs.enabled:   false
 
 
 
-Dual Mode Hadoop Service Sample Code
-------------------------------------
-
+Part 2:  Create a Dual Mode Hadoop Service Sample Code
+------------------------------------------------------
 package com.lessons.services;
 
 import org.apache.commons.io.FileUtils;
@@ -724,3 +723,77 @@ public class HadoopService {
 
 }
 
+
+Part 3:  Make sure your directories are created on startup
+----------------------------------------------------------
+ 1. Edit the backend/src/main/resources/application.yaml
+
+##############################################################################
+# Hadoop Settings
+#
+# If hdfs.enabled==false, then files are written to a regular file system
+##############################################################################
+hdfs:
+    enabled:                false
+    hadoop.conf.dir:        ${HADOOP_HOME:}/etc/hadoop                         # NOTE:  The colon in the ${HADOOP_HOME:} makes HADOOP_HOME an optional environment variable
+    root.dir:               ${java.io.tmpdir}
+    storage.dir:            ${hdfs.root.dir}/storage
+    dd254.processed.dir:    ${hdfs.storage.dir}/my-app/processed
+    dd254.attachments.dir:  ${hdfs.storage.dir}/my-app/attachments
+
+
+
+
+ 2. Edit the install-bdp/src/main/assembly/webapp/application.yaml
+
+##############################################################################
+# Hadoop Settings
+#
+# If hdfs.enabled==false, then files are written to a regular file system
+##############################################################################
+hdfs:
+  enabled:               true
+  hadoop.conf.dir:       /etc/hadoop/conf
+  root.dir:              /my-app
+  storage.dir:            ${hdfs.root.dir}/storage
+  dd254.processed.dir:    ${hdfs.storage.dir}/my-app/processed
+  dd254.attachments.dir:  ${hdfs.storage.dir}/my-app/attachments
+
+
+
+
+ 2. Add these paths to your HadoopService
+
+    @Value("${hdfs.dd254.processed.dir}")
+    private String hdfsDD254ProcessedDir;       // Required property that holds where to store uploaded dd254 pdf files
+
+    @Value("${hdfs.dd254.attachments.dir}")
+    private String hdfsDD254AttachmentsDir;       // Required property that holds where to store uploaded attachments to DD254s
+
+
+
+
+ 3. Add these 2 paths to your directoryMap in verifyAllDirsExist()
+
+   /**
+     * verify all necessary directories exist
+     *
+     * @throws Exception if something goes wrong
+     */
+    private void verifyAllDirsExist() throws Exception {
+
+        // Create a map of all directories that must exist in either HDFS or regular filesystem
+        Map<String, String> directoryMap = new LinkedHashMap<>();
+        directoryMap.put(hdfsDD254ProcessedDir,    "hdfs.dd254.processed.dir");
+        directoryMap.put(hdfsDD254AttachmentsDir,  "hdfs.dd254.attachments.dir");
+
+        if (!isHadoopEnabled) {
+            logger.warn("Warning in HadoopService.init():  The HadoopService is disabled.");
+
+            verifyAllRegularDirsExist(directoryMap);
+
+        } else {
+             // If any of the HDFS dirs do not exist, then throw an exception
+            verifyAllHdfsDirsExist(directoryMap);
+        }
+    }
