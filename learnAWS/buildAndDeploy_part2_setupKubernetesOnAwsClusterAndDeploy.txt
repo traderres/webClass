@@ -112,20 +112,22 @@ General Approach
     NOTE:  postgres and OpenSearch do not run inside kubernetes
     a. Setup 2 RDS / postgres instances (one for the webapp and one for keycloak)
     b. Setup OpenSearch
-11. Create our own certificate authority (for pki client certs)
-12. Configure your local kubectl command to talk to our new Kubernetes cluster
-13. Get the aws external hostnames for keycloak and the app's loadbalancer
-14. Register the godayy domain name that correspond to the external AWS keycloak and external AWS load balancer names
-15. Create server certs with Let's Encrypt for the load-balancer (app.traderres.com) and keycloak (keycloak.traderres.com)
-16. Install Java 11 JDK on the keycloak server
-17. Create & install the keycloak certificates on the running instance
-18. Initialize Keycloak as a service on the running instsance
-19. Configure keycloak
-20. Configure certificates for the load-balancer (external hostname used to access the webapp)
-21. Get the environment values for the kubernetes deployment yaml files
-22. Setup PersistentVolumes so you can share certs among the pods
-23. Use Kubernetes to deploy the webapp
-24. Verify it works
+11. Create a persistent volume and mount to /opt/shared-storage on the keycloak server
+12. Create our own certificate authority (for pki client certs)
+13. Configure your local kubectl command to talk to our new Kubernetes cluster
+14. Get the aws external hostnames for keycloak and the app's loadbalancer
+15. Register the godayy domain name that correspond to the external AWS keycloak and external AWS load balancer names
+16. Create server certs with Let's Encrypt for the load-balancer (app.traderres.com) and keycloak (keycloak.traderres.com)
+17. Install Java 11 JDK on the keycloak server
+18. Create & install the keycloak certificates on the running instance
+19. Initialize Keycloak as a service on the running instsance
+20. Configure keycloak's admin account
+21. Configure certificates for the load-balancer (external hostname used to access the webapp)
+22. Get the environment values for the kubernetes deployment yaml files
+23. Setup PersistentVolumes so you can share certs among the pods
+24. Upload the shared certs into the /shared/certs persistent volume
+25. Use Kubernetes to deploy the webapp
+26. Verify it works
 
 
 
@@ -579,9 +581,9 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
  8. Create Kubernetes Node Group  (as dev.user)
-	a. Go to Amazon Elastic Kubernetes Services
+	a. Go to AWS.com -> Elastic Kubernetes Services
 	b. Click on your cluster (nccs)
-	c. Click on "Compute"
+	c. Click on "Compute" tab
 	d. Press "Add node group"
 	e. In "Configure node group"
 		   Name:           nccs-node-group
@@ -607,7 +609,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 	g. In "Specify Networking"
 		1) Select the both subnets
-		2) Select "Configure ssh access for nodes"
+		2) Select "Configure remote access to nodes"
 		   -- In the warning, press "Enable"
            -- Subnets:                       <Use the down arrow to ONLY select your 3 public subnets / do not select private subnets)
 		   -- SSH Key pair:                  Select node-for-kubernetes-instance
@@ -623,19 +625,24 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 	i. W A I T      U P    T O       2      M I N       F O R     A W S    (to create the node group)
 
-	j. While waiting, get the public IP of your instance
+    j. While waiting, set the name of one of the instances to be keycloak-instance
 	   a. Go to the EC2 Dashboard -> instances
-	   b. Check the checkbox on your newly-created instance
+	   b. In the name row, press the "Edit" icon and enter keycloak-instance for one of them
+
+	k. While waiting, get the public IP of your keycloak instance
+	   a. Go to the EC2 Dashboard -> instances
+	   b. Chceck keycloak-instance
 	   c. Look at the bottom details
 		  -- You should see your public IP address
 
-    k. Add the default security group to our running instance
+    k. Add the default security group to ALL of our running instance
        a. Go to EC2 -> Instances
        b. Check the checkbox next to our running instance
        c. Selection Actions -> Security -> Change security groups
        d. In "Associated security groups"
           Search for default
           Add it to the list
+          NOTE:  Press "Add Security Group"
           press "Save"
 
 
@@ -678,9 +685,9 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
        1) In AWS, search for RDS / Select RDS   (as dev.user)
        2) Select Databases -> Press "Create database"
        3) In "Create database"
-          Database creation method:  standard create
+          Database creation method:  Standard create
           Engine type:               PostgreSQL
-          Engine version:            PostreSQL 14.6-R1
+          Engine version:            PostreSQL 14.7-R1
           Templates:                 Dev/Test
           Availability:              Single DB Instance
 
@@ -700,8 +707,8 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 		  Connectivity:
 		     Compute Resource:               Don't Connect to an EC2 computer resource
-		     VPC:                            <Choose default VPC / project-vpc>
-		     DB Subnet Group:                <choose default subnet>
+		     VPC:                            <Choose default option called project-vpc>
+		     DB Subnet Group:                <choose default option to create new DB subnet group>
 		     Public Access:                  No   (you can only access this database from inside the cluster)
 		     Existing VPC Security Groups:   <Select default VPC>
              Additional VPC security group:  Empty
@@ -709,8 +716,8 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
                                              NOTE:  If I want to make the database open to all, set the VPC security group to include "Default"
 
           Additional Configuration:
-             Database Port:                   5432
-             Initial database name:           keycloak_db
+             Database Port:                  5432
+             Initial database name:          keycloak_db
 
           Database authentication:           Password authentication
 
@@ -732,9 +739,9 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
        1) In AWS, search for RDS / Select RDS   (as dev.user)
        2) Select Databases -> Press "Create database"
        3) In "Create database"
-          Database creation method:  standard create
+          Database creation method:  Standard create
           Engine type:               PostgreSQL
-          Engine version:            PostreSQL 14.6-R1
+          Engine version:            PostreSQL 14.7-R1
           Templates:                 Dev/Test
           Availability:              Single DB Instance
 
@@ -788,7 +795,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
           In "Create domain"
              Domain Name:               app-opensearch
 
-             Domain creation method:    standard
+             Domain creation method:    standard create
 
              Templates:
                  choose Dev/Test
@@ -823,17 +830,17 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
              Network
                 Network:                       Check VPC access
                 VPC:                           Select default vpc
-                Subnets:                       Select public1-us-east-2a
+                Subnets:                       Select public1-us-east-2a   (if you select 1 availability zone, then you can only select 1 subnet)
                 Security groups:               Select default
 
              Fine-grained access Control
-                Fine-grained access control:       Checked
-                Create master user:                Checked
-                   master username:                es_user                # This must match the production application.yaml es.authentication.principal
-                   master password:                Secret1@               # This must match the production application.yaml es.authentication.password
+                Fine-grained access control:   Checked
+                Create master user:            Checked
+                   master username:            es_user                # This must match the production application.yaml es.authentication.principal
+                   master password:            Secret1@               # This must match the production application.yaml es.authentication.password
 
              Access Policy:
-                Do not set domain level access policy
+                Choose                         Do not set domain level access policy
 
              Press "Create"
 
@@ -864,14 +871,98 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
 
-      d. Label instances
+      d. Label instances (if you haven't)
 		 1. Click EC2 -> Instances
 		 2. Edited one of the instance name and changed it to keycloak
 		 3. Edited one of the instance name and changed it to kubernetes-nodes
 
 
-11. Create our own certificate authority (for pki client certs)
+
+11. Create a persistent volume and mount to /opt/shared-storage on the keycloak server
+    a. Create a 1 GB volume to hold your root CA
+       1) Go to EC2 -> Elastic Block Store -> Volumes
+       2) Press "Create volume"
+       3) In the Create volume page
+          Volume Type:  gp2
+          Size:         1 GiB
+          Avail Zone:   us-east-2a   (MUST be the same avail zone as the keycloak instance)
+
+          Encryption:
+              Check     Encrypt this volume
+              KMS Key:  (default) aws/ebs
+
+          Press "Create volume"
+
+       4) Edit the name by pressing the "Edit Name" icon
+          Set the name to root-ca-volume
+
+           W A I T      F O R     V O L U M E    (to have volume state of Available)
+
+
+       5) Check root-ca-volume / Press Action -> Attach Volume
+          In Attach Volume
+             Instance:      keycloak-instance
+             Device name:   /dev/sdf
+             Press "Attach volume"
+
+    b. Mount the volume on the keycloak instance
+       1) ssh to the keycloak instance
+          unix>  ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.216.9.38
+
+          unix> sudo -s
+
+          unix> blkid
+          /dev/nvme0n1: PTUUID="a6d61325-cce9-40a3-9641-505d99880dad" PTTYPE="gpt"
+          /dev/nvme0n1p1: LABEL="/" UUID="3d8d838a-1b85-4e10-998a-9c75e2db6bb5" TYPE="xfs" PARTLABEL="Linux" PARTUUID="aadbad73-5001-4740-bef3-91fdd10bf481"
+          /dev/nvme0n1p128: PARTLABEL="BIOS Boot Partition" PARTUUID="8f239cbd-881f-4180-935b-c2b6d3b900ab"
+
+          unix> lsblk
+
+          NAME          MAJ:MIN RM SIZE RO TYPE MOUNTPOINT
+          nvme0n1       259:0    0  20G  0 disk
+          ├─nvme0n1p1   259:1    0  20G  0 part /
+          └─nvme0n1p128 259:2    0   1M  0 part
+          nvme1n1       259:3    0   1G  0 disk                <--- this is our new disk
+
+
+        3) Format the disk
+           unix> mkfs -t xfs /dev/sdf         # format the disk
+
+        4) Get the UUID of the new partition
+          unix> blkid
+          /dev/nvme0n1p1: LABEL="/" UUID="3d8d838a-1b85-4e10-998a-9c75e2db6bb5" TYPE="xfs" PARTLABEL="Linux" PARTUUID="aadbad73-5001-4740-bef3-91fdd10bf481"
+          /dev/nvme0n1: PTUUID="a6d61325-cce9-40a3-9641-505d99880dad" PTTYPE="gpt"
+          /dev/nvme0n1p128: PARTLABEL="BIOS Boot Partition" PARTUUID="8f239cbd-881f-4180-935b-c2b6d3b900ab"
+          /dev/nvme1n1: UUID="5fcf5339-921c-467c-829c-53e9a480bde7" TYPE="xfs"       <-- this is the new one
+
+        5) Copy the UUID to the clipboard:   5fcf5339-921c-467c-829c-53e9a480bde7
+
+        6) Create the mount point
+           unix> mkdir /opt/shared-storage
+
+        7) Add the mount point to the file system tab
+           unix> vi /etc/fstab
+
+            It should hold this:
+              UUID=3d8d838a-1b85-4e10-998a-9c75e2db6bb5     /                   xfs    defaults,noatime  1   1
+
+            Add a 2nd line with the new UUID
+              UUID=3d8d838a-1b85-4e10-998a-9c75e2db6bb5     /                   xfs    defaults,noatime  1   1
+              UUID=5fcf5339-921c-467c-829c-53e9a480bde7     /opt/shared-storage xfs    defaults,noatime  1   1
+
+        8) Mount the filesystems
+           unix> mount -a
+
+        9) Verify it exists
+           unix> df -h  /opt/shared-storage
+
+			Filesystem      Size  Used Avail Use% Mounted on
+			/dev/nvme1n1   1014M   40M  975M   4% /opt/shared-storage
+
+
+12. Create our own certificate authority (for pki client certs)
     NOTE:  Install on the keycloak server to make life easier for you
+    NOTE:  The root-ca will be installed to /opt/shared-storage/root-ca  (so that if the cluster is destroyed, then the root CA files are preserved)
     a. Create certificate authority:
        learnSSL / howToUseYourCertAuthority_InitialSetup_centos7.txt
 
@@ -884,7 +975,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
        NOTE:  Make the Common Name:  WILL.FRANKLIN.22222
 
 
-12. Configure your local kubectl command to talk to our new Kubernetes cluster
+13. Configure your local kubectl command to talk to our new Kubernetes cluster
     NOTE:  Kubernetes is running but there are no pods running at this time
     a. Download the kubectl command
        unix> cd /tmp
@@ -928,7 +1019,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
 
-13. Get the aws external hostname for keycloak and the app's loadbalancer
+14. Get the aws external hostname for keycloak and the app's loadbalancer
     Keycloak will run locally in your running node
     Keycloak's public IP will be the same as the running node's public IP
     a. Get keycloak's external hostname
@@ -941,7 +1032,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
 
-14. Register the goDaddy domain name that corresponds to the external AWS keycloak and external AWS load balancer names
+15. Register the goDaddy domain name that corresponds to the external AWS keycloak and external AWS load balancer names
     a. Use goDaddy to register ec2-160-1-14-243.us-gov-west-1.compute.amazonaws.com with a CNAME of keycloak.traderres.com
        1) Login to goDaddy.com
        2) Go to My Account -> My Products
@@ -998,7 +1089,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
 
-15. Create server certs with Let's Encrypt for the load-balancer (app.traderres.com) and keycloak (keycloak.traderres.com)
+16. Create server certs with Let's Encrypt for the load-balancer (app.traderres.com) and keycloak (keycloak.traderres.com)
     NOTE:  The public Let's Encrypt certs are required to make sure that it all works in Firefox
 
     a. Create API keys in godaddy.com
@@ -1153,7 +1244,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
 
-16. Install Java 11 JDK on the keycloak server
+17. Install Java 11 JDK on the keycloak server
     NOTE:  Keycloak is an app running on the kubernetes instance
     a. SSH to the kubernetes instance that will hold keycloak, certbot, and our root CA
        unix> ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.218.246.201
@@ -1169,7 +1260,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
 
-17. Create & install the keycloak certificates on the running instance
+18. Create & install the keycloak certificates on the running instance
     NOTE:  Keycloak Server has Java 11 JDK's keytool
            If your development env uses an older Java JDK, then build the cert with the older Java JDK
 
@@ -1245,7 +1336,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
 
-18. Initialize Keycloak as a service on the running instance
+19. Initialize Keycloak as a service on the running instance
     NOTE:  Keycloak is a container running on the kubernetes instance
     a. SSH to the kubernetes instance that will hold keycloak, certbot, and our root CA
        unix> ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.218.246.201
@@ -1380,7 +1471,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
         Connect to https://keycloak.traderres.com:8444/
 
 
-19. Configure keycloak's admin account
+20. Configure keycloak's admin account
     a. Setup the admin account
        1) Stop keycloak
           SSH to the kubernetes instance that will hold keycloak, certbot, and our root CA
@@ -1581,7 +1672,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
 
-20. Configure certificates for the load-balancer (external hostname used to access the webapp)
+21. Configure certificates for the load-balancer (external hostname used to access the webapp)
     NOTE:  The webapp needs a load-balancer truststore to work correctly
            The webapp needs a special custom.cacerts file (that has the load-balancer chain and self-signed CA)
 
@@ -1663,7 +1754,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
 
-21.  Get the environment values for the kubernetes deployment yaml files
+22.  Get the environment values for the kubernetes deployment yaml files
      A) Fill-in the POSTGRES_HOSTNAME   with the name from aws.com -> RDA -> Databases -> app-database -> Endpoint & port
      B) Fill-in the ES_URL              with the name from aws.com -> OpenSearch -> Domains -> app-opensearch -> domain endpoint (VPC)
      C) Fill-in the KEYCLOAK_CLIENT_ID  with the name from keycloak webapp -> MyRealm -> Clients -> nccs-webapp -> Credentials tab
@@ -1710,7 +1801,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
 
-22. Setup PersistentVolumes so you can share certs among the pods
+23. Setup PersistentVolumes so you can share certs among the pods
     Goal is to make these files available to all pods:
        shared/certs/custom.cacerts                           #   Used by spring-boot so it trusts keycloak server's cert
        shared/certs/nccs.webapp.keystore.jks                 #   INCOMING_KEYSTORE_FILEPATH
@@ -2038,7 +2129,7 @@ spec:
 
 
 
-23. Upload the shared certs into the /shared/certs persistent volume
+24. Upload the shared certs into the /shared/certs persistent volume
     a. Create a temporary pod (called app2) that has this PVC mounted
        unix> vi app2-pod.yaml
 
@@ -2108,7 +2199,7 @@ spec:
        unix> kubectl delete pod app2
 
 
-24. Use Kubernetes to deploy the webapp
+25. Use Kubernetes to deploy the webapp
 
     a. Delete existing deployment
        unix> kubectl delete deployment nccs-deployment
@@ -2288,7 +2379,7 @@ spec:
 
 
 
-25. Verify it works
+26. Verify it works
     a. Create a pki client cert
     b. Import it into a browser
     c. Attempt to connect to https://app.traderres.som/sf
