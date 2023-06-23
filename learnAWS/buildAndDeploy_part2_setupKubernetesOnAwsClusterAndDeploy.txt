@@ -144,7 +144,7 @@ Procedure
        4) In the "Attach permissions policies"
           Add these role:
             AdministratorAccess
-
+       5) Press "Create Group"
 
     b. Create the dev.user
        1) In AWS, go to Services -> IAM
@@ -172,13 +172,12 @@ Procedure
           NOTE:  Grab the console sign-in link:   https://524647912468.signin.aws.amazon.com/console
 
        7) Add this user to the "administrators group"
-          Return the user lists
+          Go to IAM -> Users
           Click on the "dev.user" link
           Click on "Groups"
           Press "Add user to groups"
           Check "administrators"
           Press "Add user to group(s)"
-
 
        8) Create access keys for the dev.user
           1) Click on "Users"
@@ -205,14 +204,7 @@ Procedure
     a. Login as dev.user
        https://524647912468.signin.aws.amazon.com/console
 
-    b. Verify that you have a VPC (created for you)
-       Select your VPC, Press Action -> Edit VPC Settings
-       -- Verify that "Enable DNS resolution" is checked
-       -- Verify that "Enable DNS hostnames"  is checked
-       -- Verify that you have subnets already created for you
-       -- Verify that you have an Internet gateway created for you
-
-    c. Create this role: eksClusterRole
+    b. Create this role: eksClusterRole
        1) Go to AWS IAM page
        2) Click on Roles
        3) Press "Create Role"
@@ -233,7 +225,7 @@ Procedure
           Check AmazonEKS_CNI_Policy
           Press "Add Permission"
 
-       8) In the "Roles/ eksClusterRole page, select Trust relationships
+       8) In the "Roles/ eksClusterRole page, select "Trust relationships" tab
           Verify that you see this:
 			  {
 				  "Version": "2012-10-17",
@@ -248,7 +240,7 @@ Procedure
 				  ]
 			  }
 
-    b. Create this role:  eksNodeRole
+    c. Create this role:  eksNodeRole
        1) Go to AWS IAM page
        2) Click on Roles
        3) Press "Create Role"
@@ -296,7 +288,7 @@ Procedure
 
 
 
-    c. Create this role:  AmazonEKS_VPC_CNI_Role
+    d. Create this role:  AmazonEKS_VPC_CNI_Role
        1) Go to AWS IAM page
        2) Click on Roles
        3) Press "Create Role"
@@ -335,35 +327,46 @@ Procedure
 
 
  4. Configure the Amazon VPC (created by default for the dev.user)
-    NOTE:  Default settings should be fine
-    NOTE:  We can change the subnets are this point
+     a. Verify that you have a VPC (created for you)
+       1) Go to VPCs
+       2) If you see no VPCs, then create a VPC
+          a) Press "Create VPC"
 
-    If you don't have any VPCs, follow these steps to manually create one
-    a. Login as the dev.user
-    b. Search Services for VPC
-    c. Press "Create VPC"
-	d. In the "Create VPC"
-	   Select "VPC and more"
+          b) In the "Create VPC" page
+             Resources to create:     Select "VPC and more"
 
-	   Name Tag: project       (default setting)
-	   IPv4 CIDR: 10.0.0/16    (default setting)
-	   IPv6 CIDR: No IPV6      (default setting)
-	   Tenancy:   Default      (default setting)
+             Name tag auto-generate:  project    (so that the vpc is called project-vpc)
 
-	   Number of Avail Zones: 3     (because you have to have a minimum of 2 for lots of stuff / 3 should be auto-generated for you)
+             IPv4 CIDE blocK:               Default of 10.0.0.0/16
+             Tenancy:                       Default
+             Number of Availability Zones:        3
 
-	   Number of public  subsets: 3
-	   Number of private subsets: 0    # Do not create any private subnets
+             Number of public subnets:            3
+             Number of private subnets:           0     # Do not create any private subnets
 
-	   VPC Endpoints:             None
+             NAT Gateways:                     None
+             VPC endpoints:                    None
 
-	   DNS Options:
-	      Enable DNS Hostnames    <checked>
-	      Enable DNS resolution   <checked>
+             Enable DNS Hostnames:             Checked
+             Enable DNS resolution:            Checked
 
-	   Press "Create VPC"
+             Press "Create VPC"
 
-    e. Make sure your subnets enable IP/hostname resolution
+             NOTE:  This will also create an Internet Gateway and attach to it to this newly-created VPC (wait a minute for it)
+
+
+       If you do see a default VPC verify then verify this:
+          Select your VPC, Press Action -> Edit VPC Settings
+          -- Verify that "Enable DNS resolution" is checked
+          -- Verify that "Enable DNS hostnames"  is checked
+          -- Verify that you have subnets already created for you
+          -- Verify that you have an Internet gateway created for you
+
+        NOTE:  Default settings should be fine
+        NOTE:  We can change the subnets are this point
+
+
+    b. Make sure your subnets enable IP/hostname resolution
        1) Click on VPC -> Subnets
        2) Edit your 1st public subnet -> Action -> Edit Subnet settings
           Check "Enable auto-assign public IPv4 address"
@@ -377,9 +380,29 @@ Procedure
           Check "Enable auto-assign public IPv4 address"
           Press "Save"
 
-    f. Make sure the subnets have the correct TAGS using these rules
+    c. Make sure the subnets have the correct TAGS using these rules
        NOTE:  This is needed so that auto-discovery works and the load balancer can get a public IP
+       1) Click on VPC -> Subnets
+       2) Click on the 1st public subnet
+       3) Press on the "Tags" tab
+       4) Press "Manage tags"
+       5) Press "Add new tag"
 
+          key:    kubernetes.io/role/elb
+          value:  1
+
+       6) Press "Add new tag"
+
+          key:    kubernetes.io/cluster/${your-cluster-name}
+          value:  shared
+
+          Press "Save"
+
+       Repeat this for all public subnets
+
+
+       Rules for the tags
+       ------------------
        Public Subnets should be resource tagged with:
           kubernetes.io/role/elb   1
 
