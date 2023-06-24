@@ -963,7 +963,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 12. Create our own certificate authority (for pki client certs)
     NOTE:  Install on the keycloak server to make life easier for you
     NOTE:  Install to the  /opt/shared-storage/root-ca    (so that if the instance is destroyed, then the root CA files are preserved)
-    a. Create certificate authority:
+    a. Create certificate authority (on the keycloak server)
        learnSSL / howToUseYourCertAuthority_InitialSetup_centos7.txt
 
     b. Create PKI Client cert #1 with john.smith.12345
@@ -1032,8 +1032,13 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
 
-15. Register the goDaddy domain name that corresponds to the external AWS keycloak and external AWS load balancer names
-    a. Use goDaddy to register ec2-160-1-14-243.us-gov-west-1.compute.amazonaws.com with a CNAME of keycloak.traderres.com
+15. Register the domain "keycloak.traderres.com" to refer to the public hostname of the AWS keycloak instance
+    a. Get the public hostname of the keycloak instance
+       1) AWS.com -> EC2 -> Instances
+       2) Click on the keycloak-instance
+       3) Get the public IPv4 DNS -- e.g., ec2-18-216-9-38.us-east-2.compute.amazonaws.com
+
+    b. Use goDaddy to register the above public IPv4 DNS ("ec2-18-216-9-38.us-east-2.compute.amazonaws.com") with a CNAME of keycloak.traderres.com
        1) Login to goDaddy.com
        2) Go to My Account -> My Products
        3) Click on the "Domain" link for traderres.com
@@ -1046,19 +1051,19 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
        7) Under DNS Records, press "Add New Record"
           Type:   CNAME
           Name:   keycloak
-          Value   ec2-160-1-14-243.us-gov-west-1.compute.amazonaws.com
+          Value   ec2-18-216-9-38.us-east-2.compute.amazonaws.com             (this is the public IPv$ DNS of the keycloak instance)
           TTL:    Default
 
-    b. Verify that keycloak.traderres.com is found in a DNS lookup
+    c. Verify that keycloak.traderres.com is found in a DNS lookup
        unix> nslookup keycloak.traderres.com
 
        Non-authoritative answer:
        keycloak.traderres.com	canonical name = ec2-160-1-14-243.us-gov-west-1.compute.amazonaws.com.
-       Name:	ec2-160-1-14-243.us-gov-west-1.compute.amazonaws.com
-       Address: 18.218.246.201
+       Name:	ec2-18-216-9-38.us-east-2.compute.amazonaws.com
+       Address: 18.216.9.38
 
 
-	c. Use godaddy to register the *SAME* name used by keyclock (ec2-160-1-14-243.us-gov-west-1.compute.amazonaws.com) with a CNAME of app.traderres.com
+	d. Use godaddy to register the *SAME* name used by keyclock (ec2-160-1-14-243.us-gov-west-1.compute.amazonaws.com) with a CNAME of app.traderres.com
 	   NOTE:  THIS IS TEMPORARY -- we will replace it with the real name later on
 	          WE ARE DOING THIS JUST TO GET THE APP'S SERVER CERT
 		1) Login to godaddy.com
@@ -1073,24 +1078,22 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 		7) Under DNS Records, press "Add New Record"
 		   Type:   CNAME
 		   Name:   app
-		   Value   ec2-160-1-14-243.us-gov-west-1.compute.amazonaws.com
+		   Value   ec2-18-216-9-38.us-east-2.compute.amazonaws.com              (yes, this is the public IPv$ DNS of the keycloak instance, too -- for now!!)
 		   TTL:    Default
 
 
     d. Verify that app.traderres.com is found in a DNS lookup
        unix> nslookup app.traderres.com
 
-		Non-authoritative answer:
-		app.traderres.com	canonical name = ae512df1bdc3646ac961142b36441bc8-225527351.us-east-2.elb.amazonaws.com.
-		Name:	ae512df1bdc3646ac961142b36441bc8-225527351.us-east-2.elb.amazonaws.com
-		Address: 3.133.203.102
-		Name:	ae512df1bdc3646ac961142b36441bc8-225527351.us-east-2.elb.amazonaws.com
-		Address: 3.131.215.226
+	   Non-authoritative answer:
+	   app.traderres.com	canonical name = ec2-18-216-9-38.us-east-2.compute.amazonaws.com
+       Name:	ec2-18-216-9-38.us-east-2.compute.amazonaws.com
+       Address: 18.216.9.38
 
 
 
 16. Create server certs with Let's Encrypt for the load-balancer (app.traderres.com) and keycloak (keycloak.traderres.com)
-    NOTE:  The public Let's Encrypt certs are required to make sure that it all works in Firefox
+    NOTE:  The "Let's Encrypt" servercerts are trusted by Firefox browsers
 
     a. Create API keys in godaddy.com
        WARNING:  When creating the API key, this is the ONLY moment you can view the "secret" and the "key"
@@ -1106,21 +1109,28 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
           Select production
           Press "Next"
        6) Copy the "key" and "secret" values
+          -- Double click on the key
+          -- Right-click on the key    -> Copy  -> Paste into a temporary file
 
+          -- Double click on the secret
+          -- Right-click on the secret -> Copy  -> Paste into a temporary file
+
+          NOTE:  You will **NOT** get another change to view the key and secret values -- so get it right now!!
 
 
     b. Set the "key" and "secret" values in the authenticate.sh script
        1) SSH to the kubernetes instance that will hold keycloak, certbot, and our root CA
           unix> ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.218.246.201
 
-       2) Download the authenticate.sh script by going here:
-          unix> mkdir /home/ec2-user/certbot
-          unix> cd    /home/ec2-user/certbot
+       2) Download the authenticate.sh script:
+          unix> sudo -s
+          unix> mkdir /opt/shared-storage/certbot
+          unix> cd    /opt/shared-storage/certbot
           unix> wget https://raw.githubusercontent.com/traderres/webClass/master/learnAWS/authenticate.sh
-          unix> chmod ugo+x authentication.sh         # Make sure this script is executable
+          unix> chmod ugo+x ./authenticate.sh        # Make sure this script is executable
 
        2) Modify the authenticate.sh
-          unix> vi  /home/ec2-user/certbot/authenticate.sh
+          unix> vi authenticate.sh
 
           Change these values
              GODADDY_API_KEY="go-daddy-api-key-is-here"
@@ -1130,30 +1140,30 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
     c. Install snapd on your linux box
        If you are installing snapd on Amazon Linux 2, follow these steps:
          ssh to amazon linux 2 box
-         unix> sudo yum-config-manager --add-repo https://people.canonical.com/~mvo/snapd/amazon-linux2/snapd-amzn2.repo
-         unix> sudo yum install snapd
+         unix> yum-config-manager --add-repo https://people.canonical.com/~mvo/snapd/amazon-linux2/snapd-amzn2.repo
+         unix> yum install snapd
 
        If you are installing on CentOS 8, follow these steps
-         unix> unix> sudo dnf install snapd
+         unix> dnf install snapd
 
 
 
     d. Enable the snapd.socket
-       unix> sudo systemctl enable --now snapd.socket
+       unix> systemctl enable --now snapd.socket
 
     e. Enable classic snap support
-       unix> sudo ln -s /var/lib/snapd/snap /snap
+       unix> ln -s /var/lib/snapd/snap /snap
 
     f. Install the Certbot
-       unix> sudo snap install --classic certbot
+       unix> snap install --classic certbot
        NOTE:  If you get the warning:  too early for operation, device not yet seeded or device model not acknowledged,
               then wait 60 seconds and try again
 
     g. Prepare the Certbot command
-       unix> sudo ln -s /snap/bin/certbot /usr/bin/certbot
+       unix> ln -s /snap/bin/certbot /usr/bin/certbot
 
     h. Verify that the snapd service is running
-       unix> sudo systemctl status snapd
+       unix> systemctl status snapd
 
        You should see this
 		● snapd.service - Snap Daemon
@@ -1167,7 +1177,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
     i. Use certbot to generate & download a valid "Let's Encrypt" server certificate for keycloak.traderres.com    [good for 90 days]
        NOTE:  this command uses the authenticate.sh script to verify that the dns entry is valid
-       unix> sudo certbot certonly --manual --preferred-challenges dns --manual-auth-hook /home/ec2-user/certbot/authenticate.sh --config-dir /home/ec2-user/certbot/ -d keycloak.traderres.com
+       unix> certbot certonly --manual --preferred-challenges dns --manual-auth-hook /opt/shared-storage/certbot/authenticate.sh --config-dir /opt/shared-storage/certbot/ -d keycloak.traderres.com
 
        NOTE:  First time, you will be prompted for your email address
        	    Enter email address (used for urgent renewal and security notices)
@@ -1190,8 +1200,8 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
        You should see this:
 		   Successfully received certificate.
-		   Certificate is saved at: /home/ec2-user/certbot/live/keycloak.traderres.com/fullchain.pem
-		   Key is saved at:         /home/ec2-user/certbot/live/keycloak.traderres.com/privkey.pem
+		   Certificate is saved at: /opt/shared-storage/certbot/live/keycloak.traderres.com/fullchain.pem
+		   Key is saved at:         /opt/shared-storage/certbot/live/keycloak.traderres.com/privkey.pem
 		   This certificate expires on 2023-06-19.
 		   These files will be updated when the certificate renews.
 		   Certbot has set up a scheduled task to automatically renew this certificate in the background.
@@ -1204,12 +1214,12 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
     k. Use certbot to generate & download a valid "Let's Encrypt" server certificate for app.traderres.com  [good for 90 days]
-       unix> sudo certbot certonly --manual --preferred-challenges dns --manual-auth-hook /home/ec2-user/certbot/authenticate.sh --config-dir /home/ec2-user/certbot/ -d app.traderres.com
+       unix> certbot certonly --manual --preferred-challenges dns --manual-auth-hook /opt/shared-storage/certbot/authenticate.sh --config-dir /opt/shared-storage/certbot/ -d app.traderres.com
 
        You should see this:
 			Successfully received certificate.
-			Certificate is saved at: /home/ec2-user/certbot/live/app.traderres.com/fullchain.pem
-			Key is saved at:         /home/ec2-user/certbot/live/app.traderres.com/privkey.pem
+			Certificate is saved at: /opt/shared-storage/certbot/live/app.traderres.com/fullchain.pem
+			Key is saved at:         /opt/shared-storage/certbot/live/app.traderres.com/privkey.pem
 			This certificate expires on 2023-06-19.
 			These files will be updated when the certificate renews.
 			Certbot has set up a scheduled task to automatically renew this certificate in the background.
@@ -1221,26 +1231,27 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
        c. Delete the TXT _acme-challenge.app record
 
 
+    m. Verify that your certbox/ directory looks like this:
+       unix> find /opt/shared-storage/certbot -type f -print
 
-       You should have these files in the /home/ec2-user/certbot/ directory
-			/home/ec2-user/certbot/authenticate.sh
-			/home/ec2-user/certbot/accounts/acme-v02.api.letsencrypt.org/directory/68b94de449e93940f9dee6a35ccf9d4d/private_key.json
-			/home/ec2-user/certbot/accounts/acme-v02.api.letsencrypt.org/directory/68b94de449e93940f9dee6a35ccf9d4d/meta.json
-			/home/ec2-user/certbot/accounts/acme-v02.api.letsencrypt.org/directory/68b94de449e93940f9dee6a35ccf9d4d/regr.json
-			/home/ec2-user/certbot/renewal/keycloak.traderres.com.conf
-			/home/ec2-user/certbot/renewal/app.traderres.com.conf
-			/home/ec2-user/certbot/archive/keycloak.traderres.com/cert1.pem
-			/home/ec2-user/certbot/archive/keycloak.traderres.com/privkey1.pem
-			/home/ec2-user/certbot/archive/keycloak.traderres.com/chain1.pem
-			/home/ec2-user/certbot/archive/keycloak.traderres.com/fullchain1.pem
-			/home/ec2-user/certbot/archive/app.traderres.com/cert1.pem
-			/home/ec2-user/certbot/archive/app.traderres.com/privkey1.pem
-			/home/ec2-user/certbot/archive/app.traderres.com/chain1.pem
-			/home/ec2-user/certbot/archive/app.traderres.com/fullchain1.pem
-			/home/ec2-user/certbot/live/README
-			/home/ec2-user/certbot/live/keycloak.traderres.com/README
-			/home/ec2-user/certbot/live/app.traderres.com/README
-
+       You should have these files in the /opt/shared-storage/certbot/ directory
+			/opt/shared-storage/certbot/authenticate.sh
+			/opt/shared-storage/certbot/accounts/acme-v02.api.letsencrypt.org/directory/4b4f5f634e7e0c48cf7f298860071d98/private_key.json
+			/opt/shared-storage/certbot/accounts/acme-v02.api.letsencrypt.org/directory/4b4f5f634e7e0c48cf7f298860071d98/meta.json
+			/opt/shared-storage/certbot/accounts/acme-v02.api.letsencrypt.org/directory/4b4f5f634e7e0c48cf7f298860071d98/regr.json
+			/opt/shared-storage/certbot/renewal/keycloak.traderres.com.conf
+			/opt/shared-storage/certbot/renewal/app.traderres.com.conf
+			/opt/shared-storage/certbot/archive/keycloak.traderres.com/cert1.pem
+			/opt/shared-storage/certbot/archive/keycloak.traderres.com/privkey1.pem
+			/opt/shared-storage/certbot/archive/keycloak.traderres.com/chain1.pem
+			/opt/shared-storage/certbot/archive/keycloak.traderres.com/fullchain1.pem
+			/opt/shared-storage/certbot/archive/app.traderres.com/cert1.pem
+			/opt/shared-storage/certbot/archive/app.traderres.com/privkey1.pem
+			/opt/shared-storage/certbot/archive/app.traderres.com/chain1.pem
+			/opt/shared-storage/certbot/archive/app.traderres.com/fullchain1.pem
+			/opt/shared-storage/certbot/live/README
+			/opt/shared-storage/certbot/live/keycloak.traderres.com/README
+			/opt/shared-storage/certbot/live/app.traderres.com/README
 
 
 
@@ -1254,13 +1265,14 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
     c. Verify Java JDK 11 is installed
        unix> java -version
-       openjdk version "11.0.18" 2023-01-17 LTS
-       OpenJDK Runtime Environment (Red_Hat-11.0.18.0.10-1.amzn2.0.1) (build 11.0.18+10-LTS)
-       OpenJDK 64-Bit Server VM (Red_Hat-11.0.18.0.10-1.amzn2.0.1) (build 11.0.18+10-LTS, mixed mode, sharing)
+	   openjdk version "11.0.19" 2023-04-18 LTS
+       OpenJDK Runtime Environment (Red_Hat-11.0.19.0.7-1.amzn2.0.1) (build 11.0.19+7-LTS)
+       OpenJDK 64-Bit Server VM (Red_Hat-11.0.19.0.7-1.amzn2.0.1) (build 11.0.19+7-LTS, mixed mode, sharing)
 
 
 
-18. Create & install the keycloak certificates on the running instance
+
+18. Create & install the keycloak certificates on the keycloak instance
     NOTE:  Keycloak Server has Java 11 JDK's keytool
            If your development env uses an older Java JDK, then build the cert with the older Java JDK
 
@@ -1269,22 +1281,22 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
         /opt/keycloak/keycloak.truststore.jks
 
         ASSUMPTIONS:
-           1) Your root-ca is on the keycloak server in /home/ec2-user/root-ca
+           1) Your root-ca is on the keycloak server in /opt/shared-storage/root-ca
 
-           2) Your certbot is on the keycloak server in /home/ec2-user/certbot
+           2) Your certbot is on the keycloak server in /opt/shared-storage/certbot
                  And, so you have server cert files here:
-                        /home/ec2-user/certbot/archive/app.traderres.com/
-                        /home/ec2-user/certbot/archivee/keycloak.traderres.com/
+                        /opt/shared-storage/certbot/archive/app.traderres.com/
+                        /opt/shared-storage/certbot/archive/keycloak.traderres.com/
 
                  If you are not running certbot on the keycloak server, then you need to upload files to
-                        /home/ec2-user/certbot/archive on the keycloak server
+                        /opt/shared-storage/certbot/archive on the keycloak server
 
                         Upload the files from my box to this keycloak server box
                         unix> cd ~/certbot
-       					unix> scp  -i ~/.ssh/node-for-kubunetes-instance.pem  -r /home/ec2-user/certbot/archive ec2-user@18.218.246.201:/tmp
+       					unix> scp  -i ~/.ssh/node-for-kubunetes-instance.pem  -r /opt/shared-storage/certbot/archive ec2-user@18.218.246.201:/tmp
 
 
-    a. Create the keycloak keystore
+    a. Create the keycloak keystore (keycloak.keystore.jks)
        1) SSH to the kubernetes instance that will hold keycloak, certbot, and our root CA
           unix> ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.218.246.201
 
@@ -1293,7 +1305,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
                         CN=keycloak.traderres.com
 
 		   unix> sudo -s
-           unix> cd /home/ec2-user/certbot/archive/keycloak.traderres.com
+           unix> cd /opt/shared-storage/certbot/archive/keycloak.traderres.com
            unix> cat fullchain1.pem | awk 'BEGIN {n=1};  split_after==1{n++;split_after=0} /-----END CERTIFICATE-----/ {split_after=1} {print > "fullchainkc" n ".pem"}'
                  -- Now, you have 3 new files:  fullchainkc1.pem, fullchainkc2.pem, fullchainkc3.pem
 
@@ -1320,19 +1332,24 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
            unix> keytool -import -alias "keycloak3"  -keystore /opt/keycloak/keycloak.keystore.jks  -file fullchainkc3.pem    -srcstorepass changeit  -deststorepass changeit
 
 
-    d. Generate the keycloak truststore
+    d. Generate the keycloak truststore (keycloak.truststore.jks)
        truststore needs to include the godaddy CA used for keycloak.traderres.com and intermediate CA
        truststore needs to include the self-signed CA used for PKI clients   (no intermediate)
-       unix> cd /home/ec2-user/certbot/archive/keycloak.traderres.com
+       unix> cd /opt/shared-storage/certbot/archive/keycloak.traderres.com
        unix> keytool -import -alias "keycloak1"  -keystore /opt/keycloak/keycloak.truststore.jks  -file fullchainkc1.pem  -storepass changeit
        unix> keytool -import -alias "keycloak2"  -keystore /opt/keycloak/keycloak.truststore.jks  -file fullchainkc2.pem -storepass changeit
        unix> keytool -import -alias "keycloak3"  -keystore /opt/keycloak/keycloak.truststore.jks  -file fullchainkc3.pem  -storepass changeit
-       unix> keytool -import -alias "our-ca"     -keystore /opt/keycloak/keycloak.truststore.jks  -file /home/ec2-user/root-ca/public/root.pem  -storepass changeit
+       unix> keytool -import -alias "our-ca"     -keystore /opt/keycloak/keycloak.truststore.jks  -file /opt/shared-storage/root-ca/public/root.pem  -storepass changeit
 
 
 	   At this point, we have these 2 files:
 	        /opt/keycloak/keycloak.keystore.jks
 	        /opt/keycloak/keycloak.truststore.jks
+
+    e. Copy the keycloak keystore & truststore files to /opt/shared-storage
+       unix> mkdir -p /opt/shared-storage/keycloak
+       unix> cp /opt/keycloak/keycloak.keystore.jks    /opt/shared-storage/keycloak
+       unix> cp /opt/keycloak/keycloak.truststore.jks  /opt/shared-storage/keycloak
 
 
 
@@ -1356,17 +1373,15 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
     d. **OPTIONAL** Upload any jar files with custom key cloak themes to /opt/keycloak/keycloak-21.0.1/providers
 
     e. Build keycloak (as root)
-       unix> sudo -s
        unix> cd /opt/keycloak/keycloak-21.0.1
        unix> bin/kc.sh build
-       unix> exit
 
-    f. Create a keycloak user
-       unix> sudo groupadd keycloak
-       unix> sudo useradd keycloak -c "Mr Keycloak" -g "keycloak" -m
+    f. Create a keycloak user and group
+       unix> groupadd keycloak
+       unix> useradd keycloak -c "Mr Keycloak" -g "keycloak" -m
 
     g. Change ownership so that the /opt/keycloak directory is owned by the keycloak user
-       unix> sudo chown keycloak:keycloak -R /opt/keycloak
+       unix> chown keycloak:keycloak -R /opt/keycloak
 
     h. Verify that keycloak runs from the command line
        NOTE:  Assumes that keycloak's default JRE is Java 11
@@ -1387,7 +1402,12 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
        unix> su - keycloak
        unix> /opt/keycloak/keycloak-21.0.1/bin/kc.sh start --http-enabled=false --https-port=8444 --https-key-store-file=/opt/keycloak/keycloak.keystore.jks --https-key-store-type=JKS --https-key-store-password=changeit --https-trust-store-file=/opt/keycloak/keycloak.truststore.jks --https-trust-store-type=JKS --https-trust-store-password=changeit --https-client-auth=request --log-level=INFO --hostname-strict-https=false --hostname-strict=false --hostname=keycloak.traderres.com
 
-       Verify it comes-up listening on port 0.0.0.0:8444
+       You should see this logging:
+			2023-06-24 17:50:13,620 INFO  [org.keycloak.services] (main) KC-SERVICES0050: Initializing master realm
+			2023-06-24 17:50:17,497 INFO  [io.quarkus] (main) Keycloak 21.0.1 on JVM (powered by Quarkus 2.13.7.Final) started in 18.572s. Listening on: https://0.0.0.0:8444
+			2023-06-24 17:50:17,497 INFO  [io.quarkus] (main) Profile prod activated.
+			2023-06-24 17:50:17,498 INFO  [io.quarkus] (main) Installed features: [agroal, cdi, hibernate-orm, jdbc-h2, jdbc-mariadb, jdbc-mssql, jdbc-mysql, jdbc-oracle, jdbc-postgresql, keycloak, logging-gelf, micrometer, narayana-jta, reactive-routes, resteasy, resteasy-jackson, smallrye-context-propagation, smallrye-health, vertx]
+
 
        Press Control-C to kill it
 
@@ -1395,7 +1415,8 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
     i. Create a keycloak service
-       unix> sudo vi /etc/systemd/system/keycloak.service
+       unix> sudo -s
+       unix> vi /etc/systemd/system/keycloak.service
 
 		###################################################################################
 		# Filename:  keycloak.service
@@ -1445,30 +1466,43 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 		[Install]
 		WantedBy=multi-user.target
 
-     j. Update Database options in the /etc/systemd/system/keycloak.service to match the keycloak database in AWS
-        a. Go into AWS -> RDS
-        b. Click on the keyclaok-database
-        c. In the "Connectivity & security" tab get the endpoint
-           -- It should look something like this:  keycloak-database.csbk2jnrc8ao.us-east-2.rds.amazonaws.com
 
-        d. Set that endpoint in
-        unix> sudo vi /etc/systemd/system/keycloak.service
-
-			Environment=KC_DB_URL=jdbc:postgresql://keycloak-database.csbk2jnrc8ao.us-east-2.rds.amazonaws.com/keycloak_db
+     j. Remove the leading spaces & tabs from this service script
+        unix> sed -i -e 's/^[ \t]*//g' /etc/systemd/system/keycloak.service
 
 
-     k. Reload systemctl daemon
-        unix> sudo systemctl daemon-reload
+     k. Update Database options in the /etc/systemd/system/keycloak.service to match the keycloak database in AWS
+        a. Get the keycloak database hostname
+           1) Go into AWS -> RDS -> Databases
+           2) Click on the keyclaok-database
+           3) In the "Connectivity & security" tab get the endpoint
+              -- It should look something like this:  keycloak-database.csbk2jnrc8ao.us-east-2.rds.amazonaws.com
 
-     l. Start the service
-        unix> sudo systemctl start keycloak
+        b. Set the keycloak KC_DB_URL environment value in /etc/systemd/system/keycloak.service
+           unix> vi /etc/systemd/system/keycloak.service
 
-     m. Look at the service log
-        unix> sudo journalctl -fu keycloak
+			Environment=KC_DB_URL=jdbc:postgresql://KEYCLOAK_DATABASE_PUBLIC_ENDPOINT/keycloak_db
 
-     n. Verify that you can connect to keycloak
+            *OR*
+
+            Environment=KC_DB_URL=jdbc:postgresql://keycloak-database.csbk2jnrc8ao.us-east-2.rds.amazonaws.com/keycloak_db
+
+
+
+     l. Reload systemctl daemon
+        unix> systemctl daemon-reload
+
+     m. Start the service
+        unix> systemctl start keycloak
+
+     n. Look at the service log
+        unix> journalctl -fu keycloak
+
+     o. Verify that you can connect to keycloak
         Open a browser
         Connect to https://keycloak.traderres.com:8444/
+        -- Provide a pki client cert that you created earlier
+        -- The main page should say, "You need local access to create the initial admin user."
 
 
 20. Configure keycloak's admin account
@@ -1476,10 +1510,11 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
        1) Stop keycloak
           SSH to the kubernetes instance that will hold keycloak, certbot, and our root CA
           unix> ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.218.246.201
-          unix> sudo systemctl stop keycloak
+          unix> sudo -s
+          unix> systemctl stop keycloak
 
        2) Set the admin username and password with ENV variables
-          unix> sudo vi /etc/systemd/system/keycloak.service
+          unix> vi /etc/systemd/system/keycloak.service
 
           Add these 2 environment variables
 
@@ -1487,7 +1522,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
           		Environment=KEYCLOAK_ADMIN_PASSWORD=secret12
 
 
-            When finished, the systemd file should look like this:
+            When finished, the keycloak.service file should look like this:
 			###################################################################################
 			# Filename:  keycloak.service
 			#
@@ -1542,17 +1577,24 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
        3) Update the service
-          unix> sudo systemctl daemon-reload
+          unix> systemctl daemon-reload
 
        4) Startup the service
-          unix> sudo systemctl start keycloak
+          unix> systemctl start keycloak
 
-       5) Use a browser to connect to keycloak
+       5) Look at the keycloak log
+          unix> journalctl -fu keycloak
+
+       6) Use a browser to connect to keycloak
           Connect to https://keycloak.traderres.com:8444/
           Press "Admin Console"
           Enter admin username:   keycloak
           Enter admin password:   secret12
           -- Verify that you can get in
+
+       7) **OPTIONAL** Remove the values from the systemd service file:
+           			Environment=KEYCLOAK_ADMIN=keycloak
+           			Environment=KEYCLOAK_ADMIN_PASSWORD=secret12
 
 
     b. Configure the keycloak settings
@@ -1677,19 +1719,19 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
            The webapp needs a special custom.cacerts file (that has the load-balancer chain and self-signed CA)
 
        ASSUMPTIONS:
-           1) Your root-ca is on the keycloak server in /home/ec2-user/root-ca
+           1) Your root-ca is on the keycloak server in /opt/shared-storage/root-ca
 
-           2) Your certbot is on the keycloak server in /home/ec2-user/certbot
+           2) Your certbot is on the keycloak server in /opt/shared-storage/certbot
                  And, so you have server cert files here:
-                        /home/ec2-user/certbot/archive/app.traderres.com/
-                        /home/ec2-user/certbot/archivee/keycloak.traderres.com/
+                        /opt/shared-storage/certbot/archive/app.traderres.com/
+                        /opt/shared-storage/certbot/archivee/keycloak.traderres.com/
 
                  If you are not running certbot on the keycloak server, then you need to upload files to
-                        /home/ec2-user/certbot/archive on the keycloak server
+                        /opt/shared-storage/certbot/archive on the keycloak server
 
                         Upload the files from my box to this keycloak server box
                         unix> cd ~/certbot
-       					unix> scp  -i ~/.ssh/node-for-kubunetes-instance.pem  -r /home/ec2-user/certbot/archive ec2-user@18.218.246.201:/tmp
+       					unix> scp  -i ~/.ssh/node-for-kubunetes-instance.pem  -r /opt/shared-storage/certbot/archive ec2-user@18.218.246.201:/tmp
 
 
     a. Generate this file:  webapp.keystore.jks
@@ -1700,7 +1742,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
           unix> sudo -s
 
        2) Examine the 3 files that makeup the full chain of the fullchain1.pem / Split it up into 3 files / Find the server cert
-           unix> cd /home/ec2-user/certbot/archive/app.traderres.com
+           unix> cd /opt/shared-storage/certbot/archive/app.traderres.com
            unix> cat fullchain1.pem | awk 'BEGIN {n=1};  split_after==1{n++;split_after=0} /-----END CERTIFICATE-----/ {split_after=1} {print > "fullchain_part" n ".pem"}'
 		   -- Now, we have 3 files called called fullchain_part1.pem, fullchain_part2.pem, fullchain_part3.pem
 
@@ -1725,14 +1767,14 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
     b. Generate this file:  webapp.truststore.jks
        1) Import each file into the new webapp.truststore.jks file
-          unix> cd /home/ec2-user/certbot/archive/app.traderres.com
+          unix> cd /opt/shared-storage/certbot/archive/app.traderres.com
           unix> rm -f webapp.truststore.jks
           unix> keytool -import -alias "new-lb1"  -keystore webapp.truststore.jks -file fullchain_part1.pem  -storepass changeit
           unix> keytool -import -alias "new-lb2"  -keystore webapp.truststore.jks -file fullchain_part2.pem  -storepass changeit
           unix> keytool -import -alias "new-lb3"  -keystore webapp.truststore.jks -file fullchain_part3.pem  -storepass changeit
 
         2) Import the self-signed root CA pem file into webapp.truststore.jks
-           unix> keytool -import -alias "our-ca"  -keystore webapp.truststore.jks -file /home/ec2-user/root-ca/public/root.pem  -storepass changeit
+           unix> keytool -import -alias "our-ca"  -keystore webapp.truststore.jks -file /opt/shared-storage/root-ca/public/root.pem  -storepass changeit
 
 
     c. Generate this file:  custom.cacerts
@@ -1742,7 +1784,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
           unix> find /usr/lib/jvm -iname cacerts -print
 
        2) Copy that file to custom.cacerts
-          unix> cd /home/ec2-user/certbot/archive/app.traderres.com
+          unix> cd /opt/shared-storage/certbot/archive/app.traderres.com
           unix> sudo cp /usr/lib/jvm/java-11-openjdk-11.0.19.0.7-1.amzn2.0.1.x86_64/lib/security/cacerts  custom.cacerts   # Get this path from previous step
           unix> chmod ugo+rw custom.cacerts
 
@@ -1750,7 +1792,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
           unix> keytool -import -alias "new-lb1"  -keystore  custom.cacerts  -file fullchain_part1.pem  -storepass changeit
           unix> keytool -import -alias "new-lb2"  -keystore  custom.cacerts  -file fullchain_part2.pem  -storepass changeit
           unix> keytool -import -alias "new-lb3"  -keystore  custom.cacerts  -file fullchain_part3.pem  -storepass changeit
-          unix> keytool -import -alias "our-ca"   -keystore  custom.cacerts  -file /home/ec2-user/root-ca/public/root.pem   -storepass changeit
+          unix> keytool -import -alias "our-ca"   -keystore  custom.cacerts  -file /opt/shared-storage/root-ca/public/root.pem   -storepass changeit
 
 
 
@@ -2174,8 +2216,8 @@ spec:
     d. Use the kubectl cp command to copy the file from your local filesystem to the pod's /shared/certs directory
        1) Move the files to /tmp so we can download them to our local box
           ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@52.15.227.18
-          unix> sudo cp /home/ec2-user/certbot/archive/app.traderres.com/*.jks /tmp
-          unix> sudo cp /home/ec2-user/certbot/archive/app.traderres.com/custom.cacerts /tmp
+          unix> sudo cp /opt/shared-storage/certbot/archive/app.traderres.com/*.jks /tmp
+          unix> sudo cp /opt/shared-storage/certbot/archive/app.traderres.com/custom.cacerts /tmp
           unix> sudo chmod ugo+r /tmp/*.jks
           unix> sudo chmod ugo+r /tmp/custom.cacerts
 
