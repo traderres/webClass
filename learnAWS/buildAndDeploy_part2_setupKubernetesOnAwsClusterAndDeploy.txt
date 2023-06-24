@@ -126,8 +126,8 @@ General Approach
 22. Get the environment values for the kubernetes deployment yaml files
 23. Setup PersistentVolumes so you can share certs among the pods
 24. Upload the shared certs into the /shared/certs persistent volume
-25. Use Kubernetes to deploy the webapp
-26. Verify it works
+25. Use Kubernetes to deploy the sync service
+26. Use Kubernetes to deploy the webapp
 
 
 
@@ -1894,6 +1894,9 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 			]
 		}
 
+	  NOTE:  If you see multiple OpenIdConnectProviders, then go into AWS.com -> IAM -> Identify Providers -> Delete the old ones
+
+
       So, the OID String would be this "oidc.eks.us-gov-west-1.amazonaws.com/id/DA006D8E0177E850A3A0489D305D960B"
 
 
@@ -2221,10 +2224,11 @@ spec:
     d. Use the kubectl cp command to copy the file from your local filesystem to the pod's /shared/certs directory
        1) Move the files to /tmp so we can download them to our local box
           ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@52.15.227.18
-          unix> sudo cp /opt/shared-storage/certbot/archive/app.traderres.com/*.jks /tmp
-          unix> sudo cp /opt/shared-storage/certbot/archive/app.traderres.com/custom.cacerts /tmp
-          unix> sudo chmod ugo+r /tmp/*.jks
-          unix> sudo chmod ugo+r /tmp/custom.cacerts
+          unix> sudo -s
+          unix> cp /opt/shared-storage/certbot/archive/app.traderres.com/*.jks /tmp
+          unix> cp /opt/shared-storage/certbot/archive/app.traderres.com/custom.cacerts /tmp
+          unix> chmod ugo+r /tmp/*.jks
+          unix> chmod ugo+r /tmp/custom.cacerts
 
        2) Download the custom.cacerts, webapp.keystore.jks, webapp.truststore.jks from the keycloak/root-ca/certbot instance to your box
           unix> scp -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@52.15.227.187:/tmp/*.jks .
@@ -2246,16 +2250,140 @@ spec:
        unix> kubectl delete pod app2
 
 
-25. Use Kubernetes to deploy the webapp
+25. Use Kubernetes to deploy the sync-service
+    a. Delete existing deployment
+       unix> kubectl delete deployment nccs-sync-service-deployment
+
+    b. Create the deployment script by adding the "env" section with Java settings
+       unix> vi nccs-sync-service-deployment-v2.3.0.yaml
+
+######################################################################################
+# Filename:  nccs-sync-service-deployment-v2.3.0.yaml
+#
+# Purpose:   Tell kubernetes how to deploy the NCCS Sync Service
+#
+# Usage
+#  1. Follow the steps to setup AWS credentials (so you can build & deploy)
+#     https://github.com/traderres/webClass/blob/master/learnAWS/howToBuildAndPushToAmazonECR.txt
+#
+#  2. Build and push the containers to the Amazon ECR (image repository)
+#     unix> mvn -Djib.to.auth.username=AWS -Djib.to.auth.password=$PASSWORD clean package -Pprod -PbuildImageAndPush
+#
+#  3. Edit the environment variables in this yaml file to match reality -- e.g., set the POSTGRES_HOSTNAME
+#     a. Also edit the image name (in this yaml file) to make sure it matches what was pushed to the Amazon ECR
+#
+#  4. Tell kubernetes to deploy the sync service
+#     unix> kubectl delete deployment nccs-sync-service-deployment
+#     unix> kubectl apply -f nccs-sync-service-deployment-v2.2.3.yaml
+#
+#  5. Get the name of the running pod  (it changes every time)
+#     unix> kubectl get pods
+#
+#     NAME                                            READY   STATUS         RESTARTS   AGE
+#     nccs-sync-service-deployment-69c9fd9db6-6wkcf   1/1     Running        0          19s
+#
+#  6. Look at the pod log to verify that the sync-service is running
+#     uniX> kubectl logs -f nccs-sync-service-deployment-69c9fd9db6-6wkcf
+#
+# Notes:
+#  A) If you want to erase the database, then add this to JAVA_TOOL_OPTIONS:
+#        -Dapp.datasource.flyway-clean-on-startup=TRUE
+######################################################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nccs-sync-service-deployment
+
+spec:
+  selector:
+    matchLabels:
+      app: nccs-sync-service
+  replicas: 1
+  strategy:
+    type:  Recreate
+  template:
+    metadata:
+      name: nccs-sync-service
+      labels:
+         app: nccs-sync-service
+    spec:
+
+      volumes:
+      - name: app-certs-pv
+        persistentVolumeClaim:
+          claimName: app-certs-pvc
+
+      containers:
+      - image: 524647912468.dkr.ecr.us-east-2.amazonaws.com/nccs:sync-service-2.3.0-SNAPSHOT
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: app-certs-pv
+          mountPath: /shared/certs
+
+        name: nccs-sync-service
+
+        env:
+           - name: POSTGRES_HOSTNAME
+             value: "app-database.csbk2jnrc8ao.us-east-2.rds.amazonaws.com"
+           - name: POSTGRES_DB_USERNAME
+             value: "app_user"
+           - name: POSTGRES_DB_PASSWORD
+             value: "secret12"
+           - name: POSTGRES_DB_NAME
+             value: "app_db"
+           - name: POSTGRES_SCHEMA_NAME
+             value: "app_db"
+           - name: POSTGRES_POOL_SIZE
+             value: "2"
+           - name: ES_URL
+             value: "https://vpc-app-opensearch-ep5v5i6jlal7ka3qraya46fpsi.us-east-2.es.amazonaws.com:443"
+           - name: ES_USERNAME
+             value: "es_user"
+           - name: ES_PASSWORD
+             value: "Secret1@"
+           - name: INCOMING_KEYSTORE_FILEPATH
+             value: "/shared/certs/webapp.keystore.jks"
+           - name: INCOMING_KEYSTORE_PASSWORD
+             value: "changeit"
+           - name: INCOMING_TRUSTSTORE_FILEPATH
+             value: "/shared/certs/webapp.truststore.jks"
+           - name: INCOMING_TRUSTSTORE_PASSWORD
+             value: "changeit"
+           - name: JAVA_TOOL_OPTIONS
+             value: -Xms1024m -Xmx1024m -Demail.mode=off  -Djavax.net.ssl.trustStore=/shared/certs/custom.cacerts -Djavax.net.ssl.trustStorePassword=changeit
+
+
+
+	 c. Verify that there are no special chars in the file by looking for them
+		unix> cat -v -e nccs-sync-service-deployment-v2.3.0.yaml
+
+     d. Update the image path so that it matches the image name in the Amazon ECR
+
+	 e. We create the deployment
+		unix> kubectl apply -f nnccs-sync-service-deployment-v2.3.0.yaml
+
+	 f. Get a listing of the pods
+		unix> kubectl get pods
+
+		NAME                                           READY   STATUS    RESTARTS   AGE
+		nccs-sync-service-deployment-f4555b587-rclll   1/1     Running   0          2m50s
+
+     g. Look at the log
+        unix> kubectl logs -f nccs-sync-service-deployment-f4555b587-rclll
+
+
+
+
+26. Use Kubernetes to deploy the webapp
 
     a. Delete existing deployment
        unix> kubectl delete deployment nccs-deployment
 
     b. Create the deployment script by adding the "env" section with Java settings
-       unix> vi nccs-deployment-v1.yaml
+       unix> vi nccs-deployment-v2.3.0.yaml
 
 #############################################################################
-#  nccs-deployment-v1.yaml
+#  nccs-deployment-v2.3.0.yaml
 #
 # Purpose:   Tell kubernetes how to deploy the NCCS web app(s)
 #
@@ -2284,7 +2412,7 @@ spec:
 #
 # Notes:
 #  A) The running pods do not have DNS so we need hostAliases to create an entry in /etc/hosts
-#     that can resolve the keycloak.rbr-tech.com to 160.1.14.243
+#     that can resolve the keycloak.traderres.com to 18.216.9.38
 #     Use nslookup keycloak.rbr-tech.com to verify the IP
 #  B) If you want 5 copies of the webapp, then change replicas to 5 (in this file)
 #############################################################################
@@ -2292,24 +2420,26 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: nccs-deployment
+  labels:
+    app: nccs-deployment
 
 spec:
   selector:
     matchLabels:
-      app: nccs-backend
+      app: nccs-deployment
   replicas: 1
   strategy:
     type:  Recreate
   template:
     metadata:
-      name: nccs-backend
+      name: nccs-deployment
       labels:
-         app: nccs-backend
+         app: nccs-deployment
     spec:
       hostAliases:
-      - ip: "160.1.14.243"
+      - ip: "18.216.9.38"
         hostnames:
-          - "keycloak.rbr-tech.com"
+          - "keycloak.traderres.com"
 
       volumes:
       - name: app-certs-pv
@@ -2317,45 +2447,51 @@ spec:
           claimName: app-certs-pvc
 
       containers:
-      - image: 527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/nccs:backend-2.2.3-SNAPSHOT
+      - image: 524647912468.dkr.ecr.us-east-2.amazonaws.com/nccs:backend-2.3.0-SNAPSHOT
         imagePullPolicy: Always
         volumeMounts:
         - name: app-certs-pv
           mountPath: /shared/certs
 
-        name: nccs-backend
+        name: nccs-deployment
+
+        ports:
+            - containerPort: 80
+              name: health-check
+            - containerPort: 443
+              name: web-app
 
         env:
            - name: POSTGRES_HOSTNAME
-             value: "nccs.cgl3wyvjvqtu.us-gov-west-1.rds.amazonaws.com"
+             value: "app-database.csbk2jnrc8ao.us-east-2.rds.amazonaws.com"
            - name: POSTGRES_DB_USERNAME
-             value: "nccs_user"
+             value: "app_user"
            - name: POSTGRES_DB_PASSWORD
              value: "secret12"
            - name: POSTGRES_DB_NAME
-             value: "nccs_db"
+             value: "app_db"
            - name: POSTGRES_SCHEMA_NAME
-             value: "nccs_db"
+             value: "app_db"
            - name: POSTGRES_POOL_SIZE
-             value: "50"
+             value: "5"
            - name: ES_URL
-             value: "https://vpc-nccs-wxin7j6ech5f4i6bvhptdwldcu.us-gov-west-1.es.amazonaws.com:443"
+             value: "https://vpc-app-opensearch-ep5v5i6jlal7ka3qraya46fpsi.us-east-2.es.amazonaws.com:443"
            - name: ES_USERNAME
-             value: "nccs_user"
+             value: "es_user"
            - name: ES_PASSWORD
              value: "Secret1@"
            - name: KEYCLOAK_CLIENT_ID
              value: "nccs-webapp"
            - name: KEYCLOAK_CLIENT_SECRET
-             value: "gyG7oTbHbenKecReYOJIg4F2fTaUtGDp"
+             value: "0kps0Tn29TWhQhoEy7SwhvWEYNfYb7cU"
            - name: KEYCLOAK_ISSUER_URI
-             value: "https://keycloak.rbr-tech.com:8444/realms/MyRealm"
+             value: "https://keycloak.traderres.com:8444/realms/MyRealm"
            - name: INCOMING_KEYSTORE_FILEPATH
-             value: "/shared/certs/nccs.webapp.keystore.jks"
+             value: "/shared/certs/webapp.keystore.jks"
            - name: INCOMING_KEYSTORE_PASSWORD
              value: "changeit"
            - name: INCOMING_TRUSTSTORE_FILEPATH
-             value: "/shared/certs/nccs.webapp.truststore.jks"
+             value: "/shared/certs/webapp.truststore.jks"
            - name: INCOMING_TRUSTSTORE_PASSWORD
              value: "changeit"
            - name: JAVA_TOOL_OPTIONS
@@ -2365,12 +2501,12 @@ spec:
 
 
 	 c. Verify that there are no special chars in the file by looking for them
-		unix> cat -v -e nccs-deployment-v1.yaml
+		unix> cat -v -e nccs-deployment-v2.3.0.yaml
 
      d. Update the image path so that it matches the image name in the Amazon ECR
 
 	 e. We create the deployment
-		unix> kubectl apply -f nccs-deployment-v1.yaml
+		unix> kubectl apply -f nccs-deployment-v2.3.0.yaml
 
 	 f. Get a listing of the pods
 		unix> kubectl get pods
@@ -2378,58 +2514,16 @@ spec:
 		NAME                               READY   STATUS    RESTARTS   AGE
 		nccs-deployment-c469974cb-tj4kk   1/1     Running   0          10s
 
-
-
-       STOP HERE AND go to part 3 to setup the load balancer
-       See buildAndDeploy_part3_setupLoadBalancer.txt
-
-
-
-	 g. Have AWS create and expose the load balancer service
-		unix> kubectl expose deployment nccs-deployment --type=LoadBalancer --name=sf328-loadbalancer --port=443
-		NOTE:  This create a new external hostname and IP address
-
-
-	 h. Modify the created load balancer service by setting
-		unix> kubectl edit service sf328-loadbalancer
-
-		   targetPort=8443
-		   sessionAffinity=ClientIP
-
-
-	 i. Get the external hostname for this load balancer service
-		unix> kubectl get services
-
-		NAME                 TYPE           CLUSTER-IP     EXTERNAL-IP                                                               PORT(S)         AGE
-		kubernetes           ClusterIP      10.100.0.1     <none>                                                                    443/TCP         27h
-		sf328-loadbalancer   LoadBalancer   10.100.66.32   a913ec0732a4d4726a6d186c8233e52f-1165139498.us-east-2.elb.amazonaws.com   443:30493/TCP   5s
+    g. Look at the logs
+       unix> kubectl logs -f nccs-deployment-c469974cb-tj4kk
 
 
 
-	 j. Update godaddy's cname record for app.traderres.com so that it corresponds to the new external hostname
-		a. Go to https://dcc.godaddy.com/control/portfolio/traderres.com/settings
-        b. Click on the DNS tab
-		c. Edit the old CNAME record for "app"    (this corresponds to app.traderres.com)
-		   Type:  CNAME
-		   Name:  app
-		   Value: a913ec0732a4d4726a6d186c8233e52f-1165139498.us-east-2.elb.amazonaws.com
-
-		d. Press "Save"
+STOP HERE AND go to part 4 to setup the load balancer
+See buildAndDeploy_part4a_exposeWebApps.classicLoadBalancer.txt for setting-up the classic load balancer
 
 
 
-	 k. Restart the keycloak server
-		SSH to the kubernetes instance that will hold keycloak, certbot, and our root CA
-        unix> ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.218.246.201
-		unix> sudo systemctl restart keycloak
-
-
-
-
-26. Verify it works
-    a. Create a pki client cert
-    b. Import it into a browser
-    c. Attempt to connect to https://app.traderres.som/sf
 
 
 
