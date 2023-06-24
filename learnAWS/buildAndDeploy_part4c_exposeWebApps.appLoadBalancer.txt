@@ -329,23 +329,23 @@ Part 3:  Configure the Ingress to use the AWS Load Balancer Controller
     c. In "Input certificate details"
 
        Certificate Body Text box:
-          ssh to the certbox/keyclaok server
+          ssh to the keyclaok-instance server
           unix> sudo -s
-          unix> cat /home/ec2-user/certbot/archive/app.traderres.com/fullchain_part1.pem   # holds server cert
+          unix> cat /opt/shared-storage/certbot/archive/app.traderres.com/fullchain_part1.pem   # holds server cert
           Copy the BEGIN CERT...END CERT and paste into the "Certificate Body"
 
 
       Certificate Private Key Text box:
           ssh to the certbox/keyclaok server
           unix> sudo -s
-          unix> cat /home/ec2-user/certbot/archive/app.traderres.com/privkey1.pem
+          unix> cat /opt/shared-storage/certbot/archive/app.traderres.com/privkey1.pem
           Copy the BEGIN PRIVATE KEY...END PRIVATE KEY and paste into the "Certificate Private key"
 
 
        Certificate Chain:
            ssh to the certbox/keyclaok server
            unix> sudo -s
-           unix> cat /home/ec2-user/certbot/archive/app.traderres.com/fullchain1.pem
+           unix> cat /opt/shared-storage/certbot/archive/app.traderres.com/fullchain1.pem
            Copy all 3  BEGIN CERT...END CERT and paste into the "Certificate Chain"
 
        Press "Next"
@@ -370,9 +370,10 @@ Part 3:  Configure the Ingress to use the AWS Load Balancer Controller
     d. Press the Copy button next to the ARN -- e.g., arn:aws:acm:us-east-2:524647912468:certificate/18c98c70-f0a2-4dfb-b434-8317c6894367
 
 
+
  3. Verify that the nccs-deployment looks something like this:
-######################################################################################
-# Filename:  nccs-deployment-v2.2.3.yaml
+#############################################################################
+#  nccs-deployment-v2.3.0.yaml
 #
 # Purpose:   Tell kubernetes how to deploy the NCCS web app(s)
 #
@@ -400,12 +401,11 @@ Part 3:  Configure the Ingress to use the AWS Load Balancer Controller
 #     uniX> kubectl logs -f nccs-deployment-69c9fd9db6-6wkcf
 #
 # Notes:
-#  A) The running pods do not have DNS so we use hostAliases to create an entry in /etc/hosts
-#     that can resolve the keycloak.traderres.com to 52.15.227.187
-#     Use nslookup keycloak.traderres.com to verify the IP
-#
+#  A) The running pods do not have DNS so we need hostAliases to create an entry in /etc/hosts
+#     that can resolve the keycloak.traderres.com to 18.216.9.38
+#     Use nslookup keycloak.rbr-tech.com to verify the IP
 #  B) If you want 5 copies of the webapp, then change replicas to 5 (in this file)
-######################################################################################
+#############################################################################
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -417,19 +417,17 @@ spec:
   selector:
     matchLabels:
       app: nccs-deployment
-
   replicas: 1
   strategy:
     type:  Recreate
   template:
     metadata:
-
+      name: nccs-deployment
       labels:
          app: nccs-deployment
-
     spec:
       hostAliases:
-      - ip: "52.15.227.187"
+      - ip: "18.216.9.38"
         hostnames:
           - "keycloak.traderres.com"
 
@@ -446,6 +444,7 @@ spec:
           mountPath: /shared/certs
 
         name: nccs-deployment
+
         ports:
             - containerPort: 80
               name: health-check
@@ -474,7 +473,7 @@ spec:
            - name: KEYCLOAK_CLIENT_ID
              value: "nccs-webapp"
            - name: KEYCLOAK_CLIENT_SECRET
-             value: "wnAJ5rM1BQs9YKSWLrtYL0z0YgS6LxDG"
+             value: "0kps0Tn29TWhQhoEy7SwhvWEYNfYb7cU"
            - name: KEYCLOAK_ISSUER_URI
              value: "https://keycloak.traderres.com:8444/realms/MyRealm"
            - name: INCOMING_KEYSTORE_FILEPATH
@@ -492,10 +491,7 @@ spec:
 
 
 
-
-
-
- 4. Create teh app-load-balancer.yaml file
+ 4. Create the app-load-balancer.yaml file
     unix> vi  app-load-balancer.yaml
 
 ######################################################################################
@@ -592,7 +588,7 @@ metadata:
     alb.ingress.kubernetes.io/healthy-threshold-count: '2'
     alb.ingress.kubernetes.io/unhealthy-threshold-count: '2'
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443},{"HTTP":80}]'
-    alb.ingress.kubernetes.io/certificate-arn: 'arn:aws:acm:us-east-2:524647912468:certificate/18c98c70-f0a2-4dfb-b434-8317c6894367'
+    alb.ingress.kubernetes.io/certificate-arn: 'MY_SERVER_CERT_CERTIFICATE_ARN'
     alb.ingress.kubernetes.io/subnets: subnet-05a3ee7985015400a, subnet-03e978e7176badd78, subnet-0e54fd8bbc66a8e3c    # replace with 3 public subnet ids
 spec:
   ingressClassName: alb
@@ -617,26 +613,31 @@ spec:
 
 
 
+ 5. Change the MY_SERVER_CERT_CERTIFICATE_ARN with the certificate ARN from step 2
 
-
- 4. Apply the script (to create the load balancer and targets)
+ 6. Apply the script (to create the load balancer and targets)
     unix> kubectl apply -f app-load-balancer.yaml
 
- 5. Wait for the load balancer to show status of Active in AWS -> EC2 -> Load Balancer
+ 6. Verify that the ingress
+    unix> kubectl get ingress
+    NAME          CLASS   HOSTS               ADDRESS                                                                 PORTS   AGE
+    app-ingress   alb     app.traderres.com   k8s-default-appingre-b55bbaaa0f-106476674.us-east-2.elb.amazonaws.com   80      4s
 
- 6. Go into goDaddy.com and register app.traderres.com with the public hostname of the Load Balancer
+ 7. Wait for the load balancer to show status of Active in AWS -> EC2 -> Load Balancer
+
+ 8. Go into goDaddy.com and register app.traderres.com with the public hostname of the Load Balancer
 	a. Update godaddy's cname record for app.traderres.com so that it corresponds to the new external hostname
 		a. Go to https://dcc.godaddy.com/control/portfolio/traderres.com/settings
         b. Click on the DNS tab
 		c. Edit the old CNAME record for "app"    (this corresponds to app.traderres.com)
 		   Type:  CNAME
 		   Name:  app
-		   Value: k8s-default-appingre-b55bbaaa0f-1406394226.us-east-2.elb.amazonaws.com
+		   Value: k8s-default-appingre-b55bbaaa0f-106476674.us-east-2.elb.amazonaws.com
 
 		d. Press "Save"
 
 
- 7. Wait for goDaddy to show that app.traderres.com points to the new load-balancer public hostname
+ 9. Wait for goDaddy to show that app.traderres.com points to the new load-balancer public hostname
     Do a lookup to get the current hostname for app.traderres.com
     unix> nslookup app.traderres.com
 
@@ -644,7 +645,6 @@ spec:
     unix> while [ 1 ]; do clear; date; nslookup app.traderres.com; sleep 3; done
 
 
- 8. Attempt to connect to https://app.traderres.com/nccs
 
 
 
