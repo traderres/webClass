@@ -1784,8 +1784,9 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
           unix> find /usr/lib/jvm -iname cacerts -print
 
        2) Copy that file to custom.cacerts
+          unix> sudo -s
           unix> cd /opt/shared-storage/certbot/archive/app.traderres.com
-          unix> sudo cp /usr/lib/jvm/java-11-openjdk-11.0.19.0.7-1.amzn2.0.1.x86_64/lib/security/cacerts  custom.cacerts   # Get this path from previous step
+          unix> cp /usr/lib/jvm/java-11-openjdk-11.0.19.0.7-1.amzn2.0.1.x86_64/lib/security/cacerts  custom.cacerts   # Get this path from previous step
           unix> chmod ugo+rw custom.cacerts
 
        3) Import the certs into custom.cacerts
@@ -1797,11 +1798,11 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
 22.  Get the environment values for the kubernetes deployment yaml files
-     A) Fill-in the POSTGRES_HOSTNAME   with the name from aws.com -> RDA -> Databases -> app-database -> Endpoint & port
-     B) Fill-in the ES_URL              with the name from aws.com -> OpenSearch -> Domains -> app-opensearch -> domain endpoint (VPC)
-     C) Fill-in the KEYCLOAK_CLIENT_ID  with the name from keycloak webapp -> MyRealm -> Clients -> nccs-webapp -> Credentials tab
-     D) Fill-in the KEYCLOAK_ISSUER_URI with https://<PUBLIC_HOSTNAME-OF_KEYCLOAK_SERVER>:8444/realms/MyRealm
-     E) Fill-in the KEYCLOAK_CLIENT_ID  with the name of the keycloak client  (it might be nccs-webapp or nccs-admin-webapp)
+     A) Fill-in the POSTGRES_HOSTNAME       with the name from aws.com -> RDA -> Databases -> app-database -> Endpoint & port
+     B) Fill-in the ES_URL                  with the name from aws.com -> OpenSearch -> Domains -> app-opensearch -> domain endpoint (VPC)
+     D) Fill-in the KEYCLOAK_ISSUER_URI     with https://<PUBLIC_HOSTNAME-OF_KEYCLOAK_SERVER>:8444/realms/MyRealm
+     E) Fill-in the KEYCLOAK_CLIENT_SECRET  with the name from keycloak webapp -> MyRealm -> Clients -> nccs-webapp -> Credentials tab
+     F) Fill-in the KEYCLOAK_CLIENT_ID      with the name of the keycloak client  (it might be nccs-webapp or nccs-admin-webapp)
         -- Did you create a separate client for the other webapps
         -- Did you build the keycloak JARs and deploy them?
 
@@ -1827,9 +1828,9 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 		   - name: KEYCLOAK_CLIENT_ID
 			 value: "nccs-webapp"
 		   - name: KEYCLOAK_CLIENT_SECRET
-			 value: "wnAJ5rM1BQs9YKSWLrtYL0z0YgS6LxDG"                                                                  # Get this from keycloak -> MyRealm -> Clients -> nccs-webapp -> Credentials tab
+			 value: "0kps0Tn29TWhQhoEy7SwhvWEYNfYb7cU"                                                                  # Get this from keycloak -> MyRealm -> Clients -> nccs-webapp -> Credentials tab
 		   - name: KEYCLOAK_ISSUER_URI
-        	 value: "https://keycloak.rbr-tech.com:8444/realms/MyRealm"
+        	 value: https://keycloak.traderres.com:8444/realms/MyRealm"
 		   - name: INCOMING_KEYSTORE_FILEPATH
 			 value: "/shared/certs/webapp.keystore.jks"
 		   - name: INCOMING_KEYSTORE_PASSWORD
@@ -1845,9 +1846,9 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 23. Setup PersistentVolumes so you can share certs among the pods
     Goal is to make these files available to all pods:
-       shared/certs/custom.cacerts                           #   Used by spring-boot so it trusts keycloak server's cert
-       shared/certs/nccs.webapp.keystore.jks                 #   INCOMING_KEYSTORE_FILEPATH
-       shared/certs/nccs.webapp.truststore.jks               #   INCOMING_TRUSTSTORE_FILEPATH
+       /shared/certs/custom.cacerts                           #  Used by spring-boot so it trusts keycloak server's cert
+       /shared/certs/nccs.webapp.keystore.jks                 #  INCOMING_KEYSTORE_FILEPATH
+       /shared/certs/nccs.webapp.truststore.jks               #  INCOMING_TRUSTSTORE_FILEPATH
 
     See https://repost.aws/knowledge-center/eks-persistent-storage     # BE WARNED:  This is set for commercial (not aws-gov) and there are typos
 
@@ -1876,6 +1877,10 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
    d. Create an identify provider
       unix> eksctl utils associate-iam-oidc-provider --cluster <MY-CLUSTER-NAME> --approve
+
+      You should see the following:
+         2023-06-24 15:23:26 [ℹ]  will create IAM Open ID Connect provider for cluster "nccs" in "us-east-2"
+         2023-06-24 15:23:26 [✔]  created IAM Open ID Connect provider for cluster "nccs" in "us-east-2"
 
    e. Verify that you can see your identity provider
       unix> aws iam list-open-id-connect-providers
