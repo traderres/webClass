@@ -1,5 +1,6 @@
 How to Create Java Hadoop Service that talks With Hadoop
 --------------------------------------------------------
+See the end of this file for a complete java class
 
 
 Assumption:
@@ -797,3 +798,648 @@ hdfs:
             verifyAllHdfsDirsExist(directoryMap);
         }
     }
+
+
+
+
+Final HadoopService should look something like this:
+----------------------------------------------------
+package com.lessons.services;
+
+import gov.aag.utilities.FileUtilities;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocatedFileStatus;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RemoteIterator;
+import org.apache.hadoop.io.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import javax.annotation.PostConstruct;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+
+@Service
+public class HadoopService {
+    private static final Logger logger = LoggerFactory.getLogger(HadoopService.class);
+
+    private Configuration configuration;
+    private FileSystem    hdfsFileSystem;
+
+    @Value("${hdfs.enabled}")
+    private boolean isHadoopEnabled;
+
+    @Value("${hdfs.hadoop.conf.dir::}")  // Optional property that holds where the Hadoop configuration files are located
+    private String hadoopConfDir;
+
+    @Value("${hdfs.processed.dir}")
+    private String processedDir;       // Required property that holds where to store uploaded files
+
+    @Value("${hdfs.input.dir}")
+    private String inputDir;       // Required property that holds where to store uploaded attachments
+
+    /**
+     * Perform Hadoop initialization here
+     * @throws Exception if something goes wrong
+     */
+    @PostConstruct
+    public void init() throws Exception {
+        logger.debug("Hadoop init started.  hdfs.enabled={}   hdfs.hadoop.conf.dir={}", this.isHadoopEnabled, this.hadoopConfDir);
+
+        initHadoopFileSystem();
+
+        verifyAllDirsExist();
+
+        if (! isHadoopEnabled) {
+            logger.warn("Warning in HadoopService.init():  The HadoopService is disabled.");
+
+            // HDFS is disabled.  So, stop initializing
+            return;
+        }
+
+        if (StringUtils.isBlank(this.hadoopConfDir)) {
+            // Hadoop is enabled, but the hadoop conf dir is empty
+            throw new RuntimeException("Error in HadoopService.init():  The property 'hdfs.enabled' holds true but 'hdfs.hadoop.conf.dir' property is not set.");
+        }
+        else if (! doesDirectoryExist(this.hadoopConfDir)) {
+            // The hadoop conf directory was not found
+            throw new RuntimeException("Error in HadoopService.init():  The property 'hdfs.enabled' holds true but 'hdfs.hadoop.conf.dir' property set to a directory that does not exist: " + this.hadoopConfDir);
+        }
+
+
+        this.configuration = new Configuration();
+        configuration.addResource(new Path(hadoopConfDir, "core-site.xml"));
+        configuration.addResource(new Path(hadoopConfDir, "hdfs-site.xml"));
+        this.hdfsFileSystem = FileSystem.get(configuration);
+
+
+
+        logger.debug("Hadoop init finished successfully.");
+    }
+
+    public List<String> getLinesFromFile (String inFilePath) throws Exception{
+        if (this.isHadoopEnabled) {
+            // Delete a file to Hadoop file system
+            return getLinesFromFileInHadoop(inFilePath);
+        }
+        else {
+            // Delete a file in the regular file system
+            return getLinesFromFileInFileSystem(inFilePath);
+        }
+    }
+
+    private List<String> getLinesFromFileInHadoop(String inFilePath) throws Exception {
+        InputStream ins = this.getInputStreamForFile(inFilePath);
+        return org.apache.commons.io.IOUtils.readLines(ins, StandardCharsets.UTF_8);
+    }
+
+    private List<String> getLinesFromFileInFileSystem(String inFilePath) throws Exception {
+
+        File inFile = new File(inFilePath);
+        return Files.readAllLines(inFile.toPath(), StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Create the Hadoop Filesystem, so we can use it in the future
+     */
+    private void initHadoopFileSystem() throws IOException {
+
+        if(this.isHadoopEnabled) {
+            if (StringUtils.isBlank(this.hadoopConfDir)) {
+                // Hadoop is enabled, but the hadoop conf dir is empty
+                throw new RuntimeException("Error in HadoopService.init():  The property 'hdfs.enabled' holds true but 'hdfs.hadoop.conf.dir' property is not set.");
+            } else if (!doesRegularPathExist(this.hadoopConfDir)) {
+                // The hadoop conf directory was not found
+                throw new RuntimeException("Error in HadoopService.init():  The property 'hdfs.enabled' holds true but 'hdfs.hadoop.conf.dir' property set to a directory that does not exist: " + this.hadoopConfDir);
+            }
+
+            // construct the Hadoop Configuration object
+            this.configuration = new Configuration();
+            configuration.addResource(new Path(hadoopConfDir, "core-site.xml"));
+            configuration.addResource(new Path(hadoopConfDir, "hdfs-site.xml"));
+            this.hdfsFileSystem = FileSystem.get(configuration);
+        }
+    }
+
+    /**
+     * verify all necessary directories exist
+     *
+     * @throws Exception if something goes wrong
+     */
+    private void verifyAllDirsExist() throws Exception {
+
+        // Create a map of all directories that must exist in either HDFS or regular filesystem
+        Map<String, String> directoryMap = new LinkedHashMap<>();
+        directoryMap.put(processedDir,    "hdfs.aagpde.processed.dir");
+        directoryMap.put(inputDir,  "hdfs.aagpde.attachments.dir");
+
+
+        if (!isHadoopEnabled) {
+            logger.warn("Warning in HadoopService.init():  The HadoopService is disabled.");
+
+            verifyAllRegularDirsExist(directoryMap);
+
+        } else {
+            // If any of the HDFS dirs do not exist, then throw an exception
+            verifyAllHdfsDirsExist(directoryMap);
+        }
+    }
+
+    /**
+     * Verify that all regular filesystems dirs exist
+     */
+    private void verifyAllRegularDirsExist(Map<String, String> aPathMap) {
+        logger.debug("verifyAllRegularDirsExist() started.");
+
+        // Loop through the map of file paths and ensure that they are created
+        for (Map.Entry<String, String> entry : aPathMap.entrySet()) {
+            String directoryPath = entry.getKey();
+            String key = entry.getValue();
+
+            if (StringUtils.isBlank(directoryPath)) {
+                // The HDFS path is blank
+                logger.error("This property '{}' does not have an HDFS path set", key);
+                throw new RuntimeException("Error in verifyAllRegularDirsExist:  This application.yaml property " + key + " has no HDFS path assigned to it");
+            }
+
+            if (!doesRegularPathExist(directoryPath)) {
+                // The path was not found in HDFS
+                logger.debug("Creating this Regular Dir: {}", directoryPath);
+                this.addRegularDirectoryPath(directoryPath);
+
+                if (!doesRegularPathExist(directoryPath)) {
+                    logger.error("I could not create this hadoop directory:  {}", directoryPath);
+                    throw new RuntimeException("Error in verifyAllRegularDirsExist:  This HDFS directory does not exist: " + directoryPath + "  Please look at " + key);
+                }
+            }
+            else {
+                logger.debug("This regular dir already exists: {}", directoryPath);
+            }
+        }
+
+        // If I get this far, then all HDFS directories exist
+        logger.debug("verifyAllRegularDirsExist successfully.");
+    }
+
+    /**
+     * Verify that all HDFS dirs exist
+     *
+     * @throws Exception if any of the HDFS directories were not found AND could not be created
+     */
+    private void verifyAllHdfsDirsExist(Map<String, String> aPathMap) throws Exception {
+        logger.debug("verifyAllHdfsDirsExist() started.");
+
+
+        // Create the /tmp HDFS directory (if it does not exist)
+        String tmpPath = "/tmp";
+        if (!doesHdfsPathExist(tmpPath)) {
+            logger.debug("Started creating this HDFS dir: {}", tmpPath);
+            Path tmpDirectoryPath = new Path(tmpPath);
+            this.hdfsFileSystem.mkdirs(tmpDirectoryPath);
+            logger.debug("Finished creating this HDFS dir: {}", tmpPath);
+        }
+
+
+        // Loop through the map of file paths and ensure that they are created
+        for (Map.Entry<String, String> entry : aPathMap.entrySet()) {
+            String hdfsPath = entry.getKey();
+            String key = entry.getValue();
+
+            if (StringUtils.isBlank(hdfsPath)) {
+                // The HDFS path is blank
+                logger.error("This property '{}' does not have an HDFS path set", key);
+                throw new RuntimeException("Error in HadoopService:  This application.yaml property " + key + " has no HDFS path assigned to it");
+            }
+
+            if (!doesHdfsPathExist(hdfsPath)) {
+                // The path was not found in HDFS
+
+                // Attempt to create the directory in HDFS
+                Path pHdfsPath = new Path(hdfsPath);
+                logger.debug("Creating this HDFS Dir: {}", hdfsPath);
+                this.hdfsFileSystem.mkdirs(pHdfsPath);
+
+                if (!doesHdfsPathExist(hdfsPath)) {
+                    logger.error("I could not create this hadoop directory:  {}", hdfsPath);
+                    throw new RuntimeException("Error in HadoopService:  This HDFS directory does not exist: " + hdfsPath + "  Please look at " + key);
+                }
+            }
+            else {
+                logger.debug("This hadoop dir already exists: {}", hdfsPath);
+            }
+        }
+
+        // If I get this far, then all HDFS directories exist
+        logger.debug("verifyAllHdfsDirsExist() finished successfully.");
+    }
+
+    /**
+     * Helper metohd to determine if a directory exists
+     *
+     * @param aDirectoryPath Holds the complete path of a directory
+     * @return TRUE if the passed-in file path exists
+     */
+    private boolean doesRegularPathExist(String aDirectoryPath) {
+        logger.debug("doesRegularPathExist() Seeing if file path exists: {}", aDirectoryPath);
+
+        File file = new File(aDirectoryPath);
+        boolean doesPathExist = file.isDirectory();
+
+        logger.debug("doesRegularPathExist() Does file path exist: {}", doesPathExist);
+
+        return file.isDirectory();
+    }
+
+    /**
+     * Helper metohd to determine if a directory exists
+     * @param aFilePath Holds the complete path of a file
+     * @return TRUE if the passed-in file path exists
+     */
+    private boolean doesRegularFileExist(String aFilePath) {
+        File file = new File(aFilePath);
+        return file.exists();
+    }
+
+    /**
+     * @param aFilePath holds the path of the HDFS file to examine
+     * @return true if the HDFS file exists
+     * @throws Exception if something goes wrong
+     */
+    private boolean doesHdfsPathExist(String aFilePath) throws Exception {
+        logger.debug("doesHdfsPathExist() Seeing if file path exists: {}", aFilePath);
+
+        Path p = new Path(aFilePath);
+        boolean bFileExists = hdfsFileSystem.exists(p);
+
+        logger.debug("doesHdfsPathExist() Does file path exist: {}", bFileExists);
+
+        return bFileExists;
+    }
+    /**
+     * @param aFilePath holds the path of the HDFS file to examine
+     * @return true if the HDFS file exists
+     * @throws Exception if something goes wrong
+     */
+    public boolean doesPathExist(String aFilePath) throws Exception {
+        if (this.isHadoopEnabled) {
+            // Return true if this HDFS file path exists
+            return doesHdfsPathExist(aFilePath);
+        }
+        else {
+            // Return true if this regular file path exists
+            return doesRegularFileExist(aFilePath);
+        }
+    }
+
+
+    /**
+     * Add a new file to the system
+     * NOTE:  This will overwrite an existing file
+     *
+     * @param aInputStream         holds the InputStream of the new file to be created
+     * @param aDestinationFilePath holds the destination path
+     * @throws Exception if something goes wrong
+     */
+    public void addFile(final InputStream aInputStream, final String aDestinationFilePath) throws Exception {
+
+        if (this.isHadoopEnabled) {
+            // Add a file to Hadoop file system
+            addFileToHadoop(aInputStream, aDestinationFilePath);
+        }
+        else {
+            // Add a file to the regular file system
+            addFileToRegularFilesystem(aInputStream, aDestinationFilePath);
+        }
+    }
+
+    /**
+     * Helper metohd to create a directory and child directories
+     */
+    private void addRegularDirectoryPath(String aDirectoryPath) {
+        File directory = new File(aDirectoryPath);
+        directory.mkdirs();
+    }
+
+
+    /**
+     * Delete a file
+     * @param aFilePath holds the HDFS or regular file
+     * @throws Exception if something bad happens
+     */
+    public void deleteFile(String aFilePath) throws Exception {
+        if (this.isHadoopEnabled) {
+            // Delete a file to Hadoop file system
+            deleteFileInHadoop(aFilePath);
+        }
+        else {
+            // Delete a file in the regular file system
+            deleteFileInFileSystemIfExists(aFilePath);
+        }
+    }
+
+
+    /**
+     * Delete the HDFS file
+     * @param aFilePath holds the HDFS file path
+     * @throws Exception if something bad happens
+     */
+    private void deleteFileInHadoop(String aFilePath) throws Exception {
+        Path p = new Path(aFilePath);
+        boolean bFileExists = hdfsFileSystem.exists(p);
+
+        if (bFileExists) {
+            // The file exists so delete it
+            boolean deleteSucceeded = hdfsFileSystem.delete(new Path(aFilePath), true);
+            if (!deleteSucceeded) {
+                throw new RuntimeException("Error in deleteFileInHadoop:  Failed to delete temporary file here: " + aFilePath);
+            }
+        }
+    }
+
+
+
+    private void addFileToRegularFilesystem(InputStream aInputStream, String aDestinationFilePath) throws Exception {
+        deleteFileInFileSystemIfExists(aDestinationFilePath);
+
+        createDirectoryIfNotExists(aDestinationFilePath);
+
+        // Get a file object that references the destination
+        File destinationFile = new File(aDestinationFilePath);
+
+        // Write the file to the regular file system
+        logger.debug("Started Writing file to {}", aDestinationFilePath);
+        Files.copy(aInputStream, destinationFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        logger.debug("Finished Writing file to {}", aDestinationFilePath);
+    }
+
+
+
+    private void deleteFileInFileSystemIfExists(String aFilePath) {
+        // Delete file if it exists
+        File file = new File(aFilePath);
+        if (file.exists()) {
+            boolean deleteSucceeded = FileUtils.deleteQuietly(file);
+            if (!deleteSucceeded) {
+                throw new RuntimeException("Error in deleteFileInFileSystemIfExists():  I failed to delete this file: " + aFilePath);
+            }
+        }
+    }
+
+
+    public void createDirectoryIfNotExists(String aDestinationFilePath) {
+        File dir = new File(aDestinationFilePath);
+
+        if (dir == null) {
+            throw new RuntimeException("Error in createDirectoryIfNotExists():  Passed-in file object is null.");
+        }
+        if (dir.exists()) {
+            if (!dir.isDirectory()) {
+                throw new RuntimeException("Error in createDirectoryIfNotExists(): output directory is not valid");
+            }
+        } else {
+            if (!dir.mkdirs()) {
+                throw new RuntimeException("Error in createDirectoryIfNotExists():  Cannot create output directories");
+            }
+        }
+    }
+
+
+    private void addFileToHadoop(InputStream aInputStream, String aDestinationFilePath) throws Exception {
+        Path realDestinationPath = new Path(aDestinationFilePath);
+
+        String tmpFilePath = String.format("/tmp/%s.%s", RandomStringUtils.randomAlphanumeric(32), "tmp");
+        Path tmpPath = new Path(tmpFilePath);
+
+        // Create the HDFS file in a temporary place
+        OutputStream os = hdfsFileSystem.create(tmpPath, true);
+        IOUtils.copyBytes(aInputStream, os, configuration);
+
+        // Delete any file that exists in the destination file path (to make sure the move works)
+        Path pDestinationFilePath = new Path(aDestinationFilePath);
+        if (hdfsFileSystem.exists(pDestinationFilePath)) {
+            // Delete the existing file
+            logger.debug("Deleting existing file {}", aDestinationFilePath);
+            hdfsFileSystem.delete(pDestinationFilePath, true);
+        }
+
+        // Verify that the destination directory exists
+        String destinationDir = FilenameUtils.getFullPath(aDestinationFilePath);
+        Path pDestinatoinDir = new Path(destinationDir);
+        if (!hdfsFileSystem.exists(pDestinatoinDir)) {
+            // The destination directory does not exist.  So, create it
+            hdfsFileSystem.mkdirs(pDestinatoinDir);
+        }
+
+
+        // Move the HDFS file to its real destination (as HDFS move operations are atomic)
+        //        By performing a move (atomic) operation in HDFS, the BDP's elastic-ingest will *ALWAYS* grab a complete file
+        logger.debug("Started  Moving HDFS file from {} to {}", tmpPath, aDestinationFilePath);
+
+        // Move the file from /tmp to the realDestinationFilePath
+        hdfsFileSystem.rename(tmpPath, realDestinationPath);
+
+        logger.debug("Finished Moving HDFS file from {} to {}", tmpPath, aDestinationFilePath);
+
+        if (!hdfsFileSystem.exists(realDestinationPath)) {
+            throw new RuntimeException("Error in addFile():  The file was moved to " + aDestinationFilePath + " but it does not exist.");
+        }
+        else {
+            logger.debug("Verified:  This HDFS file exists {}", aDestinationFilePath);
+        }
+    }
+
+    public void moveFile(String aSourceFilePath, String aDestinationFilePath) throws Exception {
+        if (this.isHadoopEnabled) {
+            // Delete a file to Hadoop file system
+            moveFileInHadoop(aSourceFilePath, aDestinationFilePath);
+        }
+        else {
+            // Delete a file in the regular file system
+            moveFileInRegularFileSystem(aSourceFilePath, aDestinationFilePath);
+        }
+    }
+
+    private void moveFileInHadoop(String aSourceFilePath, String aDestinationFilePath) throws Exception {
+
+        // Delete any file that exists in the destination file path (to make sure the move works)
+        Path pDestinationFilePath = new Path(aDestinationFilePath);
+        if (hdfsFileSystem.exists(pDestinationFilePath)) {
+            // Delete the existing file
+            logger.debug("Deleting existing file {}", aDestinationFilePath);
+            hdfsFileSystem.delete(pDestinationFilePath, true);
+        }
+
+        // Verify that the destination directory exists
+        String destinationDir = FilenameUtils.getFullPath(aDestinationFilePath);
+        Path pDestinationDir = new Path(destinationDir);
+        if (!hdfsFileSystem.exists(pDestinationDir)) {
+            // The destination directory does not exist.  So, create it
+            hdfsFileSystem.mkdirs(pDestinationDir);
+        }
+
+        Path pSourceFilepath = new Path(aSourceFilePath);
+        // Move the HDFS file to its real destination (as HDFS move operations are atomic)
+        //        By performing a move (atomic) operation in HDFS, the BDP's elastic-ingest will *ALWAYS* grab a complete file
+        logger.debug("Started  Moving HDFS file from {} to {}", aSourceFilePath, aDestinationFilePath);
+
+
+        // Move the file from /tmp to the realDestinationFilePath
+        hdfsFileSystem.rename(pSourceFilepath, pDestinationFilePath);
+
+        logger.debug("Finished Moving HDFS file from {} to {}", aSourceFilePath, aDestinationFilePath);
+
+        if (!hdfsFileSystem.exists(pDestinationFilePath)) {
+            throw new RuntimeException("Error in moveFile():  The file was moved to " + aDestinationFilePath + " but it does not exist.");
+        }
+        else {
+            logger.debug("Verified:  This HDFS file exists {}", aDestinationFilePath);
+        }
+    }
+
+    private void moveFileInRegularFileSystem(String aSourceFilePath, String aDestinationFilePath) throws Exception {
+        File sourceFile = new File(aSourceFilePath);
+        File destinationFile = new File(aDestinationFilePath);
+
+        boolean success = sourceFile.renameTo(destinationFile);
+
+        if (!success){
+            throw new RuntimeException("Failed to move file: " + aSourceFilePath);
+        }
+    }
+
+    /**
+     * Delete a file
+     * @param aFilePath holds the HDFS or regular file
+     * @throws Exception if something bad happens
+     */
+    public InputStream getInputStreamForFile(String aFilePath) throws Exception {
+        if (this.isHadoopEnabled) {
+            // Delete a file to Hadoop file system
+            return getInputStreamForHdfsFile(aFilePath);
+        }
+        else {
+            // Delete a file in the regular file system
+            return getInputStreamForRegularFileSystem(aFilePath);
+        }
+    }
+
+    /**
+     * @param aHadoopFilePath holds the file path
+     * @return InputStream that corresponds to an HDFS file
+     * @throws Exception if something bad happens
+     */
+    private InputStream getInputStreamForHdfsFile(String aHadoopFilePath) throws Exception
+    {
+        logger.debug("getInputStreamForHdfsFile() started.  aHadoopFilePath={}", aHadoopFilePath);
+
+        if (StringUtils.isBlank(aHadoopFilePath)) {
+            throw new RuntimeException("Error in getInputStreamFromHDFS():  The passed-in aHadoopFilePath is either null or empty.");
+        }
+
+        String completeHdfsFilEPath = "hdfs://" + aHadoopFilePath;
+        logger.debug("Looking in HDFS for this:  {}", completeHdfsFilEPath);
+
+        // Connect to the HDFS and get an InputStream for this file
+        // NOTE:  Please be sure that you close this InputStream when you're done with it.
+        InputStream in = hdfsFileSystem.open(new Path(completeHdfsFilEPath));
+
+        logger.debug("getInputStreamForHdfsFile() finished.");
+        return in;
+    }
+
+    private InputStream getInputStreamForRegularFileSystem(String aDestinationFilePath) throws Exception {
+
+        logger.debug("getInputStreamForRegularFileSystem() started.  aDestinationFilePath={}", aDestinationFilePath);
+
+        if (StringUtils.isBlank(aDestinationFilePath)) {
+            throw new RuntimeException("Error in getInputStreamForRegularFileSystem():  The passed-in aDestinationFilePath is either null or empty.");
+        }
+
+        // Get an InputStream for this file
+        // NOTE:  Please be sure that you close this InputStream when you're done with it.
+        InputStream in = Files.newInputStream(Paths.get(aDestinationFilePath));
+        logger.debug("getInputStreamForRegularFileSystem() finished.");
+        return in;
+    }
+
+    private List<String> getAllFilePathsInHadoop(Path filePath) throws IOException {
+
+        List<String> fileList = new ArrayList<>();
+
+        // Get an interator of files in this path
+        RemoteIterator<LocatedFileStatus> it = hdfsFileSystem.listFiles(filePath, false);
+
+        // Loop through all files [using the iterator]
+        while (it.hasNext()) {
+            String path = it.next().getPath().toUri().getPath();
+
+            fileList.add(path);
+        }
+        return fileList;
+    }
+
+    private List<String> getAllFilesInRegularFileSystem(Path aFilePath) {
+
+        File dir = new File(aFilePath.toString());
+
+        File[] listOfFiles = dir.listFiles();
+
+
+        List<String> fileList = new ArrayList<>();
+
+        for (File f: listOfFiles) {
+            fileList.add(f.toString() );
+        }
+
+        return fileList;
+
+    }
+
+    /**
+     * Delete a file
+     * @param aFilePath holds the HDFS or regular file
+     * @throws Exception if something bad happens
+     */
+    public List<String> getAllFilesInDir(Path aFilePath) throws Exception {
+        if (this.isHadoopEnabled) {
+            // Delete a file to Hadoop file system
+            return getAllFilePathsInHadoop(aFilePath);
+        }
+        else {
+            // Delete a file in the regular file system
+            return getAllFilesInRegularFileSystem(aFilePath);
+        }
+    }
+
+
+   public boolean doesDirectoryExist(String aDirectoryPath) {
+        File file = new File(aDirectoryPath);
+        return file.isDirectory();
+    }
+
+
+
+    public String getProcessedDir() {
+        return processedDir;
+    }
+
+    public String getInputDir() {
+        return inputDir;
+    }
+}
+
