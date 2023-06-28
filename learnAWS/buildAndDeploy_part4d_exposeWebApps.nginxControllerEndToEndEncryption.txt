@@ -1,0 +1,213 @@
+How to Setup a Load Balancer on AWS (using nginx Controller and Network Load Balancer)
+--------------------------------------------------------------------------------------
+I want the SSL traffic to pass the AWS Network Load Balancer ------> nginx controller ------> deployment
+                                                              https                     https
+And, you *CAN* route based on the hostname
+          https://app.traderres.com/app1 --->  web app #1
+          https://app.traderres.com/app2 --->  web app #2
+          https://app.traderres.com/app3 --->  web app #3
+
+
+
+
+References
+----------
+https://arunsworld.medium.com/ssl-passthrough-via-kubernetes-ingress-b3eaf3c7c9da
+https://kubernetes.github.io/ingress-nginx/deploy/
+https://aws.amazon.com/blogs/containers/exposing-kubernetes-applications-part-3-nginx-ingress-controller/
+
+
+Part 1:  Setup the nginx controller and network load balancer in AWS
+--------------------------------------------------------------------
+ 1. Configure & Install the ingress controller
+    a. Download the nginx-ingress controller deployment file
+       unix> wget https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.0/deploy/static/provider/cloud/deploy.yaml -O nginx.controller.deploy.yaml
+
+    b. Install the nginx ingress controller
+       unix> kubectl apply -f nginx.controller.deploy.yaml
+
+
+ 2. Download & Install AWS network load balancer
+    a. Download the AWS Network Network Load Balancer
+       unix> wget https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.0/deploy/static/provider/aws/deploy.yaml -O deploy.yaml
+
+    b. Install the network load balancer
+       unix> kubectl apply -f deploy.yaml
+
+
+ 3. Create a certificate for re-encryption
+    a. Create the cert
+       unix> cd /tmp/app.traderres.com/
+       unix> kubectl create secret tls app-tls-secret --namespace default  --key privkey1.pem --cert cert1.pem
+
+    b. Verify it exists
+       unix> kubectl get secret
+
+         NAME             TYPE                DATA   AGE
+         app-tls-secret   kubernetes.io/tls   2      10h
+
+
+
+ 4. Setup the Ingress Service
+    unix> vi app-load-balancer.yaml
+
+
+######################################################################################
+# Filename:  app-load-balancer.yaml
+#
+# Purpose:   Setup the services and the ingress rules for load balancing
+#
+#
+#  Browser                           Network
+#  https://nccs.traderres.com/ -->    Load    --> nginx-controller  --> nccs-deployment
+#                                    Balancer      (ssl pass-thru)
+#
+#
+# To troubleshoot kubernetes, run this command:
+# unix> kubectl get events --all-namespaces
+#
+######################################################################################
+
+
+#####################################################
+# NCCS Service
+#####################################################
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: nccs-service
+  labels:
+    app: nccs-service
+
+spec:
+  type: NodePort
+  selector:
+    app: nccs-deployment
+  ports:
+    - name: https
+      port: 443
+      targetPort: 443
+    - name: http
+      port: 80
+      targetPort: 80
+
+
+#####################################################
+# NCCS-Admin Service
+#####################################################
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: nccs-admin-service
+  labels:
+    app: nccs-admin-service
+
+spec:
+  type: NodePort
+  selector:
+    app: nccs-admin-deployment
+  ports:
+    - name: https
+      port: 443
+      targetPort: 443
+    - name: http
+      port: 80
+      targetPort: 80
+
+---
+#####################################################
+# Ingress (app-ingress-webapp)
+#
+# https://nccs.traderres.com/    --> takes you to nccs with end-to-end encryption
+#####################################################
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-ingress
+  namespace: default
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+
+spec:
+  ingressClassName: nginx
+  tls:
+   - hosts:
+     - app.traderres.com
+     secretName: app-tls-secret
+  rules:
+    - host: app.traderres.com
+      http:
+        paths:
+          - path: /nccs
+            pathType: Prefix
+            backend:
+              service:
+                name: nccs-service
+                port:
+                  number: 443
+          - path: /nccs-admin
+            pathType: Prefix
+            backend:
+              service:
+                name: nccs-admin-service
+                port:
+                  number: 443
+
+
+
+
+ 5. Create the ingress and service
+    unix> kubectl apply -f app-load-balancer.yaml
+
+
+    W A I T     A     M I N U T E      (for AWS to allocate a public address to the ingress)
+
+
+ 6. Get the public hostname of the network load balancer
+    unix> kubectl get ingress
+
+	NAME          CLASS   HOSTS               ADDRESS                                                                   PORTS   AGE
+	app-ingress   nginx   app.traderres.com   a251f01aeb7f94e76af94ded71a707a0-1101514633.us-east-2.elb.amazonaws.com   80      150m
+
+
+ 7. Update godaddy's cname record for app.traderres.com so that it corresponds to the new external hostname
+		a. Go to https://dcc.godaddy.com/control/portfolio/traderres.com/settings
+        b. Click on the DNS tab
+		c. Edit the old CNAME record for "app"    (this corresponds to app.traderres.com)
+		   Type:  CNAME
+		   Name:  app
+		   Value: a251f01aeb7f94e76af94ded71a707a0-1101514633.us-east-2.elb.amazonaws.com
+
+		d. Press "Save"
+
+
+ 8. Wait for goDaddy to show that app.traderres.com points to the new load-balancer public hostname
+    Do a lookup to get the current hostname for app.traderres.com
+    unix> nslookup app.traderres.com
+
+    *OR keep looping forever*
+    unix> while [ 1 ]; do clear; date; nslookup app.traderres.com; sleep 3; done
+
+
+
+
+Part 2:  Update the webapp so it has not /nccs or /nccs-admin
+-------------------------------------------------------------
+I N C O M P L E T E
+
+
+
+
+
+
+How to Delete the nginx controller and load balancer
+----------------------------------------------------
+unix> kubectl delete -f app-load-balancer.yaml
+unix> kubectl delete -f nginx.controller.deploy.yaml
+
+
+
+
+
