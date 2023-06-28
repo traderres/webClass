@@ -50,8 +50,6 @@ Part 1:  Setup the nginx controller and network load balancer in AWS
 
  4. Setup the Ingress Service
     unix> vi app-load-balancer.yaml
-
-
 ######################################################################################
 # Filename:  app-load-balancer.yaml
 #
@@ -77,9 +75,6 @@ kind: Service
 metadata:
   namespace: default
   name: nccs-service
-  labels:
-    app: nccs-service
-
 spec:
   type: NodePort
   selector:
@@ -93,6 +88,7 @@ spec:
       targetPort: 80
 
 
+---
 #####################################################
 # NCCS-Admin Service
 #####################################################
@@ -101,9 +97,6 @@ kind: Service
 metadata:
   namespace: default
   name: nccs-admin-service
-  labels:
-    app: nccs-admin-service
-
 spec:
   type: NodePort
   selector:
@@ -115,6 +108,7 @@ spec:
     - name: http
       port: 80
       targetPort: 80
+
 
 ---
 #####################################################
@@ -168,8 +162,9 @@ spec:
  6. Get the public hostname of the network load balancer
     unix> kubectl get ingress
 
-	NAME          CLASS   HOSTS               ADDRESS                                                                   PORTS   AGE
-	app-ingress   nginx   app.traderres.com   a251f01aeb7f94e76af94ded71a707a0-1101514633.us-east-2.elb.amazonaws.com   80      150m
+	NAME          CLASS   HOSTS               ADDRESS                                                                   PORTS       AGE
+	app-ingress   nginx   app.traderres.com   a251f01aeb7f94e76af94ded71a707a0-1101514633.us-east-2.elb.amazonaws.com   80, 443     150m
+
 
 
  7. Update godaddy's cname record for app.traderres.com so that it corresponds to the new external hostname
@@ -191,11 +186,34 @@ spec:
     unix> while [ 1 ]; do clear; date; nslookup app.traderres.com; sleep 3; done
 
 
+ 9. Watch the nginx pod log files
+    unix> kubectl get pods -A
+
+    NAMESPACE       NAME                                        READY   STATUS      RESTARTS   AGE
+    cert-manager    cert-manager-7564b796c7-gsd2f               1/1     Running     0          3d7h
+    cert-manager    cert-manager-cainjector-58bcd74fd8-wvszz    1/1     Running     0          3d7h
+    cert-manager    cert-manager-webhook-5bd9444ff7-n854k       1/1     Running     0          3d7h
+    default         nccs-deployment-8475b7fd69-wkzrw            1/1     Running     0          34h
+    ingress-nginx   ingress-nginx-admission-create-xr7t7        0/1     Completed   0          126m
+    ingress-nginx   ingress-nginx-admission-patch-b6d5n         0/1     Completed   0          126m
+    ingress-nginx   ingress-nginx-controller-7fcc694bd4-7742w   1/1     Running     0          126m   <-- nginx controller
+    kube-system     aws-node-s78f4                              1/1     Running     0          4d7h
+    kube-system     aws-node-t2h95                              1/1     Running     0          4d7h
+    kube-system     coredns-647484dc8b-64gbd                    1/1     Running     0          4d7h
+    kube-system     coredns-647484dc8b-blxx5                    1/1     Running     0          4d7h
+    kube-system     ebs-csi-controller-64f786fdbf-4vklq         6/6     Running     0          3d8h
+    kube-system     ebs-csi-controller-64f786fdbf-9skx2         6/6     Running     0          3d8h
+    kube-system     ebs-csi-node-9xxj5                          3/3     Running     0          3d8h
+    kube-system     ebs-csi-node-zqfd5                          3/3     Running     0          3d8h
+    kube-system     kube-proxy-2qh4x                            1/1     Running     0          4d7h
+
+	unix> kubectl logs -f ingress-nginx-controller-7fcc694bd4-7742w -n ingress-nginx
 
 
-Part 2:  Update the webapp so it has not /nccs or /nccs-admin
--------------------------------------------------------------
-I N C O M P L E T E
+
+10. Attempt to connect with your browser and pki client cert
+    a. Go to https://app.traderres.com/nccs
+
 
 
 
