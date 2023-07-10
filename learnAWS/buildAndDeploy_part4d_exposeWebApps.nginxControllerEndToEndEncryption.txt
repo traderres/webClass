@@ -8,6 +8,8 @@ And, you *CAN* route based on the hostname
           https://app.traderres.com/app3 --->  web app #3
 
 
+        User's  ----------->  Network Load Balancer  ---------> nginx controller     -------> deployment ---> pods
+        Browser                                                  (descrypt traffic)   https              https
 
 
 References
@@ -15,6 +17,16 @@ References
 https://arunsworld.medium.com/ssl-passthrough-via-kubernetes-ingress-b3eaf3c7c9da
 https://kubernetes.github.io/ingress-nginx/deploy/
 https://aws.amazon.com/blogs/containers/exposing-kubernetes-applications-part-3-nginx-ingress-controller/
+https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annotations/
+
+
+
+How to edit nginx controller settings
+-------------------------------------
+unix> kubectl edit deployment ingress-nginx-controller -n ingress-nginx
+
+
+
 
 
 Part 1:  Setup the nginx controller and network load balancer in AWS
@@ -36,6 +48,28 @@ Part 1:  Setup the nginx controller and network load balancer in AWS
 
 
  3. Create a certificate for re-encryption
+
+
+
+ 1. Create the self-signed certificate
+unix> export KEY_FILE=key_file
+unix> export CERT_FILE=cert_file
+unix> export HOST=app.traderres.com
+unix> openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ${KEY_FILE} -out ${CERT_FILE} -subj "/CN=${HOST}/O=${HOST}" -addext "subjectAltName = DNS:${HOST}"
+
+
+ 2. Create a secret from the certs
+    unix> kubectl delete secret app-tls-secret
+    unix> kubectl create secret tls app-tls-secret --key ${KEY_FILE} --cert ${CERT_FILE}
+
+    unix> kubectl get secrets
+
+
+
+
+
+
+
     a. Create the cert
        unix> cd /tmp/app.traderres.com/
        unix> kubectl create secret tls app-tls-secret --namespace default  --key privkey1.pem --cert cert1.pem
