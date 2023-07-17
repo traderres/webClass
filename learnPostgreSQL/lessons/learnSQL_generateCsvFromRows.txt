@@ -1,0 +1,96 @@
+Learn SQL:  How to convert multiple rows into a CSV String?
+-----------------------------------------------------------
+
+Problem:  My join generates 4 rows.  But, I really want 1 row with a CSV string that holds 4 values
+Solution: Use a group by and string_agg()
+
+
+Example
+-------
+
+ 1. Create the tables
+
+		 drop table if exists announcements;
+		 create table announcements
+		 (
+			 id                   integer      not null,
+			 message              text         not null,
+			 created_date         timestamp    not null,
+			 primary key(id)
+		  );
+
+		 drop table if exists audience_type ;
+		 create table audience_type
+		 (
+			 id  integer not null,
+			 name varchar(50) not null,
+			 primary key(id)
+		 );
+
+		 insert into audience_type(id, name) values(10, 'Regular Users');
+		 insert into audience_type(id, name) values(11, 'Management Users');
+		 insert into audience_type(id, name) values(12, 'Administrators');
+
+
+		 drop table if exists announcement_audience;
+		 create table announcement_audience
+		 (
+			 announcement_id integer not null,
+			 audience_type_id integer not null,
+			 constraint audience_user_type_fk  foreign key(audience_type_id)     references audience_type(id),
+			 constraint announcement_id_fk  foreign key(announcement_id)     references announcements(id)
+		 );
+
+
+ 2. Add some data
+
+		-- Put in some announcements
+		delete from announcements;
+		insert into announcements(id, created_date, message) values(20000, now(), 'message 1');
+		insert into announcements(id, created_date, message) values(20001, now(), 'message 2');
+
+		-- Set some announcement types
+		delete from announcement_audience;
+		insert into announcement_audience(announcement_id, audience_type_id) values(20000, 10) ;
+		insert into announcement_audience(announcement_id, audience_type_id) values(20000, 11) ;
+		insert into announcement_audience(announcement_id, audience_type_id) values(20001, 11) ;
+		insert into announcement_audience(announcement_id, audience_type_id) values(20001, 12) ;
+
+
+
+ 3. Run a SQL join to get the info by joining the announcement_audience and audience_type tables
+    PROBLEM:  I am getting 2 ROWS for each announcements  (because the joins add rows to the results)
+
+
+		select a.id, a.message,
+			   to_char(a.created_date,'MM/DD/YYYY') as created_date,
+			   c.name
+		from announcements a
+		join announcement_audience b on (a.id = b.announcement_id)
+		join audience_type c on (b.audience_type_id = c.id);
+
+
+		-- Output:  This sucks as I'm getting 2 rows for each announcement!!
+		20000,message 1,07/17/2023,Regular Users
+        20000,message 1,07/17/2023,Management Users
+        20001,message 2,07/17/2023,Management Users
+        20001,message 2,07/17/2023,Administrators
+
+
+
+
+ 4. Run the SQL that will generate a CSV string
+    BETTER:  This SQL generates a CSV string
+
+		select a.id, a.message,
+			   to_char(a.created_date,'MM/DD/YYYY') as created_date,
+			   string_agg(c.name::text, ', ' order by c.name) as csv_user_types
+		from announcements a
+		join announcement_audience b on (a.id = b.announcement_id)
+		join audience_type c on (b.audience_type_id = c.id)
+		group by a.id, a.message, a.created_date;
+
+
+		-- Output shows a CSV string --
+		20000,message 1,07/17/2023,"Management Users, Regular Users"
+        20001,message 2,07/17/2023,"Administrators, Management Users"
