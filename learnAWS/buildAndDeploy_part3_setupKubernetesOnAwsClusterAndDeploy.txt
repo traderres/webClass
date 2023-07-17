@@ -2519,8 +2519,8 @@ spec:
 
 
 
-STOP HERE AND go to part 4 to setup the load balancer
-See buildAndDeploy_part4a_exposeWebApps.classicLoadBalancer.txt for setting-up the classic load balancer
+STOP HERE AND go to part 5 to setup the load balancer
+See buildAndDeploy_part5a_exposeWebApps.classicLoadBalancer.txt for setting-up the classic load balancer
 
 
 
@@ -2584,3 +2584,224 @@ When deploying on AWS, remember that you need 2 signed server-certs
  2) Server Cert #2 will be used by the sprint boot web app
     Create it with subject alternative name = external hostname, external IP
     NOTE:  Make sure the hostname is *FIRST* in the subect alternative name
+
+
+
+
+
+Remember:  The goal is to have the *SAME* build used in multiple environments
+           So, the application.yaml will get its values from env variables or a kubernetes configMap
+
+
+
+
+Sample YAML Files
+-----------------
+
+#############################################################################
+#  nccs-sync-service-deployment-v1.yaml
+#
+# Purpose:   Tell kubernetes how to deploy the Sync Service
+#
+# Usage
+#  1. Follow the steps to setup AWS credentials (so you can build & deploy)
+#     https://github.com/traderres/webClass/blob/master/learnAWS/howToBuildAndPushToAmazonECR.txt
+#
+#  2. Build and push the containers to the Amazon ECR (image repository)
+#     unix> mvn -Djib.to.auth.username=AWS -Djib.to.auth.password=$PASSWORD clean package -Pprod -PbuildImageAndPush
+#
+#  3. Edit the environment variables in this yaml file to match reality -- e.g., set the POSTGRES_HOSTNAME
+#     a. Also edit the image name (in this yaml file) to make sure it matches what was pushed to the Amazon ECR
+#
+#  4. Tell kubernetes to deploy the sync service
+#     unix> kubectl delete deployment nccs-sync-service-deployment
+#     unix> kubectl apply -f nccs-sync-service-deployment-v2.2.3.yaml
+#
+#  5. Get the name of the running pod  (it changes every time)
+#     unix> kubectl get pods
+#
+#     NAME                                            READY   STATUS         RESTARTS   AGE
+#     nccs-sync-service-deployment-69c9fd9db6-6wkcf   1/1     Running        0          19s
+#
+#  6. Look at the pod log to verify that the sync-service is running
+#     uniX> kubectl logs -f nccs-sync-service-deployment-69c9fd9db6-6wkcf
+#
+# Notes:
+#  A) If you want to erase the database, then add this to JAVA_TOOL_OPTIONS:
+#        -Dapp.datasource.flyway-clean-on-startup=TRUE
+#############################################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nccs-sync-service-deployment
+
+spec:
+  selector:
+    matchLabels:
+      app: nccs-sync-service
+  replicas: 1
+  strategy:
+    type:  Recreate
+  template:
+    metadata:
+      name: nccs-sync-service
+      labels:
+         app: nccs-sync-service
+    spec:
+
+      volumes:
+      - name: app-certs-pv
+        persistentVolumeClaim:
+          claimName: app-certs-pvc
+
+      containers:
+      - image: 527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/nccs:sync-service-2.2.3-SNAPSHOT
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: app-certs-pv
+          mountPath: /shared/certs
+
+        name: nccs-sync-service
+
+        env:
+           - name: POSTGRES_HOSTNAME
+             value: "nccs.cgl3wyvjvqtu.us-gov-west-1.rds.amazonaws.com"
+           - name: POSTGRES_DB_USERNAME
+             value: "nccs_user"
+           - name: POSTGRES_DB_PASSWORD
+             value: "secret12"
+           - name: POSTGRES_DB_NAME
+             value: "nccs_db"
+           - name: POSTGRES_SCHEMA_NAME
+             value: "nccs_db"
+           - name: POSTGRES_POOL_SIZE
+             value: "50"
+           - name: ES_URL
+             value: "https://vpc-nccs-wxin7j6ech5f4i6bvhptdwldcu.us-gov-west-1.es.amazonaws.com:443"
+           - name: ES_USERNAME
+             value: "nccs_user"
+           - name: ES_PASSWORD
+             value: "Secret1@"
+           - name: INCOMING_KEYSTORE_FILEPATH
+             value: "/shared/certs/nccs.webapp.keystore.jks"
+           - name: INCOMING_KEYSTORE_PASSWORD
+             value: "changeit"
+           - name: INCOMING_TRUSTSTORE_FILEPATH
+             value: "/shared/certs/nccs.webapp.truststore.jks"
+           - name: INCOMING_TRUSTSTORE_PASSWORD
+             value: "changeit"
+           - name: JAVA_TOOL_OPTIONS
+             value: -Xms1024m -Xmx1024m -Demail.mode=off -Djavax.net.ssl.trustStore=/shared/certs/custom.cacerts -Djavax.net.ssl.trustStorePassword=changeit
+
+
+
+
+#############################################################################
+#  nccs-deployment-v2.2.3.yaml
+#
+# Purpose:   Tell kubernetes how to deploy the NCCS web app(s)
+#
+# Usage
+#  1. Follow the steps to setup AWS credentials (so you can build & deploy)
+#     https://github.com/traderres/webClass/blob/master/learnAWS/howToBuildAndPushToAmazonECR.txt
+#
+#  2. Build and push the containers to the Amazon ECR (image repository)
+#     unix> mvn -Djib.to.auth.username=AWS -Djib.to.auth.password=$PASSWORD clean package -Pprod -PbuildImageAndPush
+#
+#  3. Edit the environment variables in this yaml file to match reality -- e.g., set the POSTGRES_HOSTNAME
+#     a. Also edit the image name (in this yaml file) to make sure it matches what was pushed to the Amazon ECR
+#
+#  4. Tell kubernetes to deploy the sync service
+#     unix> kubectl delete deployment nccs-deployment
+#     unix> kubectl apply -f nccs-deployment-v2.2.3.yaml
+#
+#  5. Get the name of the running pod  (it changes every time)
+#     unix> kubectl get pods
+#
+#     NAME                                            READY   STATUS         RESTARTS   AGE
+#     nccs-deployment-69c9fd9db6-6wkcf                1/1     Running        0          19s
+#
+#  6. Look at the pod log to verify that the NCCS webapp is up
+#     uniX> kubectl logs -f nccs-deployment-69c9fd9db6-6wkcf
+#
+# Notes:
+#  A) The running pods do not have DNS so we need hostAliases to create an entry in /etc/hosts
+#     that can resolve the keycloak.rbr-tech.com to 160.1.14.243
+#     Use nslookup keycloak.rbr-tech.com to verify the IP
+#  B) If you want 5 copies of the webapp, then change replicas to 5 (in this file)
+#############################################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nccs-deployment
+
+spec:
+  selector:
+    matchLabels:
+      app: nccs-backend
+
+  replicas: 1
+  strategy:
+    type:  Recreate
+  template:
+    metadata:
+      name: nccs-backend
+      labels:
+         app: nccs-backend
+
+    spec:
+      hostAliases:
+      - ip: "160.1.14.243"
+        hostnames:
+          - "keycloak.rbr-tech.com"
+
+      volumes:
+      - name: app-certs-pv
+        persistentVolumeClaim:
+          claimName: app-certs-pvc
+
+      containers:
+      - image: 527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/nccs:backend-2.2.3-SNAPSHOT
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: app-certs-pv
+          mountPath: /shared/certs
+
+        name: nccs-backend
+
+        env:
+           - name: POSTGRES_HOSTNAME
+             value: "nccs.cgl3wyvjvqtu.us-gov-west-1.rds.amazonaws.com"
+           - name: POSTGRES_DB_USERNAME
+             value: "nccs_user"
+           - name: POSTGRES_DB_PASSWORD
+             value: "secret12"
+           - name: POSTGRES_DB_NAME
+             value: "nccs_db"
+           - name: POSTGRES_SCHEMA_NAME
+             value: "nccs_db"
+           - name: POSTGRES_POOL_SIZE
+             value: "5"
+           - name: ES_URL
+             value: "https://vpc-nccs-wxin7j6ech5f4i6bvhptdwldcu.us-gov-west-1.es.amazonaws.com:443"
+           - name: ES_USERNAME
+             value: "nccs_user"
+           - name: ES_PASSWORD
+             value: "Secret1@"
+           - name: KEYCLOAK_CLIENT_ID
+             value: "nccs-webapp"
+           - name: KEYCLOAK_CLIENT_SECRET
+             value: "gyG7oTbHbenKecReYOJIg4F2fTaUtGDp"
+           - name: KEYCLOAK_ISSUER_URI
+             value: "https://keycloak.rbr-tech.com:8444/realms/MyRealm"
+           - name: INCOMING_KEYSTORE_FILEPATH
+             value: "/shared/certs/nccs.webapp.keystore.jks"
+           - name: INCOMING_KEYSTORE_PASSWORD
+             value: "changeit"
+           - name: INCOMING_TRUSTSTORE_FILEPATH
+             value: "/shared/certs/nccs.webapp.truststore.jks"
+           - name: INCOMING_TRUSTSTORE_PASSWORD
+             value: "changeit"
+           - name: JAVA_TOOL_OPTIONS
+             value: -Xms1024m -Xmx1024m -Demail.mode=off -Djavax.net.ssl.trustStore=/shared/certs/custom.cacerts -Djavax.net.ssl.trustStorePassword=changeit
+
