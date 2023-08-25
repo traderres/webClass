@@ -108,3 +108,143 @@ Sample Pattern to extract text before the @ sign
             return "";
         }
     }
+
+
+Problem:  How do I get the line number that my pattern matched?
+Answer:   Count the number of lines from the start to the beginning of this fragment
+-------------------------------------------------------------------------------------
+
+private final Pattern patMatchNewLines = Pattern.compile("\\R");
+private final Pattern patMatchButton   = Pattern.compile("(<button .*?>)", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+private final Pattern patMatchTitle    = Pattern.compile("title=[\"'](.*?)[\"']", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+
+
+	private void examineFile(Path aHtmlFilePath, SXSSFSheet aSheet, MutableInt aSheetCurrentRowNumber) {
+
+		// Read the entire HTML file into a string
+		String fileContents = readFile(aHtmlFilePath, StandardCharsets.UTF_8);
+
+		// Match this pattern to the file contents
+		Matcher m = this.patMatchButton.matcher(fileContents);
+
+		// Loop through every match of this pattern
+		while (m.find()) {
+			// Found a matching input field -- button, select, mat-select, input, textarea, ....
+
+			// Get the line number
+			long lineNumberInFile = getTotalNumberOfLinesInBlock(fileContents.substring(0, m.start())) + 1;
+
+			String htmlFragment   = m.group(1);
+			String title          = getTitleFromFromString(htmlFragment);
+			String ariaLabel      = getAriaLabelFromString(htmlFragment);
+			String problemText    = getProblemText(title, ariaLabel);
+
+			if (StringUtils.isNotEmpty(problemText)) {
+				// Append a row to the spreadsheet
+				appendRowToSheet(aSheet, aSheetCurrentRowNumber, aHtmlFilePath, lineNumberInFile, htmlFragment, title, ariaLabel, problemText);
+
+				aSheetCurrentRowNumber.increment();
+			}
+
+		}
+
+	}
+
+
+	private long getTotalNumberOfLinesInBlock(String aString) {
+		Matcher m = this.patMatchNewLines.matcher(aString);
+
+		long lineNumber = 0;
+		while (m.find() ) {
+			lineNumber++;
+		}
+
+		return lineNumber;
+	}
+
+
+    private String getTitleFromFromString(String aString) {
+        Matcher m = this.patMatchTitle.matcher(aString);
+
+        if (m.find() ) {
+            String ariaLabel = m.group(1);
+            return ariaLabel;
+        }
+
+        return null;
+    }
+
+    private String readFile(Path aFilePath, Charset aCharset) throws IOException {
+        byte[] encoded = Files.readAllBytes(aFilePath);
+        return new String(encoded, aCharset);
+    }
+
+	private void addHeaderRowToSheet(SXSSFSheet aSheet) {
+		if (aSheet == null) {
+			throw new RuntimeException("Critical error in addHeaderRowToSheet():  The passed-in aSheet is null");
+		}
+
+		List<String> columnNames = Arrays.asList("HTML File Path", "Line Number", "HTML Fragment", "title tag", "aria-label tag", "Problem");
+
+		// Create a row in this worksheet
+		Row row = aSheet.createRow(0);
+
+		CellStyle headerCellStyle = aSheet.getWorkbook().createCellStyle();
+		Font font = aSheet.getWorkbook().createFont();
+		font.setBold(true);
+		font.setFontHeightInPoints((short) 11);
+		headerCellStyle.setFont(font);
+		headerCellStyle.setAlignment(HorizontalAlignment.CENTER);
+
+		// Loop through the column names, writing them to this row
+		int i=0;
+		for (String columnName: columnNames) {
+			// Create a cell in this worksheet
+			Cell cell = row.createCell(i);
+			cell.setCellValue(columnName);
+			cell.setCellStyle(headerCellStyle);   // Set this cell as bold
+
+			i++;
+		}
+
+		aSheet.setColumnWidth(0, 25000);
+		aSheet.setColumnWidth(1, 3500);
+		aSheet.setColumnWidth(2, 30000);
+		aSheet.setColumnWidth(3, 8000);
+		aSheet.setColumnWidth(4, 8000);
+		aSheet.setColumnWidth(5, 8000);
+	}
+
+
+
+    private void appendRowToSheet(SXSSFSheet aSheet, MutableInt aSheetCurrentRowNumber, Path aHtmlFilePath, long aLineNumberInFile,
+                                  String aHtmlFragment, String aTitle, String aAriaLabel, String aProblemText) {
+
+        // Create a row in this worksheet
+        Row row = aSheet.createRow(aSheetCurrentRowNumber.getValue());
+
+        // Loop through the column names, writing them to this row
+        int i=0;
+        Cell cell = row.createCell(i);
+        cell.setCellValue(aHtmlFilePath.toString());
+        i++;
+
+        Cell cell2 = row.createCell(i);
+        cell2.setCellValue(String.valueOf(aLineNumberInFile));
+        i++;
+
+        Cell cell3 = row.createCell(i);
+        cell3.setCellValue(aHtmlFragment);
+        i++;
+
+        Cell cell4 = row.createCell(i);
+        cell4.setCellValue(aTitle);
+        i++;
+
+        Cell cell5 = row.createCell(i);
+        cell5.setCellValue(aAriaLabel);
+        i++;
+
+        Cell cell6 = row.createCell(i);
+        cell6.setCellValue(aProblemText);
+    }
