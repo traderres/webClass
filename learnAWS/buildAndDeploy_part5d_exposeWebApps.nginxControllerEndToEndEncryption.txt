@@ -1,20 +1,22 @@
 How to Setup a Load Balancer on AWS (using nginx Controller and Network Load Balancer)
 --------------------------------------------------------------------------------------
-I want the SSL traffic to pass the AWS Network Load Balancer ------> nginx controller ------> deployment
-                                                              https                     https
-And, you *CAN* route based on the hostname
+I want the SSL traffic to be encrypted end-to-end
+I want to re-use one server cert (app.traderres.com) and route to different apps using the URL
+
+The plan is to route based on the url path
           https://app.traderres.com/app1 --->  web app #1
           https://app.traderres.com/app2 --->  web app #2
           https://app.traderres.com/app3 --->  web app #3
 
 
-        User's  ----------->  Network Load Balancer  ---------> nginx controller     -------> deployment ---> pods
-        Browser                                                  (descrypt traffic)   https              https
+        User's    ------------>    Load Balancer ---->  nginx controller              ------------>     deployment      ------------>    pods
+        Browser      https                               a) decrypts traffic               https                              https      (decrypt traffic)
+                                                         b) re-encrypts traffic
+                                                         c) routes to correct deployment
 
 
 References
 ----------
-https://arunsworld.medium.com/ssl-passthrough-via-kubernetes-ingress-b3eaf3c7c9da
 https://kubernetes.github.io/ingress-nginx/deploy/
 https://aws.amazon.com/blogs/containers/exposing-kubernetes-applications-part-3-nginx-ingress-controller/
 https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annotations/
@@ -27,76 +29,158 @@ unix> kubectl edit deployment ingress-nginx-controller -n ingress-nginx
 
 
 
+ASSUMPTIONS:
+ A) You have deployments running with selector app=nccs-backend
+
+#
+# nccs-deployment.yaml
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nccs-deployment
+
+spec:
+  selector:
+    matchLabels:
+      app: nccs-backend
+
+  replicas: 1
+  strategy:
+    type:  Recreate
+  template:
+    metadata:
+      name: nccs-backend
+      labels:
+         app: nccs-backend
+
+    spec:
+      hostAliases:
+      - ip: "18.216.9.38"
+        hostnames:
+          - "keycloak.traderres.com"
+
+      volumes:
+      - name: app-certs-pv
+        persistentVolumeClaim:
+          claimName: app-certs-pvc
+
+      containers:
+      - image: 524647912468.dkr.ecr.us-east-2.amazonaws.com/nccs:backend-2.3.5-SNAPSHOT
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: app-certs-pv
+          mountPath: /shared/certs
+
+        name: nccs-backend
+
+        env:
+           - name: POSTGRES_HOSTNAME
+             value: "nccs-db.csbk2jnrc8ao.us-east-2.rds.amazonaws.com"
+           - name: POSTGRES_DB_USERNAME
+             value: "nccs_user"
+           - name: POSTGRES_DB_PASSWORD
+             value: "secret12"
+           - name: POSTGRES_DB_NAME
+             value: "nccs_db"
+           - name: POSTGRES_SCHEMA_NAME
+             value: "nccs_db"
+           - name: POSTGRES_POOL_SIZE
+             value: "5"
+           - name: ES_URL
+             value: "https://vpc-app-opensearch-ep5v5i6jlal7ka3qraya46fpsi.us-east-2.es.amazonaws.com:443"
+           - name: ES_USERNAME
+             value: "es_user"
+           - name: ES_PASSWORD
+             value: "Secret1@"
+           - name: KEYCLOAK_CLIENT_ID
+             value: "nccs-webapp"
+           - name: KEYCLOAK_CLIENT_SECRET
+             value: "0kps0Tn29TWhQhoEy7SwhvWEYNfYb7cU"
+           - name: KEYCLOAK_ISSUER_URI
+             value: "https://keycloak.traderres.com:8444/realms/MyRealm"
+           - name: INCOMING_KEYSTORE_FILEPATH
+             value: "/shared/certs/webapp.keystore.jks"
+           - name: INCOMING_KEYSTORE_PASSWORD
+             value: "changeit"
+           - name: INCOMING_TRUSTSTORE_FILEPATH
+             value: "/shared/certs/webapp.truststore.jks"
+           - name: INCOMING_TRUSTSTORE_PASSWORD
+             value: "changeit"
+           - name: JAVA_TOOL_OPTIONS
+             value: -Xms1024m -Xmx1024m -Demail.mode=off -Dserver.port=443 -Djavax.net.ssl.trustStore=/shared/certs/custom.cacerts -Djavax.net.ssl.trustStorePassword=changeit
 
 
-Part 1:  Setup the nginx controller and network load balancer in AWS
---------------------------------------------------------------------
- 1. Configure & Install the ingress controller
-    a. Download the nginx-ingress controller deployment file
-       unix> wget https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.0/deploy/static/provider/cloud/deploy.yaml -O nginx.controller.deploy.yaml
-
-    b. Install the nginx ingress controller
-       unix> kubectl apply -f nginx.controller.deploy.yaml
-
-
- 2. Download & Install AWS network load balancer
-    a. Download the AWS Network Network Load Balancer
-       unix> wget https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.0/deploy/static/provider/aws/deploy.yaml -O deploy.yaml
-
-    b. Install the network load balancer
-       unix> kubectl apply -f deploy.yaml
-
-
- 3. Create a certificate for re-encryption
 
 
 
- 1. Create the self-signed certificate
-unix> export KEY_FILE=key_file
-unix> export CERT_FILE=cert_file
-unix> export HOST=app.traderres.com
-unix> openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ${KEY_FILE} -out ${CERT_FILE} -subj "/CN=${HOST}/O=${HOST}" -addext "subjectAltName = DNS:${HOST}"
+Procedure for setting nginx controller as a load balancer in AWS
+----------------------------------------------------------------
+ 1. Download & Install nginx controller on AWS on your kubernetes cluster
+    a. Download the nginx controller for AWS
+       unix> wget https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.1/deploy/static/provider/aws/deploy.yaml -O aws.deploy.yaml
+
+    b. Install the nginx controller for AWS
+       unix> kubectl apply -f aws.deploy.yaml
 
 
- 2. Create a secret from the certs
-    unix> kubectl delete secret app-tls-secret
-    unix> kubectl create secret tls app-tls-secret --key ${KEY_FILE} --cert ${CERT_FILE}
+ 2. Create a server certificate called app.traderres.com and download the parts
+    a. ssh to the keycloak server (that's where our Let's Encrypt cert-bot is)
+        unix> ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.216.9.38
 
-    unix> kubectl get secrets
+    b. On the keyclaok server
+       unix> sudo -s
+       unix> cd /opt/shared-storage/certbot/archive
+
+        If you don't see an app.traderres.com, then you must create one
+
+
+     c. Download the pieces to your box (that is running kubectl)
 
 
 
 
+ 3. Create the 2 secrets
+    a. Create secret #1 "default/ca-secret"   [this holds the root certificate authority's public cert]
+       unix> kubectl create secret generic ca-secret --from-file=ca.crt=888.root.pem
+
+    b. Create secret #2:  "default/ca-tls"
+       unix> kubectl create secret generic ca-tls --namespace default --from-file=ca.crt=888.fullchain_and_server_cert.pem --from-file=tls.key=888.app.traderres.com.key.pem  --from-file=tls.crt=888.app.traderres.com.server.crt
 
 
-
-    a. Create the cert
-       unix> cd /tmp/app.traderres.com/
-       unix> kubectl create secret tls app-tls-secret --namespace default  --key privkey1.pem --cert cert1.pem
-
-    b. Verify it exists
-       unix> kubectl get secret
+ 4. Verify that the secrets exist
+    unix> kubectl get secret
 
          NAME             TYPE                DATA   AGE
          app-tls-secret   kubernetes.io/tls   2      10h
 
 
 
- 4. Setup the Ingress Service
+ 5. Create the ingress and services (that can reach the pods and uses the secret called "default/ca-tls" and "default/ca-secret")
     unix> vi app-load-balancer.yaml
+
 ######################################################################################
 # Filename:  app-load-balancer.yaml
 #
 # Purpose:   Setup the services and the ingress rules for load balancing
 #
 #
-#  Browser                           Network
-#  https://nccs.traderres.com/ -->    Load    --> nginx-controller  --> nccs-deployment
-#                                    Balancer      (ssl pass-thru)
-#
-#
+#        Browser                                Network
+#  https://app.traderres.com/nccs ---------->    Load    ----->  nginx-controller   --------------> nccs-deployment --->  nccs pod #1
+#     PKI client generated                       https            Balancer             (https)                            nccs pod #2
+#            root-ca                                              [must trust
+#                                                                  our root-ca]
 # To troubleshoot kubernetes, run this command:
 # unix> kubectl get events --all-namespaces
+#
+#
+# ASSUMPTIONS:
+#  1) You created a generic secret from the root-ca public/root.pem
+#     unix> kubectl create secret generic ca-secret --from-file=ca.crt=888.root.pem
+#
+#  2) You created a generic secret called ca-tls
+#     unix> kubectl create secret generic ca-tls --namespace default --from-file=ca.crt=888.fullchain_and_server_cert.pem --from-file=tls.key=888.app.traderres.com.key.pem  --from-file=tls.crt=888.app.traderres.com.server.crt
+#
 #
 ######################################################################################
 
@@ -110,14 +194,16 @@ metadata:
   namespace: default
   name: nccs-service
 spec:
-  type: NodePort
+  type: ClusterIP              # This service will be ClusterIp because this service will be proxied by the ingress-nginx-controller
   selector:
-    app: nccs-deployment
+    app: nccs-backend          # The app=nccs-backend is the same selector found in nccs-deployment
   ports:
     - name: https
       port: 443
+      protocol: 'TCP'
       targetPort: 443
     - name: http
+      protocol: 'TCP'
       port: 80
       targetPort: 80
 
@@ -132,9 +218,9 @@ metadata:
   namespace: default
   name: nccs-admin-service
 spec:
-  type: NodePort
+  type: ClusterIP                    # This service will be ClusterIp because this service will be proxied by the ingress-nginx-controller
   selector:
-    app: nccs-admin-deployment
+    app: nccs-admin-backend          # The app=nccs-admin-backend is the same selector found in nccs-admin-deployment
   ports:
     - name: https
       port: 443
@@ -157,7 +243,21 @@ metadata:
   namespace: default
   annotations:
     nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/auth-tls-verify-depth: "3"
 
+    # Enable pki client certificate authentication
+    nginx.ingress.kubernetes.io/auth-tls-verify-client: "on"
+
+    # Create the secret containing the trusted ca certificates
+    nginx.ingress.kubernetes.io/auth-tls-secret: "default/ca-secret"
+
+    nginx.ingress.kubernetes.io/proxy-ssl-secret: "default/ca-tls"
+
+    # Specify the verification depth in the client certificates chain
+    nginx.ingress.kubernetes.io/auth-tls-verify-depth: "1"
+
+    # Specify if certificates are passed to upstream server
+    nginx.ingress.kubernetes.io/auth-tls-pass-certificate-to-upstream: "true"
 
 spec:
   ingressClassName: nginx
@@ -165,7 +265,7 @@ spec:
   tls:
    - hosts:
        - app.traderres.com
-     secretName: app-tls-secret
+     secretName: ca-tls
 
   rules:
     - host: app.traderres.com
@@ -189,14 +289,15 @@ spec:
 
 
 
- 5. Create the ingress and service
+
+
+ 6. Deploy the ingress and services
     unix> kubectl apply -f app-load-balancer.yaml
 
 
-    W A I T     A     M I N U T E      (for AWS to allocate a public address to the ingress)
 
-
- 6. Get the public hostname of the network load balancer
+ 7. Get the public hostname of the network load balancer
+    NOTE:  You may have to wait a minute for AWS to allocate a public hostname for it
     unix> kubectl get ingress
 
 	NAME          CLASS   HOSTS               ADDRESS                                                                   PORTS       AGE
@@ -204,7 +305,7 @@ spec:
 
 
 
- 7. Update godaddy's cname record for app.traderres.com so that it corresponds to the new external hostname
+ 8. Update godaddy's cname record for app.traderres.com so that it corresponds to the new external hostname
 		a. Go to https://dcc.godaddy.com/control/portfolio/traderres.com/settings
         b. Click on the DNS tab
 		c. Edit the old CNAME record for "app"    (this corresponds to app.traderres.com)
@@ -215,7 +316,7 @@ spec:
 		d. Press "Save"
 
 
- 8. Wait for goDaddy to show that app.traderres.com points to the new load-balancer public hostname
+ 9. Wait for goDaddy to show that app.traderres.com points to the new load-balancer public hostname
     Do a lookup to get the current hostname for app.traderres.com
     unix> nslookup app.traderres.com
 
@@ -223,7 +324,7 @@ spec:
     unix> while [ 1 ]; do clear; date; nslookup app.traderres.com; sleep 3; done
 
 
- 9. Watch the nginx pod log files
+10. Watch the nginx pod log files
     unix> kubectl get pods -A
 
     NAMESPACE       NAME                                        READY   STATUS      RESTARTS   AGE
@@ -248,7 +349,7 @@ spec:
 
 
 
-10. Attempt to connect with your browser and pki client cert
+11. Attempt to connect with your browser and pki client cert
     a. Go to https://app.traderres.com/nccs
 
 
@@ -260,7 +361,7 @@ spec:
 How to Delete the nginx controller and load balancer
 ----------------------------------------------------
 unix> kubectl delete -f app-load-balancer.yaml
-unix> kubectl delete -f nginx.controller.deploy.yaml
+unix> kubectl delete -f aws.deploy.yaml
 
 
 
