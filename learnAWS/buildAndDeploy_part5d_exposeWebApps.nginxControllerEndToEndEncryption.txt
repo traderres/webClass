@@ -25,7 +25,11 @@ https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annota
 
 
 ASSUMPTIONS:
- A) You have deployments running with selector app=nccs-backend
+ A) Your kubernetes deployments are up and running
+ B) Your kubernetes deployments have a selector app=nccs-backend
+ C) Your deployments have the pods listening on port 443
+    [see the example nccs-deployment.yaml]
+
 
 #
 # nccs-deployment.yaml
@@ -120,7 +124,7 @@ Procedure for setting nginx controller as a load balancer in AWS
 
 
 
- 2. Create a server certificate called app.traderres.com and download the parts
+ 2. Create a server certificate called app.traderres.com and download the parts (we need the parts to create the 2 kubernetes secrets)
     a. ssh to the keycloak server (that's where our Let's Encrypt cert-bot is)
         unix> ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.216.9.38
 
@@ -198,7 +202,10 @@ Procedure for setting nginx controller as a load balancer in AWS
 
 
 
- 5. Create the ingress and services (that can reach the pods and uses the secret called "default/ca-tls" and "default/ca-secret")
+ 5. Create the ingress and services
+    NOTE:  The ingress tells nginx how to route traffic to different services
+           The ingress is what uses the 2 secrets (called "default/ca-tls" and "default/ca-secret")     The default/ indicates it is in the default namespace
+
     unix> vi app-load-balancer.yaml
 
 ######################################################################################
@@ -207,11 +214,12 @@ Procedure for setting nginx controller as a load balancer in AWS
 # Purpose:   Setup the services and the ingress rules for load balancing
 #
 #
-#        Browser                                Network
-#  https://app.traderres.com/nccs ---------->    Load    ----->  nginx-controller   --------------> nccs-deployment --->  nccs pod #1
-#     PKI client generated                       https            Balancer             (https)                            nccs pod #2
-#            root-ca                                              [must trust
-#                                                                  our root-ca]
+#        Browser                                 Network
+#  https://app.traderres.com/nccs ---------->    Load      ----->  nginx-controller   -------------->   nccs-service   --->  nccs pod #1
+#     PKI client generated                       Balancer          [must trust           (https)                             nccs pod #2
+#            root-ca                                                our root CA]
+#
+#
 # To troubleshoot kubernetes, run this command:
 # unix> kubectl get events --all-namespaces
 #
@@ -222,8 +230,6 @@ Procedure for setting nginx controller as a load balancer in AWS
 #
 #  2) You created a generic secret called ca-tls
 #     unix> kubectl create secret generic ca-tls --namespace default --from-file=ca.crt=888.fullchain_and_server_cert.pem --from-file=tls.key=888.app.traderres.com.key.pem  --from-file=tls.crt=888.app.traderres.com.server.crt
-#
-#
 ######################################################################################
 
 
