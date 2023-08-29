@@ -133,10 +133,53 @@ Procedure for setting nginx controller as a load balancer in AWS
        unix> cd /opt/shared-storage/certbot/archive
 
         If you don't see an app.traderres.com, then you must create one
+        unix> certbot certonly --manual --preferred-challenges dns --manual-auth-hook /opt/shared-storage/certbot/authenticate.sh --config-dir /opt/shared-storage/certbot/ -d app.traderres.com
 
+       You should see this:
+			Successfully received certificate.
+			Certificate is saved at: /opt/shared-storage/certbot/live/app.traderres.com/fullchain.pem
+			Key is saved at:         /opt/shared-storage/certbot/live/app.traderres.com/privkey.pem
+			This certificate expires on 2023-06-19.
+    		These files will be updated when the certificate renews.
+    		Certbot has set up a scheduled task to automatically renew this certificate in the background.
 
-     c. Download the pieces to your box (that is running kubectl)
+        Now, /opt/shared-storage/certbot/live/app.traderres.com/ has these files:
+                  cert.pem
+                  fullchain.pem
+                  privkey.pem
 
+     c. Copy these 4 files to the /tmp directory and make them readable
+        unix> cd /opt/shared-storage/certbot/live/app.traderres.com
+        unix> cp cert.pem fullchain.pem privkey.pem /tmp
+        unix> cd /tmp
+        unix> chmod ugo+r cert.pem fullchain.pem privkey.pem
+
+     d. Copy the certificate root authority pem file to /tmp
+        unix> cp /opt/shared-storage/root-ca/public/root.pem /tmp/888.root.pem
+        unix> chmod ugo+r /tmp/888.root.pem
+
+     d. Download these 4 files to your box (where you are running kubectl)
+        unix> mkdir -p /tmp/certs
+        unix> cd /tmp/certs
+        unix> scp -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.216.9.38:/tmp/888.root.pem .
+        unix> scp -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.216.9.38:/tmp/cert.pem .           # This is the server cert
+        unix> scp -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.216.9.38:/tmp/fullchain.pem .
+        unix> scp -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.216.9.38:/tmp/privkey.pem .
+
+     e. Combine fullchain.pem and server cert into one file
+        unix> cat fullchain.pem cert.pem > 888.fullchain_and_server_cert.pem
+
+     f. Copy cert.pem to 888.app.traderres.com.server.crt
+        unix> cp cert.pem 888.app.traderres.com.server.crt
+
+     g. Copy privkey.pem to 888.app.traderres.com.key.pem
+        unix> cp privkey.pem 888.app.traderres.com.key.pem
+
+ 		Now, I have these files:
+ 		  888.fullchain_and_server_cert.pem    Holds the full chain and the server cert
+ 		  888.app.traderres.com.server.crt     Holds the app.traderres.com server cert
+          888.app.traderres.com.key.pem        Holds the app.traderres.com private key
+          888.root.pem                         Holds the root public cert (of our created certificate authority)
 
 
  3. Create the 2 secrets
