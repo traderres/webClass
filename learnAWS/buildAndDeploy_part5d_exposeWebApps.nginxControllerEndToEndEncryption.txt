@@ -519,3 +519,264 @@ How to edit nginx controller settings
 unix> kubectl edit deployment ingress-nginx-controller -n ingress-nginx
 
 
+
+Sample Complex Ingress and Service File
+---------------------------------------
+
+Create an ingress file so that
+ 1) If the user connects to https://app.traderres.com/ then rewrite it to https://app.traderres.com/welcome
+ 2) If nginx returns a 404 not found error, then redirect the user to https://app.traderres.com/unknown
+
+
+######################################################################################
+# Filename:  app-load-balancer.yaml
+#
+# Purpose:   Setup the services and the ingress rules for load balancing
+#
+#
+#        Browser                                Network
+#  https://app.traderres.com/nccs ---------->    Load    ----->  nginx-controller   --------------> nccs-deployment --->  nccs pod #1
+#     PKI client generated                       https            Balancer             (https)                            nccs pod #2
+#            root-ca                                              [must trust
+#                                                                  our root-ca]
+# To troubleshoot kubernetes, run this command:
+# unix> kubectl get events --all-namespaces
+#
+#
+# ASSUMPTIONS:
+#  1) You created a generic secret from the root-ca public/root.pem
+#     unix>  kubectl create secret generic ca-secret --from-file=ca.crt=888.root.pem
+#
+#  2) You created a generiuc secret called ca-tls
+#     unix> kubectl create secret generic ca-tls --namespace default --from-file=ca.crt=888.fullchain_and_server_cert.pem --from-file=tls.key=888.app.traderres.com.key.pem  --from-file=tls.crt=888.app.traderres.com.server.crt
+#
+#
+######################################################################################
+
+
+#####################################################
+# NCCS Service
+#####################################################
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: nccs-service
+spec:
+  type: ClusterIP              # This service will be ClusterIp because this service will be proxied by the ingress-nginx-controller
+  selector:
+    app: nccs-backend          # The app=nccs-backend is the same selector found in nccs-deployment
+  ports:
+    - name: https
+      port: 443
+      protocol: 'TCP'
+      targetPort: 443
+    - name: http
+      protocol: 'TCP'
+      port: 80
+      targetPort: 80
+
+
+---
+#####################################################
+# NCCS-Admin Service
+#####################################################
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: nccs-admin-service
+spec:
+  type: ClusterIP                    # This service will be ClusterIp because this service will be proxied by the ingress-nginx-controller
+  selector:
+    app: nccs-admin-backend          # The app=nccs-admin-backend is the same selector found in nccs-admin-deployment
+  ports:
+    - name: https
+      port: 443
+      targetPort: 443
+    - name: http
+      port: 80
+      targetPort: 80
+
+
+---
+#####################################################
+# FRMS Service
+#####################################################
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: frms-service
+spec:
+  type: ClusterIP                    # This service will be ClusterIp because this service will be proxied by the ingress-nginx-controller
+  selector:
+    app: frms-backend                # The app=frms-backend is the same selector found in frms-deployment
+  ports:
+    - name: https
+      port: 443
+      targetPort: 443
+    - name: http
+      port: 80
+      targetPort: 80
+
+
+---
+#####################################################
+# SF328 Service
+#####################################################
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: sf328-service
+spec:
+  type: ClusterIP                    # This service will be ClusterIp because this service will be proxied by the ingress-nginx-controller
+  selector:
+    app: sf328-backend               # The app=sf328-backend is the same selector found in sf328-deployment
+  ports:
+    - name: https
+      port: 443
+      targetPort: 443
+    - name: http
+      port: 80
+      targetPort: 80
+
+
+---
+#####################################################
+# unknown Service
+#####################################################
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: unknown-service
+spec:
+  type: ClusterIP
+  selector:
+    app: unknown-backend               # The app=unknown-backend is the same selector found in unknown-deployment
+  ports:
+    - name: https
+      port: 443
+      targetPort: 443
+    - name: http
+      port: 80
+      targetPort: 80
+
+
+
+---
+#####################################################
+# welcome Service
+#####################################################
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: welcome-service
+spec:
+  type: ClusterIP
+  selector:
+    app: welcome-backend               # The app=welcome-backend is the same selector found in welcome-deployment
+  ports:
+    - name: https
+      port: 443
+      targetPort: 443
+    - name: http
+      port: 80
+      targetPort: 80
+
+---
+#####################################################
+# Ingress (app-ingress-webapp)
+#
+# https://nccs.traderres.com/    --> takes you to nccs with end-to-end encryption
+#####################################################
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-ingress
+  namespace: default
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/auth-tls-verify-depth: "3"
+
+    # Enable pki client certificate authentication
+    nginx.ingress.kubernetes.io/auth-tls-verify-client: "on"
+
+    # Create the secret containing the trusted ca certificates
+    nginx.ingress.kubernetes.io/auth-tls-secret: "default/ca-secret"
+
+    nginx.ingress.kubernetes.io/proxy-ssl-secret: "default/ca-tls"
+
+    # Specify the verification depth in the client certificates chain
+    nginx.ingress.kubernetes.io/auth-tls-verify-depth: "1"
+
+    # If nginx returns a 404 not found, then redirect the user to the /unknown page
+    nginx.ingress.kubernetes.io/server-snippet: |
+      proxy_intercept_errors on ;
+      error_page 404 "https://app.traderres.com/unknown" ;
+
+    # Specify if certificates are passed to upstream server
+    nginx.ingress.kubernetes.io/auth-tls-pass-certificate-to-upstream: "true"
+
+    # If the user requests / then rewrite the url as /welcome
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      rewrite ^/$ /welcome last;
+
+
+spec:
+  ingressClassName: nginx
+
+  tls:
+   - hosts:
+       - app.traderres.com
+     secretName: ca-tls
+
+  rules:
+    - host: app.traderres.com
+      http:
+        paths:
+
+          - path: /welcome
+            pathType: Prefix
+            backend:
+              service:
+                name: welcome-service           # If users connects to https://app.traderres.com/welcome** then proxy to the welcome-service
+                port:
+                  number: 443
+
+          - path: /unknown
+            pathType: Prefix
+            backend:
+              service:
+                name: unknown-service
+                port:
+                  number: 443
+
+          - path: /nccs
+            pathType: Prefix
+            backend:
+              service:
+                name: nccs-service              # If users connects to https://app.traderres.com/nccs** then proxy to the nccs-service
+                port:
+                  number: 443
+
+          - path: /nccs-admin
+            pathType: Prefix
+            backend:
+              service:
+                name: nccs-admin-service
+                port:
+                  number: 443
+
+          - path: /frms
+            pathType: Prefix
+            backend:
+              service:
+                name: frms-service
+                port:
+                  number: 443
+
+
