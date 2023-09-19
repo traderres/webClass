@@ -1,0 +1,60 @@
+How to Backup & Restore one specific database in postgres  (not the entire database)
+------------------------------------------------------------------------------------
+Problem:  I want to take a snapshot of my nccs_analytics_db on the BDP and restore it
+
+
+
+Backup the current database
+---------------------------
+ 1. Backup the current nccs_analytics_db database in aws BDP to a file
+    ssh to the puppet master
+    unix> go postgres_server
+    unix> sudo -s
+    unix> rm -f -f /tmp/nccs_analytics_db.sql
+    unix> pg_dump --create -U postgres nccs_analytics_db -f /tmp/nccs_analytics_db.sql
+
+     -- Now, we have a snapshot of the entire nccs_analytics_db written to a text file.
+
+
+
+Deploy NCCS 2.3.0 and wipe the database
+---------------------------------------
+ 1. Deploy nccs 2.3.0
+
+ 2. Use the RDA Deployer to run the sync-service to erase the nccs database
+    a. Connect to the RDA Deployer
+    b. Deploy the nccs build
+    c. Edit the sync service configuration so it has this option:
+             -Dapp.datasource.flyway-clean-on-startup=TRUE
+
+    d. Start the sync service
+        -- We have nccs 2.3.0 with an empty database
+
+ 3. Start the other nccs web applications
+
+ 4. Use the nccs-admin webapp to set the api.sam.gov key
+
+
+
+When done testing, restore the nccs database
+--------------------------------------------
+ 1. Use the RDA Deployer to delete the existing nccs build  (to get rid of the nccs user accounts)
+
+ 2. Drop the existing nccs_analystics_db database and replace it with the snapshot build
+    a. Drop the existing database
+       unix> go postgres_server
+       unix> sudo -s
+       unix> psql -U postgres -h localhost
+
+           drop database nccs_analystics_db;
+           \q
+
+    b. Restore the database from the snapshot file:
+       unix> psql -U postgres -h localhost < /tmp/nccs_analystics_db.sql
+
+
+
+ 3. Deploy the latest releaes_candidate  (2.4.0-SNAPSHOT)
+    -- We have nccs 2.4.0 snapshot with a resotred database
+
+ 4. Run the sync service
