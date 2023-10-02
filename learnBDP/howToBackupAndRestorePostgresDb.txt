@@ -6,7 +6,32 @@ Problem:  I want to take a snapshot of my nccs_analytics_db on the BDP and resto
 
 Part 1:  Backup the current database (to a snapshot file)
 ---------------------------------------------------------
- 1. Backup the current nccs_analytics_db database in aws BDP to a file
+ 1. Get the name of the current *OWNER* of the tables
+     ssh to the puppet master
+     unix> go postgres_server
+     unix> sudo -s
+     unix> psql -U postgres -h localhost -d nccs_analytics_db
+
+		\du
+
+
+		 nccs2_678_nccs_postgres_database          <-- This is the generated name we want
+         nccs_analytics_db                | Cannot login                                              +| {}
+
+
+      *OR YOU CAN RUN THE \dt command on any table*
+
+		\dt users;
+
+                     List of relations
+			 Schema | Name  | Type  |              Owner
+			--------+-------+-------+----------------------------------
+			 public | users | table | nccs2_678_nccs_postgres_database
+
+
+
+
+ 2. Backup the current nccs_analytics_db database in aws BDP to a file
     ssh to the puppet master
     unix> go postgres_server
     unix> sudo -s
@@ -58,8 +83,36 @@ Part 4:  Restore the nccs database back to 2.4.0  (from the saved snapshot file)
        unix> psql -U postgres -h localhost < /tmp/nccs_analystics_db.sql
 
 
+    c. Restore the **OWNERSHIP** of the tables, views, and sequences back to their original owners
+       1) Create a file that will restore the tables, views, and sequences
+          unix> vi /tmp/sqlToRestoreOwners.sql
 
- 3. Deploy the latest releaes_candidate  (2.4.0-SNAPSHOT)
+			SELECT 'ALTER TABLE '|| schemaname || '."' || tablename ||'" OWNER TO nccs2_678_nccs_postgres_database;'
+			FROM pg_tables WHERE NOT schemaname IN ('pg_catalog', 'information_schema')
+			ORDER BY schemaname, tablename;
+
+			SELECT 'ALTER VIEW '|| table_schema || '."' || table_name ||'" OWNER TO nccs2_678_nccs_postgres_database;'
+			FROM information_schema.views WHERE NOT table_schema IN ('pg_catalog', 'information_schema')
+			ORDER BY table_schema, table_name;
+
+			SELECT 'ALTER TABLE '|| oid::regclass::text ||' OWNER TO nccs2_678_nccs_postgres_database;'
+			FROM pg_class WHERE relkind = 'm'
+			ORDER BY oid;
+
+			SELECT 'ALTER SEQUENCE '|| sequence_schema || '."' || sequence_name ||'" OWNER TO nccs2_678_nccs_postgres_database;'
+			FROM information_schema.sequences WHERE NOT sequence_schema IN ('pg_catalog', 'information_schema')
+			ORDER BY sequence_schema, sequence_name;
+
+       2) Execute the SQL to generate the script to restore ownership
+          NOTE:  We need the -t to make this work
+		  unix> psql -U postgres -h localhost -d nccs_analytics_db -t < /tmp/sqlToRestoreOwners.sql > /tmp/restore.sql
+
+	   3) Execute the SQL in /tmp/restore.sql
+          unix> psql -U postgres -h localhost -d nccs_analytics_db < /tmp/restore.sql
+
+
+
+ 3. Deploy the latest release_candidate  (2.4.0-SNAPSHOT)
     -- We have nccs 2.4.0 snapshot with a restored database
 
  4. Run the sync service
