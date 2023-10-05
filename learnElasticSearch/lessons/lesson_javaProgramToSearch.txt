@@ -11,7 +11,8 @@ Procedure
 
  2. Add the /src/main/resources directory
 
- 3. Add dependencies for logback, StringUtils, and com.ning
+ 3. Add dependencies to your maven pom.xml
+
          <dependency>
            <groupId>org.apache.commons</groupId>
            <artifactId>commons-lang3</artifactId>
@@ -31,8 +32,16 @@ Procedure
            <version>1.9.31</version>
          </dependency>
 
+         <dependency>
+           <!-- Implementation for converting objects to JSON -->
+           <groupId>com.fasterxml.jackson.core</groupId>
+           <artifactId>jackson-databind</artifactId>
+           <version>2.13.3</version>
+         </dependency>
 
- 4. Add a logback.xml
+
+
+ 4. Add a logback.xml to your src/main/resources
          <?xml version="1.0" encoding="windows-1252" ?>
 
          <configuration debug="false">
@@ -89,7 +98,7 @@ Procedure
               * @param aRawQuery
               * @return JSON with response
               */
-             public String runSearch(String aRawQuery) throws Exception {
+             public String runSearch(String aIndexName, String aRawQuery) throws Exception {
                  logger.debug("runSearch() started.  aRawQuery={}", aRawQuery);
 
                  String jsonRequest =
@@ -102,7 +111,7 @@ Procedure
                          "}";
 
                  // Make a synchronous call to ElasticSearch
-                 Response response = this.asyncHttpClient.preparePost(this.elasticSearchUrl + "/csaac_reports/_search?pretty=true")
+                 Response response = this.asyncHttpClient.preparePost(this.elasticSearchUrl + "/" + aIndexName + "/_search?pretty=true")
                          .setHeader("Accept", "application/json")
                          .setHeader("Content-Type", "application/json")
                          .setBody(jsonRequest)
@@ -116,6 +125,8 @@ Procedure
              }
 
          }
+
+
 
  6. Modify the App.main to
     (1) Instantiate the ElasticSearchService
@@ -141,11 +152,17 @@ Procedure
             // NOTE:  This service needs to know where ElasticSearch is located
             ElasticSearchService elasticSearchService = new ElasticSearchService("http://localhost:9201");
 
-            // Make a search
-            String json = elasticSearchService.runSearch("report");
+            // Run a search and return the JSON response
+            String jsonResults = elasticSearchService.runSearch("reports", "george");
 
             // Display the JSON
-            logger.debug("returned json={}", json);
+            logger.debug("returned jsonResults={}", jsonResults);
+
+  			// Create the Jackson Object mapper instance
+		    ObjectMapper objectMapper = new ObjectMapper();
+
+    		// Use the ObjectMapper to convert the JSON response into a java Map object (POJO)
+    		Map<String, Object> mapResponse = objectMapper.readValue(jsonResults, Map.class);
 
 
             logger.debug("main() finished.");
