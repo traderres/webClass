@@ -1,0 +1,134 @@
+How to Re-Generate Server Certs
+-------------------------------
+Problem:  The BDP's server certs are about to expire
+Solution: Re-generate them
+
+
+Procedure
+---------
+ 1. Stop BDP Services
+    ssh to the puppet master
+    unix> bdp_control   # Run as a non-root user
+
+			start menu
+			1. zookeepers
+			2. hdfs
+			3. accumulo
+			4. kafka_servers
+			5. bdp_config_servers
+			6. storm_master
+			7. graphite_relay
+			8. postgres_server
+			9. consul_server
+			10. bdp_proxy
+			11. citadel
+			12. elastic_primary
+			13. bdp_collectd
+			14. storm_nimbus
+			15. storm_workers
+			16. yarn
+			17. spark_history_server
+			18. consul_client
+			19. consul_template
+			20. property_loader_server
+			21. rda_deployer_server
+			22. parser_sync_server
+			23. content_sync_server
+			24. shiny_sync_server
+			25. analytics_sync_server
+			26. airflow_master
+			27. analytic_registry_server
+			28. navigator_server
+			29. kibana_servers_primary
+			30. bdp_clamav
+			31. sentinel
+			32. redis_bdp_api
+			33. redis_bdp_apps
+			34. livy_server
+			35. bdp_rdas
+			36. kronos_server
+			37. r_shinyserver
+			38. bdp_analytics_server
+			39. grafana_server
+			40. bdp_nrpe
+			41. nagios_server
+			42. logstash_server
+			43. internal_content_sync_server
+			44. graphite_storage
+			45. bdp_rsyslog
+
+			q. quit  e. everything  k. switch to stop  i. switch to init  t. switch to status
+
+
+    k <enter>    # switch to stop
+    e <enter>   # select everything
+
+    # W A I T   about 5 minutes to shutdown all services
+
+    Press <enter> to continue
+    Press q to quit
+
+
+    NOTE:  If you get an error running systemctl sto prsyslog, press i for ignore
+
+
+ 2. View server certs before doing anything
+    unix> yarcs -vc 'sudo su - -c "openssl x509 -in /etc/pki/simp/x509/public/$(hostname -f).pub -enddate -noout"'
+
+    NOTE:  This shows that the server certs will expire on 12/12/2023 server time
+		ctpdn02: notAfter=Dec 12 16:15:50 2023 GMT
+		ctpdn01: notAfter=Dec 12 16:15:50 2023 GMT
+		ctpam01: notAfter=Dec 12 16:15:50 2023 GMT
+		ctpwn01: notAfter=Dec 12 16:15:51 2023 GMT
+
+
+ 3. Regenerate the existing server certs
+    a. Erase the server certs
+       unix> sudo -i
+       unix> rm -rf /var/simp/environments/production/site_files/pki_files/files/keydist/*.$(hostname -d)/*.pub
+
+    b. Re-generate the server certs
+       unix> puppet agent -t    # Regenerate all of server certs (but not pushing them out to the nodes)
+
+    c. Verify that the puppet master server cert is now extended
+       unix> openssl x509 -in /etc/pki/simp/x509/public/$(hostname -f).pub -enddate -noout
+
+          notAfter=Dec  3 19:21:27 2024 GMT       # Server cert is now good until 12/3/2024
+
+       unix> exit
+
+
+ 4. Push out server certs to the nodes  (run as non-root user on puppet master)
+    unix> yarcs -v           # Each node should pick up its new certificate
+
+
+ 5. Verify that all certs are good for another year
+    unix> yarcs -vc 'sudo su - -c "openssl x509 -in /etc/pki/simp/x509/public/$(hostname -f).pub -enddate -noout"'
+
+		ctpdn02: notAfter=Dec  3 19:21:27 2024 GMT        # This server cert expires on 12/3/2024   [one year from now]
+		ctpam01: notAfter=Dec  3 19:21:27 2024 GMT
+		ctpdn01: notAfter=Dec  3 19:21:27 2024 GMT
+		ctpwn01: notAfter=Dec  3 19:21:27 2024 GMT
+
+
+ 6. Start BDP Services
+    unix> bdp_control   # Run as a non-root user
+
+    e   <for everything>
+
+
+
+
+View server certs on the puppet master
+--------------------------------------
+openssl x509 -in /etc/pki/simp/x509/public/$(hostname -f).pub -enddate -noout
+
+
+View server certs on all nodes
+------------------------------
+yarcs -vc 'sudo su - -c "openssl x509 -in /etc/pki/simp/x509/public/$(hostname -f).pub -enddate -noout"'
+
+
+Cluster Nodes Certificate location on puppet master:
+---------------------------------------------------
+/var/simp/environments/production/site_files/pki_files/files/keydist/
