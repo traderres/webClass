@@ -1,0 +1,735 @@
+How to Setup an ETL Job that will read from S3 bucket and Write to OpenSearch
+-----------------------------------------------------------------------------
+Goal:  Drop a file in an S3 bucket
+       --> Causes java code to run (to de-duplicate)
+	   --> Write unique rows to ElasticSearch
+
+
+Assumptions
+-----------
+ A) OpenSearch is
+ B) You have the mapping file:  events.mapping.json
+ C) Your project VPC has already been created with private and public subnets
+
+
+Procedure
+---------
+ 1. Create Private Security Group  (for OpenSearch and all of the)
+    a. Go to EC2 -> Select Security Groups
+
+    b. Press "Create Security Group"
+
+		Basic Details
+			Security Group Name:   		privateSecurityGroup2
+            Description:                Anything you want
+            VPC                         <Select the VPC for your project>
+
+
+		Outbound Rules
+			1) Delete the existing outbound rule
+
+			2) Add a new outbound rule
+				Type=All Traffic
+				Destination=Custom / search for s3 / Select the amazon-provided s3 for your region -- e.g., com.amazonaws.us-east-1.s3
+
+		Press "Create security group"
+
+
+
+ 2. Create Public Security Group
+    a. Go to EC2 -> Select Security Groups
+
+    b. Press "Create Security Group"
+
+		Basic Details
+			Security Group Name:   		publicSecurityGroup2
+            Description:                Anything you want
+            VPC                         <Select the VPC for your project>
+
+
+		Leave the existing Outbound rule for all traffic
+
+
+		Inbound Rules
+			1) Add a new inbound rule
+				Type=SSH
+				Source=Anywhere IPv4
+
+
+		Press "Create security group"
+
+
+ 3. Add inbound and outbound rules to privateSecurityGroup2
+    a. Go to EC2 -> Select Security Groups
+    b. Click on privateSecurityGroup2
+    c. Click "inbound rules"
+    d. Press "Edit inbound rules"
+       1) Press "Add rule"
+ 	      Type=ALl Traffic
+		  Source=Custom / Select your publicSecurityGroup2
+
+       2) Press "Add rule"
+ 	      Type=ALl Traffic
+		  Source=Custom / Select your privateSecurityGroup2     (NOTE:  This is ridiculous but necessary to get AWS Glue to work)
+
+       Press "Save rules"
+
+    e. Click "outbound rules"
+    f. Press "Edit outbound rules"
+       1) Press "Add rule"
+ 	      Type=ALl Traffic
+		  Source=Custom / Select your publicSecurityGroup2
+
+       2) Press "Add rule"
+ 	      Type=ALl Traffic
+		  Source=Custom / Select your privateSecurityGroup2     (NOTE:  This is ridiculous but necessary to get AWS Glue to work)
+
+       Press "Save rules"
+
+
+
+
+ 4. Setup OpenSearch
+    a. Go to Amazon OpenSearch Service
+
+    b. Press "Create Domain"
+
+    c. In "Create Domain"
+
+       1) In AWS -> Amazon OpenSearch Service   (as dev.user)
+
+       2) Press "Create domain"
+          In "Create domain"
+             Domain Name:               cvf-opensearch2
+
+             Domain creation method:    standard create
+
+             Templates:
+                 choose Dev/Test
+
+
+             Deployment Option(s)
+                 Choose Domain without standby
+                 Availability zones:  1-AZ
+
+
+             Engine Options
+                 Version:                    2.11 (Latest)
+                 Enable compatibility mode:  unchecked
+
+
+             Data nodes:
+				 Instance Family:           General Purpose
+                 Instance Type:             t3.small.search
+                 Number of nodes:           1
+
+                 Storage Type:              EBS   (Elastic Block Store)
+                 EBS Volume Type:           gp3         NOTE:  gp3 is faster than gp2
+                 EBS Storage size per node   10
+
+                 Total Provisioned IPOS:        <default of 3000>
+                 Total Provisioned Throughput   <default of 125 MiB/s>
+
+
+
+
+             Dedicated master nodeS:
+                Enable Dedicated master nodes:       Unchecked
+
+
+             Custom endpoint:
+                Enable automatic software update:    Unchecked
+
+             Network
+                Network:                       Check VPC access
+                IP Address Type:               IPv4 Only
+                VPC:                           Select default vpc for the project
+                Subnets:                       Select your private subnet   (if you select 1 availability zone, then you can only select 1 subnet)
+                Security groups:               Select privateSecurityGroup2
+
+             Fine-grained access Control
+                Fine-grained access control:   Checked
+                Create master user:            Checked
+                   master username:            es_user                # This must match the production application.yaml es.authentication.principal
+                   master password:            Secret1@               # This must match the production application.yaml es.authentication.password
+
+             Access Policy:
+                Choose                         Only use fine-grained access control
+
+             Press "Create"
+
+             W A I T        U P         T O        1 0     M I N U T E S    (for AWS to create the OpenSearch domain)
+
+
+
+
+
+
+
+ 5. Setup an ec2-instance  (so we can initialize open search)
+    -- Deploy this ec2-instance to a public subnet with ssh access
+    -- Create a keypair for the ec2-instance
+    -- Update security groups:  Allow access from ec2-instance to the OpenSearch security group
+                                Open-up the ec2-instance so we can ssh to it
+    -- Use the most modern linux
+    -- Use the t3.micro
+
+	a. Go to EC2 Dashboard
+
+    b. Press "Launch instance"
+
+       	Name:  						my-bastion-host2
+		Amazon Machine Image:		Amazon Linux 2023 AMI
+	 	Architecture:				64-bit (x86)
+		Instance Type: 				t2.micro
+
+		Keypair:
+			Press "Create new key pair"
+			Key pair name:			my-bastion-host2-keypair
+			Key pair type:			RSA
+			Key format:				PEM
+			Press "Create key pair"
+
+			Download the pem file
+
+
+		Network Settings:
+			Press "Edit"
+			VPC						<Select the project VPC>
+			Subnet:					<Select public subnet 2>
+			Auto-assign public IP:	Enable
+			Firewall:				"Select existing security group"
+
+			Common security group:  <Select PublicSecurityGroup2>
+
+		Press "Launch instance"
+
+
+
+
+
+
+ 6. Initialize the OpenSearch index called "events"
+    a. Get the OpenSearch hostname
+		Go to OpenSearch -> Domains
+		Click on your cvf-opensearch2 domain
+		Copy the hostname of "OpenSearch Domain endpoint (VPC)
+               https://vpc-cvf-opensearch2-7hcnwtcrfhpl3j62qljsgcwoyu.us-east-1.es.amazonaws.com
+
+
+    b. Get the ssh command to connect to your EC2 instance
+		Go to EC2 -> Instances
+		Click on your instance
+  		Press "Connect"
+		Select "SSH Client"
+       -- Get the ssh command to connect:
+
+		ssh -i "my-bastion-host2-keypair.pem" ec2-user@ec2-54-234-71-149.compute-1.amazonaws.com
+
+    c. Upload the events.mapping.json file to (to the running instance's /tmp directory)
+       terminal> cd /path/that/holds/events.mapping.json
+       terminal> scp -i ~/Downloads/public-ip-bastion-host-key-pair.pem events.mapping.json ec2-user@ec2-3-85-226-191.compute-1.amazonaws.com:/tmp
+
+    d. Get the OpenSearch Credentials
+       1) Get the master user and password from the AWS administrator
+       2) Get the OpenSearch public url
+
+    e. Verify that you can talk to OpenSearch
+       ssh to one of the running instances
+       terminal> ssh -i ~/Downloads/public-ip-bastion-host-key-pair.pem ec2-user@ec2-3-85-226-191.compute-1.amazonaws.com
+
+       running-instance> export ES_USER='es_user'
+       running-instance> export ES_PASSWORD='Secret1@'
+       running-instance> export ES_HOSTNAME='https://vpc-cvf-opensearch2-7hcnwtcrfhpl3j62qljsgcwoyu.us-east-1.es.amazonaws.com'
+       running-instance> curl -u ${ES_USER}:${ES_PASSWORD} --basic -k  $ES_HOSTNAME
+
+
+       You should see something like this:
+		{
+		  "name" : "dbc688933cd26ddb18d7f91fd53fe6c4",
+		  "cluster_name" : "553559328601:cvf-opensearch",
+		  "cluster_uuid" : "yD2q0dZzRZGWOFqdBdrhGw",
+		  "version" : {
+			"distribution" : "opensearch",
+			"number" : "2.11.0",
+			"build_type" : "tar",
+			"build_hash" : "unknown",
+			"build_date" : "2023-11-14T10:03:14.097557524Z",
+			"build_snapshot" : false,
+			"lucene_version" : "9.7.0",
+			"minimum_wire_compatibility_version" : "7.10.0",
+			"minimum_index_compatibility_version" : "7.0.0"
+		  },
+		  "tagline" : "The OpenSearch Project: https://opensearch.org/"
+		}
+
+
+
+
+    f. (OPTIONAL) Delete the existing OpenSearch index
+       running-instance> export MY_INDEX_NAME=events
+       running-instance> curl -u ${ES_USER}:${ES_PASSWORD} --basic -k     -XDELETE "${ES_HOSTNAME}/${MY_INDEX_NAME}?pretty"  2>/dev/null
+
+
+    g. Create the OpenSearch index
+       running-instance> export MY_INDEX_NAME=events
+       running-instance> curl -u ${ES_USER}:${ES_PASSWORD} --basic -k    -H 'Content-Type: application/json'  -XPUT "${ES_HOSTNAME}/${MY_INDEX_NAME}?pretty" --data-binary   @/tmp/events.mapping.json 2>/dev/null
+
+
+       You should see this response:
+		{
+		  "acknowledged" : true,
+		  "shards_acknowledged" : true,
+		  "index" : "events"
+		}
+
+
+    h. Verify that the index exists
+       running-instance> curl -u ${ES_USER}:${ES_PASSWORD} --basic -k -XGET "${ES_HOSTNAME}/_cat/indices/${MY_INDEX_NAME}?pretty" 2>/dev/null
+
+       You should see this:
+		health status index  uuid                   pri rep docs.count docs.deleted store.size pri.store.size
+		yellow open   events AwNO811-S8eBDEI5KHWJEA   5   1          0            0        1kb            1kb
+
+
+
+
+
+ 7. Setup an S3 bucket
+    a. Go to S3
+    b. Press "Create bucket"
+
+		Global configuration
+			AWS Region:  			us-east-1   [whatever your default region is]
+			Bucket Type:			General Purpose
+			Bucket name:			cvf-test-bucket-1
+
+		Object Ownership:
+			ACLs disabled (recomended)
+
+		Block Public Access settings for this bucket
+			Check "Block all public access
+
+		Bucket Versioning
+			Disabled
+
+		Default encryption:
+			Servers-die encryption with Amazon s3 managed keys
+			Bucket key:		Enabled
+
+		Advanced Settings
+			Object Lock:		Disabled
+
+		Press "Create" bucket"
+
+
+
+
+ 8. Create a role for the running job:  Glue_S3_OS_RDA_Full_access
+	- Needs read/write access to the S3 bucket (to read and move files out of the bucket)
+	- Needs read/write access to OpenSearch
+	- Needs read/write access to Postgres (RDS)
+	- Needs read/write access to AWS glue
+	- Needs read/write access to Secrets Manager
+
+    a. IAM -> Roles -> Create
+	b. Trusted Entity Type:  AWS Service
+	   Use Case:             Glue
+       Press "next"
+
+    c. In "Add permissions"
+         AmazonS3FullAccess
+         AmazonOpenSearchServiceFullAccess
+         AmazonRDSFullAccess                       # Optional but we may need it later
+		 AWSGlueServiceRole
+         SecretsManagerReadWrite
+       Press "Next"
+
+    d. In Name, Review
+       Role Name:   Glue_S3_OS_RDA_Full_access
+
+       Trust Policy:  you should see glue.amazonws.com and sts:asumeRole
+       Press "Create Role"
+
+
+ 	e. Get the ARN for the role  [as we will need it granting the Secrets Manager access to it]
+			arn:aws:iam::553559328601:role/Glue_S3_OS_RDA_Full_Access2
+
+
+
+ 9. Setup a Secret for the OpenSearch username/password
+    key=opensearch.net.http.auth.user      value=<OpenSearch username>
+    key=opensearch.net.http.auth.pass      value=<OpenSearch password>
+
+	a. Go to AWS Secrets Manager -> Secrets
+
+	b. Press "Store a new secret"
+
+		Secret Type:		Other type of secret
+
+		Create 2 keys
+			key=opensearch.net.http.auth.user   value=es_user
+			key=opensearch.net.http.auth.pass	value=Secret1@
+
+
+		Encryption key:
+			aws/secretsmanager
+
+		Press "Next"
+
+	c. In the Configure secret
+		Secret name:		cvf-opensearch2-secret
+
+		Resource Permissions
+			Press Edit
+
+			Change the Resource permissions to this:
+
+				{
+				  "Version" : "2012-10-17",
+				  "Statement" : [ {
+					"Effect" : "Allow",
+					"Principal" : {
+					  "AWS" : "arn:aws:iam::553559328601:role/Glue_S3_OS_RDA_Full_Access2"
+					},
+					"Action" : "secretsmanager:GetSecretValue",
+					"Resource" : "*"
+				  } ]
+				}
+
+			Press "Save"
+
+	   Press "Next"
+
+
+	d. In the Configuration Rotation screen
+       Press "Next"
+
+	e. In the "Review" screen
+       Press "Store"
+
+
+
+
+
+10. Create interface endpoints (so that AWS Glue jobs can talk to services)
+    -- It allows us to access AWS services from an AWS private subnet
+    -- Gives you a private elastic network interface (so you don't have to open-up your services to the Internet)
+    -- You have to setup 1 for each service
+        a) Create an interface endpoint for AWS Glue        (on the same private subnet that we're using for OpenSearch cluster)
+        b) Create an interface endpoint for Secrets Manager (on the same private subnet that we're using for OpenSearch cluster)
+
+	a. Go To VPC
+
+	b. Select Endpoints
+
+	c. Create an interface endpoint for the Glue Service
+		Press "Create endpoint"
+
+   		Endpoint settings:
+			Name:  glue-endpoint2
+
+		Service category:
+			AWS services
+
+		Services
+			Search for glue
+			Select com.amazon.us-east-1.glue
+
+ 		VPC
+			Select project VPC
+
+		Subnets
+			Select the availability zone that has your private subnet
+			Select your private subnet
+			Uncheck 'Designate IP Address"
+
+		IP address type
+			IPv4
+
+		Security Groups
+			Select privateSecurityGroup2   [that we created ealier]
+
+		Policy:
+			Select Full access
+
+		Press "Create endpoint"
+
+
+	d. Create an interface endpoint for the Secret Manager
+		Press "Create endpoint"
+
+   		Endpoint settings:
+			Name:  secret-manager-endpoint2
+
+		Service category:
+			AWS services
+
+		Services
+			Search for secret manager
+			Select com.amazonaws.us-east-1.secretsmanager
+
+ 		VPC
+			Select project VPC
+
+		Subnets
+			Select the availability zone that has your private subnet
+			Select your private subnet
+			Uncheck 'Designate IP Address"
+
+		IP address type
+			IPv4
+
+		Security Groups
+			Select privateSecurityGroup2   [that we created ealier]
+
+		Policy:
+			Select Full access
+
+		Press "Create endpoint"
+
+
+
+11. Create a gateway endpoint for S3 that has access to our private subnet
+    NOTE:  This may be created by default when a VPC is created
+    -- Add a security group rule to allow access to the gateway
+
+
+	a. Go To VPC
+
+	b. Select Endpoints
+
+	c. Create an interface gateway for the S3
+		Press "Create endpoint"
+
+   		Endpoint settings:
+			Name:  s3-gateway-endpoint
+
+		Service category:
+			AWS services
+
+		Services
+			Search for glue
+			Select com.amazonaws.us-east-1.s3
+                   NOTE:  Make sure you select the type of "Gateway"
+
+
+ 		VPC
+			Select project VPC
+
+		Route tables:
+			Associate with your default route table for all of your private subnet
+
+
+		Policy:
+			Full Access
+
+
+		Press "Create endpoint"
+
+
+
+       NOTE:  You have to pay for traffic on interface endpoints
+              You don't   pay for traffic on gateway endpoints
+
+
+
+12. Setup the Open Search Connector for the ETL Job
+    Create the connector so the job can talk to OpenSearch
+    -- Configure the login info so that AWS Glue can talk to OpenSearch
+
+	   We need the connections to connect on the private subnet (that OpenSearch is running on)
+       -- We have to use a Security Group rule w/inbound and outbound access to the same Security Group
+       -- Configure using the Secret Manager Secret for logging in to OpenSearch
+
+	a. Go to AWS Glue
+
+	b. Click on Data connections
+
+	c. In the "Connections" setion / Press "Create connection"
+
+	d. Select Amazon OpenSearch Service
+	   Press "Next"
+
+	e. In the Configure connection
+
+			Connection Details
+				Domain Endpoint:   Use the ES_HOSTNAME / https://vpc-cvf-opensearch2-7hcnwtcrfhpl3j62qljsgcwoyu.us-east-1.es.amazonaws.com
+
+				Port: 443
+
+				Check "Wan only enabled"
+
+				Uncheck "SigV4 enabled"
+
+				AWS Secret: Select your cvf-opensearch2-secret
+
+			Network Options
+				VPC:				Select project VPC
+				Subnet:				Select your private subnet
+				Security Groups:	Select your privateSecurityGroup2
+
+			Press "Next"
+
+
+			Connection Properties
+				Name:				Opensearch connection private2
+
+			Press "Next"
+			Press "Create connection"
+
+
+
+
+13. Setup the ETL Job
+
+	a. Go to AWS Glue -> ETL jobs -> Visual ETL
+
+	b. Press "Visual ETL"
+
+	c. For the Source:  Select "Amazon S3"
+	   For the Target:  Select "Amazon OpenSearch"
+
+	d. Click on "Amazon S3"
+		In the Data source properties for S3
+
+		S3 URL
+			Press "Browse S3"
+			Select your S3  (cvf-test-bucket-1)
+			Press "Choose"
+
+		Data Format
+			Select CSV
+			Delimeter is comma
+
+			Check First line of source file contains column headers"
+
+
+
+	e. Click on the Amaozn Open Search target
+		In the Data sink properties - Amazon OpenSearch
+
+		Amazon OpenSearch connection
+			Choose "Opensearch connection private2"
+
+		Index:
+			events
+
+
+	f. Click on "Job Details"
+		Name:  							test-etl-job-1
+
+		IAM Role:						Glue_S3_OS_RDA_Full_Access2
+
+		Glue Version:					Glue 4.0
+
+		Language:						Python 3
+
+		Worker type:					G 1X
+
+		Requested number of workers:  	2            (minimum is 2 workers)
+
+		Job timeout (minutes)			5            (if running in production, set this to a higher value)
+
+
+
+14. Drop a file in the S3 bucket
+	a. Go to S3
+	b. Select your bucket (cvf-test-bucket-1)
+	c. Press "Upload"
+	d. In Files and Folders, press "Add files"
+		Browse to the sample1.csv
+    e. Press "Upload"
+
+
+
+15. Run the job
+	a. Go to AWS Glue -> ETL jobs
+	b. Click on your ETL job  (test-etl-job-1)
+	c. Press "Run"
+
+
+16. Look at the job details
+	a. Go to AWS Glue -> Job run monitoring
+  	   1) Select your job run
+       2) Press "View run details"
+
+
+
+17. Verify that records appear in ElasticSearch
+
+    a. Ssh to the ec2 running instance
+
+	b. Run a search
+       running-instance> export ES_USER='es_user'
+       running-instance> export ES_PASSWORD='Secret1@'
+       running-instance> export ES_HOSTNAME='https://vpc-cvf-opensearch2-7hcnwtcrfhpl3j62qljsgcwoyu.us-east-1.es.amazonaws.com'
+       running-instance>  curl -u ${ES_USER}:${ES_PASSWORD} --basic -k -XGET "${ES_HOSTNAME}/events/_search?pretty" 2>/dev/null
+
+	   You should see this:
+		{
+		  "took" : 12,
+		  "timed_out" : false,
+		  "_shards" : {
+			"total" : 5,
+			"successful" : 5,
+			"skipped" : 0,
+			"failed" : 0
+		  },
+		  "hits" : {
+			"total" : {
+			  "value" : 3,
+			  "relation" : "eq"
+			},
+			"max_score" : 1.0,
+			"hits" : [
+			  {
+				"_index" : "events",
+				"_id" : "LpOFS4wBxdkIglM4mhaM",
+				"_score" : 1.0,
+				"_source" : {
+				  "id" : "2",
+				  "data_source_label" : "My Data Source #2",
+				  "priority_label" : " \"Low\""
+				}
+			  },
+			  {
+				"_index" : "events",
+				"_id" : "LZOFS4wBxdkIglM4mhaM",
+				"_score" : 1.0,
+				"_source" : {
+				  "id" : "1",
+				  "data_source_label" : "My Data Source",
+				  "priority_label" : " \"High\""
+				}
+			  },
+			  {
+				"_index" : "events",
+				"_id" : "L5OFS4wBxdkIglM4mhaM",
+				"_score" : 1.0,
+				"_source" : {
+				  "id" : ""
+				}
+			  }
+			]
+		  }
+		}
+
+
+
+
+
+How to Get a Tunnel Setup to Connect to OpenSearch
+--------------------------------------------------
+ 1. Setup tunnel with command-line ssh
+    ssh -i ~/Downloads/public-ip-bastion-host-key-pair.pem -N -D5000 ec2-user@ec2-3-85-226-191.compute-1.amazonaws.com
+
+ 2. Startup Firefox
+    Search for proxy
+    Set the proxy to be localhost     port=5000
+
+ 3. Connect to https://vpc-cvf-opensearch-dacidoznsloja7qxwdmqmggwea.us-east-1.es.amazonaws.com/_dashboards/app/dev_tools#/console
+    Enter the usernmae: os_user
+
+
+
