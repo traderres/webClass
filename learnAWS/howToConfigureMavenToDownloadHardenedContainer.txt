@@ -1,0 +1,252 @@
+How to Configure maven to download a hardened container from iron bank
+----------------------------------------------------------------------
+
+Assumptions:
+ A) You have registered for an account -- e.g., assume you are registered with john.smith@zztop.com
+    https://ironbank.dso.mil/
+
+ B) You can get to your user profile here:
+    https://registry1.dso.mil
+    Press "Login VIA local DB"
+    Enter your username & password
+    -- You can see your "Uesr Profile"
+
+ C) You know which image you want to use
+    For Example:
+            Name:  openjdk17
+            https://ironbank.dso.mil/repomap/details;registry1Path=redhat%252Fopenjdk%252Fopenjdk17?page=1&sort=1&order=1&cardsPerPage=3
+            docker pull registry1.dso.mil/ironbank/redhat/openjdk/openjdk17:1.17
+
+    View the openjdk17 image info here:
+            https://vat.dso.mil/vat/image?imageName=redhat/openjdk/openjdk17&tag=1.17&branch=master
+            Press "Image Log" to get the sha256
+            -- The latest sha256 is this:  e922800daf33b17a4d28de1f048f4053a3bd066ce715879977a6d7e44ce04031
+
+
+References
+----------
+https://github.com/GoogleContainerTools/jib/tree/master/jib-maven-plugin
+
+
+
+Procedure
+---------
+ 1. Get your user-profile secret key
+    a. Login to the Harbor registry
+       https://registry1.dso.mil/harbor/projects
+
+    b. In the upper right, pull your name -> User Profile
+
+    c. Look at the username and record it -- e.g. John_Smith
+       NOTE:  This is *NOT* your email address
+
+    d. Next to CLI secret, press the copy button
+       -- You can now paste it into your maven configuration (in the next step)
+
+
+
+ 2. Set the "from" configuration of the jib-maven-plugin to include the image and credentials
+    a. Edit your backend/pom.xml
+
+      		 <configuration>
+              <from>
+
+                <!-- Set the url of the hardened container (to download from IronBank) -->
+                <image>registry1.dso.mil/ironbank/redhat/openjdk/openjdk17:1.17@sha256:e922800daf33b17a4d28de1f048f4053a3bd066ce715879977a6d7e44ce04031</image>
+
+                <!-- Set the IronBank credentials to download the hardened container -->
+                <auth>
+                  <username>John_smith</username>
+                  <password>12345679801234567890</password>
+                </auth>
+              </from>
+
+
+    So, your plugin should look like this:
+
+  		<plugin>
+            <!-- Use the jib-maven-plugin to build the container and push it up to a registry [without having to install Docker] -->
+            <groupId>com.google.cloud.tools</groupId>
+            <artifactId>jib-maven-plugin</artifactId>
+            <version>3.4.0</version>
+
+            <executions>
+              <execution>
+                <phase>package</phase>
+                <goals>
+                  <!-- Possible goals are build and dockerBuild   -->
+                  <!--   The "build"       goal does not require docker / build the image and push it to a repo                 -->
+                  <!--   The "dockerBuild" goal requires docker         / build the image and push to the local daemon daemon   -->
+                  <goal>build</goal>
+                </goals>
+              </execution>
+            </executions>
+
+            <configuration>
+              <from>
+                <!-- Set the url of the hardened container (to download from IronBank) -->
+                <image>registry1.dso.mil/ironbank/redhat/openjdk/openjdk17:1.17@sha256:e922800daf33b17a4d28de1f048f4053a3bd066ce715879977a6d7e44ce04031</image>
+
+                <!-- Set the IronBank credentials to download the hardened container -->
+                <auth>
+                  <username>John_Smith</username>
+                  <password>12345679801234567890</password>
+                </auth>
+              </from>
+
+              <to>
+                <image>${aws.repo.url}:${user.name}-${project.artifactId}-${project.version}</image>
+              </to>
+
+
+              <extraDirectories>
+                <paths>
+                  <path>
+                    <!-- Copies everything from 'src/main/image_resources' into '/sync-service-/src/main/image_resources' on the container. -->
+                    <from>src/main/image_resources</from>
+                    <into>/backend/src/main/image_resources</into>
+                  </path>
+                </paths>
+              </extraDirectories>
+
+              <container>
+                <jvmFlags>
+                  <!-- When starting the container, tell Java where to find the application.yaml -->
+                  <jvmFlag> -Dspring.config.location=/backend/src/main/image_resources/application.yaml</jvmFlag>
+                </jvmFlags>
+              </container>
+
+            </configuration>
+
+          </plugin>
+
+
+
+
+ 3. Verify that the jib-maven-plugin and download the base image (using hard-coded credentials in the maven pom.xml)
+    unix> mvn clean package -Pprod -PbuildImageAndPush
+    -- It should download the hardened container
+
+
+
+ 4. Move the username and password to environment variables
+
+            <configuration>
+              <from>
+                <!-- Set the url of the hardened container (to download from IronBank) -->
+                 <image>registry1.dso.mil/ironbank/redhat/openjdk/openjdk17:1.17@sha256:e922800daf33b17a4d28de1f048f4053a3bd066ce715879977a6d7e44ce04031</image>
+
+                <!-- Set the IronBank credentials to download the hardened container -->
+                <auth>
+                  <username>${env.IRONBANK_USERNAME}</username>
+                  <password>${env.IRONBANK_PASSWORD}</password>
+                </auth>
+              </from>
+
+ 5. Set environment variables in your .bashrc
+    unix> vi ~/.bashrc
+
+		 export IRONBANK_USERNAME='JOHN_SMITH'
+		 export IRONBANK_PASSWORD='12345679801234567890'
+
+		 NOTE:  If using Windows, set these as environment variables
+
+
+ 6. Verify that the jib-maven-plugin and download the base image (using credentials found in the environment variables)
+    unix> mvn clean package -Pprod -PbuildImageAndPush
+    -- It should download the hardened container
+
+
+    When finished, the parent pom.xml has this property
+
+		  <properties>
+				<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+				<!-- Tell Maven to compile for Java 17 -->
+				<maven.compiler.release>17</maven.compiler.release>
+				<maven.compiler.verbose>false</maven.compiler.verbose>
+
+				<aws.repo.url>553559328601.dkr.ecr.us-east-1.amazonaws.com/cvf</aws.repo.url>
+		  </properties>
+
+
+
+    When finished, the backend/pom.xml maven profile looks like this:
+
+        <!--    B U I L D     I M A G E    A N D     P U S H       P R O F I L E      (for running this app in a container)  -->
+        <profile>
+          <id>buildImageAndPush</id>
+
+          <!-- When running this profile, do *NOT* include the src/main/resources/application.yaml in the build -->
+          <build>
+            <resources>
+              <resource>
+                <filtering>false</filtering>
+                <directory>src/main/resources</directory>
+                <excludes>
+                  <exclude>application.yaml</exclude>
+                </excludes>
+              </resource>
+            </resources>
+
+            <plugins>
+              <plugin>
+                <!-- Use the jib-maven-plugin to build the container and push it up to a registry [without having to install Docker] -->
+                <groupId>com.google.cloud.tools</groupId>
+                <artifactId>jib-maven-plugin</artifactId>
+                <version>3.4.0</version>
+
+                <executions>
+                  <execution>
+                    <phase>package</phase>
+                    <goals>
+                      <!-- Possible goals are build and dockerBuild   -->
+                      <!--   The "build"       goal does not require docker / build the image and push it to a repo                 -->
+                      <!--   The "dockerBuild" goal requires docker         / build the image and push to the local daemon daemon   -->
+                      <goal>build</goal>
+                    </goals>
+                  </execution>
+                </executions>
+
+			   <configuration>
+				  <from>
+					<!-- Set the url of the hardened container (to download from IronBank) -->
+					 <image>registry1.dso.mil/ironbank/redhat/openjdk/openjdk17:1.17@sha256:e922800daf33b17a4d28de1f048f4053a3bd066ce715879977a6d7e44ce04031</image>
+
+					<!-- Set the IronBank credentials to download the hardened container -->
+					<auth>
+					  <username>${env.IRONBANK_USERNAME}</username>
+					  <password>${env.IRONBANK_PASSWORD}</password>
+					</auth>
+				  </from>
+
+				  <to>
+				    <!-- Push the image to this container repository -->
+					<image>${aws.repo.url}:${user.name}-${project.artifactId}-${project.version}</image>
+				  </to>
+
+
+
+                  <extraDirectories>
+                    <paths>
+                      <path>
+                        <!-- Copies everything from 'src/main/image_resources' into '/sync-service-/src/main/image_resources' on the container. -->
+                        <from>src/main/image_resources</from>
+                        <into>/backend/src/main/image_resources</into>
+                      </path>
+                    </paths>
+                  </extraDirectories>
+
+                  <container>
+                    <jvmFlags>
+                      <!-- When starting the container, tell Java where to find the application.yaml -->
+                      <jvmFlag> -Dspring.config.location=/backend/src/main/image_resources/application.yaml</jvmFlag>
+                    </jvmFlags>
+                  </container>
+
+                </configuration>
+
+              </plugin>
+            </plugins>
+          </build>
+        </profile>
