@@ -78,7 +78,7 @@ Procedure
 ####################################################################################################################
 export JAVA_HOME=/usr/java/jdk-11.0.12         # If your Java JRE is 11 or greater, then skip this line and the next line
 export PATH=${JAVA_HOME}/bin:$PATH
-export KEYCLOAK_ADMIN=admin
+export KEYCLOAK_ADMIN=admin                    # If you already set the keycloak admin account, then remove this line and the next line
 export KEYCLOAK_ADMIN_PASSWORD=secret
 bin/kc.sh start --http-enabled=false --https-port=8444 --https-key-store-file=/home/adam/intellijProjects/sf328/sf328-backend/src/main/prod_resources/webapp.keystore.jks --https-key-store-type=JKS --https-key-store-password=changeit --https-trust-store-file=/home/adam/intellijProjects/sf328/sf328-backend/src/main/prod_resources/webapp.truststore.jks --https-trust-store-type=JKS  --https-trust-store-password=changeit --https-client-auth=request  --log-level=INFO --hostname-strict-https=false --hostname-strict=false --hostname=localhost.localdomain
 
@@ -117,23 +117,32 @@ Part 2: Configure Keycloak's realm and client
     b. Click on browser
     c. Selection Action -> Duplicate
        Name:  x509 authentication flow
-    d. Delete Everything
-    e. Add Cookie   with Requirement=Alternative
+       Press  "Duplicate"
 
-    f. Press "Add step"
-       1) Press the "next" button a few times until you see x509/Validate Username Form
-       2) Select x509/Validate Username Form
-       3) Change X509/Validate Username From to Alternate
-       4) Press the "Settings" button
+    d. In the "x509 authentication flow" page, Delete Everything
+       -- Press the "Delete" icon next to all steps
 
-       5) In the X509/Validate Username Form Config
+    e. Add a step called Cookie   with Requirement=Alternative
+       1) Press "Add execution"
+       2) Select "Cookie" and press "Add"
+       3) In the "X509 authentication flow" change the Cookie requirement from "Disabled" to "Alternative"
 
+    f. Add a step called "x509/Validate Username Form"
+       1) Press "Add step"
+       2) Press the "next" button a few times until you see x509/Validate Username Form
+       3) Select x509/Validate Username Form
+          Press "Add"
+       4) In the "X509 authentication flow" change the requirement for this from "Disabled" to "Alternative"
+       5) Press the "Settings" button
+
+       6) In the X509/Validate Username Form Config
           Alias:                                        x509 configuration
           User Identity Source:                         Match SubjectDN using regular expression
           Regular expression to extract user identity:  cn=(.*?)(?:,|$)
           User mapping method:                          Username or Email
           Check certificate validity:                   On
           Bypass identity confirmation                  On
+          Press "Save"
 
        6) In x509 authentication flow, select Action -> Bind flow
           Choose "Browser flow"
@@ -225,12 +234,6 @@ Part 3: Configure Web App to use oauth2 for authentication
       <artifactId>spring-boot-starter-oauth2-client</artifactId>
     </dependency>
 
-    <dependency>
-      <!-- Spring Boot / Tell Spring Security to use the keycloak server for identity control -->
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
-    </dependency>
-
 	<dependency>
 	    <!-- You might need to explicitly set this dependency                          -->
 	    <!-- If you get a JWSVerificationKeySelector java.lang.NoSuchMethodError, then -->
@@ -250,7 +253,8 @@ Part 3: Configure Web App to use oauth2 for authentication
 		---
 		#################################################################################################
 		#            L O C A L      O A U T H 2        P R O F I L E
-		# Prod Profile
+		#
+		# Local OAUTH2 Profile
 		#  1) use the local database
 		#################################################################################################
 		spring.profiles: local_oauth2
@@ -266,11 +270,8 @@ Part 3: Configure Web App to use oauth2 for authentication
 		spring.security.oauth2.client.registration.keycloak.client-secret: EZNI1jBMiWikhmYuIF2aIL0ULfkgzZHA
 		spring.security.oauth2.client.registration.keycloak.authorization-grant-type: authorization_code
 		spring.security.oauth2.client.registration.keycloak.scope: openid,email,profile
-
 		spring.security.oauth2.client.provider.keycloak.issuer-uri: https://localhost.localdomain:8444/realms/MyRealm
 		spring.security.oauth2.client.provider.keycloak.user-name-attribute: preferred_username
-
-		spring.security.oauth2.resourceserver.jwt.issuer-uri: https://localhost.localdomain:8444/realms/MyRealm
 
 
 
