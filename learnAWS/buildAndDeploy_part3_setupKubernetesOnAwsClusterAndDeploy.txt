@@ -1094,8 +1094,115 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
 16. Create server certs with Let's Encrypt for the load-balancer (app.traderres.com) and keycloak (keycloak.traderres.com)
-    NOTE:  The "Let's Encrypt" server certs are trusted by Firefox browsers
+ 	a. Install certbot
+  	   unix> sudo dnf install python3-pip python3-pyOpenSSL
+       unix> pip install certbot
+       unix> pip install certbot-dns-route53     # if using Amazon Route 53 for hostnames
 
+    b. Verify it it installed
+       unix> which certbot
+       /usr/local/bin/certbot
+
+
+
+ 	If using Amazon Route 53, follow these steps:
+    ---------------------------------------------
+    Grant these roles to the ec-instance that has these files
+		route53:ListHostedZones
+		route53:GetChange
+		route53:ChangeResourceRecordSets
+
+			1) get your hosted zone id
+			   a) Go to the Route 53 service
+			   b) Look at your hostez one, at the end, you will see the "Hosted zone ID"
+
+			2) Go to Roles -> EC2_OS_RDS_FullAccess role  (that's already being applied to the ec2 nodes)
+
+			3) Select "Add permissions" -> Create inline policy
+
+			4) Select JSON
+
+			5) Replace the json with this:
+
+				{
+					"Version": "2012-10-17",
+					"Id": "certbot-dns-route53 sample policy",
+					"Statement": [
+						{
+							"Effect": "Allow",
+							"Action": [
+								"route53:ListHostedZones",
+								"route53:GetChange"
+							],
+							"Resource": [
+								"*"
+							]
+						},
+						{
+							"Effect" : "Allow",
+							"Action" : [
+								"route53:ChangeResourceRecordSets"
+							],
+							"Resource" : [
+								"arn:aws:route53:::hostedzone/YOURHOSTEDZONEID"
+							]
+						}
+					]
+				}
+
+
+			   Press "Next"
+
+			6) Policy Name is certbot-dns-route-53-policy
+
+			7) Use certbot to generate the server cert
+	  	  	   unix> sudo certbot certonly --dns-route53 -d keycloak.rbr-tech.us --config-dir /opt/shared-storage/certbot/
+
+					Saving debug log to /var/log/letsencrypt/letsencrypt.log
+					Enter email address (used for urgent renewal and security notices)
+					 (Enter 'c' to cancel): mgoldman@rbr-tech.com
+
+					- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+					Please read the Terms of Service at
+					https://letsencrypt.org/documents/LE-SA-v1.3-September-21-2022.pdf. You must
+					agree in order to register with the ACME server. Do you agree?
+					- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+					(Y)es/(N)o: Y
+
+					- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+					Would you be willing, once your first certificate is successfully issued, to
+					share your email address with the Electronic Frontier Foundation, a founding
+					partner of the Let's Encrypt project and the non-profit organization that
+					develops Certbot? We'd like to send you email about our work encrypting the web,
+					EFF news, campaigns, and ways to support digital freedom.
+					- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+					(Y)es/(N)o: N
+
+					Account registered.
+					Requesting a certificate for keycloak.rbr-tech.us
+
+					Successfully received certificate.
+					Certificate is saved at: /opt/shared-storage/certbot/live/keycloak.rbr-tech.us/fullchain.pem
+					Key is saved at:         /opt/shared-storage/certbot/live/keycloak.rbr-tech.us/privkey.pem
+					This certificate expires on 2024-03-19.
+					These files will be updated when the certificate renews.
+
+					NEXT STEPS:
+					- The certificate will need to be renewed before it expires. Certbot can automatically renew the certificate in the background, but you may need to take steps to enable that functionality. See https://certbot.org/renewal-setup for instructions.
+
+					- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+					If you like Certbot, please consider supporting our work by:
+					 * Donating to ISRG / Let's Encrypt:   https://letsencrypt.org/donate
+					 * Donating to EFF:                    https://eff.org/donate-le
+					- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+
+
+
+
+
+   	If using GoDaddy, follow these steps
+    ------------------------------------
     a. Create API keys in godaddy.com
        WARNING:  When creating the API key, this is the ONLY moment you can view the "secret" and the "key"
 
@@ -1138,45 +1245,8 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
              GODADDY_API_SECRET="go-daddy-secret-value-is-here"
 
 
-    c. Install snapd on your linux box
-       If you are installing snapd on Amazon Linux 2, follow these steps:
-         ssh to amazon linux 2 box
-         unix> yum-config-manager --add-repo https://people.canonical.com/~mvo/snapd/amazon-linux2/snapd-amzn2.repo
-         unix> yum install snapd
 
-       If you are installing on CentOS 8, follow these steps
-         unix> dnf install snapd
-
-
-
-    d. Enable the snapd.socket
-       unix> systemctl enable --now snapd.socket
-
-    e. Enable classic snap support
-       unix> ln -s /var/lib/snapd/snap /snap
-
-    f. Install the Certbot
-       unix> snap install --classic certbot
-       NOTE:  If you get the warning:  too early for operation, device not yet seeded or device model not acknowledged,
-              then wait 60 seconds and try again
-
-    g. Prepare the Certbot command
-       unix> ln -s /snap/bin/certbot /usr/bin/certbot
-
-    h. Verify that the snapd service is running
-       unix> systemctl status snapd
-
-       You should see this
-		● snapd.service - Snap Daemon
-		   Loaded: loaded (/usr/lib/systemd/system/snapd.service; disabled; vendor preset: disabled)
-		   Active: active (running) since Mon 2023-06-12 21:27:43 UTC; 18min ago
-		 Main PID: 6348 (snapd)
-		   CGroup: /system.slice/snapd.service
-				   └─6348 /usr/libexec/snapd/snapd
-
-
-
-    i. Use certbot to generate & download a valid "Let's Encrypt" server certificate for keycloak.traderres.com    [good for 90 days]
+    c. Use certbot to generate & download a valid "Let's Encrypt" server certificate for keycloak.traderres.com    [good for 90 days]
        NOTE:  this command uses the authenticate.sh script to verify that the dns entry is valid
        unix> certbot certonly --manual --preferred-challenges dns --manual-auth-hook /opt/shared-storage/certbot/authenticate.sh --config-dir /opt/shared-storage/certbot/ -d keycloak.traderres.com
 
@@ -1208,13 +1278,13 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 		   Certbot has set up a scheduled task to automatically renew this certificate in the background.
 
 
-    j. Delete the TXT record in goDaddy or wait 600 seconds
+    d. Delete the TXT record in goDaddy or wait 600 seconds
        a. Go to https://dcc.godaddy.com/control/portfolio/traderres.com/settings
        b. Click on the DNS tab
        c. Delete the TXT _acme-challenge.app record
 
 
-    k. Use certbot to generate & download a valid "Let's Encrypt" server certificate for app.traderres.com  [good for 90 days]
+    e. Use certbot to generate & download a valid "Let's Encrypt" server certificate for app.traderres.com  [good for 90 days]
        unix> certbot certonly --manual --preferred-challenges dns --manual-auth-hook /opt/shared-storage/certbot/authenticate.sh --config-dir /opt/shared-storage/certbot/ -d app.traderres.com
 
        You should see this:
@@ -1226,13 +1296,13 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 			Certbot has set up a scheduled task to automatically renew this certificate in the background.
 
 
-    l. Delete the TXT record in goDaddy or wait 600 seconds
+    f. Delete the TXT record in goDaddy or wait 600 seconds
        a. Go to https://dcc.godaddy.com/control/portfolio/traderres.com/settings
        b. Click on the DNS tab
        c. Delete the TXT _acme-challenge.app record
 
 
-    m. Verify that your certbox/ directory looks like this:
+    g. Verify that your certbox/ directory looks like this:
        unix> find /opt/shared-storage/certbot -type f -print
 
        You should have these files in the /opt/shared-storage/certbot/ directory
@@ -1877,7 +1947,8 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
          3) Select AmazonEBSCSIDriverPolicy
          4) Press "Add permissions"
 
-   d. Create an identify provider
+   d. Create an identify provider using the command-line
+      NOTE:  You can create this from the AWS console:  See https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html
       unix> eksctl utils associate-iam-oidc-provider --cluster <MY-CLUSTER-NAME> --approve
 
       You should see the following:
@@ -1900,7 +1971,6 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
       So, the OID String would be this "oidc.eks.us-gov-west-1.amazonaws.com/id/DA006D8E0177E850A3A0489D305D960B"
-
 
 
    e. Create an IAM trust policy file using the arn and id from above
