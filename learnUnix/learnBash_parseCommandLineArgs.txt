@@ -4,60 +4,145 @@ This is a surprisingly difficult task.
 
 Approach:
  1) Create a method that sets global vars
- 2) The method has access to BASH_ARGV  [which holds the arguments in reverse order]
- 3) Requires users to specify --arg=value
-    and there can be no spaces 
-    
-    
+ 2) Requires users to specify -u  *OR*  --username value
 
-Bash Code Fragment
+
+
+Sample Bash Script
 ------------------
-    INDEX_ROOT_NAME=""               # Command-line-arg --index-root-name    sets this value
-    INGEST_WRITE_ALIAS=""            # Command-line-arg --ingest-write-alias sets this value
-    DAYS_TO_KEEP=0                   # Command-line-arg --days-to-keep       sets this value
+#!/bin/bash
+################################################################################
+# Filename:  addAccount.sh
+################################################################################
+# Purpose:
+#   Add an Account
+#
+# Design
+#   1. Verify command line arguments
+#   2. Create the account
+#
+# Usage:
+#   A. ssh to the puppet master
+#      unix> chmod u+x ./addAccount.sh               # Make the script executable
+#      unix> ./addAccount.sh --username "john.smith.12345" --csv-roles "Role1,Role2,Role3"
+#      unix> ./addAccount.sh -u "john.smith.12345" -r "Role1,Role2,Role3"
+################################################################################
+
+readonly SCRIPT_NAME=$(basename $0)                   # Holds the name of this bash script
+readonly TMP_DIR_PATH=/tmp/${SCRIPT_NAME}.$$
+
+ROOT_CA_FILEPATH=/home/ec2-user/addAccount/root-ca   # Holds the path of the root-ca
+NEW_USER_USERNAME=""
+NEW_USER_CSV_ROLES=""
 
 
-    #######################################################
-    # parseCommandLineArguments()
-    #
-    # Examine the command line arguments
-    # Verify that the command line arguments are valid
-    # If valid, set the global vars
-    #######################################################
-    function parseCommandLineArguments()
-    {
-      local arg=""
 
-      # Parse Command Line Arguments
-      # NOTE:  BASH_ARGV holds the arguments in *reverse* order so this only works with arg=value
-      for arg in ${BASH_ARGV[*]}; do
-        case $arg in
-            --index-root-name=*)    INDEX_ROOT_NAME="${arg#*=}"; shift 1;;
-            --ingest-write-alias=*) INGEST_WRITE_ALIAS="${arg#*=}"; shift 1;;
-            --days-to-keep=*)       DAYS_TO_KEEP="${arg#*=}"; shift 1;;
-        esac
-      done
+#######################################################
+# main()
+#
+#######################################################
+function main()
+{
+  # S C R I P T        S T A R T S       H E R E
+  echo "${SCRIPT_NAME} started as of `date`"
+
+  # Part 1:  Process the file
+  verifyCommandLineArguments
+
+  # Part 2:  Create the client user and generate a p12
+  addClientCertToRootCa
+
+  # S C R I P T         E N D S        H E R E
+  echo -e "\n${SCRIPT_NAME} finished successfully as of `date`"
+  exit 0
+}
 
 
-      if [[ -z "$INDEX_ROOT_NAME" ]]; then
-         echo "I did not find the index root name.  Please specify --index-name="
-         exit 1;
-      fi
+#######################################################
+# verifyCommandLineArguments()
+#
+# Examine the command line arguments
+# Verify that the command line arguments are valid
+# If valid, set the global vars
+#######################################################
+function verifyCommandLineArguments()
+{
 
-      if [[ -z "$INGEST_WRITE_ALIAS" ]]; then
-        echo "I did not find the ingest write alias.  Please specify --ingest-write-alias="
+   if [[ -z "$NEW_USER_USERNAME" ]]; then
+      echo "I did not find the user name.  Please specify --username \"john.smith\" or -u \"john.smith\" "
+      exit 1;
+   fi
+
+   if [[ -z "$NEW_USER_CSV_ROLES" ]]; then
+     echo "I did not find any roles.  Please specify --csv-roles \"role1, role2, role3\" or -r \"role1, role2, role3\" "
+     exit 1
+   fi
+
+
+   echo -e "Command line arguments were successfully parsed:"
+   echo -e "\tNEW_USER_USERNAME  = ${NEW_USER_USERNAME}"
+   echo -e "\tNEW_USER_CSV_ROLES = ${NEW_USER_CSV_ROLES}"
+}
+
+
+
+#######################################################
+# Add the client cert to the root-ca
+#
+#######################################################
+function addClientCertToRootCa()
+{
+  echo -e "addClientCertToRootCa() started\n";
+
+  mkdir -p $TMP_DIR_PATH;
+
+  if [ $? -ne 0 ]; then
+     # The last command had a problem.
+     echo -e "\nFailed to create this directory: ${TMP_DIR_PATH}"
+     exit 1
+  fi
+
+
+}
+
+#######################################################
+# cleanup()
+#
+# This method is always called before the script ends
+#######################################################
+function cleanup()
+{
+   # Delete the tmp directory
+   rm -rf $TMP_DIR_PATH;
+}
+
+
+# Tell bash to call cleanup() when the program ends
+# NOTE:  Whether the program crashes or succeeds, this method is the last method called
+trap cleanup EXIT
+
+
+# Parse Command Line Arguments  (this cannot be done inside a function unless you use getopts)
+while [[ $# -gt 0 ]]; do
+    case $1 in
+      -u|--username)
+        NEW_USER_USERNAME="$2"
+        shift # past argument
+        shift # past value
+        ;;
+      -r|--csv-roles)
+        NEW_USER_CSV_ROLES="$2"
+        shift # past argument
+        shift # past value
+        ;;
+      -*|--*)
+        echo "Unknown option $1"
         exit 1
-      fi
+        ;;
+      esac
+ done
 
-      if (( $DAYS_TO_KEEP <= 0 )); then
-        echo "The days-to-keep value must be greater than zero.  Please specify --days-to-keep="
-        exit 1
-      fi
 
-      echo -e "Command line arguments were successfully parsed:"
-      echo -e "\tINDEX_ROOT_NAME    = ${INDEX_ROOT_NAME}"
-      echo -e "\tDAYS_TO_KEEP       = ${DAYS_TO_KEEP}"
-      echo -e "\tINGEST_WRITE_ALIAS = ${INGEST_WRITE_ALIAS}"
-    }
-
+# Run the main() function
+main
 
