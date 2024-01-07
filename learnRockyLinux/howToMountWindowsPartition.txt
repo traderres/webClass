@@ -1,0 +1,48 @@
+How to Mount an Existing Windows (NTFS) Partition in Rocky Linux 9
+------------------------------------------------------------------
+
+
+Procedure
+---------
+ 1. Find the NTFS partition that has your files
+    unix> sudo fdisk -l
+
+		Device     Boot      Start        End    Sectors   Size Id Type
+		/dev/sda1               63      80324      80262  39.2M  6 FAT16
+		/dev/sda2            81920   49852415   49770496  23.7G 27 Hidden NTFS WinRE
+		/dev/sda3         49852416 1480761343 1430908928 682.3G  7 HPFS/NTFS/exFAT         <-- This is the old NTFS partition
+		/dev/sda4       1480761344 1953523711  472762368 225.4G  f W95 Ext'd (LBA)
+		/dev/sda5  *    1480763392 1482860543    2097152     1G  6 FAT16
+		/dev/sda6       1482862592 1484959743    2097152     1G 83 Linux
+		/dev/sda7       1484961792 1953523711  468561920 223.4G 8e Linux LVM
+
+    -- Look for the device that has HPFS/NTFS/exFAT as the type *AND* is not hidden
+    -- In this case, /dev/sda3 holds the old Windows NTFS partition
+
+
+ 2. Install the ntfs-3g package
+    unix> sudo dnf install ntfs-3g
+
+ 3. Install the fuse driver (to mount detected drives)
+    unix> sudo dnf install fuse
+    unix> sudo modprobe fuse
+
+ 4. Create a CentOS mount directory for Windows
+    unix> sudo mkdir /mnt/windows
+
+ 5. Mount the Windows C:\ drive on /dev/sda3 to /mnt/windows
+    unix> sudo mount -t ntfs-3g /dev/sda3 /mnt/windows
+
+ 6. Configure this mount point so it is mounted automatically on every reboot
+    unix> sudo vi /etc/fstab
+
+       # Add this line to mount the Windows C:\ drive to /mnt/windows
+       /dev/sda3    /mnt/windows    ntfs-3g        defaults    0    0
+
+ 7. Verify it works:
+    a. Reboot the centos machine
+       unix> sudo reboot
+
+    b. Verify that you can see these files
+       unix> ls -l /mnt/windows
+             -- You should see your Windows C:\ drive
