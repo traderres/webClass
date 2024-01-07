@@ -23,26 +23,30 @@ Procedure
        Go to https://download.rockylinux.org/pub/rocky/8/isos/x86_64/Rocky-8.9-x86_64-dvd1.iso
 
 
-2. Write the Downloaded ISO file to your USB flash Drive using Ventoy
+ 2. Use Ventoy to make a bootable ISO image that works with UEFI on older Dell computers:
+    NOTE:  When I created the rocky-linux-ISO image using dd (to write the ISO to a USB drive), several problems appeared:
+             Problem 1:  The rocky linux installer did not show a mount point called /boot/efi
+             Problem 2:  The rocky linux installer showed this error: :  "boot loader failed to install.  System will not be bootable"
+           When I wrote the rocky-linux-ISO image using Ventoy,
+             the installation worked
 
-    If you are using Windows
+
+    If you are using Windows, follow these steps to make a bootable Rocky Linux 8.9 ISO with Ventoy
       a. Connect your USB drive to windows
-
       b. Format your USB drive
-
       c. Download Ventoy for Windows
-
-      d. Uncompress Ventoy
-
+      d. Unzip Ventoy
       e. Run ventoy2disk  (to install ventoy software on your USB drive
          1) Select the device that has your USB drive
-         2) Press INstall
+         2) Press Install
 
       f. Drag and Drop your ISO to your USB drive
+      g. Eject your USB drive
+         -- It is now ready to boot
 
 
 
-    If you are using Unix
+    If you are using Unix, follow these steps to make a bootable Rocky Linux 8.9 ISO with Ventoy
       a. Download Ventoy for linux
          1) Go to https://www.ventoy.net/en/download.html
          2) Select ventoy-1.0.96-linux.tar.gz
@@ -61,80 +65,6 @@ Procedure
 
 
 
-
-
-    If you downloaded the ISO using Windows, then use Rufus to write your ISO to your USB flash drive
-        a. Connect your USB flash drive to your computer
-
-        b. Download Rufus portable
-           NOTE:  You do not need to install it
-           1) Go to https://rufus.akeo.ie/
-           2) Scroll down to downloads, click on a "portable" version
-              *or*
-                Go to https://rufus.akeo.ie/downloads/rufus-2.12p.exe     [the portable version ends with p.exe]
-
-           3) Save rufus-2.12p.exe to your Downloads/
-
-        c. Run rufus.exe (to write your ISO image to your USB drive)
-           1) Run rufus-2.12p.exe
-           2) It will prompt you to check for application updates
-              Press No
-           3) In the Rufus popup
-              a) Set the Device:            (the drive letter of your USB drive)
-              b) Set the Partition Scheme:  "MBR partition scheme for BIOS or UEFI"
-              c) Check the checkbox "Create a bootable disk" using "ISO Image"
-              d) Press the button next to "ISO Image"
-                -- Browse to where you saved your ISO file
-              e) Press "Start"
-
-           4) If you get an ISOHybrid image detected warning, then
-                Select "Write in ISO Image mode (Recommended)
-                press OK
-
-           5) You will get a warning that all data will be destroyed.
-              Press OK
-
-          NOTE:  Leave the USB drive connected to your computer
-
-    If you downloaded the ISO using Linux, then use dd to write the ISO to your USB flash drive
-        a. Connect your USB flash drive to your computer
-
-        b. Run the fdisk -l command to find your flash drive
-           In this case, mine is /dev/sdf
-           unix> fdisk -l
-
-            Disk /dev/sdf: 32.1 GB, 32086425600 bytes, 62668800 sectors
-            Units = sectors of 1 * 512 = 512 bytes
-            Sector size (logical/physical): 512 bytes / 512 bytes
-            I/O size (minimum/optimal): 512 bytes / 512 bytes
-
-        c. Setup your USB drive to have a FAT32 filesystem
-           unix> sudo umount /dev/sdf
-           unix> sudo umount /dev/sdf1
-           unix> sudo umount /dev/sdf2
-           unix> sudo mkfs.vfat /dev/sdf -I
-
-        d. Optional:  Assign random numbers to the usb drive
-           unix> dd if=/dev/urandom of=/dev/sdf status=progress      # Optional step
-
-        e. Write the ISO to the USB Flash Drive *and* sync
-           NOTES
-           1) IMPORTANT:  Make sure the output device is the entire /dev/sdf  (not /dev/sdf1)
-           2) The status=progress option tells dd to show progress info
-           3) The bs=8MB          option tells dd to read and write 8 MB at a time
-           4) The sync command is important as sometimes dd returns before it is finished
-
-           unix> cd ~/Downloads
-           unix> sudo dd if=Rocky-8.7-x86_64-dvd1.iso of=/dev/sdf status=progress bs=8MB && sync
-
-           W A I T     1 0     M I N U T E S
-
-
-      Disconnect the USB Flash Drive (with the Rocky 8 distribution)
-
-      Now, you should have a Rocky Linux 8 bootable USB Flash Drive
-
-
  3. Change the BIOS settings so that the hard drive is in AHCI mode and secure boot is disabled
     a. Reboot your Dell XPS Desktop
     b. Press F12 repeatedly (on startup) to Enter the Boot Options
@@ -151,16 +81,18 @@ Procedure
     f. Set Boot MODE to UEFI
 
 
- 4. Boot from the flash drive (containing the Rocky Linux 8 installation)
+ 4. Boot from the flash drive (containing the Ventoy USB and Rocky Linux 8 ISO)
     a. Attach the thumb drive (with the iso)
     b. Reboot your Dell XOS Desktop
     c. Press F12 repeatedly (on startup) to boot from USB drive
-    d. Select the UEFI: Flash Drive
+    d. Select the UEFI: Flash Drive    (NOTE:  This must be UEFI)
+    e. You should see the Ventoy menu
+       1) Select Rocky-8.9-x86_64-dvd1.iso
+       2) Select Boot in normal mode
 
 
  5. On the Install Rocky Linux 8 menu, select "Install Rocky Linux 8"
      -- Now, you should see the graphics installer (called Anaconda11)
-
     a. In the "Welcome to Rocky Linux 8" page, select English / English and press Continue
 
 
@@ -189,6 +121,7 @@ Procedure
 
        Create the following 3 mount points
           /boot       1 GIB   # Holds the grub boot loader
+          /boot/efi   2 GIB   #
           swap       24 GiB   # Holds your swap file.    If 16 GB of RAM, set for somewhere between 16 and 32 GIB
           /         200 GiB   # Remaining space on your Linux operating system
 
@@ -198,23 +131,28 @@ Procedure
              Press "Add mount point"
 
        2) Press the "+" to create a mount point
+             Mount Point:  /boot/efi
+             Capacity:     1 GiB         # NOTE:  1 GB=1000 MB  and  1 GIB=1024 MB
+             Press "Add mount point"
+
+       3) Press the "+" to create a mount point
              Mount Point:  swap
              Capacity:     24 GiB       (assumes laptop has 16 GB of RAM)
              Press "Add mount point"
 
-       3) Press the "+" to create a mount point
+       4) Press the "+" to create a mount point
              Mount Point:  /
              Capacity:     <leave blank to use the remaining space>
              Press "Add mount point"
 
-       4) Encrypt the new mount points:
+       5) Encrypt the new mount points:
           Single-click on the /     partition and check "encrypt"
           Single-click on the swap  partition and check "encrypt"
-          NOTE:  /boot and biosboot cannot be encrypted
+          NOTE:  /boot and /boot/efi cannot be encrypted
 
-       5) Press "Done"
+       6) Press "Done"
 
-       6) If you selected to encrypt your disk, you will be prompted to enter your disk encryption passphrase
+       7) If you selected to encrypt your disk, you will be prompted to enter your disk encryption passphrase
           -- You will be prompted for this password every time you startup your Linux operating system
           -- Enter the pass phrase twice and press "Save Passphrase"
 
@@ -241,7 +179,7 @@ Procedure
 	   Press Done
 
 	m. In the Installation Summary, select "Network & Host Name"
-	   1. For the hostname:  myRockyLinux8.localdomain
+	   1. For the hostname:  myRockyLinux.localdomain
 	      Press "Apply"
           Press "Done"
 
@@ -251,39 +189,35 @@ Procedure
        Password:
        Confirm Password:
 
-       Un-check "Make this user administrator"                # NOTE:  We will give this user sudo access later
+       Un-check "Make this user administrator"                # NOTE:  We will give this user "sudo" access later
        Check    "Requires a password to use this account"
        Press "Done"
 
 	n. In the Installation Summary, press "Begin Installation"
        NOTE:  THe installer will say "Downloading packages" at first even if it's there no networking setup -- ignore that message
 
-	    W A I T    1 0    M I N U T E S     (for it to install 1477 packages)
+	    W A I T    1 0    M I N U T E S     (for it to install 1480 packages)
 
+
+		If you get this error:
+		       Failed to set new efi boot target. This is most likely a kernel or firmware bug
+		       Press "Yes" to continue the installation
 
 
 	o. When installation finishes, press "Reboot System"
 
+    q. Remove your USB Drive (with Ventoy and Rocky Linux 8.9 ISO)
 
 
 
  7. After Reboot, you will see the Rocky Linux menu
-    a. Press the up/down arrow (to stop the timer)
-    b. Press the up/down arrow so that you highlight the 1st entry
-    c. Press e
+      Rocky Linux (4.18.0-...) 8.9 (Green Obsidian)
+      Rocky Linux (0-rescue-....) 8.9  (Green Obsidian)
+      System Setup
 
-    d. Adjust the line with some additional settings
+      a. Press <Enter> to go with the First option
 
-       You should see a long line that looks like this:
-         linux ($root)/vmliuz-4.18.0-193...... rhgb quiet
-
-       At the end of this line, add this to it:
-          linux ($root)/vmliuz-4.18.0-193...... rhgb quiet  module_blacklist=nouveau,amdgpu,radeon i915.alpha_support=1
-
-
-    e. Press Ctrl-x  (to start)
-
-
+      b. Enter your encrypted-hard-drive pass phrase
 
 
  8. On the final Rocky Linux 8 Install Page
@@ -293,39 +227,23 @@ Procedure
     b. Click "Finish Configuration"
 
 
- 9. You should see the login screen
+ 9. Login to Rocky Linux for the *FIRST* time
     a. Click on your username
     b. Enter your password
+    c. In the "Welcome" page,
+       Select "English / United States" and press "Next"
+    d. In the "Typing" page,
+       Select English (US) and press "Next"
+    e. In the "Network" page
+       Select your WIFI Network
+       Enter the WIFI password
+       Press "Next"
+    f. In the "Privacy" page
+       Location Service / Select "OFF" / Press "Next"
+    g. In the "Online Accounts"
+       Press "SKip"
+    h. Press "Start Using Rocky Linux"
 
-
-10. Adjust Grub so that grub applies those special boot times *every* time you startup Rocky Linux 8
-    a. unix> su -
-        unix> vi /etc/default/grub
-
-             # If you see GRUB_CMDLINE_LINUX_DEFAULT, then add this to the end of the line
-             # If you do not see GRUB_CMDLINE_LINUX_DEFAULT, then add this entry
-             GRUB_CMDLINE_LINUX_DEFAULT=" module_blacklist=nouveau,amdgpu,radeon i915.alpha_support=1 "
-
-
-    b. Rebuild the grub boot loader
-       1. Find your grub.cfg
-          unix> find / -type f -name "grub.cfg"
-
-       2. Rebuild the grub boot loader
-          unix> grub2-mkconfig -o  <path of above >
-
-           Possible examples:
-             unix> grub2-mkconfig -o /boot/grub2/grub.cfg
-             *OR*
-             unix> grub2-mkconfig -o /boot/efi/EFI/centos/grub.cfg
-
-
-    c. Reboot your operating system (with the additional settings applied)
-        unix> reboot
-
-
-11. On startup, let Rocky Linux 8 startup automatically
-    -- You should see the Login screen
 
 
 
