@@ -1,0 +1,144 @@
+how to install nvidia driver for Rocky 9.3
+------------------------------------------
+Problem:  I have an NVIDIA graphics card but am not using the NVIDIA graphics driver
+
+
+References
+----------
+https://linuxconfig.org/nvidia-geforce-driver-installation-on-centos-7-linux-64-bit
+https://www.linkedin.com/pulse/rhel7centos-nvidia-drviers-updated-christopher-meacham
+http://linuxsysconfig.com/2014/09/nvidia-drivers-on-centos-7/
+
+
+How to get graphics card info
+-----------------------------
+unix> /sbin/lspci | grep -i VGA
+01:00.0 VGA compatible controller: NVIDIA Corporation GK208 [GeForce GT 720] (rev a1)
+
+
+
+Procedure:  Download driver file from nvidia.com
+------------------------------------------------
+ 1. Verify that you have an NVIDIA graphics card
+    unix> lspci | grep -i vga
+    01:00.0 VGA compatible controller: NVIDIA Corporation GP106 [GeForce GTX 1060 6GB] (rev a1)
+
+    -- If you do not see NVIDIA then stop here
+    -- In my case, I hae a GTX 1060 NVIDIA graphics card
+
+ 2. First update your system.  We do not want to built NVIDIA modules on based on outdated Linux kernel.
+    Do a full updated and reboot your system:
+    unix> sudo yum update
+    unix> sudo reboot
+
+ 3. After a restart we make sure that we have kernel devel package installed matching our currently running kernel
+    and that compiler is installed:
+    unix> sudo yum install kernel-devel-$(uname -r)
+
+ 4. Go to nvidia.com and download the current nvidia driver -- e.g., NVIDIA-Linux-x86_64-352.30.run
+    a. Go to http://www.nvidia.com
+    b. Click on Drivers -> GEForce Drivers
+    c. Under Manual Driver Search, press Start Search
+       Top Menu:  Choose GeForce
+       2nd Manu:  Choose GeForce 10 Series
+       3rd Menu:  Choose GeForce GTX 1060      [In my case because I have a GTX 1060 card]
+       4th Menu:  Choose Linux 64-bit
+       5th Menu:  Production Branch
+       6th Menu:  English (US)
+       Press "Search"
+       Press "Download"
+       Press "Agree & Download"
+       -- Save the NVIDIA-Linux-x86_64-384.90.run
+
+ 5. Blocklist the nouveau driver
+    At this stage we need to ensure that a new proprietary Nvidia driver does not get into a conflict with currently installed  Nouveau driver thus we blacklist it:
+    unix> sudo -s
+    unix> echo 'blacklist nouveau' >> /etc/modprobe.d/blacklist.conf
+    unix> dracut /boot/initramfs-$(uname -r).img $(uname -r) --force
+
+ 6. Temporarily disable desktop manager ( if you ar running kdm that updated the below command with kdm ):
+    unix> systemctl disable gdm
+
+ 7. Reboot your system without a desktop window manager
+    Next time your system boots it will boot to terminal only with no GUI.
+    unix> sudo reboot
+
+ 8. Install the NVIDIA GeForce Driver
+    unix> cd ~/Downloads
+    unix> sudo bash ./NVIDIA-Linux-x86_64-352.30.run
+
+    a. You will be prompted to Accept the license Agreement
+       Press "Accept"
+
+    b. You will be prompted to install 32-bit compatible libraries
+       Press "Yes"
+
+    c. Would you like to run the nvidia-xconfig utility?
+       Press "Yes"
+
+    d. Installation is now complete
+       Press "Ok"
+
+
+ 9. Enable again your graphical desktop manager (gdm) and reboot to GUI with new NVidia driver:
+    unix> sudo systemctl enable gdm
+    unix> sudo reboot
+
+    -- On bootup your Graphical Window Manager should appear
+
+
+10. View driver info
+    unix> nvidia-smi
+
+    You should ses something like this:
+    +-----------------------------------------------------------------------------+
+    | NVIDIA-SMI 390.87                 Driver Version: 390.87                    |
+    |-------------------------------+----------------------+----------------------+
+    | GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |
+    | Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |
+    |===============================+======================+======================|
+    |   0  GeForce GTX 106...  Off  | 00000000:01:00.0  On |                  N/A |
+    |  0%   36C    P8    11W / 180W |    237MiB /  6077MiB |      0%      Default |
+    +-------------------------------+----------------------+----------------------+
+
+    +-----------------------------------------------------------------------------+
+    | Processes:                                                       GPU Memory |
+    |  GPU       PID   Type   Process name                             Usage      |
+    |=============================================================================|
+    |    0      2350      G   /usr/bin/X                                   234MiB |
+    +-----------------------------------------------------------------------------+
+
+
+10. Verify that you have installed the driver successfully
+    unix> Pull System -> Preferences -> Other -> NVIDIA X Server Settings
+          *OR*
+    unix> /usr/bin/nvidia-settings
+    You should see "NVIDIA X Server Settings"
+
+
+How to revert the change
+------------------------
+You  should be able to revert by removing line 'blacklist nouveau' from /etc/modprobe.d/blacklist.conf and re-run the dracut command.
+  unix> sudo -s
+  unix> vi /etc/modprobe.d/blacklist.conf
+
+        # Remove the blacklist noveau
+
+  unix> dracut /boot/initramfs-$(uname -r).img $(uname -r) --force
+  unix> reboot
+
+
+How to uninstall nvidia graphics driver
+---------------------------------------
+  unix> sudo -s
+  unix> /usr/bin/nvidia-uninstall
+
+  In the Nvidia installer
+  Would you like to run nvidia-xconfig --restore-original-backup?  Yes
+
+
+
+Troubleshooting
+---------------
+If the nvidia-settings gives you a segmentation fault, then you may have to turn off fakexrandr
+[see howToSplitWideMonitorIntoScreensWithFakeXr.txt]
