@@ -1,0 +1,807 @@
+How to Expose Keycloak behind the Nginx Load Balancer (using ssl pass through)
+------------------------------------------------------------------------------
+Problem:   I want nginx to NOT TOUCH the traffic going to keycloak
+           I want keycloak to reside behind my nginx load balancer
+Solution:  Use nginx as a pass-through but only for the keycloak instance
+
+The plan is to route based on the url path
+          https://keycloak.traderres.com --->  SSL pass through --> Keycloak
+
+
+        User's    ----------->    AWS Network   ----------->  nginx controller               ----------->    keycloak        ----------->    pods
+        Browser      https       Load Balancer                a) ssl passthrough               https         service            https        (decrypt traffic)
+
+
+
+References
+----------
+https://kubernetes.github.io/ingress-nginx/deploy/
+https://aws.amazon.com/blogs/containers/exposing-kubernetes-applications-part-3-nginx-ingress-controller/
+https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annotations/
+
+
+
+ASSUMPTIONS:
+ A) You downloaded the hardened keycloak container to your private AWS ECR
+ B) You ran this keycloak deployment
+ C) Your keycloak is up and running
+
+######################################################################################
+# Filename:  keycloak-deployment.yaml
+#
+# Purpose:   Tell kubernetes how to deploy the Keycloak hardened container
+#
+# Usage
+#  1. Follow the steps to setup AWS credentials (so you can build & deploy)
+#     https://github.com/traderres/webClass/blob/master/learnAWS/howToBuildAndPushToAmazonECR.txt
+#
+#  2. Build and push the containers to the Amazon ECR (image repository)
+#     unix> mvn -Djib.to.auth.username=AWS -Djib.to.auth.password=$PASSWORD clean package -Pprod -PbuildImageAndPush
+#
+#  3. Edit the environment variables in this yaml file to match reality -- e.g., set the POSTGRES_HOSTNAME
+#     a. Also edit the image name (in this yaml file) to make sure it matches what was pushed to the Amazon ECR
+#
+#  4. Tell kubernetes to deploy the sync service
+#     unix> kubectl delete deployment keycloak-deployment
+#     unix> kubectl apply -f keycloak-deployment.yaml
+#
+#  5. Get the name of the running pod  (it changes every time)
+#     unix> kubectl get pods
+#
+#     NAME                                            READY   STATUS         RESTARTS   AGE
+#     keycloak-deployment-69c9fd9db6-6wkcf   1/1     Running        0          19s
+#
+#  6. Look at the pod log to verify that the sync-service is running
+#     uniX> kubectl logs -f keycloak-deployment-69c9fd9db6-6wkcf
+#
+# Notes:
+#  A) If you want to erase the database, then add this to JAVA_TOOL_OPTIONS:
+#        -Dapp.datasource.flyway-clean-on-startup=TRUE
+######################################################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak-deployment
+
+spec:
+  selector:
+    matchLabels:
+      app: keycloak-service
+  replicas: 1
+  strategy:
+    type:  Recreate
+  template:
+    metadata:
+      name: keycloak-service
+      labels:
+         app: keycloak-service
+    spec:
+
+      volumes:
+      - name: persistent-storage
+        persistentVolumeClaim:
+          claimName: app-certs-pvc
+
+      containers:
+      - image: 553559328601.dkr.ecr.us-east-1.amazonaws.com/infrastructure:keycloak-21.1.2
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: persistent-storage
+          mountPath: /shared/certs
+        command: ["/opt/keycloak/bin/kc.sh"]
+        args: ["start", "--hostname=keycloak.rbr-tech.us", "--log-level=INFO", "--http-enabled=false", "--https-port=8444", "--https-key-store-file=/shared/certs/keycloak.keystore.jks", "--https-key-store-type=JKS",  "--https-key-store-password=changeit", "--https-trust-store-file=/shared/certs/keycloak.truststore.jks", "--https-trust-store-type=JKS", "--https-trust-store-password=changeit", "--https-client-auth=request", "--hostname-strict-https=false", "--hostname-strict=false"]
+
+        name: keycloak-service
+
+        env:
+           - name: KC_DB
+             value: "postgres"
+           - name: KC_DB_URL
+             value: "jdbc:postgresql://keycloak-database.ck4uprbx9uch.us-east-1.rds.amazonaws.com/keycloak_db"
+           - name: KC_DB_USERNAME
+             value: "keycloak_user"
+           - name: KC_DB_PASSWORD
+             value: "3edc4rfv#EDC$RFV"
+           - name: KEYCLOAK_ADMIN
+             value: "admin"
+           - name: KEYCLOAK_ADMIN_PASSWORD
+             value: "3edc4rfv#EDC$RFV"
+           - name: JAVA_OPTS
+             value: "-Xms512m -Xmx512m -XX:MetaspaceSize=96M -XX:MaxMetaspaceSize=256m -Djava.net.preferIPv4Stack=true -Dfile.encoding=UTF-8"
+
+
+
+
+Procedure for exposing Keycloak behind the nginx controller (using ssl pass through)
+------------------------------------------------------------------------------------
+ 1. Download & Install nginx controller on AWS on your kubernetes cluster
+    a. Download the nginx controller for AWS
+       unix> wget https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.1/deploy/static/provider/aws/deploy.yaml -O aws.deploy.yaml
+
+
+    b. Download, tag, and upload nginx containers to our private AWS ECR
+       unix> docker pull  registry.k8s.io/ingress-nginx/controller:v1.8.1@sha256:e5c4824e7375fcf2a393e1c03c293b69759af37a9ca6abdb91b13d78a93da8bd
+ 	   unix> docker tag   registry.k8s.io/ingress-nginx/controller:v1.8.1@sha256:e5c4824e7375fcf2a393e1c03c293b69759af37a9ca6abdb91b13d78a93da8bd  553559328601.dkr.ecr.us-east-1.amazonaws.com/infrastructure:ingress-nginx-controller-1.8.1
+       unix> docker push  553559328601.dkr.ecr.us-east-1.amazonaws.com/infrastructure:ingress-nginx-controller-1.8.1
+
+ 	   unix> docker pull  registry.k8s.io/ingress-nginx/kube-webhook-certgen:v20230407@sha256:543c40fd093964bc9ab509d3e791f9989963021f1e9e4c9c7b6700b02bfb227b
+       uniX> docker tag   registry.k8s.io/ingress-nginx/kube-webhook-certgen:v20230407@sha256:543c40fd093964bc9ab509d3e791f9989963021f1e9e4c9c7b6700b02bfb227b   553559328601.dkr.ecr.us-east-1.amazonaws.com/infrastructure:ingress-nginx-kube-webhook-certgen-1.8.1
+	   unix> docker push  553559328601.dkr.ecr.us-east-1.amazonaws.com/infrastructure:ingress-nginx-kube-webhook-certgen-1.8.1
+
+
+    c. Edit the aws.deploy.yaml so that the image paths use our private AWS ECR
+       Search for this:    registry.k8s.io/ingress-nginx/controller:v1.8.1@sha256:e5c4824e7375fcf2a393e1c03c293b69759af37a9ca6abdb91b13d78a93da8bd
+       Replace with this:  553559328601.dkr.ecr.us-east-1.amazonaws.com/infrastructure:ingress-nginx-controller-1.8.1
+
+       Search for this:    registry.k8s.io/ingress-nginx/kube-webhook-certgen:v20230407@sha256:543c40fd093964bc9ab509d3e791f9989963021f1e9e4c9c7b6700b02bfb227b
+       Replace with this:  553559328601.dkr.ecr.us-east-1.amazonaws.com/infrastructure:ingress-nginx-kube-webhook-certgen-1.8.1
+
+
+    d. Edit the aws.deploy.yaml so it runs nginx in ssl-pass-through mode
+       unix> vi aws.deploy.yaml
+
+    		kind: Deployment
+    		...
+    		spec:
+    		  template:
+    			spec:
+    			  containers:
+    			  - args:
+    				  ...
+    				  - --enable-ssl-passthrough
+
+
+
+
+    d. Install the nginx controller for AWS
+       unix> kubectl apply -f aws.deploy.yaml
+
+
+
+
+ 2. Create the ingress and services
+    NOTE:  The ingress tells nginx how to route traffic to different services
+           The ingress is what uses the 2 secrets (called "default/ca-tls" and "default/ca-secret")     The default/ indicates it is in the default namespace
+
+    unix> vi app-load-balancer.yaml
+
+######################################################################################
+# Filename:  app-load-balancer.yaml
+#
+# Purpose:   Setup the services and the ingress rules for load balancing
+#
+#
+#        Browser                                 Network
+#  https://app.rbr-tech.us/cvf ---------->    Load      ----->  nginx-controller   -------------->   cvf-service   --->  cvf pod #1
+#     PKI client generated                       Balancer          [must trust           (https)                             cvf pod #2
+#            root-ca                                                our root CA]
+#
+#
+# To troubleshoot kubernetes, run this command:
+# unix> kubectl get events --all-namespaces
+#
+#
+# ASSUMPTIONS:
+#  1) You created a generic secret from the root-ca public/root.pem
+#     unix> kubectl create secret generic ca-secret --from-file=ca.crt=888.root.pem
+#
+#  2) You created a generic secret called ca-tls
+#     unix> kubectl create secret generic ca-tls --namespace default --from-file=ca.crt=888.fullchain_and_server_cert.pem --from-file=tls.key=888.app.rbr-tech.us.key.pem  --from-file=tls.crt=888.app.rbr-tech.us.server.crt
+######################################################################################
+
+#####################################################
+# Keycloak Service
+#####################################################
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: keycloak-kubernetes-service
+spec:
+  type: ClusterIP              # This service will be ClusterIp because this service will be proxied by the ingress-nginx-controller
+  selector:
+    app: keycloak-service          # The app=keycloak-service  is the same selector found in keycloak_deployment
+  ports:
+    - name: https
+      port: 443
+      protocol: 'TCP'
+      targetPort: 8444
+    - name: http
+      protocol: 'TCP'
+      port: 80
+      targetPort: 80
+---
+
+#####################################################
+# cvf Service for Dev1
+#####################################################
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: dev1-cvf-service
+spec:
+  type: ClusterIP              # This service will be ClusterIp because this service will be proxied by the ingress-nginx-controller
+  selector:
+    app: dev1-cvf-backend          # The app=cvf-backend is the same selector found in cvf-deployment
+  ports:
+    - name: https
+      port: 443
+      protocol: 'TCP'
+      targetPort: 8443
+    - name: http
+      protocol: 'TCP'
+      port: 80
+      targetPort: 80
+---
+
+#####################################################
+# cvf Service for Dev2
+#####################################################
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: dev2-cvf-service
+spec:
+  type: ClusterIP              # This service will be ClusterIp because this service will be proxied by the ingress-nginx-controller
+  selector:
+    app: dev2-cvf-backend          # The app=cvf-backend is the same selector found in cvf-deployment
+  ports:
+    - name: https
+      port: 443
+      protocol: 'TCP'
+      targetPort: 8443
+    - name: http
+      protocol: 'TCP'
+      port: 80
+      targetPort: 80
+---
+
+#####################################################
+# cvf Service for Demo
+#####################################################
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: demo-cvf-service
+spec:
+  type: ClusterIP              # This service will be ClusterIp because this service will be proxied by the ingress-nginx-controller
+  selector:
+    app: demo-cvf-backend          # The app=cvf-backend is the same selector found in cvf-deployment
+  ports:
+    - name: https
+      port: 443
+      protocol: 'TCP'
+      targetPort: 8443
+    - name: http
+      protocol: 'TCP'
+      port: 80
+      targetPort: 80
+
+
+---
+#####################################################
+# Ingress (app-ingress-webapp)
+#
+# https://<realm>.rbr-tech.us/cvf    --> takes you to cvf with end-to-end encryption
+#####################################################
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-ingress
+  namespace: default
+  annotations:
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/affinity-node: "balanced"
+    nginx.ingress.kubernetes.io/session-cookie-name: "my-cookie"
+    nginx.ingress.kubernetes.io/session-cookie-expires: "172800"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "172800"
+
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/auth-tls-verify-depth: "3"
+
+    # Enable pki client certificate authentication
+    nginx.ingress.kubernetes.io/auth-tls-verify-client: "on"
+
+    # Create the secret containing the trusted ca certificates
+    nginx.ingress.kubernetes.io/auth-tls-secret: "default/ca-secret"
+    nginx.ingress.kubernetes.io/proxy-ssl-secret: "default/dev1-ca-tls"
+
+    # Specify the verification depth in the client certificates chain
+    nginx.ingress.kubernetes.io/auth-tls-verify-depth: "1"
+
+    # Specify if certificates are passed to upstream server
+    nginx.ingress.kubernetes.io/auth-tls-pass-certificate-to-upstream: "true"
+
+spec:
+  ingressClassName: nginx
+
+  tls:
+   - hosts:
+       - dev1.rbr-tech.us
+     secretName: dev1-ca-tls
+   - hosts:
+       - dev2.rbr-tech.us
+     secretName: dev2-ca-tls
+   - hosts:
+       - demo.rbr-tech.us
+     secretName: demo-ca-tls
+
+  rules:
+    - host: dev1.rbr-tech.us
+      http:
+        paths:
+          - path: /cvf
+            pathType: Prefix
+            backend:
+              service:
+                name: dev1-cvf-service
+                port:
+                  number: 443
+    - host: dev2.rbr-tech.us
+      http:
+        paths:
+          - path: /cvf
+            pathType: Prefix
+            backend:
+              service:
+                name: dev2-cvf-service
+                port:
+                  number: 443
+    - host: demo.rbr-tech.us
+      http:
+        paths:
+          - path: /cvf
+            pathType: Prefix
+            backend:
+              service:
+                name: demo-cvf-service
+                port:
+                  number: 443
+#           - path: /cvf-admin
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: cvf-admin-service
+#                 port:
+#                   number: 443
+
+---
+#####################################################
+# Ingress (keycloak-ingress)
+#
+# https://kyecloak.rbr-tech.us/    --> takes you to keycloak using SSL-PASSTHROUGH
+#####################################################
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: keycloak-ingress
+  namespace: default
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+
+spec:
+  ingressClassName: nginx
+
+  rules:
+    - host: keycloak.rbr-tech.us
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: keycloak-kubernetes-service
+                port:
+                  number: 443
+
+
+
+
+ 3. Deploy the ingress and services
+    unix> kubectl apply -f app-load-balancer.yaml
+
+
+ 4. Wait a minute for AWS to allocate a public hostname for your load balancer
+
+
+ 5. Get the public hostname of the network load balancer
+    unix> kubectl get ingress
+
+	NAME          CLASS   HOSTS               ADDRESS                                                                   PORTS       AGE
+	app-ingress   nginx   app.traderres.com   a251f01aeb7f94e76af94ded71a707a0-1101514633.us-east-2.elb.amazonaws.com   80, 443     150m
+
+
+
+ 6. Update godaddy's cname record for app.traderres.com so that it corresponds to the new external hostname
+		a. Go to https://dcc.godaddy.com/control/portfolio/traderres.com/settings
+        b. Click on the DNS tab
+		c. Edit the old CNAME record for "app"    (this corresponds to app.traderres.com)
+		   Type:  CNAME
+		   Name:  app
+		   Value: a251f01aeb7f94e76af94ded71a707a0-1101514633.us-east-2.elb.amazonaws.com
+
+		d. Press "Save"
+
+
+
+ 7. Wait for goDaddy to show that app.traderres.com points to the new load-balancer public hostname
+    Do a lookup to get the current hostname for app.traderres.com
+    unix> nslookup app.traderres.com
+
+    *OR keep looping forever*
+    unix> while [ 1 ]; do clear; date; nslookup app.traderres.com; sleep 3; done
+
+
+
+ 8. Watch the nginx pod log files
+    unix> kubectl get pods -A
+
+    NAMESPACE       NAME                                        READY   STATUS      RESTARTS   AGE
+    cert-manager    cert-manager-7564b796c7-gsd2f               1/1     Running     0          3d7h
+    cert-manager    cert-manager-cainjector-58bcd74fd8-wvszz    1/1     Running     0          3d7h
+    cert-manager    cert-manager-webhook-5bd9444ff7-n854k       1/1     Running     0          3d7h
+    default         nccs-deployment-8475b7fd69-wkzrw            1/1     Running     0          34h
+    ingress-nginx   ingress-nginx-admission-create-xr7t7        0/1     Completed   0          126m
+    ingress-nginx   ingress-nginx-admission-patch-b6d5n         0/1     Completed   0          126m
+    ingress-nginx   ingress-nginx-controller-7fcc694bd4-7742w   1/1     Running     0          126m   <-- nginx controller
+    kube-system     aws-node-s78f4                              1/1     Running     0          4d7h
+    kube-system     aws-node-t2h95                              1/1     Running     0          4d7h
+    kube-system     coredns-647484dc8b-64gbd                    1/1     Running     0          4d7h
+    kube-system     coredns-647484dc8b-blxx5                    1/1     Running     0          4d7h
+    kube-system     ebs-csi-controller-64f786fdbf-4vklq         6/6     Running     0          3d8h
+    kube-system     ebs-csi-controller-64f786fdbf-9skx2         6/6     Running     0          3d8h
+    kube-system     ebs-csi-node-9xxj5                          3/3     Running     0          3d8h
+    kube-system     ebs-csi-node-zqfd5                          3/3     Running     0          3d8h
+    kube-system     kube-proxy-2qh4x                            1/1     Running     0          4d7h
+
+	unix> kubectl logs -f ingress-nginx-controller-7fcc694bd4-7742w -n ingress-nginx
+
+
+
+ 9. Verify that keycloak's client for nccs-webapp the correct URL for the root url and and home url:
+    a. Connect to keycloak at https://keycloak.traderres.com/admin/master/console/#/MyRealm/users
+    b. Click on Realm -> MyRealm
+    c. Click on Clients -> nccs-webapp
+    d. Go to Access Settings
+    e. Verify that you see this:
+           Root URL:  https://app.traderres.com/nccs
+           Home URL:  https://app.traderres.com/nccs
+
+
+
+10. Attempt to connect with your browser and pki client cert
+    a. Go to https://app.traderres.com/nccs
+
+
+
+Simple way  to increase the number of nginx pods
+------------------------------------------------
+ 1. Get the number of ingress pods that are running
+    unix> kubectl get pods -n ingress-nginx
+
+	NAME                                        READY   STATUS      RESTARTS   AGE
+	ingress-nginx-admission-create-vtw8p        0/1     Completed   0          5h26m
+	ingress-nginx-admission-patch-6h77v         0/1     Completed   1          5h26m
+	ingress-nginx-controller-79d66f886c-fkshq   1/1     Running     0          4m21s        <-- Only 1 nginx pod running
+
+
+ 2. Edit the ingress-nginx-controller deployment
+    unix> kubectl edit deploy ingress-nginx-controller  -n ingress-nginx
+
+    Change the number of replicas from 1 to 2:
+
+     spec:
+         progressDeadlineSeconds: 600
+         replicas: 2
+
+
+ 3. Get the number of ingress pods that are running  (there should be 2)
+    unix> kubectl get pods -n ingress-nginx
+
+	NAME                                        READY   STATUS      RESTARTS   AGE
+	ingress-nginx-admission-create-vtw8p        0/1     Completed   0          5h26m
+	ingress-nginx-admission-patch-6h77v         0/1     Completed   1          5h26m
+	ingress-nginx-controller-79d66f886c-fkshq   1/1     Running     0          4m21s        <-- nginx pod #1
+	ingress-nginx-controller-79d66f886c-t444r   1/1     Running     0          5h26m        <-- nginx pod #1
+
+
+
+How to look at the nginx controller logs
+----------------------------------------
+ 1. Get the pod that is running nginx
+    unix> kubectl get pods -n ingress-nginx
+
+	NAME                                        READY   STATUS      RESTARTS   AGE
+	ingress-nginx-admission-create-vtw8p        0/1     Completed   0          63m
+	ingress-nginx-admission-patch-6h77v         0/1     Completed   1          63m
+	ingress-nginx-controller-79d66f886c-t444r   1/1     Running     0          63m
+
+ 2. Look at the log on that running pod
+    unix> kubectl logs -f ingress-nginx-controller-79d66f886c-t444r  -n ingress-nginx
+
+
+
+How to Delete the nginx controller and load balancer
+----------------------------------------------------
+unix> kubectl delete -f app-load-balancer.yaml
+unix> kubectl delete -f aws.deploy.yaml
+
+
+
+How to edit nginx controller settings
+-------------------------------------
+unix> kubectl edit deployment ingress-nginx-controller -n ingress-nginx
+
+
+
+Sample Complex Ingress and Service File
+---------------------------------------
+
+Create an ingress file so that
+ 1) If the user connects to https://app.traderres.com/ then rewrite it to https://app.traderres.com/welcome
+ 2) If nginx returns a 404 not found error, then redirect the user to https://app.traderres.com/unknown
+
+
+######################################################################################
+# Filename:  app-load-balancer.yaml
+#
+# Purpose:   Setup the services and the ingress rules for load balancing
+#
+#
+#        Browser                                Network
+#  https://app.traderres.com/nccs ---------->    Load    ----->  nginx-controller   --------------> nccs-deployment --->  nccs pod #1
+#     PKI client generated                       https            Balancer             (https)                            nccs pod #2
+#            root-ca                                              [must trust
+#                                                                  our root-ca]
+# To troubleshoot kubernetes, run this command:
+# unix> kubectl get events --all-namespaces
+#
+#
+# ASSUMPTIONS:
+#  1) You created a generic secret from the root-ca public/root.pem
+#     unix>  kubectl create secret generic ca-secret --from-file=ca.crt=888.root.pem
+#
+#  2) You created a generiuc secret called ca-tls
+#     unix> kubectl create secret generic ca-tls --namespace default --from-file=ca.crt=888.fullchain_and_server_cert.pem --from-file=tls.key=888.app.traderres.com.key.pem  --from-file=tls.crt=888.app.traderres.com.server.crt
+#
+#
+######################################################################################
+
+
+#####################################################
+# NCCS Service
+#####################################################
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: nccs-service
+spec:
+  type: ClusterIP              # This service will be ClusterIp because this service will be proxied by the ingress-nginx-controller
+  selector:
+    app: nccs-backend          # The app=nccs-backend is the same selector found in nccs-deployment
+  ports:
+    - name: https
+      port: 443
+      protocol: 'TCP'
+      targetPort: 443
+    - name: http
+      protocol: 'TCP'
+      port: 80
+      targetPort: 80
+
+
+---
+#####################################################
+# NCCS-Admin Service
+#####################################################
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: nccs-admin-service
+spec:
+  type: ClusterIP                    # This service will be ClusterIp because this service will be proxied by the ingress-nginx-controller
+  selector:
+    app: nccs-admin-backend          # The app=nccs-admin-backend is the same selector found in nccs-admin-deployment
+  ports:
+    - name: https
+      port: 443
+      targetPort: 443
+    - name: http
+      port: 80
+      targetPort: 80
+
+
+---
+#####################################################
+# FRMS Service
+#####################################################
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: frms-service
+spec:
+  type: ClusterIP                    # This service will be ClusterIp because this service will be proxied by the ingress-nginx-controller
+  selector:
+    app: frms-backend                # The app=frms-backend is the same selector found in frms-deployment
+  ports:
+    - name: https
+      port: 443
+      targetPort: 443
+    - name: http
+      port: 80
+      targetPort: 80
+
+
+---
+#####################################################
+# SF328 Service
+#####################################################
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: sf328-service
+spec:
+  type: ClusterIP                    # This service will be ClusterIp because this service will be proxied by the ingress-nginx-controller
+  selector:
+    app: sf328-backend               # The app=sf328-backend is the same selector found in sf328-deployment
+  ports:
+    - name: https
+      port: 443
+      targetPort: 443
+    - name: http
+      port: 80
+      targetPort: 80
+
+
+---
+#####################################################
+# unknown Service
+#####################################################
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: unknown-service
+spec:
+  type: ClusterIP
+  selector:
+    app: unknown-backend               # The app=unknown-backend is the same selector found in unknown-deployment
+  ports:
+    - name: https
+      port: 443
+      targetPort: 443
+    - name: http
+      port: 80
+      targetPort: 80
+
+
+
+---
+#####################################################
+# welcome Service
+#####################################################
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: welcome-service
+spec:
+  type: ClusterIP
+  selector:
+    app: welcome-backend               # The app=welcome-backend is the same selector found in welcome-deployment
+  ports:
+    - name: https
+      port: 443
+      targetPort: 443
+    - name: http
+      port: 80
+      targetPort: 80
+
+---
+#####################################################
+# Ingress (app-ingress-webapp)
+#
+# https://nccs.traderres.com/    --> takes you to nccs with end-to-end encryption
+#####################################################
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-ingress
+  namespace: default
+  annotations:
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/affinity-node: "balanced"
+    nginx.ingress.kubernetes.io/session-cookie-name: "my-cookie"
+    nginx.ingress.kubernetes.io/session-cookie-expires: "172800"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "172800"
+
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/auth-tls-verify-depth: "3"
+
+    # Enable pki client certificate authentication
+    nginx.ingress.kubernetes.io/auth-tls-verify-client: "on"
+
+    # Create the secret containing the trusted ca certificates
+    nginx.ingress.kubernetes.io/auth-tls-secret: "default/ca-secret"
+
+    nginx.ingress.kubernetes.io/proxy-ssl-secret: "default/ca-tls"
+
+    # Specify the verification depth in the client certificates chain
+    nginx.ingress.kubernetes.io/auth-tls-verify-depth: "1"
+
+    # If nginx returns a 404 not found, then redirect the user to the /unknown page
+    nginx.ingress.kubernetes.io/server-snippet: |
+      proxy_intercept_errors on ;
+      error_page 404 "https://app.traderres.com/unknown" ;
+
+    # Specify if certificates are passed to upstream server
+    nginx.ingress.kubernetes.io/auth-tls-pass-certificate-to-upstream: "true"
+
+    # If the user requests / then rewrite the url as /welcome
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      rewrite ^/$ /welcome last;
+
+
+spec:
+  ingressClassName: nginx
+
+  tls:
+   - hosts:
+       - app.traderres.com
+     secretName: ca-tls
+
+  rules:
+    - host: app.traderres.com
+      http:
+        paths:
+
+          - path: /welcome
+            pathType: Prefix
+            backend:
+              service:
+                name: welcome-service           # If users connects to https://app.traderres.com/welcome** then proxy to the welcome-service
+                port:
+                  number: 443
+
+          - path: /unknown
+            pathType: Prefix
+            backend:
+              service:
+                name: unknown-service
+                port:
+                  number: 443
+
+          - path: /nccs
+            pathType: Prefix
+            backend:
+              service:
+                name: nccs-service              # If users connects to https://app.traderres.com/nccs** then proxy to the nccs-service
+                port:
+                  number: 443
+
+          - path: /nccs-admin
+            pathType: Prefix
+            backend:
+              service:
+                name: nccs-admin-service
+                port:
+                  number: 443
+
+          - path: /frms
+            pathType: Prefix
+            backend:
+              service:
+                name: frms-service
+                port:
+                  number: 443
+
+
