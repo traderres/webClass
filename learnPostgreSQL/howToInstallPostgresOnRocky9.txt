@@ -1,0 +1,200 @@
+How to Install PostgreSQL on Rocky 9
+------------------------------------
+Although Rocky 9 contains postgres packages within its default repositories,
+we will use the packages available from the postgres project itself.
+This ensures that we have access to the latest version of the software without having to install from source.
+
+
+References
+----------
+https://www.enterprisedb.com/docs/supported-open-source/postgresql/installing/linux_x86_64/postgresql_other_linux_9/
+https://www.postgresql.org/download/linux/redhat/
+
+
+Procedure to install Postgres 16
+--------------------------------
+sudo dnf install https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+sudo dnf -qy module disable postgresql
+sudo dnf install postgresql16-server
+sudo /usr/pgsql-16/bin/postgresql-16-setup initdb
+sudo systemctl enable postgresql-16
+sudo systemctl start postgresql-16
+
+
+ 1. Install the EPEL repository:
+    unix> sudo dnf install epel-release
+
+ 2. Enable additional repositories to resolve dependencies
+    unix> sudo dnf config-manager --set-enabled crb        # This is the Power Tools repository
+
+ 3. Disable the built-in PostgreSQL module:
+    unix> sudo dnf -qy module disable postgresql
+
+ 4. Install the repository RPM  (for rocky linux 9)
+    unix> sudo dnf install https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+
+ 5. List the versions of postgres you can install
+    unix> sudo dnf search "postgresql*server"
+
+	postgresql-server.x86_64 : The programs needed to create and run a PostgreSQL server
+	postgresql12-server.x86_64 : The programs needed to create and run a PostgreSQL server
+	postgresql13-server.x86_64 : The programs needed to create and run a PostgreSQL server
+	postgresql14-server.x86_64 : The programs needed to create and run a PostgreSQL server
+	postgresql15-server.x86_64 : The programs needed to create and run a PostgreSQL server
+	postgresql16-server.x86_64 : The programs needed to create and run a PostgreSQL server
+
+
+ 6. Install the version of postgres you want:
+
+    To Install postgres 12
+    unix> sudo dnf install postgresql12-server postgresql12-contrib
+
+    To Install postgres 13
+    unix> sudo dnf install postgresql13-server postgresql13-contrib
+
+    To Install postgres 14
+    unix> sudo dnf install postgresql14-server postgresql14-contrib
+
+    To Install postgres 15
+    unix> sudo dnf install postgresql15-server postgresql15-contrib
+
+    To Install postgres 16
+    unix> sudo dnf install postgresql16-server postgresql16-contrib
+
+
+
+ 4. Initialize the Database
+    If running postgres 14:
+    unix> sudo postgresql-14-setup initdb
+
+	If running postgres 15:
+    unix> sudo postgresql-15-setup initdb
+
+	If running postgres 16:
+    unix> sudo postgresql-16-setup initdb
+
+
+
+ 5. Start the Postgres database service
+    If running postgres 14
+    unix> sudo systemctl start postgresql-14
+
+    If running postgres 15
+    unix> sudo systemctl start postgresql-15
+
+    If running postgres 16
+    unix> sudo systemctl start postgresql-16
+
+
+ 6. Set the postgres user's password
+    unix> sudo su - postgres
+    unix> psql
+
+      postgres-# ALTER USER postgres WITH PASSWORD 'secret';
+      postgres-# \q
+
+      unix> exit   # exit out of postgres user
+
+
+ 7. Setup the postgresql service to startup on boot
+    If running postgres 14
+    unix> sudo systemctl enable postgresql-14
+
+    If running postgres 15
+    unix> sudo systemctl enable postgresql-15
+
+    If running postgres 16
+    unix> sudo systemctl enable  postgresql-16
+
+
+
+ 8. Enable localhost + remote access to the Postgres Database
+    NOTE:  When done, users can use either localhost *OR* the IP address to connect to the database
+    a. Check to see if remote access is allowed   [it should be disabled by default]
+       unix> psql -U postgres -h localhost
+
+         If you get an error, proceed with step 9b
+
+
+    b. Modify pg_hba.conf so that everyone requires a password from localhost *AND* remote boxes
+       unix> sudo cp /var/lib/pgsql/data/pg_hba.conf  /var/lib/pgsql/data/pg_hba.conf.OLD
+       unix> sudo vi /var/lib/pgsql/data/pg_hba.conf
+
+        1) Remove *EVERYTHING* in the original file
+
+        2) Add this to the file
+
+            # "local" is for Unix domain socket connections only.
+            #  So, the system admins can login without password using this:
+            #    unix> sudo su - postgres
+            #    unix> psql
+            local   all             postgres                                peer
+
+            # IPv4 local connections require password
+            host    all             all             127.0.0.1/32            md5
+
+            # IPv6 local connections require password
+            host    all             all             ::1/128                 md5
+
+            # all remote connections require password
+            host    all             all             0.0.0.0/0               md5
+
+
+    c. Tell postgres to listen on all IP addresses (and not just localhost)
+       unix> sudo vi /var/lib/pgsql/data/postgresql.conf
+
+            # Add this line to that postgres listens on all IP addresses
+            listen_addresses='*'
+
+
+    d. Delete your .pgpass file (if it exists).  This file might have a passwords in it
+       unix> rm -f ~/.pgpass
+
+    e. Restart postgres
+       unix> sudo systemctl restart postgresql
+
+    f. Verify you can connect to Postgres using an IP address
+       1) Get your IP address
+          unix> sudo ifconfig -a | grep inet
+
+       2) Connect to the database using the IP address
+          unix> psql -U postgres -h 192.168.1.162   # Use the IP address from above
+          Password for user postgres:    secret <enter>
+
+          If it works, you should see the postgres prompt.  Use \q to exit out.
+          postgres-# \q
+
+    g. Verify you can connect to Postgres using localhost
+       unix> psql -U postgres -h localhost
+       Password for user postgres:    secret <enter>
+
+       If it works, you should see the postgres prompt.  Use \q to exit out.
+       postgres-# \q
+
+
+
+
+How to Log Into the Postgres Database (using postgres unix account)
+-------------------------------------------------------------------
+unix> sudo su - postgres
+unix> psql
+
+postgres-# \q
+
+unix> exit
+
+
+
+How to Log Into the Postgres Database (using user/password)
+------------------------------------------------------------
+unix> psql -U postgres -h 192.168.1.162
+      Password for user postgres:    secret <enter>
+      \q
+
+unix> psql -U postgres -h localhost
+      Password for user postgres:    secret <enter>
+      \q
+
+
+
+
