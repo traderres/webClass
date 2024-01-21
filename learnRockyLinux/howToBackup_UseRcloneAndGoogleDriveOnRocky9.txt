@@ -1,0 +1,190 @@
+How to Backup Files using Rclone and a Google Drive
+---------------------------------------------------
+Problem:  How to backup 200 GB of photo album files and music
+Solution: Use rclone to backup to a google drive
+
+Why Google Drive:
++ It's cheap:  200 GB for $30/year
++ It's reliable
++ Backing-up to a cloud is more reliable
++ You don't have to buy your own hardware/backup tapes
+
+References
+----------
+https://www.howtogeek.com/451262/how-to-use-rclone-to-back-up-to-google-drive-on-linux/
+https://rclone.org/drive/#making-your-own-client-id
+
+
+Procedure
+---------
+ 1. Install rclone using dnf
+    unix> sudo dnf install rclone
+
+    *or*
+
+    Download the latest RPM for your flavor of linux/mac
+    unix> curl https://rclone.org/install.sh | sudo bash
+
+    -- You should see this:
+    rclone v1.51.0 has successfully installed.
+    Now run "rclone config" for setup. Check https://rclone.org/docs/ for more details.
+
+
+ 2. Setup a google client id (for rclone to use)
+    a. Log into the Google API Console with your Google account.
+       https://console.developers.google.com/apis
+    b. Click "I agree to the terms of service" and press "Agree and continue"
+    c. Press "Credentials" [on the left side]
+    d. In the Credentials page, press "Create Project'
+    e. In the "New Project"
+       1) Specify a project name -- e.g., My Project 12345
+       2) Press Create
+    f. Press "Oauth consent screen" [on the left]
+       1) Select External
+       2) Press Create
+    g. In the Oauth consent screen
+       1) Enter application name -- e.g., rclone
+       2) Enter authorized domains -- e.g., com
+       3) Press Save
+    h. Click "Credentials" [on the left]
+       1) Click "Create Credentials" -> Oauth Client Id
+       2) In the next page
+          Application type:  Desktop app
+          Name:  Desktop client 1
+          Press Create
+          -- You will get a popup that says OAuth client created
+          -- It will show your your client iD
+          -- It will show you your Client secret
+
+       Copy both of these value
+
+
+ 3. Configure rclone to use your google client id
+    unix> rclone config
+
+    N        <enter>                # for new remote
+    name:    google-drive <enter>
+    storage: 16                     # for google drive
+    client_id      <paste in client id>
+    client_secret  <paste in client secret>
+
+    1                                # for full access
+
+    root_folder_id                   <press Enter>
+
+    service_account_file:            <press Enter>
+
+    Edit advanced config:             n
+
+    Use auto config:                   y
+
+  4. A web browse will open
+     a. Choose your google account
+     b. You will get a warning:  This app isn't verified
+        Press "Advanced"
+        Press "go to rclone (unsafe)
+     c. Grant rclone permissions
+        Press "Allow"
+     d. Confirm your choices
+        -- You are allowing rclone to see edit, create and delete Google Drive files
+        -- Press "Allow"
+
+        -- You should see the Success! message
+
+
+  5. Resume rclone config in the terminal
+     configure as team drive?        N
+     Press Y to confirm
+     Press Q             # to quit
+
+ 6. Verify it works
+    unix> rclone lsd google-drive:
+
+    -- You may get a warning
+       Failed to create file system for "google-drive:": couldn't find root directory ID: googleapi: Error 403: Project 982101967339 is not found and cannot be used for API calls. If it is recently created, enable Drive API by visiting https://console.developers.google.com/apis/api/drive.googleapis.com/overview?project=982101967339 then retry.
+
+       If you get this warning, then go to the URL and enable the API
+
+    -- Try again
+    unix> rclone lsd google-drive:
+          -- You should see a line for each directory
+
+ 7. Try copying a file to your google drive
+    unix> mkdir -p /tmp/source_files
+    unix> echo "this is a test" > /tmp/source_files/test.txt
+    unix> rclone copy --update --verbose --transfers 30 --checkers 8 --contimeout 60s --timeout 300s --retries 3 --low-level-retries 10 --stats 1s "/tmp/source_files" "google-drive:backup"
+
+ 8. Go to your Google Drive
+    -- Go to the folder called "backup"
+    -- You should see the file "test.txt"
+
+
+Part 2:  Setup a bash script to backup changed files
+----------------------------------------------------
+ 1. Create a bash script that will backup all of your files from /mtn/windows/iTunes to the Google Drive /backup/iTunes
+    unix> mkdir ~/scripts
+    unix> vi ~/scripts/backupMusic.sh
+
+		#!/bin/bash
+		#######################################################
+		# Filename:  backupMusic.sh
+		# Author:    Adam
+		#######################################################
+		# Purpose:   To backup files to my google drive
+		#
+		# Usage:
+		#  1. Start the backup
+		#     unix> chmod u+x ./backupMusic.sh
+		#     unix> ./backupMusic.sh > backupMusic.log 2>&1  &
+		#
+		#  2. Watch the log file:
+		#     unix> tail -f backupMusic.log
+		#
+		# NOTE:
+		#   --transfers 50 means to transfer 50 files in parallel
+		#######################################################
+
+		readonly SCRIPT_NAME=`basename $0`                   # Holds the name of this bash script
+
+
+		function main()
+		{
+		  # Sync the source and destination so that they are *identical*
+		  # NOTE:  For a list of options, go to https://rclone.org/flags/
+		  rclone sync --verbose --transfers 10 --checkers 8 --contimeout 60s --timeout 300s --retries 3 --low-level-retries 10 --stats 1s  "/home/adam/Music" "google-drive:/backup/iTunes"
+
+
+		  if [ $? -ne 0 ]; then
+			# The rclone had a problem
+			echo -e "\tCritical Error:  The rclone command did not finish successfully\n"
+			exit 1
+		  fi
+		}
+
+
+		echo "${SCRIPT_NAME} started as of `date`"
+
+		# Run the main method (and show the actual running time)
+		time main
+
+		# Script finished successfully
+		echo "${SCRIPT_NAME} finished as of `date`"
+
+		exit 0
+
+
+
+
+ 2. Make the script executable
+    unix> chmod u+x ~/scripts/backupMusic.sh
+
+ 3. Run the script, sending output to a log file
+    unix> cd ~/scripts
+    unix> ./backupMusic.sh > ./backupMusic.log 2>&1 &
+
+ 4. Watch the log file
+    unix> tail -f ~/scripts/backupMusic.log
+    -- Wait until you see this line:
+            backupMusic.sh finished as of Sat May 23 17:16:08 EDT 2020
+
+
