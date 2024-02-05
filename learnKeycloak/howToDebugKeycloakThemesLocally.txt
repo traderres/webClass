@@ -1,0 +1,176 @@
+How to Test Keycloak Themes Locally
+-----------------------------------
+Testing keycloak themes requires lots of processes:
+ 1) A running keycloak (listening on https)
+ 2) A running app16 webapp (listening on https)
+ 3) PKI Certs that are trusted
+ 4) Keycloak JAR
+
+
+
+Part 1:  Add localhost.localdomain to your /etc/hosts
+-----------------------------------------------------
+
+
+
+Part 2:  Setup your local keycloak
+----------------------------------
+ 1. Download and configure Keycloak for running on https://localhost.localdomain:8444/
+
+ 2. Startup keycloak for the first time and set the admin password to secret
+
+ 3. Create a keycloak realm called "myRealm"
+    - Create a user called john.smith.22222 and grant that user this role:  SUPERUSER   (or whatever role is needed to login)
+
+ 4. Configure the client:
+    - Set the client secret to this:  123456789123456789
+    - Set the client-id to this:      app16-webapp
+
+ 5. Startup keycloak listening on port 8444 with SSL   (without caching themes)
+    unix> cd /path/of/keycloak
+    unix> bin/kc.sh start   --spi-theme-cache-themes=false --spi-theme-cache-templates=false --http-enabled=false --https-port=8444 --https-key-store-file=/home/adam/intellijProjects/app16/backend/src/main/dev-resources/webapp.keystore.jks --https-key-store-type=JKS --https-key-store-password=changeit --https-trust-store-file=/home/adam/intellijProjects/app16/backend/src/main/dev-resources/webapp.truststore.jks --https-trust-store-type=JKS  --https-trust-store-password=changeit --https-client-auth=request  --log-level=INFO --hostname-s
+trict-https=false --hostname-strict=false --hostname=localhost.localdomain
+
+
+
+Part 3:  Setup a profile called local_oauth2 by putting this in this file:  backend/src/main/resources/application-local_oauth2.yaml
+------------------------------------------------------------------------------------------------------------------------------------
+name: app16
+server.servlet.context-path: /app16
+
+# Provide the trustStore for the local keycloak
+
+
+# Disable cors check because we are running in local dev mode
+# NOTE:  order is important.  Make sure disable.cors comes *AFTER* you set the profile
+disable.cors: true
+
+
+# Show Exception info to local developers
+exception_handler.return_dev_info: true
+
+# So, we're running in HTTPS mode but using a hard-coded principal for security
+use.hardcoded.authenticated.principal: false
+
+
+##########################################################
+# Security & SSL Settings
+#
+# Set the security mode to "keycloak" so it authenticates against keycloak
+##########################################################
+security.mode: keycloak          # Possible values are localdev or keycloak
+
+server:
+  port: 8443
+  ssl:
+    key-store: backend/src/main/dev-resources/webapp.keystore.jks
+    key-store-password: changeit
+    key-store-type: JKS
+    client-auth: need
+    trust-store: backend/src/main/dev-resources/webapp.truststore.jks
+    trust-store-password: changeit
+    trust-store-type: JKS
+    enabled: true
+
+# Secure the cookies
+server.servlet.session.cookie.secure: true
+server.servlet.session.cookie.http-only: true
+
+server.use-forward-headers: true
+
+
+##############################################################################
+# Keycloak Settings for Spring Security
+#
+# The realm url is probably something like https://keycloak.rbr-tech.com:8444/realms/MyRealm
+##############################################################################
+spring.security.oauth2.client.registration.keycloak.client-id: app16-webapp
+spring.security.oauth2.client.registration.keycloak.client-secret: 123456789123456789123
+spring.security.oauth2.client.registration.keycloak.authorization-grant-type: authorization_code
+spring.security.oauth2.client.registration.keycloak.scope: openid,email,profile
+spring.security.oauth2.client.provider.keycloak.issuer-uri: https://localhost.localdomain:8444/realms/MyRealm
+spring.security.oauth2.client.provider.keycloak.user-name-attribute: preferred_username
+
+
+
+##########################################################
+# Database Settings
+##########################################################
+app.datasource:
+  driver-class-name: org.postgresql.Driver
+  url: jdbc:postgresql://localhost:5432/app16_db
+  username: app16_user
+  password: secret
+  schema: app16_db
+  maxPoolSize: 2
+  database-name: app16_db
+
+
+###########################################################
+# ElasticSearch Settings
+##########################################################
+es:
+  url: http://localhost:9201
+  ssl_enabled: false
+
+
+
+
+Part 4:  Compile the app16 project in command-line with these settings
+--------------------------------------------------------------------
+
+  unix> cd ~/intellijProjects/app16
+  unix> git checkout development
+  unix> mvn clean package -Pprod
+  unix> java  -Dspring.profiles.active=local_oauth2  -Djavax.net.ssl.trustStorePassword=changeit  -Djavax.net.ssl.trustStore=backend/src/main/dev-resources/cacerts -jar backend/target/backend-1.0-SNAPSHOT-exec.jar
+
+  -- Now, app16 is up listening on https://localhost.localdomain:8443/app16
+
+
+
+
+
+
+
+Part 5:  Attempt to connect to the local app16 webapp using PKI authentication
+----------------------------------------------------------------------------
+ 1. Import the certificate authority into your browser:  intellijProjects/app16/backend/src/main/dev-resources/cacerts
+ 2. Import the PKI Client cert       into your browser:  intellijProjects/app16/backend/src/main/dev-resources/john.smith.22222.p12
+ 3. Connect to https://localhost.localdomain:8443/app16
+
+
+
+
+Part 6:  Build the keycloak themes and deploy them to Keycloak
+--------------------------------------------------------------
+ 1. Clone keycloak-themes
+    unix> cd ~/intellijProjects
+    unix> git clone https://github.com/traderres/keycloak-custom-themes.git
+    unix> cd keycloak-custom-themes
+
+ 2. Build the JARs
+    unix> mvn clean package
+
+ 3. Copy the generated jar files (in the target directories) to the $KEYCLOAK_HOME/providers directory
+    unix> export KEYCLOAK_HOME=/home/adam/Downloads/keycloak-21.0.1
+    unix> cp nccs-theme/target/nccs-theme-1.0-SNAPSHOT.jar   $KEYCLOAK_HOME/providers
+
+
+ 4. Restart keycloak  (so it picks up the JARs)
+
+ 5. Edit the keycloak client to use your theme
+    a. Go to https://localhost.localdomain:8444/
+    b. Click on your realm:  MyRealm
+    c. Go to Clients
+    d. Click on your client:  app16-webapp
+    e. In the "Settings" tab, scroll down to "Login Settings"
+       -- Change it to your new JAR name
+    f. Press "Save"
+
+ 6. Verify the theme works
+    a. Go to https://localhost.localdomain:8443/app16
+    b. Present your PKI cert
+       -- You should see your welcome page
+
+
+
