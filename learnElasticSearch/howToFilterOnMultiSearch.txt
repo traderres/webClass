@@ -1,0 +1,200 @@
+How to Filter on a Multi-Search
+-------------------------------
+Problem:  There is a REST call that searches the full name, phone number, and email
+          And, I need to filter the results
+
+Solution: Use a filter (but the filter must be a keyword)
+
+
+
+Example Mapping
+---------------
+
+PUT /nccs_users
+{
+  "settings": {
+    "analysis": {
+      "analyzer" : {
+        "my_ngram_analyzer" : {
+          "tokenizer" : "my_ngram_tokenizer",
+          "filter": ["lowercase"]
+        }
+      },
+      "tokenizer" : {
+        "my_ngram_tokenizer" : {
+          "type" : "ngram",
+          "min_gram" : "1",
+          "max_gram" : "25",
+          "token_chars": [ ]
+        }
+      },
+      "normalizer": {
+        "case_insensitive_normalizer": {
+          "type": "custom",
+          "char_filter": [],
+          "filter": [ "lowercase", "asciifolding" ]
+        }
+      }
+    },
+    "max_result_window": 500000,
+    "refresh_interval": "1s",
+    "max_ngram_diff": "25"
+  },
+
+
+  "mappings": {
+    "dynamic": "strict",
+    "properties": {
+
+      "id": {
+        "type": "integer",
+        "ignore_malformed": false,
+        "fields": {
+          "raw": {
+            "type": "keyword"
+          },
+          "sort": {
+            "type": "keyword",
+            "normalizer": "case_insensitive_normalizer"
+          },
+          "filtered": {
+            "type": "text",
+            "analyzer": "my_ngram_analyzer"
+          }
+        }
+      },
+
+
+      "full_name": {
+        "type": "text",
+        "fields": {
+          "raw": {
+            "type": "keyword"
+          },
+          "sort": {
+            "type": "keyword",
+            "normalizer": "case_insensitive_normalizer"
+          },
+          "filtered": {
+            "type": "text",
+            "analyzer": "my_ngram_analyzer"
+          }
+        }
+      },
+
+
+
+
+
+      "phone_number": {
+        "type": "text",
+        "fields": {
+          "raw": {
+            "type": "keyword"
+          },
+
+          "sort": {
+            "type": "keyword",
+            "normalizer": "case_insensitive_normalizer"
+          },
+
+          "filtered": {
+            "type": "text",
+            "analyzer": "my_ngram_analyzer"
+          }
+        }
+      },
+
+      "email": {
+        "type": "text",
+        "fields": {
+          "raw": {
+            "type": "keyword"
+          },
+
+          "sort": {
+            "type": "keyword",
+            "normalizer": "case_insensitive_normalizer"
+          },
+
+          "filtered": {
+            "type": "text",
+            "analyzer": "my_ngram_analyzer"
+          }
+        }
+      },
+
+      "last_login_date": {
+        "type": "date",
+        "format": "MM/dd/yyyy HH:mm:ss||MM/dd/yyyy||yyyy-MM-dd||epoch_millis||epoch_second||yyyy/MM/dd HH:mm:ss.SSS||yyyy-MM-dd HH:mm:ss.SSS||yyyy/MM/dd HH:mm:ss||yyyy-MM-dd HH:mm:ss.SSSZ||yyyy-MM-dd'T'HH:mm:ss||yyyy-MM-dd'T'HH:mm:ssZ||yyyy-MM-dd HH:mm:ss||yyyy-MM-dd HH:mm:ssZ||yyyy/MM/dd||S",
+        "ignore_malformed": false,
+        "fields": {
+          "raw": {
+            "type": "keyword"
+          },
+          "sort": {
+            "type": "date",
+            "format": "epoch_millis||MM/dd/yyyy HH:mm:ss||MM/dd/yyyy",
+            "ignore_malformed": false
+          },
+          "filtered": {
+            "type": "text",
+            "analyzer": "my_ngram_analyzer"
+          },
+          "text": {
+            "type": "text",
+            "analyzer": "whitespace"
+          }
+        }
+      },
+
+
+      "is_cam": {
+        "type": "text",
+        "fields": {
+          "sort": {
+            "type": "keyword",
+            "normalizer": "case_insensitive_normalizer"
+          },
+          "filtered": {
+            "type": "text",
+            "analyzer": "my_ngram_analyzer"
+          }
+        }
+      }
+
+
+    }
+  }
+}
+
+
+POST _bulk
+{ "index": { "_index": "nccs_users",  "_id": 1 }}
+{ "full_name": "John Smith", "email": "john@zztop.com", "phone_number": "301-299-4444", "is_cam": "Yes"}
+{ "index": { "_index": "nccs_users",  "_id": 2 }}
+{ "full_name": "Jane Smith", "email": "jane@zztop.com", "phone_number": "301-299-5555", "is_cam": "No"}
+
+
+# NOTE:  Filter must be a keyword (not a text field)
+POST nccs_users/_search
+{
+  "_source": ["full_name", "email", "phone_number"],
+  "query": {
+    "bool": {
+      "must": {
+        "multi_match":{
+          "query":"john",
+          "fields":[
+            "full_name", "email", "phone_number", "all_cage_codes"],
+          "type":"best_fields",
+          "minimum_should_match": "90%"
+        }
+      },
+      "filter": [
+        { "term":  { "is_cam.sort": "Yes" }}
+      ]
+    }
+  },
+  "size": 5
+}
