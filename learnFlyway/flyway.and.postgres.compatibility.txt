@@ -1,0 +1,49 @@
+What versions of Flyway work with versions of Postgres?
+-------------------------------------------------------
+Problem:  I have some developers using Postgres 9.6 and others using Postgres 15.6
+          Is there a flyway version that works with both?
+          SHORT ANSWER:  Yes, use flyway 6.5.7  [but it's not ideal]
+
+
+
+On 04/30/2024, B and I figured this out:
+
+Facts
+-----
+  Flyway 5.2.4 does not work with Postgres 15.6 / you will get the pg_proc.proisadd does not exist error
+
+  Flyway 6.5.7 will work with Postgres 9.6 and 15.4 and 15.6
+               NOTE:  We get warnings with Postgres 15.4
+
+  Flyway 5.2.4 works with AWS postgres 15.4   [which is really surprising]
+  Flyway 5.2.4 works with Postgres 9.6
+
+  Flyway 9.22.3 works with Postgres 15.4 on AWS and Postgres 15.6
+  WARNING:  If you set your connection pool to 1, then app will blow-up because it cannot get a 2nd connection
+            Flyway 9.22.3 needs to have a connection pool of 2 or greater
+
+
+
+Conclusions
+-----------
+ A) If you need to use Postgres 9.6 and 15, then use flyway v6.5.7
+    NOTE:  You will have to set the flyway.cleanDisabled(false) in code
+
+                // Initialize the flyway object by setting the data source and schema name
+                Flyway flyway = Flyway.configure()
+                        .dataSource(dataSource)
+                        .schemas(schemaName)
+                        .cleanDisabled(false)          // This is needed in flyway v6.5.7 or later
+                        .load();
+
+
+				Add this to your db-migrations / pom.xml   [so that it can run flyway clean]
+
+					<properties>
+					   <flyway.cleanDisabled>false</flyway.cleanDisabled>
+					</properties>
+
+
+ B) If you only need Postgres 15.4 or 15.6, then use flyway v9.22.3
+
+ C) If you find yourself with connection errors  (timeout after 30 seconds, then verify that your connection pool is only 1 connection -- it might need to be bigger)
