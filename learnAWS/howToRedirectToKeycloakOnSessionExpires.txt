@@ -1,0 +1,247 @@
+How to Redirect the User to Keycloak when the Session Expires
+-------------------------------------------------------------
+Problem:  After 30 minutes, redirect the user automatically to the Keycloak Login page
+
+
+  +-------------+           +-------------+            +-------------+           +-----------------------+
+  |     Web     |  ------>  |    nginx    |   ------>  |   cvf       |   ------> | cvf pod running       |
+  |   Browser   |           |    proxy    |            | kub service |           |  java spring boot app |
+  +-------------+           +-------------+            +-------------+           +-----------------------+
+                                   |
+                                   |
+                                   |
+                                   |                    +-------------+
+                                   +----------------->  | Pod running |
+                                                        |   Keycloak  |
+                                                        +-------------+
+
+
+
+Problem #2:  There are multiple session timeouts
+------------------------------------------------
+ 1) Keycloak has a Single Sign-On (SSO) session timeout
+ 2) keycloak has a Single Sign-On (SSO) token timeout
+ 3) Spring Boot has a session timeout
+
+
+
+What happens when a user connects to CVF?
+-----------------------------------------
+ 1. Web browser attempts to connect to https://dev1.rbr-tech.us/cvf
+
+ 2. Spring Security does not detect a session and redirects the user to keycloak
+
+ 3. User is prompted for the user's PKI cert
+
+ 4. Keycloak verifies the PKI cert
+    If verified, user sees the Keycloak "Login" button
+    If there are any issues, user sees an error message
+
+ 5. User presses "Login"
+
+ 6. User is redirected to the CVF web app
+    NOTE:  The CVF Web App adds a "Refresh" header to every request with a value of 1815 (1815 seconds is 15 seconds more than 30 minutes)
+           This "Refresh" header will cause the webapp to reload after 1815 secs of activity
+
+ 7. User does nothing in the web browser for 1815 seconds
+
+ 8. After 1815 seconds, the "Refresh" header causes the webapp to reload
+    -- Because the keycloak session and spring boot session have expired,
+       User sees the Keycloak Login page
+
+
+
+How to make this all work
+-------------------------
+ 1. Set the keycloak session and token timeout to 30 minutes
+	a. In Keycloak / YOUR-REALM / realm settings / Sessions /
+			Set SSO Session Settings
+				SSO Session Idle:  30 minute
+
+				SSO Session Max:   30 minute
+
+	b. In Keycloak / YOUR-REALM / realm settings / Tokens
+			Set Access Token Lifespan:  30 minute  (it should be shorter than the session idle)
+
+
+
+ 2. Set the spring boot web app session timeout to 30 minutes
+    a. Edit application.yaml:
+        # Set the spring session timeout  (so the backend expires the session after N seconds)
+        server.servlet.session.timeout: 1800s
+
+
+ 3. Have the spring boot web app add the "Refresh" header to every request
+    a. Add the RefreshInterceptor class
+       NOTE:  This java class gets called with every request
+              This java class adds the "Refresh" header to every request
+              Set this timeout to 30 minutes + 15 seconds (or 1815 seconds)
+
+    b. Register the RefreshInterceptor by changing the WebMvcConfig class  [see below]
+
+    c. Edit application.yaml
+        # Set the refresh header's redirect timeout value  (so the browser forces the user to redirect to the login page after N seconds)
+        # NOTE:  If timeout is 1800 seconds, then this refresh header wait time should be a little longer (1815 seconds)
+        app.refresh-header.wait.in.seconds: 1815
+
+
+
+ 4. When finished, the application.yaml should have this info:
+
+		##############################################################################
+		# Session Timeout Settings
+		##############################################################################
+		# Set the spring session timeout  (so the backend expires the session after N seconds)
+		server.servlet.session.timeout: 1800s
+
+		# Set the refresh header's redirect timeout value  (so the browser forces the user to redirect to the login page after N seconds)
+		# NOTE:  If timeout is 1800 seconds, then this refresh header wait time should be a little longer (1815 seconds)
+		app.refresh-header.wait.in.seconds: 1815
+
+
+ 5. OPTIONAL.  Add this to nginx ingress
+ 	In the nginx controller:
+
+     nginx.ingress.kubernetes.io/configuration-snippet: |
+       add_header "Access-Control-Allow-Origin"  "https://keycloak.rbr-tech.us/" always;
+       add_header "Access-Control-Allow-Origin"  "https://dev1.rbr-tech.us/" always;
+
+
+
+RefreshInterceptor class
+------------------------
+package com.lessons.security.keycloak;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.lang.Nullable;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.web.servlet.ModelAndView;
+
+public class RefreshInterceptor implements HandlerInterceptor {
+    private static final Logger logger = LoggerFactory.getLogger(RefreshInterceptor.class);
+
+    private final String refreshHeaderValue;
+
+    public RefreshInterceptor(int aRedirectWaitTimeInSecs) {
+        // Construct the value of the refresh header using the wait time in seconds
+        this.refreshHeaderValue = String.format("%d", aRedirectWaitTimeInSecs);
+
+        logger.debug("RefreshInterceptor() constructor finished:  Refresh header value is {}", this.refreshHeaderValue);
+    }
+
+    public RefreshInterceptor(int aRedirectWaitTimeInSecs, String aRedirectUrl) {
+        // Construct the value of the refresh header using the wait time in seconds *AND* the url
+        this.refreshHeaderValue = String.format("%d; URL='%s')", aRedirectWaitTimeInSecs, aRedirectUrl);
+
+        logger.debug("RefreshInterceptor() constructor finished:  Refresh header value is {}", this.refreshHeaderValue);
+    }
+
+
+    public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler,
+                          @Nullable ModelAndView modelAndView) throws Exception {
+
+        SecurityContext securityContext = SecurityContextHolder.getContext();
+        if (securityContext != null) {
+            // Add the "Refresh" header to each outgoing response
+            // NOTE:  This causes the user's browser to redirect to the main page after N seconds
+            response.setHeader("Refresh", this.refreshHeaderValue);
+         }
+
+    }
+}
+
+
+Updated WebMvcConfig Class
+--------------------------
+package com.lessons.config;
+
+import com.lessons.security.keycloak.RefreshInterceptor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.*;
+
+
+
+@Configuration
+public class WebMvcConfig implements WebMvcConfigurer {
+
+    @Value("${security.mode}")
+    private String securityMode;
+
+    @Value("${disable.cors}")
+    private boolean disableCors;
+
+    @Value("${app.refresh-header.wait.in.seconds:1815}")     // Default to 30 min + 15 seconds or 1815 seconds
+    private int refreshHeaderWaitTimeInSeconds;
+
+
+    private static final String[] CLASSPATH_RESOURCE_LOCATIONS = {
+            "classpath:/META-INF/resources/", "classpath:/resources/",
+            "classpath:/static/", "classpath:/public/" };
+
+    /**
+     * Added to allow spring boot to find html content in the frontend dependency jar
+     * @param registry holds the ResourceHandlerRegistry object
+     */
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        registry.addResourceHandler("/**")
+                .addResourceLocations(CLASSPATH_RESOURCE_LOCATIONS);
+    }
+
+
+    /**
+     * Allow CORS requests to come from anywhere
+     * -- Should be used for local debugging only
+     * @param registry holds the CorsRegistry
+     */
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        if (disableCors) {
+            registry.addMapping("/**").allowedOrigins("*").allowedMethods("GET", "POST","PUT", "DELETE");
+        }
+    }
+
+
+    /**
+     * Register interceptors to spring boot
+     * @param registry holds the InterceptorRegistry object
+     */
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+
+        if (this.securityMode.equalsIgnoreCase("keycloak")) {
+            // The app is running in keycloak mode.  So, register the Refresh Interceptor
+
+            // Instantiate the RefreshInterceptor and pass-in the refresh-wait-time-in-seconds
+            // NOTE:  This class will add the "Refresh" header to every request
+            RefreshInterceptor refreshInterceptor = new RefreshInterceptor(this.refreshHeaderWaitTimeInSeconds);
+
+            // Register the authenticationFailedInterceptor  (so it's called before every call)
+            registry.addInterceptor(refreshInterceptor);
+        }
+    }
+
+}
+
+
+Changes to application.yaml
+---------------------------
+
+##############################################################################
+# Session Timeout Settings
+##############################################################################
+# Set the spring session timeout  (so the backend expires the session after N seconds)
+server.servlet.session.timeout: 1800s
+
+# Set the refresh header's redirect timeout value  (so the browser forces the user to redirect to the login page after N seconds)
+# NOTE:  If timeout is 1800 seconds, then this refresh header wait time should be a little longer (1815 seconds)
+app.refresh-header.wait.in.seconds: 1815
+
+
+
