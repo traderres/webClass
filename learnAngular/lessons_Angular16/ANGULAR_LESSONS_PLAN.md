@@ -5,16 +5,16 @@ Angular 16 Lesson Plan
  1. Setup the Development Env
     <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lesson01a_setupDevelopmentEnvForUnix.txt">Setup Development Env (Unix)</a>
     <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lesson01b_setupDevelopmentEnvForWindows.txt">Setup Development Env (Windows)</a>
-    <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons/lesson01_debug_existing_webapp.txt">Setup debugging in IntelliJ Ultimate</a>
+    <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lesson01_debug_existing_webapp.txt">Setup debugging in IntelliJ Ultimate</a>
  
  2. Add Frontend Dependencies
-    <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons/lesson03_installTailwind.txt">Install Tailwind</a>
-    <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons/lesson04_installFontAwesome.txt">Install Font Awesome Pro</a>
+    <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lesson03_installTailwind.txt">Install Tailwind</a>
+    <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lesson04_installFontAwesome.txt">Install Font Awesome Pro</a>
 
  3. Setup the navbar
-    <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons/lesson05a_setupNavBarWithAngularMaterialSideNav.txt">Setup Navbar w/Angular Material SideNav (visible/invisible)</a>
-    <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons/lesson05b_setupNavBarUsingTailWind.txt">Setup Navbar w/Tailwind (visible/invisible)</a>
-    <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons/lesson05c_setupNavBarUsingTailWindAlwaysVisible.txt">Setup Navbar w/Tailwind (collapsed/expanded)</a>
+    <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lesson05a_setupNavBarWithAngularMaterialSideNav.txt">Setup Navbar w/Angular Material SideNav (visible/invisible)</a>
+    <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lesson05b_setupNavBarUsingTailWind.txt">Setup Navbar w/Tailwind (visible/invisible)</a>
+    <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lesson05c_setupNavBarUsingTailWindAlwaysVisible.txt">Setup Navbar w/Tailwind (collapsed/expanded)</a>
 
     At this point, you have a real web application and can start learning things
     
