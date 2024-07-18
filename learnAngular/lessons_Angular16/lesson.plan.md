@@ -3,8 +3,8 @@ Angular 16 Lesson Plan
 
 <pre>
  1. Setup the Development Env
-    <a href=https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lesson01a_setupDevelopmentEnvForUnix.txt">Setup Development Env (Unix)</a>
-    <a href=https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lesson01b_setupDevelopmentEnvForWindows.txt">Setup Development Env (Windows)</a>
+    <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lesson01a_setupDevelopmentEnvForUnix.txt">Setup Development Env (Unix)</a>
+    <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lesson01b_setupDevelopmentEnvForWindows.txt">Setup Development Env (Windows)</a>
     <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons/lesson01_debug_existing_webapp.txt">Setup debugging in IntelliJ Ultimate</a>
  
  2. Add Frontend Dependencies
@@ -17,7 +17,7 @@ Angular 16 Lesson Plan
     <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons/lesson05c_setupNavBarUsingTailWindAlwaysVisible.txt">Setup Navbar w/Tailwind (collapsed/expanded)</a>
 
     At this point, you have a real web application and can start learning things
-
+    
 
  4. Layouts (using Tailwind CSS)
     a. Basic layouts
