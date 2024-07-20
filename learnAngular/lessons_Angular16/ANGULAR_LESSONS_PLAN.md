@@ -36,7 +36,10 @@ Angular 16 Lesson Plan
     a. Template-based Forms  (used for simpler forms)
 
     b. Reactive forms        (used for complex forms)
+    
+    c. Custom Synchronous Validators
 
+    d. Custom Asynchronous Validators
 
  7. Boring Lectures
     a. Component Life cycle
