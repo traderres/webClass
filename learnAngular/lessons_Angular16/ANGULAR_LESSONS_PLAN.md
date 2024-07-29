@@ -27,10 +27,10 @@ Angular 16 Lesson Plan
     
  5. Layouts (using Tailwind CSS)
     a. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.basic.layouts.txt">Basic Layouts w/Tailwind</a>
-           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01a.question.txt">Tailwind Exercise 1a</a>
-           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01b.question.txt">Tailwind Exercise 1b</a>
-           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01c.question.txt">Tailwind Exercise 1c</a>
-           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01d.question.txt">Tailwind Exercise 1d</a>
+           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01a.question.txt">Exercise 1a</a>
+           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01b.question.txt">Exercise 1b</a>
+           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01c.question.txt">Exercise 1c</a>
+           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01d.question.txt">Exercise 1d</a>
      
 
 tailwind.exercise01.question.txt
