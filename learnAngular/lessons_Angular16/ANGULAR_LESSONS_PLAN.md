@@ -5,7 +5,7 @@ Angular 16 Lesson Plan
  1. Setup the Development Env
     <a href="https://docs.google.com/document/d/1-vutLIaIN0A3WDm0P4gf9yFRLNyVVX8s2RZLWrbdT-o/edit">Setup Development Env (Unix)</a>
     <a href="https://docs.google.com/document/d/1-vutLIaIN0A3WDm0P4gf9yFRLNyVVX8s2RZLWrbdT-o/edit">Setup Development Env (Windows)</a>
-    <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lesson01_debug_existing_webapp.txt">Setup debugging in IntelliJ Ultimate</a>
+    <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/howToDebugExistingWebapp.txt">Setup debugging in IntelliJ Ultimate</a>
 
  2. Boring Lectures
     a. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.overallArchitecture.txt">Overall Architecture (snooze)</a>
