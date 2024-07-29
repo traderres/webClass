@@ -8,7 +8,7 @@ Angular 16 Lesson Plan
     <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lesson01_debug_existing_webapp.txt">Setup debugging in IntelliJ Ultimate</a>
 
  2. Boring Lectures
-    a. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lecture_overallArchitecture.txt">Overall Architecture (snooze)</a>
+    a. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.overallArchitecture.txt">Overall Architecture (snooze)</a>
     b. Component Life cycle
     c. Difference between components and services
     d. One-way-binding and two-way-binding
@@ -26,7 +26,14 @@ Angular 16 Lesson Plan
     At this point, you have a real web application and can start learning things
     
  5. Layouts (using Tailwind CSS)
-    a. Basic layouts
+    a. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.basic.layouts.txt">Basic Layouts w/Tailwind</a>
+           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01a.question.txt">Tailwind Exercise 1a</a>
+           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01b.question.txt">Tailwind Exercise 1b</a>
+           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01c.question.txt">Tailwind Exercise 1c</a>
+           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01d.question.txt">Tailwind Exercise 1d</a>
+     
+
+tailwind.exercise01.question.txt
     b. Fixed titles
     c. Using animation to make a horizontal section appear and disappear
     d. Using animation to make a vertical section appear/disappear
