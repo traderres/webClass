@@ -31,10 +31,9 @@ Angular 16 Lesson Plan
            <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01b.question.txt">Exercise 1b</a>
            <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01c.question.txt">Exercise 1c</a>
            <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01d.question.txt">Exercise 1d</a>
-     
 
-tailwind.exercise01.question.txt
-    b. Fixed titles
+    b. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/how.to.setup.top.row.txt">How to Setup the Top Row</a>
+    c. Fixed titles
     c. Using animation to make a horizontal section appear and disappear
     d. Using animation to make a vertical section appear/disappear
 
