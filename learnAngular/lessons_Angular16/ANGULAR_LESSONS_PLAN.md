@@ -31,6 +31,7 @@ Angular 16 Lesson Plan
            <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01b.question.txt">Exercise 1b</a>
            <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01c.question.txt">Exercise 1c</a>
            <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01d.question.txt">Exercise 1d</a>   (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01d.answers.txt">Answers</a>)
+           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise02.my-settings.question.txt">Exercise 2 (My Settings)</a>     (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise02.my-settings.answers.txt">Answers</a>)
 
     b. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/how.to.setup.top.row.txt">How to Setup the Top Row</a>
     c. Fixed titles
