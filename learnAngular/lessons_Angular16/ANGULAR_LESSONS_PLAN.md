@@ -39,7 +39,9 @@ Angular 16 Lesson Plan
     d. Using animation to make a vertical section appear/disappear
 
  6. Buttons, Text-Fields, and Controls (using Angular Material)
-
+    a. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.dropdowns.and.textboxes.txt">Intro to Textboxes & Dropdowns</a>
+  
+    
  7. Forms
     a. Template-based Forms  (used for simpler forms)
     b. Reactive forms        (used for complex forms)
