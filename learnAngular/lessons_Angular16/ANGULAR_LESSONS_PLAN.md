@@ -30,8 +30,11 @@ Angular 16 Lesson Plan
            <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01a.question.txt">Exercise 1a</a>
            <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01b.question.txt">Exercise 1b</a>
            <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01c.question.txt">Exercise 1c</a>
-           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01d.question.txt">Exercise 1d</a>                 (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01d.answers.txt">Answers</a>)
-           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise02.my-settings.question.txt">Exercise 2 / My Settings</a>    (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise02.my-settings.answers.txt">Answers</a>)
+           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01d.question.txt">Exercise 1d</a>                           (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01d.answers.txt">Answers</a>)
+           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise02.my-settings.question.txt">Exercise 2  / My Settings</a>             (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise02.my-settings.answers.txt">Answers</a>)
+           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise03a.stock-trade.question.txt">Exercise 3a / Stock Trade</a>             (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise03a.stock-trade.answers.txt">Answers</a>)
+           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise03b.stock-trade.question.txt">Exercise 3b / Limit Price Disappears</a>  (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise03b.stock-trade.answers.txt">Answers</a>)
+
 
     b. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/howToSetupTopRow.txt">How to Setup the Top Row</a>
     c. Fixed titles

@@ -1,0 +1,234 @@
+Exercise 3b / How to make the "Limit Price" textbox disappear (Answers)
+-----------------------------------------------------------------------
+Problem:  The "Limit Price" textbox is visible *ONLY IF* the user selects "Limit Order"
+
+            +---------------------------------------------------------------------------------+
+            | Stock Trade                                                          <Help Btn> |
+            +---------------------------------------------------------------------------------+
+            |                                                                                 |
+            |    <Action Dropdown>             <Quantity Textbox>           <Symbol Textbox>  |
+            |        Buy Stock                                                                |
+            |        Buy Mutual Fund                                                          |
+            |        Sell Stock                                                               |
+            |        Sell Mutual Fund                                                         |
+            |                                                                                 |
+            |    <Order Type Dropdown>         <Limit Price Textbox>                          |   The Limit Price Textbox is visible *ONLY *IF* the user selects "Limit Order"
+            |        Market Order                                                             |
+            |        Limit Order                                                              |
+            |                                                                                 |
+            |                 <Reset Btn>  <Review Order Btn>   Save for later                |
+            +---------------------------------------------------------------------------------+
+
+
+Approach 1:  Use a Template Variable
+------------------------------------
+
+			<mat-form-field>
+				<mat-label>Order Type</mat-label>
+
+				<!--  Order Type Dropdown  -->
+				<mat-select  #selectedOrderType  >
+						<mat-option [value]=1> option 1 </mat-option>
+						<mat-option [value]=2> Limit Order </mat-option>
+						<mat-option [value]=3> option 2 </mat-option>
+				</mat-select>
+
+			</mat-form-field>
+
+
+
+			<mat-form-field *ngIf="selectedOrderType.value == 2">
+
+				<!-- Limit Price Text box -->
+				<input matInput type="text"/>
+
+			</mat-form-field>
+
+
+
+	Advantages of Template Variables
+	 1) We can get the value of a single control easily
+	 2) Super easy to code
+	 3) No TypeScript coding at all!!!
+
+
+
+
+
+
+Approach 2:  Use two way-binding with a Class Variable
+------------------------------------------------------
+Two Way Binding means this:
+   1) Changing the class variable ---> Causes the dropdown to change
+   2) Change the dropdown         ---> Causes the class variable to change
+
+
+
+ In the TypeScript
+ -----------------
+		export class StockTradesComponent {
+
+			public mySelectedOrderType: number = 0;
+
+			public resetClicked(): void {
+            	this.mySelectedOrderType = 0;
+			}
+
+		}
+
+
+
+
+ In the HTML
+ ------------
+			<mat-form-field>
+				<mat-label>Order Type</mat-label>
+
+				<!--  Order Type Dropdown  -->
+				<mat-select  [(ngModel)]="this.mySelectedOrderType"  >
+						<mat-option [value]=1> option 1 </mat-option>
+						<mat-option [value]=2> Limit Order </mat-option>
+				</mat-select>
+
+			</mat-form-field>
+
+
+
+			<!-- Use an *ngIf statement to make this form field appear/disappear -->
+			<mat-form-field *ngIf="this.mySelectedOrderType == 2">
+
+				<!-- Limit Price Text box -->
+				<input matInput type="text"/>
+
+			</mat-form-field>
+
+
+			<button (click)="this.resetClicked()" title="Reset" aria-label="Reset">
+				Reset
+			</button>
+
+
+
+
+		Advantages of using class Variable and ngModel
+		 1) Simple / Not a lot of code
+		 2) Works well for a form that has FEW controls
+
+
+
+
+
+
+Approach 3:  We can use a Reactive Form  [advanced] / Recommended for forms with 3 or more controls
+---------------------------------------------------------------------------------------------------
+ 1. Create a class variable  called myForm
+			public myForm: FormGroup
+
+
+ 2. Inject the formBuilder service
+			constructor(private formBuilder: FormBuilder)    {  }
+
+ 3. Use the formBuilder to initialize myForm
+
+			public ngOnInit(): void {
+
+				// Initialize the myForm object
+				this.myForm = this.formBuilder.group({
+						orderType:  [null, null],
+						limitPrice: [null, null],
+						quantity:   [null, null],
+                        myTextbox:  [null, null],
+                        myDropdown: [null, null]
+
+				});
+
+			}
+
+ 4. Add <form> tag to your HTML
+		-- This is what binds the myForm class variable to your HTML
+
+			<form [formGroup]="this.myForm" novalidate autocomplete="off">
+
+
+
+
+
+			</form>
+
+
+
+ 5. Bind each form control to the myForm object
+
+			<mat-select   formControlName="orderType">
+
+
+
+ 6. OPTIONAL:  Show information in real-time
+		<pre>
+			this.myForm.controls.orderType.value = {{ this.myForm.controls.orderType.value  }}
+			this.myForm.controls.limitPrice.value = {{ this.myForm.controls.limitPrice.value  }}
+			this.myForm.controls.quantity.value = {{ this.myForm.controls.quantity.value  }}
+		</pre>
+
+
+ 7. Bind the order type dropdown to myForm
+
+ 			<mat-form-field>
+ 				<mat-label>Order Type</mat-label>
+
+ 				<!--  Order Type Dropdown  -->
+ 				<mat-select  formControlName="orderType" >
+ 						<mat-option [value]=1> option 1 </mat-option>
+ 						<mat-option [value]=2> Limit Order </mat-option>
+ 				</mat-select>
+
+ 			</mat-form-field>
+
+
+ 8. Use an *ngIf to make the limit price field appear/disappear
+
+ 			<!-- Use an *ngIf statement to make this form field appear/disappear -->
+ 			<mat-form-field *ngIf="this.myForm.controls.orderType?.value == 2">
+
+ 				<!-- Limit Price Text box -->
+ 				<input matInput type="text" formControlName="limitPrice" />
+
+ 			</mat-form-field>
+
+
+
+
+	Advantages of Reactive Form
+	---------------------------
+	1. One variable to get access to everything:  myForm
+
+	2. Easy to add another control
+
+	3. We can watch every click on every control
+		-- We can run code before the user presses "Submit"
+		-- We can tell if the user typed-in a letter or a digit
+
+	4. We have powerful validators
+
+
+	5. We can see the value of every field
+
+
+	6. To reset the form:  it's a one-liner
+             this.myForm.reset()
+
+
+
+	Disadvantages of Reactive Form
+	------------------------------
+	1. COMPLEX:  Lot of steps to setup / easy to mess up
+
+	2. Easy to screw up:  misspell the field in formControlName and it doesn't work
+
+	3. You can only access this.myForm *INSIDE* the <form>...</form>
+
+	4. Validators can be confusing
+
+
+
+
