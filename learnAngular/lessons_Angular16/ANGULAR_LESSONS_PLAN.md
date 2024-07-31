@@ -53,7 +53,7 @@ Angular 16 Lesson Plan
  7. Buttons, Text-Fields, and Controls (using Angular Material)
     a. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.dropdowns.and.textboxes.txt">Intro to Textboxes & Dropdowns</a> in Angular Material
     b. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.angular.tricks.and.techniques.txt">Angular Material Tricks & Techniques</a>
-    b. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/howToAddHyperlinks.txt">Hyperlinks</a>
+    c. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/howToAddHyperlinks.txt">Hyperlinks</a>
     
  8. Forms
     a. Template-based Forms  (used for simpler forms)
