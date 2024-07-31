@@ -23,7 +23,7 @@ Angular 16 Lesson Plan
     <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lesson05b_setupNavBarUsingTailWind.txt">Setup Navbar w/Tailwind (visible/invisible)</a>
     <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lesson05c_setupNavBarUsingTailWindAlwaysVisible.txt">Setup Navbar w/Tailwind (collapsed/expanded)</a>
 
-      At this point, you have a real web application and can start learning things
+      At this point, you have a real web application and can start adding page views
     
  5. Layouts (using Tailwind CSS)
     a. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.basic.layouts.txt">Basic Layouts w/Tailwind</a>            
