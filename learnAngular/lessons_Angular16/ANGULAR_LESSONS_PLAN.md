@@ -38,8 +38,12 @@ Angular 16 Lesson Plan
            <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise04.responsive.layout.question.txt">Exercise 4  / Responsive Layout</a>       (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise04.responsive.layout.answers.txt">Answers</a>)
 
     b. How to Fix titles / Set height using CSS calculations
-    c. Using animation to make a horizontal section appear and disappear
-    d. Using animation to make a vertical section appear/disappear
+
+    c. How to use animations to make DIVs appear/disappear
+           Horizontal Animations on width  (Approach #1)
+           Horizontal Animations on width  (Approach #2)
+           Vertical Animations on height (Approach #1)
+           Vertical Animations on height (Approach #2)
 
  6. Page Navigation
     a. Using the router to change the page view
