@@ -73,5 +73,9 @@ Angular 16 Lesson Plan
     c. How to render stuff in the HTML after the REST call comes back
     d. How to send messages from one part of the web app to another
 
+11. Grids (using ag-grid)
+    a. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.grids.txt">Client-Side vs Server-Side Grids</a>
+    
+12. PDF Viewer (using extended-pdf-viewer)
 
 </pre>

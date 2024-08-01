@@ -1,0 +1,111 @@
+Lecture on Grids (using ag-grid)
+--------------------------------
+
+
+
+Lecture
+-------
+ 1. Grid Pages are really handy
+    -- They provide lots of power:  Allowing users to search and filter records (especially in workflow-related web apps) is super useful
+    -- These grid pages have SIMPLE LAYOUTS
+
+        +--------------------------------------------------------+
+        | My Client-Side Grid Page                               |
+        +--------------------------------------------------------+
+        |   <btn> <btn> <btn>                                    |
+        |   +-------------------------------------------------+  |
+        |   |       ag-grid uses most of the page's           |  |
+        |   |          width and height                       |  |
+        |   |                                                 |  |
+        |   |                                                 |  |
+        |   +-------------------------------------------------+  |
+        |                                                        |
+        +--------------------------------------------------------+
+
+
+        +--------------------------------------------------------+
+        | My Server-Side Grid Page                               |
+        +--------------------------------------------------------+
+        |                    <search box>                        |
+        |   <btn> <btn                          <total matches>  |
+        |   +-------------------------------------------------+  |
+        |   |       ag-grid uses most of the page's           |  |
+        |   |          width and height                       |  |
+        |   |                                                 |  |
+        |   |                                                 |  |
+        |   +-------------------------------------------------+  |
+        |                                                        |
+        +--------------------------------------------------------+
+
+
+
+
+
+ 2. Every web app that uses a grid must choose what kind of grid
+    a. Choose a client-side grid
+
+         Behavior
+            -- It's called "Client Side" because all of the data is loaded into the client (the web browser)
+            -- All of the data is loaded into the browser
+            -- User may have to **WAIT** for all of the data to be loaded   [which can be bad the record counts increase]
+            -- If you're REST endpoint returns 1 million rows, then you're grid will load 1 million rows  [this is really stupid / so don't do this]
+
+
+
+        Advantages
+            + It's relatively simple to code:  Create a REST endpoint that loads data
+            + You get front-end filtering built-in  (as the filters are applied to what's loaded in the browser)
+            + Works well with small data sets (under approx 5000 rows)
+
+
+        Disadvantages
+            - Does not scale-up  (you're leaving a potential bomb for the future developers)
+                -- Could be slow:  loading 1 million rows can take a long time (long time for the REST call to get the data, long time to transmit the data)
+                -- The system works well in the early years when there are fewer records
+                -- The system works POORLY in the later years as the number of records grows
+
+            - Wasteful:  Even if the user doesn't want to see all million rows, we're loading it
+              Does the user need to SEE 1 million rows?  Probably not
+              So, we're wasting the resources to generate this HUGE list even the user does not want to see i
+
+
+        Conclusion:
+            It's a good choice if you have fewer than 5000 records, don't need to scale-up too much, and don't need a search box
+
+
+
+    b. Choose a server-side grid
+
+         Behavior
+            -- It's called "Server Side" because the bulk of the data is on the server
+            -- User sees a page of data (I typically load up to 25 records in one page -- but you can go higher)
+            -- User presses the "Next" button or keeps scrolling to see more data
+               Each time, the REST call get is invoked to to get the next 25 records
+            -- Backend REST call's job it to take the ag-grid's CONTRACT of info, run an ElasticSearch query, and return the data back to the front-end
+
+
+        Advantages
+            + Grid displays pretty quickly (as we're only loading the first 25 records or so
+            + It scales-up
+                -- If I have 1 billion records, the REST endpoint only returns 25 records-per-page
+                -- Works with well with no-sql document data stores such as ElasticSearch
+                -- We can add more ElasticSearch Server instances (nodes) to make ElasticSearch even faster
+            + Uses resources sparingly  (we do NOT generate millions of records and we do not TRANSMIT millions of records)
+            + Ag-grid's infinity scroll caches the data so that if a user scrolls down and we get 3 pages of data, those 3 pages are stored in the grid
+            + When you using a no-sql document data store such as ElasticSearch, you can EASILY ADD A SEARCH BOX (to give it more power)
+
+
+
+        Disadvantages
+            - It's more complicated on the front-end than the client grid:
+                -- You have to create a Server Side Data Source in TypeScript that tells it to invoke a REST call
+
+            - It's more complicate on the back-end
+                -- Filtering must be done on the server-side
+                -- The REST call to process this data must handle a COMPLICATED CONTRACT  (ag-grid's contract passes-in a LOT of information -- e..g., filters, starting record number, ...
+
+
+        Conclusion:
+            It's a good choice if you have GREATER than 5000 records, need to scale-up (as you may have LOTS of users), and want to quickly add a search box
+
+
