@@ -38,8 +38,8 @@ Angular 16 Lesson Plan
            <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise04.responsive.layout.question.txt">Exercise 4</a>  / Responsive Layout       (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise04.responsive.layout.answers.txt">Answers</a>)
 
     b. How to fix the title / Set height using CSS calculations
-           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise05a.holy-grail.question.txt">Exercise 5a</a>  / Holy Grail Layout      (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise05a.holy-grail.answers.txt">Answers</a>)
-           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise05b.scroll-into-view.question.txt">Exercise 5b</a>  / Scroll Into View       (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise05b.scroll-into-view.answers.txt">Answers</a>)
+           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise05a.holy-grail.question.txt">Exercise 5a</a> / Holy Grail Layout       (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise05a.holy-grail.answers.txt">Answers</a>)
+           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise05b.scroll-into-view.question.txt">Exercise 5b</a> / Scroll Into View        (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise05b.scroll-into-view.answers.txt">Answers</a>)
 
     c. How to use animations to make DIVs appear/disappear
            Horizontal Animations on width  (Approach #1)
@@ -47,24 +47,27 @@ Angular 16 Lesson Plan
            Vertical Animations on height (Approach #1)
            Vertical Animations on height (Approach #2)
 
- 6. Services
-    a. Router service:   Used to navigate to another page view
-    b. Lookup Service:   Used to populate dropdowns
-    c. Message Service:  Used to display messages
+ 6. Forms
+    a. Template-based Forms  (used for simpler forms)
+    b. Reactive forms        (used for complex forms)
+       <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/howToSetupReactiveForm.txt">Setup Reactive Forms</a>
+       Build Custom Synchronous Validators
+       Build Custom Asynchronous Validators
 
  7. Buttons, Text-Fields, and Controls (using Angular Material)
     a. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.dropdowns.and.textboxes.txt">Intro to Textboxes & Dropdowns</a> in Angular Material
     b. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.angular.tricks.and.techniques.txt">Angular Material Tricks & Techniques</a>
     c. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/howToAddHyperlinks.txt">Hyperlinks</a>
     
- 8. Forms
-    a. Template-based Forms  (used for simpler forms)
-    b. Reactive forms        (used for complex forms)
-       Setup Reactive Forms
-       Build Custom Synchronous Validators
-       Build Custom Asynchronous Validators
+ 8. Services
+    a. Router service:   Used to navigate to another page view
+    b. Lookup Service:   Used to populate dropdowns
+    c. Message Service:  Used to display messages
  
- 9. Observables, Subjects, and Arrow Functions
+ 9. TypeScript
+    a. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/howToReferenceEnumClass.txt">How to Use Enumerated Classes in HTML</a>  (constants.ts)
+
+10. Observables, Subjects, and Arrow Functions
     a. How to use observables to simulate a REST call
     b. How to use observables to invoke a REST call
     c. How to render stuff in the HTML after the REST call comes back
