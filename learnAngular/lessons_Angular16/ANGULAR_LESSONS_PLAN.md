@@ -9,10 +9,9 @@ Angular 16 Lesson Plan
 
  2. Boring Lectures
     a. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.overallArchitecture.txt">Overall Architecture (snooze)</a>
-    b. Component Life cycle
-    c. Difference between components and services
+    b. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.what.is.tailwind.txt">What is Tailwind?</a>
+    c. Component Life cycle
     d. One-way-binding and two-way-binding
-    e. Structural directives
 
  3. Add Frontend Dependencies
     <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lesson03_installTailwind.txt">Install Tailwind</a>
