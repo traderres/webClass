@@ -47,7 +47,7 @@ Angular 16 Lesson Plan
            Vertical Animations on height (Approach #1)
            Vertical Animations on height (Approach #2)
 
- 6. Angular Services 
+ 6. Services
     a. Router service:   Used to navigate to another page view
     b. Lookup Service:   Used to populate dropdowns
     c. Message Service:  Used to display messages
@@ -60,11 +60,15 @@ Angular 16 Lesson Plan
  8. Forms
     a. Template-based Forms  (used for simpler forms)
     b. Reactive forms        (used for complex forms)
-    c. Custom Synchronous Validators
-    d. Custom Asynchronous Validators
+       Setup Reactive Forms
+       Build Custom Synchronous Validators
+       Build Custom Asynchronous Validators
  
  9. Observables, Subjects, and Arrow Functions
-    a. How to use observables to invoke a REST call
-    b. How to render stuff in the HTML after the REST call comes back
-    c. How to send messages from one part of the web app to another
+    a. How to use observables to simulate a REST call
+    b. How to use observables to invoke a REST call
+    c. How to render stuff in the HTML after the REST call comes back
+    d. How to send messages from one part of the web app to another
+
+
 </pre>
