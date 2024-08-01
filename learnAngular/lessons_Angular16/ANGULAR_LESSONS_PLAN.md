@@ -51,8 +51,9 @@ Angular 16 Lesson Plan
     a. Template-based Forms  (used for simpler forms)
     b. Reactive forms        (used for complex forms)
        <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/howToSetupReactiveForm.txt">Setup Reactive Forms</a>
-       Build Custom Synchronous Validators
-       Build Custom Asynchronous Validators
+       Form Validation w/provided validators
+       Form Validation w/custom validators (synchronous)
+       Form Validation w/custom validators (asynchronous)
 
  7. Buttons, Text-Fields, and Controls (using Angular Material)
     a. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.dropdowns.and.textboxes.txt">Intro to Textboxes & Dropdowns</a> in Angular Material
