@@ -37,7 +37,9 @@ Angular 16 Lesson Plan
            <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise03b.stock-trade.question.txt">Exercise 3b</a> / Limit Price Disappears  (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise03b.stock-trade.answers.txt">Answers</a>)
            <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise04.responsive.layout.question.txt">Exercise 4</a>  / Responsive Layout       (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise04.responsive.layout.answers.txt">Answers</a>)
 
-    b. How to Fix titles / Set height using CSS calculations
+    b. How to fix the title / Set height using CSS calculations
+           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise05a.holy-grail.question.txt">Exercise 5a</a>  / Holy Grail Layout      (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise05a.holy-grail.answers.txt">Answers</a>)
+           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise05b.scroll-into-view.question.txt">Exercise 5b</a>  / Scroll Into View       (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise05b.scroll-into-view.answers.txt">Answers</a>)
 
     c. How to use animations to make DIVs appear/disappear
            Horizontal Animations on width  (Approach #1)
