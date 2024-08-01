@@ -47,10 +47,10 @@ Angular 16 Lesson Plan
            Vertical Animations on height (Approach #1)
            Vertical Animations on height (Approach #2)
 
- 6. Page Navigation
-    a. Using the router to change the page view
-    b. Using hyperlinks
-    c. Running code before leaving a page
+ 6. Angular Services 
+    a. Router service:   Used to navigate to another page view
+    b. Lookup Service:   Used to populate dropdowns
+    c. Message Service:  Used to display messages
 
  7. Buttons, Text-Fields, and Controls (using Angular Material)
     a. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.dropdowns.and.textboxes.txt">Intro to Textboxes & Dropdowns</a> in Angular Material
