@@ -41,9 +41,9 @@ Angular 16 Lesson Plan
            <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise05b.holy-grail.question.txt">Exercise 5b</a> / Holy Grail (w/calc)     (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise05b.holy-grail.answers.txt">Answers</a>)
            <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise05c.scroll-into-view.question.txt">Exercise 5c</a> / Scroll Into View        (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise05c.scroll-into-view.answers.txt">Answers</a>)
 
-    c. How to use animations to make DIVs appear/disappear
-           Horizontal Animations on width  (Approach #1)
-           Horizontal Animations on width  (Approach #2)
+    c. How to make DIVs appear/disappear using animation
+           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise06a.howToDoTransitionsOnWidth.question.txt">Exercise 6a</a> / Transitions on width    (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise06a.howToDoTransitionsOnWidth.answers.txt">Answers</a>)
+           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise06b.right-side-slide-out-drawer.question.txt">Exercise 6b</a> / Setup Right Drawer      (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise06b.right-side-slide-out-drawer.answers.txt">Answers</a>)
            Vertical Animations on height (Approach #1)
            Vertical Animations on height (Approach #2)
 
