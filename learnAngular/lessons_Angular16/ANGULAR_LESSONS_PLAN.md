@@ -45,11 +45,8 @@ Angular 16 Lesson Plan
            <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise06a.howToDoTransitionsOnWidth.question.txt">Exercise 6a</a> / Transitions on width    (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise06a.howToDoTransitionsOnWidth.answers.txt">Answers</a>)
            <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise06b.right-side-slide-out-drawer.question.txt">Exercise 6b</a> / Setup Right Drawer      (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise06b.right-side-slide-out-drawer.answers.txt">Answers</a>)
            <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise06c.howToDoTransitionsOnHeightUsingTemplateVar.question.txt">Exercise 6c</a> / Transitions on Height   (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise06c.howToDoTransitionsOnHeightUsingTemplateVar.answers.txt">Answers</a> using template variable)
-           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise06d.howToDoTransitionsOnHeightUsingTailwind.question.txt">Exercise 6d</a> / Transitions on Height   (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise06c.howToDoTransitionsOnHeightUsingTailwind.answers.txt">Answers</a> using pure tailwind approach)
+           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise06d.howToDoTransitionsOnHeightUsingTailwind.question.txt">Exercise 6d</a> / Transitions on Height   (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise06d.howToDoTransitionsOnHeightUsingTailwind.answers.txt">Answers</a> using pure tailwind approach)
   
-Vertical Animations on height (Approach #1)
-           Vertical Animations on height (Approach #2)
-
  6. Forms
     a. Template-based Forms  (used for simpler forms)
     b. Reactive forms        (used for complex forms)
