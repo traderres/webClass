@@ -13,7 +13,8 @@ Angular 16 Lesson Plan
     c. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.component.lifecycle.txt">Component Life Cycle</a>
     d. One-way-binding and two-way-binding
     e. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.approaches.loading.data.txt">Approaches to Loading Data</a>
-
+    f. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.what.is.observable.txt">What is an Observable?</a>
+    
  3. Add Frontend Dependencies
     <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lesson03_installTailwind.txt">Install Tailwind</a>
     <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lesson04_installFontAwesome.txt">Install Font Awesome Pro</a>
