@@ -65,6 +65,7 @@ Angular 16 Lesson Plan
     f. Radio Buttons
     g. Popup Menus
     h. AutoCompletes
+    i. Derivative Dropdowns  [After selecting 1 dropdown value, change a 2nd dropdown's options]
 
  8. Loading Data using Observables
     a. Load a dropdown w/manual subscribe 
