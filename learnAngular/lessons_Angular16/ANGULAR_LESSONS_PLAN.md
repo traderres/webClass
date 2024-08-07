@@ -78,6 +78,8 @@ Angular 16 Lesson Plan
     a. Submit button invokes a REST call
     b. Submit button shows spinner while waiting on REST call
     c. Stop user from doing anything while waiting on REST call
+    d. Auto-save every N seconds with a reactive form
+    e. Auto-save when leaving a page  
 
 10. Sending Messages using Observables, Subjects, and Arrow Functions
     a. How to send messages from one part of the web app to another
