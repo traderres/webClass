@@ -28,7 +28,7 @@ Angular 16 Lesson Plan
  5. Layouts (using Tailwind CSS)
     a. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.basic.layouts.txt">Basic Layouts w/Tailwind</a>            
        <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/howToSetupTopRow.txt">How to Setup the Top Row</a>
-           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01a.question.txt">Exercise 1a</a> / 3 Boxes Page
+           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01a.question.txt">Exercise 1a</a> / Three Boxes Page
            <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01b.question.txt">Exercise 1b</a>
            <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01c.question.txt">Exercise 1c</a>
            <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01d.question.txt">Exercise 1d</a>                           (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/tailwind.exercise01d.answers.txt">Answers</a>)
@@ -68,12 +68,19 @@ Angular 16 Lesson Plan
     i. Derivative Dropdowns  [After selecting 1 dropdown value, change a 2nd dropdown's options]
 
  8. Loading Data using Observables
-    a. Load a dropdown w/manual subscribe 
-    b. Load a dropdown w/async pipe 
-    c. Load multiple dropdowns w/multi-async-pipe
-    d. Simulate a slow REST call
-    e. Edit Report Page / Load entire page using pipe & tap
-    f. Cache data in a frontend service
+    a. Load a dropdown from a REST call
+       Exercise 13a / Loading Dropdown w/subscribe         (Answers)
+       Exercise 13b / Loading Dropdown w/async pipe        (Answers)
+       Exercise 13c / Loading w/multiple async pipe        (Answers)
+
+    b. Load a page of data from a REST call
+       Exercise 14a / Loading read-only page w/async pipe  (Answers)
+       Exercise 14b / Loading reactive form w/pipe & tap   (Answers)
+       
+    c. Misc Techniques ("kitchen sink")
+       Exercise 15a / Simulate a slow REST call            (Answers)
+       Exercise 15b / Listen on autocomplete               (Answers)
+       Exercise 15c / Cache data in frontend service       (Answers)
 
  9. Saving Data 
     a. Submit button invokes a REST call
