@@ -12,6 +12,7 @@ Angular 16 Lesson Plan
     b. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.what.is.tailwind.txt">What is Tailwind?</a>
     c. Component Life cycle
     d. One-way-binding and two-way-binding
+    e. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.approaches.loading.data.txt">Approaches to Loading Data</a>
 
  3. Add Frontend Dependencies
     <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lesson03_installTailwind.txt">Install Tailwind</a>

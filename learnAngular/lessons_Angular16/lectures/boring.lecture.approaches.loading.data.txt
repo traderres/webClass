@@ -1,0 +1,74 @@
+Boring Lecture / Approaches to Loading Data
+-------------------------------------------
+Problem:  I have a dropdown that I want to load from a REST call or frontend service
+          How do you make this happen?
+
+References
+----------
+https://medium.com/@luukgruijs/understanding-creating-and-subscribing-to-observables-in-angular-426dbf0b04a3
+https://medium.com/angular-in-depth/angular-question-rxjs-subscribe-vs-async-pipe-in-component-templates-c956c8c0c794
+https://alligator.io/angular/async-pipe/
+https://www.concretepage.com/angular-2/angular-2-async-pipe-example
+
+
+Approach 1: Use routes to make the lookup call **synchronous**   [PISS POOR APPROACH]
+-------------------------------------------------------------------------------------
+The idea is that the entire page does not load until *ALL* data is loaded
+-- The REST call is synchronous
+-- The entire page view *WAITS* for the REST call to resolve
+-- No spinner
+
+NOTE:  This approach is considered a fucking bad practice
+
+
+
+
+
+Approach 2: Manually subscribe to an Observable within ngOnInit()   [BETTER]
+----------------------------------------------------------------------------
+In this approach, you would
+ 1. The page has a public class variable (used by the HTML page)
+ 2. Inject a frontend service -- e.g., lookupService
+ 3. Add a flag indicating the REST call is running
+ 4. Have The page  ngOnInit() method subscribe to the REST call
+    a. Upon success, store the data in a class variable
+    b. Upon success or failure, clear the flag when the REST call finishes
+ 5. Add a method in ngOnDestroy() to cleanup
+ 7. Have the HTML load the information found in the class variable
+
+   Advantages to Approach 2
+   ------------------------
+   + The REST call is asynchronous
+   + We can show a spinner while the REST call is running
+
+   Disadvantages to Approach 2
+   ---------------------------
+    - Need to unsubscribe from the observable at the end of the component life-cycle to avoid memory leaks
+    - Subscribing to an observable manually in ngOnInit() does not work with OnPush change detection [out of the box]
+    - Complex to implement: You need to maintain a subscription variable and flags
+
+
+
+Approach 3: Automatically subscribe to an Observable using Async Pipe [BEST APPROACH]
+-------------------------------------------------------------------------------------
+In this approach, there is only one variable in the typescript class:
+
+   1. Define a class variable that holds an Observable [that contains a DTO]
+          public priorities: Observable[DTO];
+
+   2. The ngOnInit() initializes the observable
+   3. The HTML template automatically subscribes and unsubscribes
+
+
+	Advantages to Approach 3
+	------------------------
+	+ The REST call is asynchronous
+  	+ We can show a spinner (if needed)
+	+ Automatically clean-up:  No need to unsubscribe
+	+ Works with OnPush change detection
+	+ Less complex than approach 2
+	+ For promises, the async pipe automatically calls the then method.
+	+ For observables, the async pipe automatically calls subscribe and unsubscribe.
+
+
+
