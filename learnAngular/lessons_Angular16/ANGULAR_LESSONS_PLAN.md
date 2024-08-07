@@ -67,11 +67,12 @@ Angular 16 Lesson Plan
     h. AutoCompletes
 
  8. Loading Data using Observables
-    a. Loading Single Dropdown w/manual subscribe 
-    b. Loading Single Dropdown w/async pipe 
-    c. Loading Multiple Dropdowns w/multi-async-pipe
+    a. Load a dropdown w/manual subscribe 
+    b. Load a dropdown w/async pipe 
+    c. Load multiple dropdowns w/multi-async-pipe
     d. Simulate a slow REST call
     e. Edit Report Page / Load entire page using pipe & tap
+    f. Cache data in a frontend service
 
  9. Saving Data 
     a. Submit button invokes a REST call
