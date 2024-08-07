@@ -61,6 +61,10 @@ Angular 16 Lesson Plan
     b. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.angular.tricks.and.techniques.txt">Angular Material Tricks & Techniques</a>
     c. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/howToAddHyperlinks.txt">Hyperlinks</a>
     d. Date Pickers
+    e. Textareas
+    f. Radio Buttons
+    g. Popup Menus
+    h. AutoCompletes
 
  8. Loading Data using Observables
     a. Loading Single Dropdown w/manual subscribe 
