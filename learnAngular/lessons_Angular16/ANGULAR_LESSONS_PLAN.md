@@ -69,18 +69,21 @@ Angular 16 Lesson Plan
 
  8. Loading Data using Observables
     a. Load a dropdown from a REST call
-       <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise13a.load-dropdown-with-subscribe.question.txt">Exercise 13a</a> / Loading Dropdown w/subscribe         <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise13a.load-dropdown-with-subscribe.answers.txt">(Answers)</a>
-       Exercise 13b / Loading Dropdown w/async pipe        (Answers)
-       Exercise 13c / Loading w/multiple async pipe        (Answers)
+       <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise13a.load-dropdown-with-subscribe.question.txt">Exercise 13a</a> / Loading Dropdown w/subscribe            <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise13a.load-dropdown-with-subscribe.answers.txt">(Answers)</a>
+       Exercise 13b / Loading Dropdown w/async pipe           (Answers)
+       Exercise 13c / Create the REST call                    (Answers)
+       Exercise 13d / Integrate the REST call w/the frontend  (Answers)
+       Exercise 13e / Loading w/multiple async pipe           (Answers)
+       Exercise 13f / Show loading message while waiting      (Answers)
 
     b. Load a page of data from a REST call
-       Exercise 14a / Loading read-only page w/async pipe  (Answers)
-       Exercise 14b / Loading reactive form w/pipe & tap   (Answers)
+       Exercise 14a / Loading read-only page w/async pipe     (Answers)
+       Exercise 14b / Loading reactive form w/pipe & tap      (Answers)
        
     c. Misc Techniques ("kitchen sink")
-       Exercise 15a / Simulate a slow REST call            (Answers)
-       Exercise 15b / Listen on autocomplete               (Answers)
-       Exercise 15c / Cache data in frontend service       (Answers)
+       Exercise 15a / Simulate a slow REST call               (Answers)
+       Exercise 15b / Listen on autocomplete                  (Answers)
+       Exercise 15c / Cache data in frontend service          (Answers)
 
  9. Saving Data 
     a. Submit button invokes a REST call
