@@ -1,26 +1,22 @@
-Exercise 13a / Load a Dropdown by Subscribing to an Observable (Answers)
-------------------------------------------------------------------------
+Exercise 13b / Load a Dropdown using an Async Pipe (Answers)
+------------------------------------------------------------
 Problem:  I want to load a dropdown from a REST call
-Solution: Subscribe to the observable in ngOnInit and load data with a class variable
+Solution: Use an Async Pipe
 
 
-Advantages to Manual Subscribe
+Advantages to Async Pipe
  + The REST call is asynchronous
- + We can show a spinner while the REST call is running
-
-
-Disadvantages to Manual Subscribe
- - Need to unsubscribe from the observable at the end of the component life-cycle to avoid memory leaks
- - Subscribing to an observable manually in ngOnInit() does not work with OnPush change detection [out of the box]
- - Complex to implement: You need a class variable for your data and a subscription variable
-
+ + We can show a spinner (if needed)
+ + Requires less code (just initialize the observable in ngOnInit)
+ + Automatically clean-up:  No need to unsubscribe the observable
+ + Works with OnPush change detection
 
 
 Exercise
 --------
  1. Part 1 / Setup the Page
-    a. Generate the component                 AddContractSubscribe
-    b. Add the route to constants.ts:         the route will be this:   page/add-contract-subscribe
+    a. Generate the component                 AddContractAsyncPipe
+    b. Add the route to constants.ts:         the route will be this:   page/add-contract-async-pipe
     c. Register the route
     d. Add the route to the database table:  ui_controls        (if using real security)
     e. Add a link to the navbar (using that route)
@@ -202,31 +198,26 @@ Exercise
 
 
 
- 6. In the Typescript of your main page
- 	a. Create a public class variable called priorities that holds an *ARRAY* of MyLookupDTO objects
-			public priorities: MyLookupDTO[];
+ 6. In the Typescript, we need to *INITIALIZE* the observable
+ 	a. Create a public class variable called priorities that holds an observable that holds *ARRAY* of MyLookupDTO objects
+			public obsPriorities: Observable< MyLookupDTO[] >;
 
  	b. Inject the MyLookupService
 			public constructor(private myLookupService: MyLookupService) {
 			}
 
- 	c. In the ngOnInit(), invoke the REST call and when it comes back set the class variable
+ 	c. In the ngOnInit(), initialize the observable
 
 			public ngOnInit(): void {
 
-			  // Manually invoke the REST call to get all priorities
-			  this.myLookupService.getAllPriorities().subscribe( (aData: MyLookupDTO[]) => {
-			     // REST call came back with data
-
-			     // Store the information in the public class variable
-			     this.priorities = aData;
-			 })
-
+			  // Initialize the observable
+			  // NOTE:  The async-pipe will activate the observable (which will cause the REST call to be invoked)
+			  this.obsPriorities = this.myLookupService.getAllPriorities();
 			}
 
 
 
- 7. In the HTML, loop through the array of priorities
+ 7. In the HTML, add the async-pipe *AND* loop through the array of priorities
  	a. Remove the hard-coded <mat-option> tags
 
  	b. Replace them with a *ngFor loop
@@ -242,52 +233,18 @@ Exercise
         To this:
             <mat-select title="Select Priority" aria-label="Select Priority">
 
-            	<!-- Loop through the array of priorities -->
-				<ng-container *ngFor="let dto of this.priorities">
-					<mat-option [value]="dto.id">{{ dto.value }}</mat-option>
-				</ng-container>
+					<ng-container *ngIf="(this.obsPriorities | async) as priorities">
+            			<!-- This HTML fragment is rendered *AFTER* the REST call comes back with data -->
 
-            </mat-select>
+            			<!-- Loop through the array of priorities -->
+						<ng-container *ngFor="let dto of priorities">
+							<mat-option [value]="dto.id">{{ dto.value }}</mat-option>
+						</ng-container>
 
-            *OR*
-
-            <mat-select title="Select Priority" aria-label="Select Priority">
-
-            	<!-- Loop through the array of priorities -->
-				<mat-option  *ngFor="let dto of this.priorities" [value]="dto.id"> {{ dto.value }} </mat-option>
+					</ng-container>
 
             </mat-select>
 
 
 
- 8. Cleanup:  Remove memory leaks by unsubscribing
-    NOTE:  Anytime you subscribe to an observable, it's a BEST PRACTICE to unsubscribe
-
-    a. Add a class variable called subPriorities
-    	    private subPriorities: Subscription;
-
-    b. When you subscribe(), it always returns a subscription
-       -- So, set this.subPriorities to hold it
-
-			 public ngOnInit(): void {
-
-			   // Manually invoke the REST call to get all priorities
-			   this.subPriorities = this.myLookupService.getAllPriorities().subscribe( (aData: MyLookupDTO[]) => {
-				 // REST call came back with data
-
-				 // Store the information in the public class variable
-				 this.priorities = aData;
-			   })
-
-			 }
-
-
-    c. Create the ngOnDestroy() method
-    	-- If subPriorities is defined, then call unsubscribe() on it
-
-			  public ngOnDestroy() {
-				if (this.subPriorities) {
-				  this.subPriorities.unsubscribe();
-				}
-			  }
 
