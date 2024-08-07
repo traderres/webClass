@@ -59,24 +59,37 @@ Angular 16 Lesson Plan
     a. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.dropdowns.and.textboxes.txt">Intro to Textboxes & Dropdowns</a> in Angular Material
     b. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.angular.tricks.and.techniques.txt">Angular Material Tricks & Techniques</a>
     c. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/howToAddHyperlinks.txt">Hyperlinks</a>
-    
- 8. Services
+    d. Date Pickers
+
+ 8. Loading Data using Observables
+    a. Loading Single Dropdown w/manual subscribe 
+    b. Loading Single Dropdown w/async pipe 
+    c. Loading Multiple Dropdowns w/multi-async-pipe
+    d. Simulate a slow REST call
+    e. Edit Report Page / Load entire page using pipe & tap
+
+ 9. Saving Data 
+    a. Submit button invokes a REST call
+    b. Submit button shows spinner while waiting on REST call
+    c. Stop user from doing anything while waiting on REST call
+
+10. Sending Messages using Observables, Subjects, and Arrow Functions
+    a. How to send messages from one part of the web app to another
+    b. How to listen for messages across the web app
+
+11. Services
     a. Router service:   Used to navigate to another page view
     b. Lookup Service:   Used to populate dropdowns
     c. Message Service:  Used to display messages
  
- 9. TypeScript
+12. TypeScript
     a. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/howToReferenceEnumClass.txt">How to Use Enumerated Classes in HTML</a>  (constants.ts)
 
-10. Observables, Subjects, and Arrow Functions
-    a. How to use observables to simulate a REST call
-    b. How to use observables to invoke a REST call
-    c. How to render stuff in the HTML after the REST call comes back
-    d. How to send messages from one part of the web app to another
-
-11. Grids (using ag-grid)
+13. Grids (using ag-grid)
     a. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.grids.txt">Client-Side vs Server-Side Grids</a>
-    
-12. PDF Viewer (using extended-pdf-viewer)
+
+14. HighCharts
+
+15. The Extended PDF Viewer (using an embedded PDF viewer)
 
 </pre>
