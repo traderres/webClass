@@ -1,0 +1,250 @@
+Exercise 13a / Load a Dropdown by Subscribing to an Observable (Answers)
+------------------------------------------------------------------------
+Problem:  I want to load a dropdown from a REST call
+Solution: Subscribe to the observable in ngOnInit and load data with a class variable
+
+
+Exercise
+--------
+ 1. Part 1 / Setup the Page
+    a. Generate the component                 AddContractSubscribe
+    b. Add the route to constants.ts:         the route will be this:   page/add-contract-subscribe
+    c. Register the route
+    d. Add the route to the database table:  ui_controls        (if using real security)
+    e. Add a link to the navbar (using that route)
+    f. Use the debugger to verify that the navbar link works
+
+
+ 2. Fill in the layout
+    NOTE:  Do not add dropdowns or textboxes yet
+
+            +-------------------------------------------------------------------------------------+
+            | Add Contract                                                             <Help Btn> |
+            +-------------------------------------------------------------------------------------+
+            |                                                                                     |
+            |  <Contract Name Textbox>        <Contract Number Textbox>        <Priority Dropdown>|
+            |                                                                                     |
+            |  <Classification Dropdown>      <Contract Size Dropdown>                            |
+            |                                                                                     |
+            |  <Region Dropdown>              <Sub Region Dropdown>                               |
+            |                                                                                     |
+            |  <Contract Authors Multi Dropdown>                                                  |
+            |                                                                                     |
+            |  +-------------------------------------------------------------------------------+  |
+            |  | <Description Textarea>                                                        |  |
+            |  |                                                                               |  |
+            |  +-------------------------------------------------------------------------------+  |
+            |                                                                                     |
+            |                   <Reset Btn>   <Submit Btn>   [Save for Later hyperlink]           |
+            +-------------------------------------------------------------------------------------+
+
+
+	Possible Answer:
+	----------------
+		<div class="m-2.5">
+		  <div class="grid grid-cols-2">
+			<div>
+			  <span class="text-xl">Add Contract</span>
+			</div>
+
+			<div class="flex place-content-end">
+			  Help Btn
+			</div>
+		  </div>
+
+		  <div class="m-2.5">
+
+			<div class="grid grid-cols-3 gap-x-5 gap-y-5">
+				<div>
+				  Contract Name Textbox
+				</div>
+
+				<div>
+				  Contract Number Textbox
+				</div>
+
+				<div>
+				  Priority Dropdown
+				</div>
+
+				<div>
+				  Classification Dropdown
+				</div>
+
+				<div class="col-span-2">
+				  Contract Size Dropdown
+				</div>
+
+				<div>
+				  Region Dropdown
+				</div>
+
+				<div class="col-span-2">
+				  Sub Region Dropdown
+				</div>
+
+				<div class="col-span-3">
+				  Contract Authors Dropdown
+				</div>
+			</div>
+
+			<div class="mt-2.5">
+			  Description Textarea
+			</div>
+
+			<div class="mt-2.5 flex place-content-center gap-5">
+			  <button type="button" rbr-outline-button title="Reset" aria-label="Reset">Reset</button>
+
+			  <button type="button" rbr-solid-button title="Submit" aria-label="Submit">Submit</button>
+
+			  <div class="self-center">
+				[<a [routerLink]=[] (click)="this.saveForLaterClicked()" title="Save for Later" aria-label="Save for Later">Save for Later</a>]
+			  </div>
+			</div>
+
+		  </div>
+		</div>
+
+
+
+ 3. Replace "Priority Dropdown" with a real HTML dropdown that has 4 options:
+ 		Low
+ 		Medium
+ 		High
+ 		Critical
+
+           <!-- Priority Dropdown -->
+           <mat-form-field subscriptSizing="dynamic">
+             <mat-label>Priority</mat-label>
+
+             <mat-select>
+               <mat-option [value]=1>Low</mat-option>
+               <mat-option [value]=2>Medium</mat-option>
+               <mat-option [value]=3>High</mat-option>
+               <mat-option [value]=4>Critical</mat-option>
+             </mat-select>
+           </mat-form-field>
+
+
+
+ 4. Create a frontend DTO:  MyLookupDTO
+ 	-- It has 2 fields:
+ 				id        / holds the unique number
+ 				value     / holds the displayed value
+
+	a. Create the frontend DTO:
+   	   terminal> cd frontend
+	   terminal> ng generate class models/MyLookupDTO
+
+
+	b. Put in the 2 fields
+		export class MyLookupDTO {
+		  public id: number;
+		  public value: string;
+		}
+
+
+
+ 5. Create a frontend Service:  MyLookupService
+    a. Create the service
+       terminal> ng generate service services/MyLookup
+
+    b. Add a public method to this service called getAllPriorities()
+    	-- What is passed-in?  Nothing
+    	-- What is returned?   Observable that holds an ARRAY of MyLookupDTO objects
+
+    c. Create a local variable that holds some data
+
+    d. Convert the variable into an observable
+
+    e. Return the observable
+
+		  /*
+		   * Return an observable that corresponds to the REST call that will return all priorities
+		   */
+		  public getAllPriorities(): Observable< MyLookupDTO[] > {
+
+			// Create an array of DTOs
+			let data: MyLookupDTO[] = [
+			  {
+				id: 1,
+				value: 'Low'
+			  },
+			  {
+				id: 2,
+				value: 'Medium'
+			  },
+			  {
+				id: 3,
+				value: 'High'
+			  },
+			  {
+				id: 4,
+				value: 'Critical'
+			  },
+			];
+
+			// Convert the variable into an observable and return it
+			return of(data);
+		  }
+
+
+
+ 6. In the Typescript of your main page
+ 	a. Create a public class variable called priorities that holds an *ARRAY* of MyLookupDTO objects
+			public priorities: MyLookupDTO[];
+
+ 	b. Inject the MyLookupService
+			public constructor(private myLookupService: MyLookupService) {
+			}
+
+ 	c. In the ngOnInit(), invoke the REST call and when it comes back set the class variable
+
+			public ngOnInit(): void {
+
+			  // Manually invoke the REST call to get all priorities
+			  this.myLookupService.getAllPriorities().subscribe( (aData: MyLookupDTO[]) => {
+			     // REST call came back with data
+
+			     // Store the information in the public class variable
+			     this.priorities = aData;
+			 })
+
+			}
+
+
+
+ 6. In the HTML
+ 	a. Remove the hard-coded <mat-option> tags
+
+ 	b. Replace them with a *ngFor loop
+
+		Change this:
+			<mat-select title="Select Priority" aria-label="Select Priority">
+				<mat-option [value]=1>Low</mat-option>
+				<mat-option [value]=2>Medium</mat-option>
+				<mat-option [value]=3>High</mat-option>
+				<mat-option [value]=4>Critical</mat-option>
+			</mat-select>
+
+        To this:
+            <mat-select title="Select Priority" aria-label="Select Priority">
+
+            	<!-- Loop through the array of priorities -->
+				<ng-container *ngFor="let dto of this.priorities">
+					<mat-option [value]="dto.id">{{ dto.value }}</mat-option>
+				</ng-container>
+
+            </mat-select>
+
+            *OR*
+
+            <mat-select title="Select Priority" aria-label="Select Priority">
+
+            	<!-- Loop through the array of priorities -->
+				<mat-option  *ngFor="let dto of this.priorities" [value]="dto.id"> {{ dto.value }} </mat-option>
+
+            </mat-select>
+
+
+

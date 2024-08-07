@@ -69,7 +69,7 @@ Angular 16 Lesson Plan
 
  8. Loading Data using Observables
     a. Load a dropdown from a REST call
-       Exercise 13a / Loading Dropdown w/subscribe         (Answers)
+       <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise13a.load-dropdown-with-subscribe.question.txt">Exercise 13a</a> / Loading Dropdown w/subscribe         <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise13a.load-dropdown-with-subscribe.answers.txt">(Answers)</a>
        Exercise 13b / Loading Dropdown w/async pipe        (Answers)
        Exercise 13c / Loading w/multiple async pipe        (Answers)
 
