@@ -39,6 +39,39 @@ Exercise
  	c. Have IntelliJ generate the getters & setters
 
 
+	The DTO should look like this:
+	------------------------------
+	package com.lessons.models;
+
+	import com.fasterxml.jackson.annotation.JsonProperty;
+
+	public class MyLookupDTO {
+	   @JsonProperty("id")
+		private int id;
+
+	   @JsonProperty("value")
+		private String value;
+
+		public int getId() {
+			return id;
+		}
+
+		public void setId(int id) {
+			this.id = id;
+		}
+
+		public String getValue() {
+			return value;
+		}
+
+		public void setValue(String value) {
+			this.value = value;
+		}
+	}
+
+
+
+
  3. Create a backend service class
  	a. Crete the backend service class:  MyLookupService
 
@@ -52,6 +85,49 @@ Exercise
 
  	e. Create a public method called getAllPriorities() that returns a List of MyLookupDTO objects
  		-- Have it return Null for now
+
+
+	The backend service should look like this:
+	------------------------------------------
+	package com.lessons.services;
+
+	import com.lessons.models.MyLookupDTO;
+	import jakarta.annotation.Resource;
+	import org.slf4j.Logger;
+	import org.slf4j.LoggerFactory;
+	import org.springframework.jdbc.core.BeanPropertyRowMapper;
+	import org.springframework.jdbc.core.JdbcTemplate;
+	import org.springframework.stereotype.Service;
+
+	import javax.sql.DataSource;
+	import java.util.List;
+
+	@Service
+	public class MyLookupService {
+		private static final Logger logger = LoggerFactory.getLogger(MyLookupService.class);
+
+		private final BeanPropertyRowMapper<MyLookupDTO> rowMapper = new BeanPropertyRowMapper<>(MyLookupDTO.class);
+
+
+		@Resource
+		private DataSource dataSource;
+
+
+		public List<MyLookupDTO> getAllPriorities() {
+			String sql = """
+						select id, name as value
+						from alert_priorities
+						order by display_order
+					""";
+
+			JdbcTemplate jt = new JdbcTemplate(this.dataSource);
+
+			List<MyLookupDTO> priorities = jt.query(sql, rowMapper);
+
+			return priorities;
+		}
+	}
+
 
 
  4. Create a backend controller class
@@ -78,6 +154,48 @@ Exercise
  	h. Have the method call your MyLookupService.getAllPriorities() to get a list of DTOs
 
  	i. Have the method return the list of DTOs
+
+
+
+	The backend controller should look like this:
+	---------------------------------------------
+	package com.lessons.controllers;
+
+	import com.lessons.models.MyLookupDTO;
+	import com.lessons.services.MyLookupService;
+	import jakarta.annotation.Resource;
+	import org.slf4j.Logger;
+	import org.slf4j.LoggerFactory;
+	import org.springframework.http.HttpStatus;
+	import org.springframework.http.ResponseEntity;
+	import org.springframework.security.access.prepost.PreAuthorize;
+	import org.springframework.stereotype.Controller;
+	import org.springframework.web.bind.annotation.RequestMapping;
+	import org.springframework.web.bind.annotation.RequestMethod;
+
+	import java.util.List;
+
+	@Controller
+	public class MyLookupController {
+		private static final Logger logger = LoggerFactory.getLogger(MyLookupController.class);
+
+		@Resource
+		private MyLookupService myLookupService;
+
+
+		@RequestMapping(value="/api/lookup/my-priorities", method= RequestMethod.GET, produces="application/json")
+		@PreAuthorize("hasAnyRole('CVF_SUPERVISOR', 'CVF_SPECIALIST', 'CVF_ADMIN', 'CVF_REVIEWER')")
+		public ResponseEntity<?> getAllPriorities() {
+			logger.debug("getAllPriorities started");
+
+			List<MyLookupDTO> listOfDTOs = this.myLookupService.getAllPriorities();
+
+			return ResponseEntity
+					.status(HttpStatus.OK)
+					.body(listOfDTOs);
+		}
+	}
+
 
 
 
