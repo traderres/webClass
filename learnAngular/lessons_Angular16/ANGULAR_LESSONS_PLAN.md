@@ -78,7 +78,7 @@ Angular 16 Lesson Plan
        <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise13f.show-loading-message.question.txt"              title="Exercise 13f">Exercise 13f</a> / Show loading message while waiting      (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise13f.show-loading-message.answers.txt"              title="Answer to 13f">Answers</a>)
 
     b. Load a page of data from a REST call
-       <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise14a.loading-read-only-page-async-pipe.question.txt"              title="Exercise 14a">Exercise 14a</a> / Loading read-only page w/async pipe      (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise14a.loading-read-only-page-async-pipe.answers.txt"              title="Answer to 14a">Answers</a>)
+       <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise14a.loading-read-only-page-async-pipe.question.txt"              title="Exercise 14a">Exercise 14a</a> / Loading read-only page w/async pipe     (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise14a.loading-read-only-page-async-pipe.answers.txt"              title="Answer to 14a">Answers</a>)
        Exercise 14a / Loading read-only page w/async pipe     (Answers)
        Exercise 14b / Loading reactive form w/pipe & tap      (Answers)
        
