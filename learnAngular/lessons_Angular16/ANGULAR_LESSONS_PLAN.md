@@ -80,14 +80,17 @@ Angular 16 Lesson Plan
     b. Advanced Stock Trade  (putting async pipes into practice)
        <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise14a.advanced-stock-trade.layout.question.txt"              title="Exercise 14a">Exercise 14a</a> / AST / Setup Layout                      (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise14a.advanced-stock-trade.layout.answers.txt"              title="Answer to 14a">Answers</a>)
        <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise14b.advanced-stock-trade.press.quote.btn.question.txt"              title="Exercise 14a">Exercise 14b</a> / AST / Pressing Quote loads data         (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise14a.advanced-stock-trade.layout.answers.txt"              title="Answer to 14b">Answers</a>)
-       <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise14c.advanced-stock-trade.autocomplete.question.txt"              title="Exercise 14a">Exercise 14c</a> / AST / Use Autocomplete Text Box         (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise14a.advanced-stock-trade.answers.autocomplete.txt"              title="Answer to 14c">Answers</a>)
-       Exercise 14a / Loading read-only page w/async pipe     (Answers)
-       Exercise 14b / Loading reactive form w/pipe & tap      (Answers)
+       Exercise 14c / AST / Use Autocomplete Text Box         (Answers)
+   
+    c. Edit Stock Trade
+       Exercise 15a / EST / Setup Layout                      (Answers)
+       Exercise 15b / EST / Add Reactive Form                 (Answers)
+       Exercise 15c / EST / Load Form with Past Selections    (Answers)
        
     c. Misc Techniques ("kitchen sink")
-       Exercise 15a / Simulate a slow REST call               (Answers)
-       Exercise 15b / Listen on autocomplete                  (Answers)
-       Exercise 15c / Cache data in frontend service          (Answers)
+       Exercise 16a / Simulate a slow REST call               (Answers)
+       Exercise 16b / Listen on autocomplete                  (Answers)
+       Exercise 16c / Cache data in frontend service          (Answers)
 
  9. Saving Data 
     a. Submit button invokes a REST call
