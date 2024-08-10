@@ -1,7 +1,7 @@
 Angular 16 Lesson Plan
 -----------------------
 
-<pre style="width: 100%">
+<pre>
  1. Setup the Development Env
     <a href="https://docs.google.com/document/d/1-vutLIaIN0A3WDm0P4gf9yFRLNyVVX8s2RZLWrbdT-o/edit">Setup Development Env (Unix)</a>
     <a href="https://docs.google.com/document/d/1-vutLIaIN0A3WDm0P4gf9yFRLNyVVX8s2RZLWrbdT-o/edit">Setup Development Env (Windows)</a>
