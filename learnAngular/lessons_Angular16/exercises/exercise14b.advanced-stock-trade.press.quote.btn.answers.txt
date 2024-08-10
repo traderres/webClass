@@ -2,11 +2,6 @@ Exercise 14b / Advanced Stock Trade / Enter a symbol and Pressing "Quote" button
 -----------------------------------------------------------------------------------------------------
 We're going to simulate a REST call that loads data upon pressing click
 
-Key Lesson:
- + The Async Pipe is *LISTENING* for changes
-   So, if you change the observable, then the HTML is automatically refreshed
-
-
 
 Business Rules:
  A) If the user selects "Limit Order", then the "Limit Price Textbox appears
@@ -158,27 +153,364 @@ Exercise
 			return of(dto);
 		  }
 
+
+
  3. Setup a reactive form and bind the "Symbol" textbox only
-    a. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/howToSetupReactiveForm.txt">Setup Reactive Forms</a>
+    a. Setup the reactive form
     b. Bind the symbol textbox to the reactive form
 
 
- 4. APPROACH #1 / In your Advanced Stock Trade Page, pressing the "Quote" button invokes your REST call using **MANUAL SUBSCRIBE**
+
+ 4. In your Advanced Stock Trade Page, update your TypeScript class
 	a. In your "Advanced Stock Trade" page, inject your service:  QuoteService
 
-	b. Create a class variable:  quote
-	 	-- It holds the latest quote info received from the backend
+ 		 public constructor(private myLookupService: MyLookupService,
+                  		    private quoteService: QuoteService,
+                   		    private formBuilder: FormBuilder) {}
+
+
+	b. Create a class variable:  quote      (it holds the data returned from the REST call)
 	 		public quote: GetQuoteDetailsDTO;
 
-	c. Create a class variable:  symbol
-		-- It holds the
 
-	c. When the user presses the "Quote" button, then manually the REST call to get a quote and load the data into the quote class variable
+	c. In ngOnInit() initialize the quote variable so that isSymbolValue holds FALSE
+
+			// Initialize the quote variable
+			this.quote = new GetQuoteDetailsDTO();
+			this.quote.isSymbolValid = false;
 
 
-	d. Format the info on the page (so that commas and dollar signs appear)
+	d. Create a method called quoteClicked()
+	   -- This method will manually the REST call to get a quote
+	   -- If the REST call comes back successfully, then load this.quote with the returned info
+
+		  public quoteClicked(): void {
+			const symbolEntered: string = this.myForm.controls.symbol.value;
+
+			this.quoteService.getQuote(symbolEntered).subscribe( (aData: GetQuoteDetailsDTO) => {
+			  // The Get-Quote REST call came back with data
+			  this.quote = aData;
+			});
+		  }
 
 
- 5. APPROACH #2 / In your Advanced Stock Trade page, pressing the "Quote" button invokes your REST call using **ASYNC PIPE**
- 	a. In your "Advanced Stock Trade" page, inject your service:  QuoteService
+
+ 5. In your Advanced Stock Trade, update your HTML:
+
+	a. If the user presses the "Quote" button, call your quoteClicked() method
+			 <button (click)="this.quoteClicked()"  title="Quote Button" aria-label="Quote Button" rbr-solid-button>Quote</button>
+
+
+	b.  if this.quote.isSymbolValid holds TRUE, then render the Quote Section
+		Change this:
+			<div class="flex flex-col flex-grow divide-y divide-solid divide-gray-400"
+
+	 	To this:
+	 		<div *ngIf="this.quote.isSymbolValid" class="flex flex-col flex-grow divide-y divide-solid divide-gray-400"
+
+
+	c. In the Quote Section of your HTML / replace the hard-coded quote info with values found in this.quote
+		Change this:
+			<div class="p-2">Berkshire Hathaway B</div>
+
+		To this:
+			<div class="p-2">{{ this.quote.businessName }}</div>
+
+
+	d. In the Quote Section of your HTML / Format the prices as CURRENCY
+		Change this:
+			<div class="flex place-content-end p-2 border-r border-black">$411.79</div
+
+		To this:
+		    <div class="flex place-content-end p-2 border-r border-black">{{ this.quote.currentPrice | currency:'USD':true:'1.2-2' }}</div>
+
+			The Currency Pipe takes 3 arguments
+				Arg #1: ISO currency code -- e.g., 'USD' or 'EUR'
+				Arg #2: Whether to show the currency symbol -- e.g., $E or Euro symbol
+				Arg #3: Number Format String:  <minDigits>.{minFractionDigits}{maxFractionDigits}
+				                                 1.2-2 ensures that we always show 2 numbers after the decimal point
+
+
+	e. In the Quote Section of your HTML / Format the volume as a NUMBER WITH COMMAS  (not currency)
+		Change this:
+			<div class="flex place-content-end p-2 border-r border-black">306,599</div>
+
+		To this:
+          <div class="flex place-content-end p-2 border-r border-black">{{ this.quote.volume | number }}</div>
+
+
+ 6. Verify it works
+    a. Enter VOO in the symbol textbox
+    b. Press "Quote"
+
+
+
+ When finished, the typescript looks like this:
+ ----------------------------------------------
+	import {Component, HostListener} from '@angular/core';
+	import {Observable} from "rxjs";
+	import {MyLookupDTO} from "../../models/my-lookup-dto";
+	import {MyLookupService} from "../../services/my-lookup.service";
+	import {QuoteService} from "../../services/quote.service";
+	import {GetQuoteDetailsDTO} from "../../models/get-quote-details-dto";
+	import {FormBuilder, FormGroup} from "@angular/forms";
+
+	@Component({
+	  selector: 'app-advanced-stock-trade',
+	  templateUrl: './advanced-stock-trade.component.html',
+	  styleUrls: ['./advanced-stock-trade.component.scss']
+	})
+	export class AdvancedStockTradeComponent {
+
+	  public isHelpNavBarExpanded: boolean = false;
+
+	  public obsActions:    Observable<MyLookupDTO[]>;
+	  public obsOrderTypes: Observable<MyLookupDTO[]>;
+
+	  public quote: GetQuoteDetailsDTO;
+
+	  public myForm: FormGroup;
+
+	  public constructor(private myLookupService: MyLookupService,
+						 private quoteService: QuoteService,
+						 private formBuilder: FormBuilder) {}
+
+	  public ngOnInit(): void {
+		// Initialize the quote variable
+		this.quote = new GetQuoteDetailsDTO();
+		this.quote.isSymbolValid = false;
+
+		this.obsActions = this.myLookupService.getOrderActions();
+		this.obsOrderTypes = this.myLookupService.getOrderTypes();
+
+		// Initialize the myForm object
+		this.myForm = this.formBuilder.group({
+			symbol: [null, null]
+		});
+
+	  }
+
+	  public openHelp(): void {
+		this.isHelpNavBarExpanded = true;
+	  }
+
+	  public closeHelp(): void {
+		this.isHelpNavBarExpanded = false;
+	  }
+
+	  public quoteClicked(): void {
+		const symbolEntered: string = this.myForm.controls.symbol.value;
+
+		this.quoteService.getQuote(symbolEntered).subscribe( (aData: GetQuoteDetailsDTO) => {
+		  // The Get-Quote REST call came back with data
+		  this.quote = aData;
+		});
+	  }
+
+
+	  @HostListener('document:keydown.escape', ['$event'])
+	  public onKeydownHandler() {
+		// Someone pressed the Escape key.  So, close the help sidenav
+		this.closeHelp();
+	  }
+	}
+
+
+
+ When finished, the SCSS looks like this:
+ ----------------------------------------
+	@use '@angular/material' as mat;
+
+	:host ::ng-deep .reduced-density {
+	  /* Tell the form field to use less padding.  Angular Material ranges from 0 (normal) to -5 (less padding)  */
+	  @include mat.form-field-density(-1);
+	}
+
+	.collapsed-div {
+	  /* Collapse over 500 milliseconds */
+	  @apply  w-0 overflow-hidden opacity-0 transition-all ease-in-out  duration-500
+	}
+
+	.expanded-div {
+	  /* Expand over 500 milliseconds.  We don't need to set the width as the original div has w-2/5
+		 NOTE:  Use the overflow-x-hidden to hide the horizontal scrollbar  [makes expanding look more polished]
+	  */
+	  @apply  overflow-x-hidden opacity-100 transition-all  ease-in-out  duration-500 z-10;
+	}
+
+
+
+ When finished, the HTML looks like this:
+ ----------------------------------------
+	 <form [formGroup]="this.myForm" novalidate autocomplete="off">
+	   <div class="m-2.5">
+
+		 <!--  Top Header-->
+		 <div class="grid grid-cols-2">
+
+		   <div><span class="text-xl">Advanced Stock Page</span></div>
+		   <div class="flex place-content-end">
+			 <button (click)="this.openHelp()" title="Help Button" aria-label="Help Button" rbr-outline-button>Help</button>
+		   </div>
+
+		 </div>
+
+		 <!--  Symbol/Textbox/Info Section-->
+		 <div
+		   class="flex flex-row divide-x divide-solid divide-gray-400    border border-gray-400 bg-[#efefef] mt-5 rounded-lg">
+
+		   <div class="flex place-content-center self-center w-[500px] p-2.5">
+			 <mat-form-field subscriptSizing="dynamic">
+			   <input formControlName="symbol" matInput type="text" title="Symbol Textbox" aria-label="Symbol Textbox"
+					  class="mr-5" placeholder="Symbol">
+			 </mat-form-field>
+
+			 <button (click)="this.quoteClicked()"  title="Quote Button" aria-label="Quote Button" rbr-solid-button>Quote</button>
+		   </div>
+
+		   <div *ngIf="this.quote.isSymbolValid" class="flex flex-col flex-grow divide-y divide-solid divide-gray-400">
+
+			 <div class="grid grid-cols-2">
+			   <div class="p-2">{{ this.quote.businessName }}</div>
+			   <div class="flex place-content-end p-2">as of {{ this.quote.asOfDate }}</div>
+			 </div>
+
+			 <div class="grid grid-cols-4 gap-x-2.5">
+			   <!-- First Row-->
+			   <div class="p-2">Price:</div>
+			   <div class="flex place-content-end p-2 border-r border-black">{{ this.quote.currentPrice | currency:'USD':true:'1.2-2' }}</div>
+			   <div class="p-2">Prev Close:</div>
+			   <div class="flex place-content-end p-2">{{ this.quote.previousClose | currency: 'USD':true:'1.2-2' }}</div>
+
+			   <!-- Second Row-->
+			   <div class="p-2">Volume:</div>
+			   <div class="flex place-content-end p-2 border-r border-black">{{ this.quote.volume | number }}</div>
+			   <div class="p-2">Day Range:</div>
+			   <div class="flex place-content-end p-2">{{ this.quote.lowestDayRange | currency: 'USD':true:'1.2-2' }} - {{ this.quote.highestDayRange | currency: 'USD':true:'1.2-2' }}</div>
+			 </div>
+
+		   </div>
+
+		 </div>
+		 <!--  Main Section-->
+
+		 <div class="mt-2.5">
+		   <div class="grid grid-cols-2 mx-5 gap-y-2.5">
+			 <div>
+			   <mat-form-field subscriptSizing="dynamic" class="max-reduced-density">
+				 <mat-label>Action</mat-label>
+				 <mat-select title="Action" aria-label="Action">
+
+				   <ng-container *ngIf="(this.obsActions | async) as actions">
+
+					 <ng-container *ngFor="let dto of actions">
+					   <mat-option [value]="dto.id"> {{ dto.value }} </mat-option>
+					 </ng-container>
+
+				   </ng-container>
+
+				 </mat-select>
+			   </mat-form-field>
+			 </div>
+			 <div>
+			   <mat-form-field subscriptSizing="dynamic">
+				 <mat-label>Quantity</mat-label>
+				 <input matInput type="text" title="Quantity" aria-label="Quantity"/>
+			   </mat-form-field>
+			 </div>
+
+			 <div>
+			   <mat-form-field subscriptSizing="dynamic">
+				 <mat-label>Order Type</mat-label>
+				 <mat-select title="Order Type" aria-label="Order Type" #orderType>
+
+				   <ng-container *ngIf="(this.obsOrderTypes | async) as orderTypes">
+
+					 <ng-container *ngFor="let dto of orderTypes">
+
+					   <mat-option [value]="dto.id"> {{ dto.value }} </mat-option>
+					 </ng-container>
+				   </ng-container>
+
+				 </mat-select>
+
+			   </mat-form-field>
+
+			 </div>
+
+			 <div>
+			   <mat-form-field subscriptSizing="dynamic" *ngIf="orderType.value==2">
+				 <mat-label>Limit Price</mat-label>
+				 <input matInput type="text" title="Limit Price" aria-label="Limit Price"/>
+			   </mat-form-field>
+			 </div>
+		   </div>
+
+		   <!--  Bottom Button Bar-->
+		   <div class="flex flex-row gap-5 place-content-center mt-2.5">
+			 <div>
+			   <button rbr-outline-button type="button" title="Reset Button" aria-label="Reset Button">Reset</button>
+			 </div>
+			 <div>
+			   <button rbr-solid-button type="button" title="Submit Button" aria-label="Submit Button">Submit</button>
+			 </div>
+			 <div class="self-center">
+
+			   <a title="Save for Later" aria-label="Save for Later" class="underline">Save for Later</a>
+			 </div>
+		   </div>
+
+		 </div>
+	   </div>
+
+	   <pre>
+	   this.myForm.controls.symbol.value = {{ this.myForm.controls.symbol.value }}
+	 </pre>
+
+	 </form>
+
+
+
+	 <!-- Help Side-drawer Container takes 40% of the page using w-2/5 -->
+	 <div class="collapsed-div absolute top-20 right-0 w-2/5 bg-backDropColor border-black border-l-2 border p-5 flex flex-col gap-5"
+		  [ngClass]="{
+							   'expanded-div':  this.isHelpNavBarExpanded,
+							   'collapsed-div': !this.isHelpNavBarExpanded
+						   }"
+		  style="height: calc(100vh - 80px)">
+
+	   <div class="grid grid-cols-2 h-full">
+		 <div class="text-xl font-bold">
+		   <span>Help</span>
+		 </div>
+
+		 <div class="flex place-content-end">
+		   <button (click)="this.closeHelp()"
+				   type="button"
+				   rbr-outline-button
+				   aria-label="Help"
+				   title="Help">
+			 Close
+		   </button>
+		 </div>
+	   </div>
+
+	   <div class="h-full">
+		 This is my help<br/>
+		 This is my help<br/>
+		 This is my help<br/>
+		 This is my help<br/>
+		 This is my help<br/>
+		 This is my help<br/>
+		 This is my help<br/>
+		 This is my help<br/>
+		 This is my help (last)<br/>
+	   </div>
+
+	 </div>
+
+
+
+
+
 
