@@ -79,8 +79,8 @@ Angular 16 Lesson Plan
 
     b. Advanced Stock Trade  (putting async pipes into practice)
        <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise14a.advanced-stock-trade.layout.question.txt"              title="Exercise 14a">Exercise 14a</a> / AST / Setup Layout                      (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise14a.advanced-stock-trade.layout.answers.txt"              title="Answer to 14a">Answers</a>)
-       <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise14b.advanced-stock-trade.press.quote.btn.question.txt"              title="Exercise 14a">Exercise 14b</a> / AST / Pressing Quote loads data         (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise14b.advanced-stock-trade.press.quote.btn.answers.txt"              title="Answer to 14b">Answers</a>)
-       Exercise 14c / AST / Listen on the Quote Text Box      (Answers)
+       <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise14b.advanced-stock-trade.press.quote.btn.question.txt"              title="Exercise 14b">Exercise 14b</a> / AST / Pressing Quote loads data         (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise14b.advanced-stock-trade.press.quote.btn.answers.txt"              title="Answer to 14b">Answers</a>)
+       <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise14c.advanced-stock-trade.press.listen.for.quotes.question.txt"              title="Exercise 14c">Exercise 14c</a> / AST / Listen on the Quote Text Box      (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise14c.advanced-stock-trade.press.listen.for.quotes.answers.txt"              title="Answer to 14c">Answers</a>)
        Exercise 14d / AST / Use Autocomplete Text Box         (Answers)
    
     c. Edit Stock Trade
