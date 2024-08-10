@@ -3,7 +3,7 @@ Exercise 14c / Advanced Stock Trade / Listen on Quote Text Box (Answers)
 Problem:  I don't want to press the "Quote" button every time I want a quote
           As the user types-in a symbol, we will run a quote  (so we don't need the "Quote" button
 
-Solution: Listen in on the qoute textbox and use an async pipe to apply the changes
+Solution: Listen in on the Quote textbox and use an async pipe to apply the changes
 
 
 
@@ -37,347 +37,36 @@ Exercise
 --------
  1. Remove the Quote button  from the HTML
 
+
  2. Remove the quoteClicked() method
+
 
  3. Remove the quote variable initialization in ngOnInit()
 
+
  4. Remove the quote class variable
 
+
  5. Add a class variable:  ObsQuote       (it's an observable that holds the data from the REST call)
-		public obsQuote:      Observable<GetQuoteDetailsDTO>;
+
 
  6. Apply an async pipe in the HTML
-
- 	a. Change this:
- 			<div *ngIf="this.quote.isSymbolValid" class="flex flex-col flex-grow divide-y divide-solid divide-gray-400"
-
- 	   To this:
-  			<div class="flex flex-col flex-grow divide-y divide-solid divide-gray-400"
+ 	a. Remove the *ngIf on the Quote Section
 
 	b. Put the async pipe around the symbol section
 
-		 <ng-container *ngIf="(this.obsQuote | async) as quote">
+	c. Change references from this.quote --> quote
 
-		 </ng-container>
-
-	c. Change this.quote --> quote
 
 
  7. Update the ngOnInit() to listen on the quote symbol textbox
 
-		  public ngOnInit(): void {
-
-			this.obsActions = this.myLookupService.getOrderActions();
-			this.obsOrderTypes = this.myLookupService.getOrderTypes();
-
-			// Initialize the myForm object
-			this.myForm = this.formBuilder.group({
-				symbol: [null, null]
-			});
-
-			// Listen for changes on the symbol textbox
-			this.myForm.controls.symbol.valueChanges.subscribe( (aNewSymbol: string) => {
-			  // The user changed the symbol textbox
-
-			  // Update the observable
-			  // NOTE:  The Async Pipe will automatically refresh the page
-			  this.obsQuote = this.quoteService.getQuote(aNewSymbol)
-			})
-
-		  }
-
 
  8. Cleanup / We called subscribe so we should call unsubscribe when the page is closed
  	a. Add a class variable:  subListenOnSymbolTextbox      (it's a subscription)
- 	  		private subListenOnSymbolTextbox: Subscription;
-
 
  	b. Set the subListenOnSymbolTextbox in the ngOnInit()
 
-			// Listen for changes on the symbol textbox
-			this.subListenOnSymbolTextbox = this.myForm.controls.symbol.valueChanges.subscribe( (aNewSymbol: string) => {
-			  // The user changed the symbol textbox
-
-			  // Update the observable
-			  // NOTE:  The Async Pipe will automatically refresh the page
-			  this.obsQuote = this.quoteService.getQuote(aNewSymbol)
-			})
-
-
  	c. Call unsubscribe in the ngOnDestroy()
-		   public ngOnDestroy(): void {
-			 if (this.subListenOnSymbolTextbox) {
-			   this.subListenOnSymbolTextbox.unsubscribe();
-			 }
-		   }
 
-
- The completed TypeScript looks like this:
- -----------------------------------------
- import {Component, HostListener, OnDestroy, OnInit} from '@angular/core';
- import {Observable, Subscription} from "rxjs";
- import {MyLookupDTO} from "../../models/my-lookup-dto";
- import {MyLookupService} from "../../services/my-lookup.service";
- import {QuoteService} from "../../services/quote.service";
- import {GetQuoteDetailsDTO} from "../../models/get-quote-details-dto";
- import {FormBuilder, FormGroup} from "@angular/forms";
-
- @Component({
-   selector: 'app-advanced-stock-trade',
-   templateUrl: './advanced-stock-trade.component.html',
-   styleUrls: ['./advanced-stock-trade.component.scss']
- })
- export class AdvancedStockTradeComponent implements OnInit, OnDestroy {
-
-   public isHelpNavBarExpanded: boolean = false;
-
-   public obsActions:    Observable<MyLookupDTO[]>;
-   public obsOrderTypes: Observable<MyLookupDTO[]>;
-   public obsQuote:      Observable<GetQuoteDetailsDTO>;
-
-   public myForm: FormGroup;
-   private subListenOnSymbolTextbox: Subscription;
-
-   public constructor(private myLookupService: MyLookupService,
-                      private quoteService: QuoteService,
-                      private formBuilder: FormBuilder) {}
-
-   public ngOnInit(): void {
-
-     this.obsActions = this.myLookupService.getOrderActions();
-     this.obsOrderTypes = this.myLookupService.getOrderTypes();
-
-     // Initialize the myForm object
-     this.myForm = this.formBuilder.group({
-         symbol: [null, null]
-     });
-
-     // Listen for changes on the symbol textbox
-     this.subListenOnSymbolTextbox = this.myForm.controls.symbol.valueChanges.subscribe( (aNewSymbol: string) => {
-       // The user changed the symbol textbox
-
-       // Update the observable
-       // NOTE:  The Async Pipe will automatically refresh the page
-       this.obsQuote = this.quoteService.getQuote(aNewSymbol)
-     })
-
-   }
-
-   public ngOnDestroy(): void {
-     if (this.subListenOnSymbolTextbox) {
-       this.subListenOnSymbolTextbox.unsubscribe();
-     }
-   }
-
-   public openHelp(): void {
-     this.isHelpNavBarExpanded = true;
-   }
-
-   public closeHelp(): void {
-     this.isHelpNavBarExpanded = false;
-   }
-
-
-
-   @HostListener('document:keydown.escape', ['$event'])
-   public onKeydownHandler() {
-     // Someone pressed the Escape key.  So, close the help sidenav
-     this.closeHelp();
-   }
- }
-
-
- The complete SCSS Looks like this:
- ----------------------------------
- @use '@angular/material' as mat;
-
-
- :host ::ng-deep .reduced-density {
-   /* Tell the form field to use less padding.  Angular Material ranges from 0 (normal) to -5 (less padding)  */
-   @include mat.form-field-density(-1);
- }
-
- .collapsed-div {
-   /* Collapse over 500 milliseconds */
-   @apply  w-0 overflow-hidden opacity-0 transition-all ease-in-out  duration-500
- }
-
- .expanded-div {
-   /* Expand over 500 milliseconds.  We don't need to set the width as the original div has w-2/5
-      NOTE:  Use the overflow-x-hidden to hide the horizontal scrollbar  [makes expanding look more polished]
-   */
-   @apply  overflow-x-hidden opacity-100 transition-all  ease-in-out  duration-500 z-10;
- }
-
-
-The completed HTML looks like this:
------------------------------------
-<form [formGroup]="this.myForm" novalidate autocomplete="off">
-  <div class="m-2.5">
-
-    <!--  Top Header-->
-    <div class="grid grid-cols-2">
-
-      <div><span class="text-xl">Advanced Stock Page</span></div>
-      <div class="flex place-content-end">
-        <button (click)="this.openHelp()" title="Help Button" aria-label="Help Button" rbr-outline-button>Help</button>
-      </div>
-
-    </div>
-
-    <!--  Symbol/Textbox/Info Section-->
-    <div
-      class="flex flex-row divide-x divide-solid divide-gray-400    border border-gray-400 bg-[#efefef] mt-5 rounded-lg">
-
-      <div class="flex place-content-center self-center w-[500px] p-2.5">
-        <mat-form-field subscriptSizing="dynamic">
-          <input formControlName="symbol" matInput type="text" title="Symbol Textbox" aria-label="Symbol Textbox"
-                 class="mr-5" placeholder="Symbol">
-        </mat-form-field>
-
-      </div>
-
-        <ng-container *ngIf="(this.obsQuote | async) as quote">
-
-             <div class="flex flex-col flex-grow divide-y divide-solid divide-gray-400">
-
-            <div class="grid grid-cols-2">
-              <div class="p-2">{{ quote.businessName }}</div>
-              <div class="flex place-content-end p-2">as of {{ quote.asOfDate }}</div>
-            </div>
-
-            <div class="grid grid-cols-4 gap-x-2.5">
-              <!-- First Row-->
-              <div class="p-2">Price:</div>
-              <div class="flex place-content-end p-2 border-r border-black">{{ quote.currentPrice | currency:'USD':true:'1.2-2' }}</div>
-              <div class="p-2">Prev Close:</div>
-              <div class="flex place-content-end p-2">{{ quote.previousClose | currency: 'USD':true:'1.2-2' }}</div>
-
-              <!-- Second Row-->
-              <div class="p-2">Volume:</div>
-              <div class="flex place-content-end p-2 border-r border-black">{{ quote.volume | number }}</div>
-              <div class="p-2">Day Range:</div>
-              <div class="flex place-content-end p-2">{{ quote.lowestDayRange | currency: 'USD':true:'1.2-2' }} - {{ quote.highestDayRange | currency: 'USD':true:'1.2-2' }}</div>
-            </div>
-
-          </div>
-
-        </ng-container>
-    </div>
-    <!--  Main Section-->
-
-    <div class="mt-2.5">
-      <div class="grid grid-cols-2 mx-5 gap-y-2.5">
-        <div>
-          <mat-form-field subscriptSizing="dynamic" class="max-reduced-density">
-            <mat-label>Action</mat-label>
-            <mat-select title="Action" aria-label="Action">
-
-              <ng-container *ngIf="(this.obsActions | async) as actions">
-
-                <ng-container *ngFor="let dto of actions">
-                  <mat-option [value]="dto.id"> {{ dto.value }} </mat-option>
-                </ng-container>
-
-              </ng-container>
-
-            </mat-select>
-          </mat-form-field>
-        </div>
-        <div>
-          <mat-form-field subscriptSizing="dynamic">
-            <mat-label>Quantity</mat-label>
-            <input matInput type="text" title="Quantity" aria-label="Quantity"/>
-          </mat-form-field>
-        </div>
-
-        <div>
-          <mat-form-field subscriptSizing="dynamic">
-            <mat-label>Order Type</mat-label>
-            <mat-select title="Order Type" aria-label="Order Type" #orderType>
-
-              <ng-container *ngIf="(this.obsOrderTypes | async) as orderTypes">
-
-                <ng-container *ngFor="let dto of orderTypes">
-
-                  <mat-option [value]="dto.id"> {{ dto.value }} </mat-option>
-                </ng-container>
-              </ng-container>
-
-            </mat-select>
-
-          </mat-form-field>
-
-        </div>
-
-        <div>
-          <mat-form-field subscriptSizing="dynamic" *ngIf="orderType.value==2">
-            <mat-label>Limit Price</mat-label>
-            <input matInput type="text" title="Limit Price" aria-label="Limit Price"/>
-          </mat-form-field>
-        </div>
-      </div>
-
-      <!--  Bottom Button Bar-->
-      <div class="flex flex-row gap-5 place-content-center mt-2.5">
-        <div>
-          <button rbr-outline-button type="button" title="Reset Button" aria-label="Reset Button">Reset</button>
-        </div>
-        <div>
-          <button rbr-solid-button type="button" title="Submit Button" aria-label="Submit Button">Submit</button>
-        </div>
-        <div class="self-center">
-
-          <a title="Save for Later" aria-label="Save for Later" class="underline">Save for Later</a>
-        </div>
-      </div>
-
-    </div>
-  </div>
-
-  <pre>
-  this.myForm.controls.symbol.value = {{ this.myForm.controls.symbol.value }}
-</pre>
-
-</form>
-
-
-
-<!-- Help Side-drawer Container takes 40% of the page using w-2/5 -->
-<div class="collapsed-div absolute top-20 right-0 w-2/5 bg-backDropColor border-black border-l-2 border p-5 flex flex-col gap-5"
-     [ngClass]="{
-						   'expanded-div':  this.isHelpNavBarExpanded,
-						   'collapsed-div': !this.isHelpNavBarExpanded
-					   }"
-     style="height: calc(100vh - 80px)">
-
-  <div class="grid grid-cols-2 h-full">
-    <div class="text-xl font-bold">
-      <span>Help</span>
-    </div>
-
-    <div class="flex place-content-end">
-      <button (click)="this.closeHelp()"
-              type="button"
-              rbr-outline-button
-              aria-label="Help"
-              title="Help">
-        Close
-      </button>
-    </div>
-  </div>
-
-  <div class="h-full">
-    This is my help<br/>
-    This is my help<br/>
-    This is my help<br/>
-    This is my help<br/>
-    This is my help<br/>
-    This is my help<br/>
-    This is my help<br/>
-    This is my help<br/>
-    This is my help (last)<br/>
-  </div>
-
-</div>
 
