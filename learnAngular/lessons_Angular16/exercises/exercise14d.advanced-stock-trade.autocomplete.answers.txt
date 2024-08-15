@@ -1,0 +1,838 @@
+Exercise 14d / Advanced Stock Trade / Add Autocomplete to Choose Stock Symbol (Answers)
+---------------------------------------------------------------------------------------
+Problem:  I want the web page to provide options as the user types-in a stock symbol
+Solution: Use an Auto-Complete
+
+
+		  Symbol-Autocomplete Box	User types-in V and is presented with upto 5 matches
+
+			+-------------------------------
+			|  V
+			+-------------------------------
+		    |  V      	Visa Inc.
+		    |  VOO 		Vanguard S&P 500 E...
+		    |  VTI		Vanguard Total Stock...
+		    |  VZ		Verizon Communicat....
+		    |  VEV		Vicinity Motor Corp.
+
+
+
+
+		+------------------------------------------------------------------------------------+
+		| <Symbol Autocomplete>        |                                                     |
+		|   V      	Visa Inc.          |                                                     |
+		|   VOO 	Vanguard S&P 500 E.|                                                     |
+		|   VTI		Vanguard Total Stoc|                                                     |
+		+------------------------------+-----------------------------------------------------+
+
+		+------------------------------------------------------------------------------------+
+		| <VOO selected>               | VANGUARD S&P 500 ETF              as of  2:19:44 pm |
+		|                              | ----------------------------------------------------+
+		|                              | Price:        $487.00 | Prev Close:          501.00 |
+		|                              | Volume:       123,456 | Day Range:  495.00 - 505.79 |
+		+------------------------------+-----------------------------------------------------+
+
+
+Assumptions:
+-----------
+ A) You have a REST call that when passed-in a stock symbol return a DTO with quote information GetQuoteDetailsDTO
+ B) You have a REST call that when passed-in a partial stock symbol returns up to 5 matches
+ C) You already have a reactive form and the symbol form is bound to it
+
+
+Part 1:  Make the Symbol Lookup text box look good with CSS
+-----------------------------------------------------------
+ 1. Start with the symbol textbox:
+
+         <mat-form-field subscriptSizing="dynamic">
+           <input formControlName="symbol" matInput type="text" title="Symbol Textbox" aria-label="Symbol Textbox"
+                  class="mr-5" placeholder="Symbol">
+         </mat-form-field>
+
+ 2. Remove the <mat-form-field> and add a search icon after it
+
+           <!-- Symbol Text Box -->
+           <input formControlName="symbol" matInput type="text" title="Symbol Textbox" aria-label="Symbol Textbox"
+                  placeholder="Symbol">
+
+           <!-- Search Icon -->
+           <span class="searchBoxIcon">
+               <i class="fa fa-search"></i>
+           </span>
+
+ 3. Add a wrapper div around it
+
+	<div class="searchBoxWrapper fa-border">
+
+           <!-- Symbol Text Box -->
+           <input formControlName="symbol" matInput type="text" title="Symbol Textbox" aria-label="Symbol Textbox"
+                  placeholder="Symbol">
+
+           <!-- Search Icon -->
+           <span class="searchBoxIcon">
+               <i class="fa fa-search"></i>
+           </span>
+	</div>
+
+
+ 4. Add the searchBoxWrapper CSS class:
+
+	 .searchBoxWrapper {
+	   background-color: #f7f7f7;
+	   border-radius: 4px;
+	   border: 0;
+
+	   /* Center the search box and the icon */
+	   display: flex;
+	   flex-direction: row;
+	   align-items: center;
+
+	   margin-left: 10px;
+	 }
+
+	At this point, it looks better
+	-- We use the wrapper div to combine the text-box and icon into one continuous box
+	-- Also, the wrapper div will center the search box and the icon
+
+
+ 5. Add more polish by adding this CSS:
+
+	a. Add id="searchBox" to the textbox
+
+	b. Add this CSS:
+			#searchBox {
+			  width: 145px; 	/* Set the width of the search box */
+			  padding: 6px 0 6px 10px;
+			  background-color: #f7f7f7;   /* light white color */
+			  border: 0;
+			  color: #111;			/* Text color is almost black */
+
+			  /* Remove the outline that appears when clicking in textbox */
+			  outline: none;
+			}
+
+			.searchBoxIcon {
+			  color: black;
+			  padding: 6px 1px 6px 1px;
+			  cursor: pointer;
+			  border: 0;
+			  background-color: transparent;
+			}
+
+
+ When finished, the HTML looks like this:
+ ----------------------------------------
+	 <div class="searchBoxWrapper fa-border">
+
+	   <!-- Symbol Text Box -->
+	   <input formControlName="symbol" matInput type="text" title="Symbol Textbox" aria-label="Symbol Textbox"
+			  placeholder="Symbol" id="searchBox">
+
+	   <!-- Search Icon -->
+	   <span class="searchBoxIcon">
+			<i class="fa fa-search"></i>
+		</span>
+
+	 </div>
+
+
+ When finished, the CSS looks like this:
+ ---------------------------------------
+	.searchBoxWrapper {
+	  background-color: #f7f7f7;
+	  border-radius: 4px;
+	  border: 0;
+
+	  /* Center the search box and the icon */
+	  display: flex;
+	  flex-direction: row;
+	  align-items: center;
+
+	  margin-left: 10px;
+	}
+
+
+	#searchBox {
+	  width: 145px; 			   /* Set the width of the search box */
+	  padding: 6px 0 6px 10px;
+	  background-color: #f7f7f7;   /* light white color */
+	  border: 0;
+	  color: #111;					/* Text color is almost black */
+
+	  /* Remove the outline that appears when clicking in textbox */
+	  outline: none;
+	}
+
+	.searchBoxIcon {
+	  color: black;
+	  padding: 6px 1px 6px 1px;
+	  cursor: pointer;
+	  border: 0;
+	  background-color: transparent;
+	}
+
+
+
+
+Part 2:  Build fake front-end REST call to run a search and get results
+-----------------------------------------------------------------------
+ 1. Add a front-end DTO class:  AutoCompleteMatchDTO
+ 	a. Generate the class
+
+ 	b. Add 2 public properties:
+ 	 		symbol  		(it's the matching stock symbol)
+ 			businessName	(it's the business name)
+
+
+
+
+		export class AutoCompleteMatchDTO {
+		  public symbol:       string;
+		  public businessName: string;
+		}
+
+
+
+
+ 2. Add a front-end service:  SymbolService
+	a. Generate the SymbolService
+	   terminal> ng generate service services/symbol
+
+
+	b. Add a public method:  runSymbolSearch()
+		-- This method returns an observable to an array of AutoCompleteMatchDTO
+        -- This method takes-in the rawQueryString and the total number of matches to return
+
+ 		public runSymbolSearch(aRawQuery: string, aTotalMatchesToReturn: number) Observable< AutoCompleteMatchDTO[] > {
+
+ 		}
+
+
+	c. Add these checks to your method
+			If the user enters a null or empty string that return an observable that contains an empty array
+
+			If the user enters a string that starts with "v", then return an observable that contains an array of 5 matches:
+						V      		Visa Inc.
+						VOO 		Vanguard S&P 500 E...
+						VTI			Vanguard Total Stock...
+						VZ			Verizon Communicat....
+						VEV			Vicinity Motor Corp.
+
+
+			If the user enters a string that start with "b", then return an observable that contains
+						B			Barnes Group, Inc.
+						BA			Boeing Company
+						BYND		Beyond Meat, Inc.
+						BRKA		Berkshire Hathaway A Stock
+						BRKB		Berkshire Hathaway B Stock
+
+
+	  public runSymbolSearch(aRawQuery: string, aTotalMatchesToReturn: number) : Observable< AutoCompleteMatchDTO[] > {
+		if (!aRawQuery) {
+		  // The search box is empty.  So, return an empty list (and do not invoke a REST call)
+		  return of( [] );
+		}
+
+		const trimmedQueryLowerCase: string = aRawQuery.trim().toLowerCase();
+
+
+		if (trimmedQueryLowerCase == '') {
+		  // The search box is all spaces.  So, return an empty list  (and do NOT invoke a REST call)
+		  return of( [] );
+		}
+
+		if (trimmedQueryLowerCase.startsWith('v')) {
+		  // The query starts with v
+
+		  let data: AutoCompleteMatchDTO[] = [
+			{
+			symbol: 'V',
+			businessName: 'Visa Inc.'
+			},
+			{
+			  symbol: 'VOO',
+			  businessName: 'Vanguard S&P 500 ETF'
+			},
+			{
+			  symbol: 'VTI',
+			  businessName: 'Vanguard Total Stock Market ETF'
+			},
+			{
+			  symbol: 'VZ',
+			  businessName: 'Verizon Communications'
+			},
+			{
+			  symbol: 'VEV',
+			  businessName: 'Vicinity Motor Corp.'
+			},
+		  ];
+
+		  return of(data);
+		}
+
+
+		if (trimmedQueryLowerCase.startsWith('b')) {
+		  // The query starts with b
+		  let data: AutoCompleteMatchDTO[] = [
+			{
+			  symbol: 'B',
+			  businessName: 'Barnes Group, Inc.'
+			},
+			{
+			  symbol: 'BA',
+			  businessName: 'Boeing Company'
+			},
+			{
+			  symbol: 'BYND',
+			  businessName: 'Beyond Meat, Inc.'
+			},
+			{
+			  symbol: 'BRKA',
+			  businessName: 'Berkshire Hathaway A Stock'
+			},
+			{
+			  symbol: 'BRKB',
+			  businessName: 'Berkshire Hathaway B Stock'
+			},
+		  ];
+
+		  return of(data);
+		}
+
+		// No matches were found.  So, return an observable that holds an empty array
+		return of( [] );
+	  }
+
+
+
+
+Part 3:  Listen on the text box changes and run searches to get matches
+-----------------------------------------------------------------------
+GOAL:  Setup an observable that will run a search
+       An async-pipe will *ACTIVATE* this observable
+
+ 1. In your main typescript page, add a class variable:  obsSearchMatchesToShow   that is an observable that holds an array of matches
+
+ 	   public obsSearchMatchesToShow: Observable<AutoCompleteMatchDTO[]>;
+
+
+ 2. Inject your SymbolService
+
+
+ 3. Remove any existing valueChanges on the existing symbol textbox
+
+    Remove this:
+        // Listen for changes on the symbol textbox
+        this.subListenOnSymbolTextbox = this.myForm.controls.symbol.valueChanges.subscribe( (aNewSymbol: string) => {
+          // The user changed the symbol textbox
+
+          // Update the observable
+          // NOTE:  The Async Pipe will automatically refresh the page
+          this.obsQuote = this.quoteService.getQuote(aNewSymbol)
+        })
+
+
+
+
+ 4. Initialize an observable that listens on the symbol textbox and run searches
+    NOTE:  There is no call to subscribe
+           The async-pipe will subscribe (and thus activate) this observable
+
+	Add this:
+	  	 // Listen for changes on the symbol text box
+		 this.obsSearchMatchesToShow = this.myForm.controls.symbol.valueChanges
+		 	.pipe(
+				startWith(''),
+				debounceTime(250),              		// Wait 250 msecs to give the user some time to type
+				switchMap((aRawQuery: string) => {      // Use switchMap for its canceling effect:  On each observable, the previous observable is canceled
+					// The user has typed-in something
+
+					// Return an observable to the search (but only return up to 5 results)
+					// NOTE:  The <mat-options> tag has an async pipe that will invoke this Observable
+					return this.symbolService.runSymbolSearch(aRawQuery, 5);
+			})
+		 );
+
+
+
+ 4. Add the auto-complete tag after the "Search Icon"
+    NOTE:  It must be within the searchBoxWrapper div
+
+		  <!-- Show Popup autocomplete entries for matching search results -->
+		  <mat-autocomplete #autocomplete1="matAutocomplete">
+
+		  	<ng-container *ngIf="(this.obsSearchMatchesToShow | async) as matches">
+
+				  <ng-container *ngFor="let match of matches">
+					<mat-option [value]="match.symbol"> {{match.symbol}} {{match.businessName}}</mat-option>
+				  </ng-container>
+
+			</ng-container>
+
+		  </mat-autocomplete>
+
+
+ 5. Adjust the search box by adding this to it:
+             [matAutocomplete]="autocomplete1"
+
+	When finished, the search-box text control looks like this:
+
+          <!-- Symbol Text Box -->
+          <input formControlName="symbol" matInput type="text" title="Symbol Textbox" aria-label="Symbol Textbox"
+                 placeholder="Symbol" id="searchBox"  [matAutocomplete]="autocomplete1">
+
+
+
+ 6. Try it out
+    -- Type-in V in the symbol box and you should see 5 matches
+
+ 7. Adjust the auto-complete so that the matches do *NOT* wrap
+    Add panelWidth="auto" to the mat-autocomplete
+
+
+    When finished, the HTML looks like this:
+    ---------------------------------------
+        <div class="searchBoxWrapper fa-border">
+
+          <!-- Symbol Text Box -->
+          <input formControlName="symbol" matInput type="text" title="Symbol Textbox" aria-label="Symbol Textbox"
+                 placeholder="Symbol" id="searchBox"  [matAutocomplete]="autocomplete1">
+
+          <!-- Search Icon -->
+          <span class="searchBoxIcon">
+               <i class="fa fa-search"></i>
+           </span>
+
+          <!-- Show Popup autocomplete entries for matching search results -->
+          <mat-autocomplete panelWidth="auto" #autocomplete1="matAutocomplete">
+
+            <ng-container *ngIf="(this.obsSearchMatchesToShow | async) as matches">
+
+              <ng-container *ngFor="let match of matches">
+                <mat-option [value]="match.symbol"> {{match.symbol}} {{match.businessName}}</mat-option>
+              </ng-container>
+
+            </ng-container>
+
+          </mat-autocomplete>
+
+        </div>
+
+
+
+ 8. Format the displayed options so that they appear as to columns
+	Add a flex row *INSIDE* the contents of the <mat-option>...</mat-option> tag
+
+	        <div class="searchBoxWrapper fa-border">
+
+              <!-- Symbol Text Box -->
+              <input formControlName="symbol" matInput type="text" title="Symbol Textbox" aria-label="Symbol Textbox"
+                     placeholder="Symbol" id="searchBox"  [matAutocomplete]="autocomplete1">
+
+              <!-- Search Icon -->
+              <span class="searchBoxIcon">
+                   <i class="fa fa-search"></i>
+               </span>
+
+              <!-- Show Popup autocomplete entries for matching search results -->
+              <mat-autocomplete panelWidth="auto" #autocomplete1="matAutocomplete">
+
+                <ng-container *ngIf="(this.obsSearchMatchesToShow | async) as matches">
+
+                  <ng-container *ngFor="let match of matches">
+                      <mat-option [value]="match.symbol">
+                        <div class="flex flex-row">
+                          <div class="w-[80px]">
+                            {{match.symbol}}
+                          </div>
+                          <div class="flex flex-grow">
+                            {{match.businessName}}
+                          </div>
+                        </div>
+                      </mat-option>
+                  </ng-container>
+
+                </ng-container>
+
+              </mat-autocomplete>
+
+            </div>
+
+
+
+
+Part 4:  Show Quote Info when a user clicks on a match
+------------------------------------------------------
+When a user selects a matching option, call this.quoteService.getQuote(symbol from selected match)
+
+ 1. Add a method that will update the observable used to refresh the quote info
+
+   /*
+    * The user selected a symbol.  Update the observable for the quote so it will be invoked
+    */
+   public userSelectedSymbol(aSymbol: string) {
+     // Update the observable to run this quote
+     // -- The async pipe on the page will invoke it
+     this.obsQuote = this.quoteService.getQuote(aSymbol);
+   }
+
+
+
+ 2. In the HTML / In the <mat-autocomplete>, add this:
+ 		(optionSelected)="this.userSelectedSymbol($event.option.value)"
+
+
+
+
+The final HTML looks like this:
+-------------------------------
+	<form [formGroup]="this.myForm" novalidate autocomplete="off">
+	  <div class="m-2.5">
+
+		<!--  Top Header-->
+		<div class="grid grid-cols-2">
+
+		  <div><span class="text-xl">Advanced Stock Page</span></div>
+		  <div class="flex place-content-end">
+			<button (click)="this.openHelp()" title="Help Button" aria-label="Help Button" rbr-outline-button>Help</button>
+		  </div>
+
+		</div>
+
+		<!--  Symbol/Textbox/Info Section-->
+		<div
+		  class="flex flex-row divide-x divide-solid divide-gray-400    border border-gray-400 bg-[#efefef] mt-5 rounded-lg">
+
+		  <div class="flex place-content-center self-center w-[500px] p-2.5">
+
+			<div class="searchBoxWrapper fa-border">
+
+			  <!-- Symbol Text Box -->
+			  <input formControlName="symbol" matInput type="text" title="Symbol Textbox" aria-label="Symbol Textbox"
+					 placeholder="Symbol" id="searchBox"  [matAutocomplete]="autocomplete1">
+
+			  <!-- Search Icon -->
+			  <span class="searchBoxIcon">
+				   <i class="fa fa-search"></i>
+			   </span>
+
+			  <!-- Show Popup autocomplete entries for matching search results -->
+			  <mat-autocomplete panelWidth="auto" #autocomplete1="matAutocomplete"
+								(optionSelected)="this.userSelectedSymbol($event.option.value)">
+
+				<ng-container *ngIf="(this.obsSearchMatchesToShow | async) as matches">
+
+				  <ng-container *ngFor="let match of matches">
+					  <mat-option [value]="match.symbol">
+						<div class="flex flex-row">
+						  <div class="w-[80px]">
+							{{match.symbol}}
+						  </div>
+						  <div class="flex flex-grow">
+							{{match.businessName}}
+						  </div>
+						</div>
+					  </mat-option>
+				  </ng-container>
+
+				</ng-container>
+
+			  </mat-autocomplete>
+
+			</div>
+
+		  </div>
+
+			<ng-container *ngIf="(this.obsQuote | async) as quote">
+
+				 <div *ngIf="quote.isSymbolValid" class="flex flex-col flex-grow divide-y divide-solid divide-gray-400">
+
+				<div class="grid grid-cols-2">
+				  <div class="p-2">{{ quote.businessName }}</div>
+				  <div class="flex place-content-end p-2">as of {{ quote.asOfDate }}</div>
+				</div>
+
+				<div class="grid grid-cols-4 gap-x-2.5">
+				  <!-- First Row-->
+				  <div class="p-2">Price:</div>
+				  <div class="flex place-content-end p-2 border-r border-black">{{ quote.currentPrice | currency:'USD':true:'1.2-2' }}</div>
+				  <div class="p-2">Prev Close:</div>
+				  <div class="flex place-content-end p-2">{{ quote.previousClose | currency: 'USD':true:'1.2-2' }}</div>
+
+				  <!-- Second Row-->
+				  <div class="p-2">Volume:</div>
+				  <div class="flex place-content-end p-2 border-r border-black">{{ quote.volume | number }}</div>
+				  <div class="p-2">Day Range:</div>
+				  <div class="flex place-content-end p-2">{{ quote.lowestDayRange | currency: 'USD':true:'1.2-2' }} - {{ quote.highestDayRange | currency: 'USD':true:'1.2-2' }}</div>
+				</div>
+
+			  </div>
+
+			</ng-container>
+		</div>
+		<!--  Main Section-->
+
+		<div class="mt-2.5">
+		  <div class="grid grid-cols-2 mx-5 gap-y-2.5">
+			<div>
+			  <mat-form-field subscriptSizing="dynamic" class="max-reduced-density">
+				<mat-label>Action</mat-label>
+				<mat-select title="Action" aria-label="Action">
+
+				  <ng-container *ngIf="(this.obsActions | async) as actions">
+
+					<ng-container *ngFor="let dto of actions">
+					  <mat-option [value]="dto.id"> {{ dto.value }} </mat-option>
+					</ng-container>
+
+				  </ng-container>
+
+				</mat-select>
+			  </mat-form-field>
+			</div>
+			<div>
+			  <mat-form-field subscriptSizing="dynamic">
+				<mat-label>Quantity</mat-label>
+				<input matInput type="text" title="Quantity" aria-label="Quantity"/>
+			  </mat-form-field>
+			</div>
+
+			<div>
+			  <mat-form-field subscriptSizing="dynamic">
+				<mat-label>Order Type</mat-label>
+				<mat-select title="Order Type" aria-label="Order Type" #orderType>
+
+				  <ng-container *ngIf="(this.obsOrderTypes | async) as orderTypes">
+
+					<ng-container *ngFor="let dto of orderTypes">
+
+					  <mat-option [value]="dto.id"> {{ dto.value }} </mat-option>
+					</ng-container>
+				  </ng-container>
+
+				</mat-select>
+
+			  </mat-form-field>
+
+			</div>
+
+			<div>
+			  <mat-form-field subscriptSizing="dynamic" *ngIf="orderType.value==2">
+				<mat-label>Limit Price</mat-label>
+				<input matInput type="text" title="Limit Price" aria-label="Limit Price"/>
+			  </mat-form-field>
+			</div>
+		  </div>
+
+		  <!--  Bottom Button Bar-->
+		  <div class="flex flex-row gap-5 place-content-center mt-2.5">
+			<div>
+			  <button rbr-outline-button type="button" title="Reset Button" aria-label="Reset Button">Reset</button>
+			</div>
+			<div>
+			  <button rbr-solid-button type="button" title="Submit Button" aria-label="Submit Button">Submit</button>
+			</div>
+			<div class="self-center">
+
+			  <a title="Save for Later" aria-label="Save for Later" class="underline">Save for Later</a>
+			</div>
+		  </div>
+
+		</div>
+	  </div>
+
+	  <pre>
+	  this.myForm.controls.symbol.value = {{ this.myForm.controls.symbol.value }}
+	</pre>
+
+	</form>
+
+
+
+	<!-- Help Side-drawer Container takes 40% of the page using w-2/5 -->
+	<div class="collapsed-div absolute top-20 right-0 w-2/5 bg-backDropColor border-black border-l-2 border p-5 flex flex-col gap-5"
+		 [ngClass]="{
+							   'expanded-div':  this.isHelpNavBarExpanded,
+							   'collapsed-div': !this.isHelpNavBarExpanded
+						   }"
+		 style="height: calc(100vh - 80px)">
+
+	  <div class="grid grid-cols-2 h-full">
+		<div class="text-xl font-bold">
+		  <span>Help</span>
+		</div>
+
+		<div class="flex place-content-end">
+		  <button (click)="this.closeHelp()"
+				  type="button"
+				  rbr-outline-button
+				  aria-label="Help"
+				  title="Help">
+			Close
+		  </button>
+		</div>
+	  </div>
+
+	  <div class="h-full">
+		This is my help<br/>
+		This is my help<br/>
+		This is my help<br/>
+		This is my help<br/>
+		This is my help<br/>
+		This is my help<br/>
+		This is my help<br/>
+		This is my help<br/>
+		This is my help (last)<br/>
+	  </div>
+
+	</div>
+
+
+The final CSS looks like this:
+------------------------------
+@use '@angular/material' as mat;
+
+
+:host ::ng-deep .reduced-density {
+  /* Tell the form field to use less padding.  Angular Material ranges from 0 (normal) to -5 (less padding)  */
+  @include mat.form-field-density(-1);
+}
+
+.collapsed-div {
+  /* Collapse over 500 milliseconds */
+  @apply  w-0 overflow-hidden opacity-0 transition-all ease-in-out  duration-500
+}
+
+.expanded-div {
+  /* Expand over 500 milliseconds.  We don't need to set the width as the original div has w-2/5
+     NOTE:  Use the overflow-x-hidden to hide the horizontal scrollbar  [makes expanding look more polished]
+  */
+  @apply  overflow-x-hidden opacity-100 transition-all  ease-in-out  duration-500 z-10;
+}
+
+.searchBoxWrapper {
+  background-color: #f7f7f7;
+  border-radius: 4px;
+  border: 0;
+
+  /* Center the search box and the icon */
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+
+  margin-left: 10px;
+}
+
+
+#searchBox {
+  width: 145px; 	/* Set the width of the search box */
+  padding: 6px 0 6px 10px;
+  background-color: #f7f7f7;   /* light white color */
+  border: 0;
+  color: #111;			/* Text color is almost black */
+
+  /* Remove the outline that appears when clicking in textbox */
+  outline: none;
+}
+
+.searchBoxIcon {
+  color: black;
+  padding: 6px 1px 6px 1px;
+  cursor: pointer;
+  border: 0;
+  background-color: transparent;
+}
+
+
+
+
+The final typescript looks like this:
+-------------------------------------
+import {Component, HostListener, OnInit} from '@angular/core';
+import {debounceTime, Observable, startWith, switchMap} from "rxjs";
+import {MyLookupDTO} from "../../models/my-lookup-dto";
+import {MyLookupService} from "../../services/my-lookup.service";
+import {QuoteService} from "../../services/quote.service";
+import {GetQuoteDetailsDTO} from "../../models/get-quote-details-dto";
+import {FormBuilder, FormGroup} from "@angular/forms";
+import {AutoCompleteMatchDTO} from "../../models/auto-complete-match-dto";
+import {SymbolService} from "../../services/symbol.service";
+
+@Component({
+  selector: 'app-advanced-stock-trade',
+  templateUrl: './advanced-stock-trade.component.html',
+  styleUrls: ['./advanced-stock-trade.component.scss']
+})
+export class AdvancedStockTradeComponent implements OnInit {
+
+  public isHelpNavBarExpanded:   boolean = false;
+  public myForm:                 FormGroup;
+
+  public obsActions:             Observable<MyLookupDTO[]>;
+  public obsOrderTypes:          Observable<MyLookupDTO[]>;
+  public obsQuote:               Observable<GetQuoteDetailsDTO>;
+  public obsSearchMatchesToShow: Observable<AutoCompleteMatchDTO[]>;
+
+
+  public constructor(private myLookupService: MyLookupService,
+                     public quoteService: QuoteService,
+                     private formBuilder: FormBuilder,
+                     private symbolService: SymbolService) {}
+
+  public ngOnInit(): void {
+
+    this.obsActions = this.myLookupService.getOrderActions();
+    this.obsOrderTypes = this.myLookupService.getOrderTypes();
+
+    // Initialize the myForm object
+    this.myForm = this.formBuilder.group({
+        symbol: [null, null]
+    });
+
+    // Listen for changes on the symbol text box
+    this.obsSearchMatchesToShow = this.myForm.controls.symbol.valueChanges
+      .pipe(
+        startWith(''),
+        debounceTime(250),              		// Wait 250 msecs to give the user some time to type
+        switchMap((aRawQuery: string) => {      // Use switchMap for its canceling effect:  On each observable, the previous observable is canceled
+          // The user has typed-in something
+
+          // Return an observable to the search (but only return up to 5 results)
+          // NOTE:  The <mat-options> tag has an async pipe that will invoke this Observable
+          return this.symbolService.runSymbolSearch(aRawQuery, 5);
+        })
+      );
+
+  }
+
+
+  public openHelp(): void {
+    this.isHelpNavBarExpanded = true;
+  }
+
+  public closeHelp(): void {
+    this.isHelpNavBarExpanded = false;
+  }
+
+
+
+  @HostListener('document:keydown.escape', ['$event'])
+  public onKeydownHandler() {
+    // Someone pressed the Escape key.  So, close the help sidenav
+    this.closeHelp();
+  }
+
+  /*
+   * The user selected a symbol.  Update the observable for the quote so it will be invoked
+   */
+  public userSelectedSymbol(aSymbol: string) {
+    // Update the observable to run this quote
+    // -- The async pipe on the page will invoke it
+    this.obsQuote = this.quoteService.getQuote(aSymbol);
+  }
+
+}
+
+
+
+
