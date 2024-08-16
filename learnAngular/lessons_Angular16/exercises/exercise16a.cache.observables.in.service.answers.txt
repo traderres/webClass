@@ -1,9 +1,174 @@
-Exercise 16a / Cache Observables in Frontend Services (Answers)
----------------------------------------------------------------
+Exercise 16a / Cache Observables in Frontend Services
+-----------------------------------------------------
 Problem:  I want to reduce the number of REST calls made to load dropdowns
           -- We haven't added a state to the USA since Hawaii was added to the union in 1959
           -- So, how do I cache the dropdown information of all USA states on the frontend?
 
 Solution: Add a cache to your frontend service
+
+
+
+
+Part 1:  Setup the Page Layout and the dropdown of USA States (so it is not cached)
+-----------------------------------------------------------------------------------
+ 1. Setup the Page
+    a. Generate the component                 UserProfile
+    b. Add the route to constants.ts:         the route will be this:   page/user-profile
+    c. Register the route
+    d. Add the route to the database table:  ui_controls        (if using real security)
+    e. Add a link to the navbar (using that route)
+    f. Use the debugger to verify that the navbar link works
+
+
+
+ 2. Fill in the layout
+    NOTE:  Do not add the Form Controls
+
+            +---------------------------------------------------------------------------------+
+            | User Profile                                                       Help Button  |
+            +---------------------------------------------------------------------------------+
+            |                                                                                 |
+            | <Full Name Text Box>                                                            |
+            |                                                                                 |
+            | <Address Line 1 Text Box>                                                       |
+            | <Address Line 2 Text Box>                                                       |
+            | <City Text Box>     <USA State Dropdown>   <ZipCode Text Box>                   |
+            |                                                                                 |
+            |                             <Reset>   <Update>                                  |
+            +---------------------------------------------------------------------------------+
+
+
+
+ 3. Add Form Controls  (exc
+    a. Create a dropdown for the USA States
+ 		value is "MD"       user sees "Maryland"
+ 		value is "VA        user sees "Virginia"
+ 		value is "DC"       user sees "Distict of Columbia"
+
+    b. Add the text boxes
+
+    c. Add the buttons
+
+
+
+
+ 4. Create a frontend DTO:  MyLookupDTO
+ 	-- It has 2 fields:
+ 				id        / holds the unique number
+ 				value     / holds the displayed value
+
+	a. Create the frontend DTO:
+
+	b. Put in the 2 fields
+
+
+
+
+ 5. Create a frontend Service:  MyLookupService
+    a. Create the service
+
+    b. Add a public method to this service called getAllUsaStates()
+
+    c. Create a local variable that holds the 3 fake records  [see step #]
+
+    d. Convert the variable into an observable
+
+    e. Return the observable
+
+
+
+ 6. In the Typescript, we need to *INITIALIZE* the observable
+ 	a. Create a public class variable: obsUsaStates
+ 	   -- It is an observable that holds *ARRAY* of MyLookupDTO objects
+
+ 	b. Inject the MyLookupService
+
+ 	c. In the ngOnInit(), initialize the observable
+
+
+
+
+ 7. In the HTML, add the async-pipe *AND* loop through the array of USA States
+ 	a. Remove the hard-coded <mat-option> tags
+
+	b. Use the *ngIf and async-pipe to invoke the REST call
+
+ 	c. Replace them with a *ngFor loop
+
+
+
+
+Part 2:  Create a real REST call and make it slow
+-------------------------------------------------
+
+
+
+Part 3:  Change the frontend service so the USA States are cached
+-----------------------------------------------------------------
+We are going to add a class variable called "cache" to the MyLookupService that is a map
+
+		cache
+					 Key            Value
+				+-------------+------------------------------+
+				|     "u"     |    observable of USA states  |
+				+-------------+------------------------------+
+				|     "p"     |    observable of priorities  |
+				+-------------+------------------------------+
+
+ 1. Edit the MyLookup Service
+
+ 2. Add a 1st class variable: cache
+    -- The type is any
+    -- Initialize it to an empty map
+ 		private cache: any = {};
+
+
+ 3. Add a 2nd class variable:  USA_STATES_KEY
+ 	-- Set this variable as readonly
+ 	-- Set this variable is a string
+ 	-- It always holds "u"                 NOTE:  The string does not matter as long as it is unique in the cache
+
+
+ 4. Change the getAllUsaStates() to look in the cache first
+	a. Get the cache key
+	b. If the observable is already in the cache, then
+			return the cached observable
+	   Else
+	   		invoke the REST call
+	   		store the observable in the cache
+	   		return the cached observable
+
+
+		Change it from this:
+			public getAllUsaStates(): Observable<MyLookupDTO[]> {
+				// Construct the URL to this REST call
+				const restUrl: string = environment.baseUrl + '/api/my-lookup/usa-states';
+
+				// Return the observable that will invoke this REST call
+				return this.httpClient.get <MyLookupDTO[]>(restUrl);
+			}
+
+
+		To this:
+			public getAllUsaStates(): Observable<MyLookupDTO[]> {
+				const key: string = this.USA_STATES_KEY;
+
+				if (this.cache[key]) {
+				  // This observable is in the cache.  So, return it from the cache
+				  return this.cache[key];
+				}
+
+				// Construct the URL to this REST call
+				const restUrl: string = environment.baseUrl + '/api/my-lookup/usa-states';
+
+				// Setup this observable so that it calls shareReplay(1) to replay the previous value
+				this.cache[key] = this.httpClient.get <MyLookupDTO[]>(restUrl).pipe(
+					shareReplay(1)
+				 );
+
+				// Return the observable
+				return this.cache[key];
+			}
+
 
 
