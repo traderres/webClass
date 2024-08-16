@@ -84,14 +84,16 @@ Angular 16 Lesson Plan
        <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise14d.advanced-stock-trade.autocomplete.question.txt"              title="Exercise 14d">Exercise 14d</a> / AST / Use Autocomplete Text Box         (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise14d.advanced-stock-trade.autocomplete.answers.txt"              title="Answer to 14d">Answers</a>)
    
     c. Edit Stock Trade
-       Exercise 15a / EST / Setup Layout                      (Answers)
-       Exercise 15b / EST / Add Reactive Form                 (Answers)
-       Exercise 15c / EST / Load Form with Past Selections    (Answers)
+       Exercise 15a / EST / Create "List Stock Trades" Page   (Answers)
+       Exercise 15b / EST / Setup "Edit Stock Trade" Layout   (Answers)
+       Exercise 15c / EST / Get tradeId from the url          (Answers)
+       Exercise 15d / EST / Add Reactive Form                 (Answers)
+       Exercise 15e / EST / Load Form with Saved Trade        (Answers)
        
     c. Misc Techniques ("kitchen sink")
-       Exercise 16a / Simulate a slow REST call               (Answers)
-       Exercise 16b / Listen on autocomplete                  (Answers)
-       Exercise 16c / Cache data in frontend service          (Answers)
+       Exercise 16a / Cache data in frontend service          (Answers)
+       Exercise 16b / Simulate a slow REST call               (Answers)
+       Exercise 16c / Listen on autocomplete                  (Answers)
 
  9. Saving Data 
     a. Submit button invokes a REST call
