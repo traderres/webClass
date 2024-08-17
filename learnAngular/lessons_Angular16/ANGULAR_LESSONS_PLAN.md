@@ -91,8 +91,8 @@ Angular 16 Lesson Plan
        Exercise 15e / EST / Load Form with Saved Trade        (Answers)
        
     d. Misc Techniques ("kitchen sink")
-       <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise16a.cache.observables.in.service.question.txt"    title="Exercise 16a">Exercise 16a</a> / Cache data in frontend service          (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise16a.cache.observables.in.service.answers.txt"  title="Answer to 16a">Answers</a>)
-       <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise16b.format-numbers-with-pipes.question.txt"    title="Exercise 16b">Exercise 16b</a> / Format Numbers with Pipes               (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise16b.format-numbers-with-pipes.answers.txt"        title="Answer to 16b">Answers</a>)
+       <a href="./exercises/exercise16a.cache.observables.in.service.question.txt"    title="Exercise 16a">Exercise 16a</a> / Cache data in frontend service          (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise16a.cache.observables.in.service.answers.txt"  title="Answer to 16a">Answers</a>)
+       <a href="./exercises/exercise16b.format-numbers-with-pipes.question.txt"    title="Exercise 16b">Exercise 16b</a> / Format Numbers with Pipes               (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise16b.format-numbers-with-pipes.answers.txt"        title="Answer to 16b">Answers</a>)
        Exercise 16c / Simulate a slow REST call               (Answers)
        Exercise 16d / Listen on autocomplete                  (Answers)
 
