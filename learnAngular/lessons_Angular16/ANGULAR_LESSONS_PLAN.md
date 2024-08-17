@@ -5,62 +5,62 @@ Angular 16 Lesson Plan
  1. Setup the Development Env
     <a href="https://docs.google.com/document/d/1-vutLIaIN0A3WDm0P4gf9yFRLNyVVX8s2RZLWrbdT-o/edit">Setup Development Env (Unix)</a>
     <a href="https://docs.google.com/document/d/1-vutLIaIN0A3WDm0P4gf9yFRLNyVVX8s2RZLWrbdT-o/edit">Setup Development Env (Windows)</a>
-    <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/howToDebugExistingWebapp.txt">Setup debugging in IntelliJ Ultimate</a>
+    <a href="./howToDebugExistingWebapp.txt">Setup debugging in IntelliJ Ultimate</a>
 
  2. Boring Lectures
-    a. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.overallArchitecture.txt">Overall Architecture (snooze)</a>
-    b. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.what.is.tailwind.txt">What is Tailwind?</a>
-    c. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.component.lifecycle.txt">Component Life Cycle</a>
+    a. <a href="./lectures/boring.lecture.overallArchitecture.txt">Overall Architecture (snooze)</a>
+    b. <a href="./lectures/boring.lecture.what.is.tailwind.txt">What is Tailwind?</a>
+    c. <a href="./lectures/boring.lecture.component.lifecycle.txt">Component Life Cycle</a>
     d. One-way-binding and two-way-binding
-    e. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.approaches.loading.data.txt">Approaches to Loading Data</a>
-    f. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.what.is.observable.txt">What is an Observable?</a>
+    e. <a href="./lectures/boring.lecture.approaches.loading.data.txt">Approaches to Loading Data</a>
+    f. <a href="./lectures/boring.lecture.what.is.observable.txt">What is an Observable?</a>
     
  3. Add Frontend Dependencies
-    <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lesson03_installTailwind.txt">Install Tailwind</a>
-    <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lesson04_installFontAwesome.txt">Install Font Awesome Pro</a>
+    <a href="./lesson03_installTailwind.txt">Install Tailwind</a>
+    <a href="./lesson04_installFontAwesome.txt">Install Font Awesome Pro</a>
 
  4. Setup the navbar
-    <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lesson05a_setupNavBarWithAngularMaterialSideNav.txt">Setup Navbar w/Angular Material SideNav (visible/invisible)</a>
-    <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lesson05b_setupNavBarUsingTailWind.txt">Setup Navbar w/Tailwind (visible/invisible)</a>
-    <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lesson05c_setupNavBarUsingTailWindAlwaysVisible.txt">Setup Navbar w/Tailwind (collapsed/expanded)</a>
+    <a href="./lesson05a_setupNavBarWithAngularMaterialSideNav.txt">Setup Navbar w/Angular Material SideNav (visible/invisible)</a>
+    <a href="./lesson05b_setupNavBarUsingTailWind.txt">Setup Navbar w/Tailwind (visible/invisible)</a>
+    <a href="./lesson05c_setupNavBarUsingTailWindAlwaysVisible.txt">Setup Navbar w/Tailwind (collapsed/expanded)</a>
 
       At this point, you have a real web application and can start adding page views
     
  5. Layouts (using Tailwind CSS)
-    a. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.basic.layouts.txt">Basic Layouts w/Tailwind</a>            
-       <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/howToSetupTopRow.txt">How to Setup the Top Row</a>
-           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise01a.question.txt"                  title="Exercise 1a">Exercise 1a</a> / Three Boxes Page
-           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise01b.question.txt"                  title="Exercise 1b">Exercise 1b</a>
-           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise01c.question.txt"                  title="Exercise 1c">Exercise 1c</a>
-           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise01d.question.txt"                  title="Exercise 1d">Exercise 1d</a>                           (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise01d.answers.txt"                  title="Answer to 1d">Answers</a>)
-           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise02.my-settings.question.txt"       title="Exercise 2 ">Exercise 2</a>  / My Settings             (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise02.my-settings.answers.txt"       title="Answer to 2">Answers</a>)
-           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise03a.stock-trade.question.txt"      title="Exercise 3a">Exercise 3a</a> / Stock Trade             (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise03a.stock-trade.answers.txt"      title="Answer to 3a">Answers</a>)
-           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise03b.stock-trade.question.txt"      title="Exercise 3b">Exercise 3b</a> / Limit Price Disappears  (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise03b.stock-trade.answers.txt"      title="Answer to 3b">Answers</a>)
-           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise04.responsive.layout.question.txt" title="Exercise 4 ">Exercise 4</a>  / Responsive Layout       (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise04.responsive.layout.answers.txt" title="Answer to 4">Answers</a>)
+    a. <a href="./lectures/boring.lecture.basic.layouts.txt">Basic Layouts w/Tailwind</a>            
+       <a href="./howToSetupTopRow.txt">How to Setup the Top Row</a>
+           <a href="./exercises/exercise01a.question.txt"                  title="Exercise 1a">Exercise 1a</a> / Three Boxes Page
+           <a href="./exercises/exercise01b.question.txt"                  title="Exercise 1b">Exercise 1b</a>
+           <a href="./exercises/exercise01c.question.txt"                  title="Exercise 1c">Exercise 1c</a>
+           <a href="./exercises/exercise01d.question.txt"                  title="Exercise 1d">Exercise 1d</a>                           (<a href="./exercises/exercise01d.answers.txt"                  title="Answer to 1d">Answers</a>)
+           <a href="./exercises/exercise02.my-settings.question.txt"       title="Exercise 2 ">Exercise 2</a>  / My Settings             (<a href="./exercises/exercise02.my-settings.answers.txt"       title="Answer to 2">Answers</a>)
+           <a href="./exercises/exercise03a.stock-trade.question.txt"      title="Exercise 3a">Exercise 3a</a> / Stock Trade             (<a href="./exercises/exercise03a.stock-trade.answers.txt"      title="Answer to 3a">Answers</a>)
+           <a href="./exercises/exercise03b.stock-trade.question.txt"      title="Exercise 3b">Exercise 3b</a> / Limit Price Disappears  (<a href="./exercises/exercise03b.stock-trade.answers.txt"      title="Answer to 3b">Answers</a>)
+           <a href="./exercises/exercise04.responsive.layout.question.txt" title="Exercise 4 ">Exercise 4</a>  / Responsive Layout       (<a href="./exercises/exercise04.responsive.layout.answers.txt" title="Answer to 4">Answers</a>)
 
     b. How to use overflow-y, set variable heights, and use fixed divs
-           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise05a.overflow-y.question.txt"       title="Exercise 5a">Exercise 5a</a> / Overflow-y              (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise05a.overflow-y.answers.txt"       title="Answer to 5a">Answers</a>)
-           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise05b.holy-grail.question.txt"       title="Exercise 5b">Exercise 5b</a> / Holy Grail (w/calc)     (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise05b.holy-grail.answers.txt"       title="Answer to 5b">Answers</a>)
-           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise05c.scroll-into-view.question.txt" title="Exercise 5c">Exercise 5c</a> / Scroll Into View        (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise05c.scroll-into-view.answers.txt" title="Answer to 5c">Answers</a>)
+           <a href="./exercises/exercise05a.overflow-y.question.txt"       title="Exercise 5a">Exercise 5a</a> / Overflow-y              (<a href="./exercises/exercise05a.overflow-y.answers.txt"       title="Answer to 5a">Answers</a>)
+           <a href="./exercises/exercise05b.holy-grail.question.txt"       title="Exercise 5b">Exercise 5b</a> / Holy Grail (w/calc)     (<a href="./exercises/exercise05b.holy-grail.answers.txt"       title="Answer to 5b">Answers</a>)
+           <a href="./exercises/exercise05c.scroll-into-view.question.txt" title="Exercise 5c">Exercise 5c</a> / Scroll Into View        (<a href="./exercises/exercise05c.scroll-into-view.answers.txt" title="Answer to 5c">Answers</a>)
 
     c. How to make DIVs appear/disappear using animation
-           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise06a.howToDoTransitionsOnWidth.question.txt"                  title="Exercise 6a">Exercise 6a</a> / Transitions on width    (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise06a.howToDoTransitionsOnWidth.answers.txt"                  title="Answer to 6a">Answers</a>)
-           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise06b.right-side-slide-out-drawer.question.txt"                title="Exercise 6b">Exercise 6b</a> / Setup Right Drawer      (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise06b.right-side-slide-out-drawer.answers.txt"                title="Answer to 6b">Answers</a>)
-           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise06c.howToDoTransitionsOnHeightUsingTemplateVar.question.txt" title="Exercise 6c">Exercise 6c</a> / Transitions on Height   (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise06c.howToDoTransitionsOnHeightUsingTemplateVar.answers.txt" title="Answer to 6c">Answers</a> using template variable)
-           <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise06d.howToDoTransitionsOnHeightUsingTailwind.question.txt"    title="Exercise 6d">Exercise 6d</a> / Transitions on Height   (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise06d.howToDoTransitionsOnHeightUsingTailwind.answers.txt"    title="Answer to 6d">Answers</a> using pure tailwind approach)
+           <a href="./exercises/exercise06a.howToDoTransitionsOnWidth.question.txt"                  title="Exercise 6a">Exercise 6a</a> / Transitions on width    (<a href="./exercises/exercise06a.howToDoTransitionsOnWidth.answers.txt"                  title="Answer to 6a">Answers</a>)
+           <a href="./exercises/exercise06b.right-side-slide-out-drawer.question.txt"                title="Exercise 6b">Exercise 6b</a> / Setup Right Drawer      (<a href="./exercises/exercise06b.right-side-slide-out-drawer.answers.txt"                title="Answer to 6b">Answers</a>)
+           <a href="./exercises/exercise06c.howToDoTransitionsOnHeightUsingTemplateVar.question.txt" title="Exercise 6c">Exercise 6c</a> / Transitions on Height   (<a href="./exercises/exercise06c.howToDoTransitionsOnHeightUsingTemplateVar.answers.txt" title="Answer to 6c">Answers</a> using template variable)
+           <a href="./exercises/exercise06d.howToDoTransitionsOnHeightUsingTailwind.question.txt"    title="Exercise 6d">Exercise 6d</a> / Transitions on Height   (<a href="./exercises/exercise06d.howToDoTransitionsOnHeightUsingTailwind.answers.txt"    title="Answer to 6d">Answers</a> using pure tailwind approach)
   
  6. Forms
     a. Template-based Forms  (used for simpler forms)
     b. Reactive forms        (used for complex forms)
-       <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/howToSetupReactiveForm.txt">Setup Reactive Forms</a>
+       <a href="./howToSetupReactiveForm.txt">Setup Reactive Forms</a>
        Form Validation w/provided validators
        Form Validation w/custom validators (synchronous)
        Form Validation w/custom validators (asynchronous)
 
  7. Buttons, Text-Fields, and Controls (using Angular Material)
-    a. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.dropdowns.and.textboxes.txt">Intro to Textboxes & Dropdowns</a> in Angular Material
-    b. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.angular.tricks.and.techniques.txt">Angular Material Tricks & Techniques</a>
-    c. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/howToAddHyperlinks.txt">Hyperlinks</a>
+    a. <a href="./lectures/boring.lecture.dropdowns.and.textboxes.txt">Intro to Textboxes & Dropdowns</a> in Angular Material
+    b. <a href="./lectures/boring.lecture.angular.tricks.and.techniques.txt">Angular Material Tricks & Techniques</a>
+    c. <a href="./howToAddHyperlinks.txt">Hyperlinks</a>
     d. Date Pickers
     e. Textareas
     f. Radio Buttons
@@ -70,18 +70,18 @@ Angular 16 Lesson Plan
 
  8. Loading Data using Observables
     a. Load a dropdown from a REST call
-       <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise13a.load-dropdown-with-subscribe.question.txt"      title="Exercise 13a">Exercise 13a</a> / Loading Dropdown w/subscribe            (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise13a.load-dropdown-with-subscribe.answers.txt"      title="Answer to 13a">Answers</a>)
-       <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise13b.load-dropdown-with-async-pipe.question.txt"     title="Exercise 13b">Exercise 13b</a> / Loading Dropdown w/async pipe           (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise13b.load-dropdown-with-async-pipe.answers.txt"     title="Answer to 13b">Answers</a>)
-       <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise13c.add-rest-call-to-get-priorities.question.txt"   title="Exercise 13c">Exercise 13c</a> / Create the REST call                    (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise13c.add-rest-call-to-get-priorities.answers.txt"   title="Answer to 13c">Answers</a>)
-       <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise13d.integrate-rest-call-with-frontend.question.txt" title="Exercise 13d">Exercise 13d</a> / Integrate the REST call w/the frontend  (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise13d.integrate-rest-call-with-frontend.answers.txt" title="Answer to 13d">Answers</a>)
-       <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise13e.multiple-async-pipes.question.txt"              title="Exercise 13e">Exercise 13e</a> / Loading w/multiple async pipes          (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise13e.multiple-async-pipes.answers.txt"              title="Answer to 13e">Answers</a>)
-       <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise13f.show-loading-message.question.txt"              title="Exercise 13f">Exercise 13f</a> / Show loading message while waiting      (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise13f.show-loading-message.answers.txt"              title="Answer to 13f">Answers</a>)
+       <a href="./exercises/exercise13a.load-dropdown-with-subscribe.question.txt"      title="Exercise 13a">Exercise 13a</a> / Loading Dropdown w/subscribe            (<a href="./exercises/exercise13a.load-dropdown-with-subscribe.answers.txt"      title="Answer to 13a">Answers</a>)
+       <a href="./exercises/exercise13b.load-dropdown-with-async-pipe.question.txt"     title="Exercise 13b">Exercise 13b</a> / Loading Dropdown w/async pipe           (<a href="./exercises/exercise13b.load-dropdown-with-async-pipe.answers.txt"     title="Answer to 13b">Answers</a>)
+       <a href="./exercises/exercise13c.add-rest-call-to-get-priorities.question.txt"   title="Exercise 13c">Exercise 13c</a> / Create the REST call                    (<a href="./exercises/exercise13c.add-rest-call-to-get-priorities.answers.txt"   title="Answer to 13c">Answers</a>)
+       <a href="./exercises/exercise13d.integrate-rest-call-with-frontend.question.txt" title="Exercise 13d">Exercise 13d</a> / Integrate the REST call w/the frontend  (<a href="./exercises/exercise13d.integrate-rest-call-with-frontend.answers.txt" title="Answer to 13d">Answers</a>)
+       <a href="./exercises/exercise13e.multiple-async-pipes.question.txt"              title="Exercise 13e">Exercise 13e</a> / Loading w/multiple async pipes          (<a href="./exercises/exercise13e.multiple-async-pipes.answers.txt"              title="Answer to 13e">Answers</a>)
+       <a href="./exercises/exercise13f.show-loading-message.question.txt"              title="Exercise 13f">Exercise 13f</a> / Show loading message while waiting      (<a href="./exercises/exercise13f.show-loading-message.answers.txt"              title="Answer to 13f">Answers</a>)
 
     b. Advanced Stock Trade  (putting async pipes into practice)
-       <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise14a.advanced-stock-trade.layout.question.txt"              title="Exercise 14a">Exercise 14a</a> / AST / Setup Layout                      (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise14a.advanced-stock-trade.layout.answers.txt"              title="Answer to 14a">Answers</a>)
-       <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise14b.advanced-stock-trade.press.quote.btn.question.txt"              title="Exercise 14b">Exercise 14b</a> / AST / Pressing Quote loads data         (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise14b.advanced-stock-trade.press.quote.btn.answers.txt"              title="Answer to 14b">Answers</a>)
-       <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise14c.advanced-stock-trade.press.listen.for.quotes.question.txt"              title="Exercise 14c">Exercise 14c</a> / AST / Listen on the Quote Text Box      (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise14c.advanced-stock-trade.press.listen.for.quotes.answers.txt"              title="Answer to 14c">Answers</a>)
-       <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise14d.advanced-stock-trade.autocomplete.question.txt"              title="Exercise 14d">Exercise 14d</a> / AST / Use Autocomplete Text Box         (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise14d.advanced-stock-trade.autocomplete.answers.txt"              title="Answer to 14d">Answers</a>)
+       <a href="./exercises/exercise14a.advanced-stock-trade.layout.question.txt"              title="Exercise 14a">Exercise 14a</a> / AST / Setup Layout                      (<a href="./exercises/exercise14a.advanced-stock-trade.layout.answers.txt"              title="Answer to 14a">Answers</a>)
+       <a href="./exercises/exercise14b.advanced-stock-trade.press.quote.btn.question.txt"              title="Exercise 14b">Exercise 14b</a> / AST / Pressing Quote loads data         (<a href="./exercises/exercise14b.advanced-stock-trade.press.quote.btn.answers.txt"              title="Answer to 14b">Answers</a>)
+       <a href="./exercises/exercise14c.advanced-stock-trade.press.listen.for.quotes.question.txt"              title="Exercise 14c">Exercise 14c</a> / AST / Listen on the Quote Text Box      (<a href="./exercises/exercise14c.advanced-stock-trade.press.listen.for.quotes.answers.txt"              title="Answer to 14c">Answers</a>)
+       <a href="./exercises/exercise14d.advanced-stock-trade.autocomplete.question.txt"              title="Exercise 14d">Exercise 14d</a> / AST / Use Autocomplete Text Box         (<a href="./exercises/exercise14d.advanced-stock-trade.autocomplete.answers.txt"              title="Answer to 14d">Answers</a>)
    
     c. Edit Stock Trade
        Exercise 15a / EST / Create "List Stock Trades" Page   (Answers)
@@ -91,8 +91,8 @@ Angular 16 Lesson Plan
        Exercise 15e / EST / Load Form with Saved Trade        (Answers)
        
     d. Misc Techniques ("kitchen sink")
-       <a href="./exercises/exercise16a.cache.observables.in.service.question.txt"    title="Exercise 16a">Exercise 16a</a> / Cache data in frontend service          (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise16a.cache.observables.in.service.answers.txt"  title="Answer to 16a">Answers</a>)
-       <a href="./exercises/exercise16b.format-numbers-with-pipes.question.txt"    title="Exercise 16b">Exercise 16b</a> / Format Numbers with Pipes               (<a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/exercises/exercise16b.format-numbers-with-pipes.answers.txt"        title="Answer to 16b">Answers</a>)
+       <a href="./exercises/exercise16a.cache.observables.in.service.question.txt"    title="Exercise 16a">Exercise 16a</a> / Cache data in frontend service          (<a href="./exercises/exercise16a.cache.observables.in.service.answers.txt"  title="Answer to 16a">Answers</a>)
+       <a href="./exercises/exercise16b.format-numbers-with-pipes.question.txt"    title="Exercise 16b">Exercise 16b</a> / Format Numbers with Pipes               (<a href="./exercises/exercise16b.format-numbers-with-pipes.answers.txt"        title="Answer to 16b">Answers</a>)
        Exercise 16c / Simulate a slow REST call               (Answers)
        Exercise 16d / Listen on autocomplete                  (Answers)
 
@@ -113,10 +113,10 @@ Angular 16 Lesson Plan
     c. Message Service:  Used to display messages
  
 12. TypeScript
-    a. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/howToReferenceEnumClass.txt">How to Use Enumerated Classes in HTML</a>  (constants.ts)
+    a. <a href="./howToReferenceEnumClass.txt">How to Use Enumerated Classes in HTML</a>  (constants.ts)
 
 13. Grids (using ag-grid)
-    a. <a href="https://github.com/traderres/webClass/blob/master/learnAngular/lessons_Angular16/lectures/boring.lecture.grids.txt">Client-Side vs Server-Side Grids</a>
+    a. <a href="./lectures/boring.lecture.grids.txt">Client-Side vs Server-Side Grids</a>
 
 14. HighCharts
 
