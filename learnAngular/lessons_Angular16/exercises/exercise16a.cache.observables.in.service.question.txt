@@ -1,16 +1,132 @@
 Exercise 16a / Cache Observables in Frontend Services
 -----------------------------------------------------
 Problem:  I want to reduce the number of REST calls made to load dropdowns
-          -- We haven't added a state to the USA since Hawaii was added to the union in 1959
-          -- So, how do I cache the dropdown information of all USA states on the frontend?
+          We haven't added a state to the USA since Hawaii was added in 1959
+          So, how do I cache the dropdown of USA states on the frontend?
 
 Solution: Add a cache to your frontend service
 
 
 
 
-Part 1:  Setup the Page Layout and the dropdown of USA States (so it is not cached)
------------------------------------------------------------------------------------
+Part 1:  Create a slow REST call that returns USA States
+--------------------------------------------------------
+The REST Call Contract is as follows:
+	 a. What's the URL?    		/api/my-lookup/usa-states
+	 b. What is the URL Type?	GET
+	 c. What is passed-in?  Nothing
+	 d. What is returned?   List of MyStateDTO objects
+								holds a id     		-- e.g., 50
+								holds a stateCode   -- e.g., "MD"
+								holds a stateName   -- e.g., "Maryland"
+
+	 e. What checks are made on the passed-in data?
+		N/A  (There is no passed-in data)
+
+	 f. Which roles are allowed to use this REST call?
+		All of them
+
+	 g. What does htiWhat does it do?
+			-- Return a list of DTOs that hold information about the USA states
+
+
+
+
+ 1. Create a backend DTO class:  MyStateDTO
+ 	a. Add the 3 fields: id, stateCode, and stateName
+ 	b. Generate the getters & setters
+
+
+
+ 2. Create a backend service class
+ 	a. Crete the backend service class:  MyLookupService
+
+ 	b. Add the @Service annotation (above the name of the class)
+ 	   NOTE:  This tells Spring to instantiate this class as a singleton and make it injectable
+
+ 	c. Add a logger
+ 	   NOTE:  No, we don't use print statements on the backend.  Not.  Ever.
+
+ 	e. Create a public method called getAllUsaStates() that returns a List of MyStateDTO objects
+
+ 	e. Fill-in this method so it returns a list that has 2 DTOs
+ 		a. Create a FIRST MyStateDTO object and put in information for a state  -- e.g., "Maryland" / "MD"
+ 		b. Create a SECOND MyStateDTO object and put in information for a state -- e.g., "Virginia" / "VA"
+		c. Create a List
+		d. Add the 2 DTOs to the list
+		e. return the list
+
+	g. Make this method *SLOW* by adding this it
+
+			try {
+				// Add a 5 second delay
+				Thread.sleep(5000);
+			} catch (InterruptedException e) {
+				throw new RuntimeException(e);
+			}
+
+
+
+ 3. Create a backend controller class
+ 	a. Create the backend controller class:  MyLookupController
+
+ 	b. Add the @Controller annotation (above the name of the class)
+ 	   NOTE:  This tells Spring that this is where REST calls will start
+
+ 	c. Add a logger
+
+ 	d. Inject the MyLookupService
+
+ 	e. Create a public method called getAllUsaStates()
+ 		-- It returns a ResponseEntity<?>
+		-- Nothing is passed-in
+
+ 	f. Add the @RequestMapping annotation
+ 	 		value = URL of this REST call
+ 	 		method = URL Type of this REST call
+ 	 		produces = "application/json"
+
+ 	g. Limit which security roles can hit this REST call by adding the @PreAuthorize annotation
+       Ex) This limits this REST call to only these 2 roles
+		 	 @PreAuthorize("hasAnyRole('CVF_SUPERVISOR', 'CVF_SPECIALIST')")
+
+ 	h. Have the method call your MyLookupService.getAllUsaStates() to get a list of DTOs
+
+ 	i. Have the method return the list of DTOs
+
+
+
+ 4. Use Postman to verify that the REST call works
+    a. Startup the backend
+    	-- Read the 3rd last line from the output
+
+    b. Startup Postman
+    	-- Attempt to hit the REST call
+
+    c. Verify that the REST call returns the data you expect
+	   -- It should return something like this:
+
+	   [
+           {
+               "id": 1,
+               "stateCode": "MD",
+               "stateName": "Maryland"
+           },
+           {
+               "id": 2,
+               "stateCode": "VA",
+               "stateName": "Virginia"
+           }
+       ]
+
+
+	d. Verify that the REST call is *SLOW*
+
+
+
+
+Part 2:  Setup the Page Layout with a hard-coded dropdown of USA States
+-----------------------------------------------------------------------
  1. Setup the Page
     a. Generate the component                 UserProfile
     b. Add the route to constants.ts:         the route will be this:   page/user-profile
@@ -39,11 +155,11 @@ Part 1:  Setup the Page Layout and the dropdown of USA States (so it is not cach
 
 
 
- 3. Add Form Controls  (exc
+ 3. Add Form Controls
     a. Create a dropdown for the USA States
- 		value is "MD"       user sees "Maryland"
- 		value is "VA        user sees "Virginia"
- 		value is "DC"       user sees "Distict of Columbia"
+ 		value is 1      user sees "MD / Maryland"
+ 		value is 2      user sees "VA / Virginia"
+ 		value is 3      user sees "DC / District of Columbia"
 
     b. Add the text boxes
 
@@ -52,24 +168,37 @@ Part 1:  Setup the Page Layout and the dropdown of USA States (so it is not cach
 
 
 
- 4. Create a frontend DTO:  MyLookupDTO
+
+
+
+Part 3:  Have the page invoke a Fake REST call to get all USA States
+--------------------------------------------------------------------
+ 1. Create a frontend DTO:  MyStateDTO
  	-- It has 2 fields:
- 				id        / holds the unique number
- 				value     / holds the displayed value
-
-	a. Create the frontend DTO:
-
-	b. Put in the 2 fields
+			 id     	 -- e.g., 50
+			 stateCode   -- e.g., "MD"
+			 stateName   -- e.g., "Maryland"
 
 
+		export class MyStateDTO {
+		  public id:        number;
+		  public stateCode: string;
+		  public stateName: string;
+		}
 
 
- 5. Create a frontend Service:  MyLookupService
+
+ 2. Create a frontend Service:  MyLookupService
     a. Create the service
 
     b. Add a public method to this service called getAllUsaStates()
+		-- It returns an Observable that holds an array of MyStateDTO objects
+		-- Nothing is passed-in
 
-    c. Create a local variable that holds the 3 fake records  [see step #]
+    c. Create a local variable that holds the 3 fake records
+ 		    1 / MD / Maryland
+ 		    2 / VA / Virginia
+ 		    3 / DC / District of Columbia
 
     d. Convert the variable into an observable
 
@@ -77,7 +206,7 @@ Part 1:  Setup the Page Layout and the dropdown of USA States (so it is not cach
 
 
 
- 6. In the Typescript, we need to *INITIALIZE* the observable
+ 3. In the main page Typescript, *INITIALIZE* the observable
  	a. Create a public class variable: obsUsaStates
  	   -- It is an observable that holds *ARRAY* of MyLookupDTO objects
 
@@ -88,23 +217,48 @@ Part 1:  Setup the Page Layout and the dropdown of USA States (so it is not cach
 
 
 
- 7. In the HTML, add the async-pipe *AND* loop through the array of USA States
+ 4. In the HTML, add the async-pipe *AND* loop through the array of USA States
  	a. Remove the hard-coded <mat-option> tags
 
-	b. Use the *ngIf and async-pipe to invoke the REST call
+	b. Add an <ng-container> with the async pipe to invoke the observable
 
- 	c. Replace them with a *ngFor loop
+ 	c. Add an <ng-container> with a for loop to add the <mat-option> tags
 
 
-
- 8. Add a delay to your REST call so it takes 5 seconds to load
-
+ 5. Verify the dropdown shows the 3 fake records
 
 
 
+Part 4:  Integrate frontend and backend / Have the frontend service invoke the Real REST call
+---------------------------------------------------------------------------------------------
+ 1. Edit the frontend service:  MyLookupService
 
-Part 2:  Change the frontend service so the USA States are cached
------------------------------------------------------------------
+ 2. Inject the httpClient
+
+ 3. Edit getAllUsaStates()
+    a. Remove all of the code in this method
+
+    b. Add a line that builds URL to invoke the REST call
+
+ 				// Construct the URL to this REST call
+ 				const restUrl: string = environment.baseUrl + '/api/my-lookup/usa-states';
+
+
+ 	c. The 2nd line returns an observable hooked-up to this url
+
+ 				// Return the observable that will invoke this REST call
+ 				return this.httpClient.get <MyStateDTO[]>(restUrl);
+
+
+
+ 4. Verify that invoking the real REST call works
+
+ 5. Verify that the dropdown does not have any options for 5 seconds
+
+
+
+Part 5:  Change the frontend service so the USA States are cached
+------------------------------------------------------------------
 We are going to add a class variable called "cache" to the MyLookupService that is a map
 
 		cache
@@ -115,8 +269,7 @@ We are going to add a class variable called "cache" to the MyLookupService that 
 				|     "p"     |    observable of priorities  |
 				+-------------+------------------------------+
 
- 1. Edit the MyLookup Service
-
+ 1. Edit the frontend service:  MyLookupService
 
  2. Add a 1st class variable: cache
     -- The type is any
@@ -138,7 +291,5 @@ We are going to add a class variable called "cache" to the MyLookupService that 
 	   		invoke the REST call
 	   		store the observable in the cache
 	   		return the cached observable
-
-
 
 
