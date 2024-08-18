@@ -419,6 +419,30 @@ Part 3:  Have the page invoke a Fake REST call to get all USA States
     e. Return the observable
 
 
+		TypeScript could look like this
+		-------------------------------
+		public getAllUsaStates(): Observable<MyStateDTO[]> {
+			let data: MyStateDTO[] = [
+			  {
+				id: 1,
+				stateCode: 'MD',
+				stateName: 'Maryland'
+			  },
+			  {
+				id: 2,
+				stateCode: 'VA',
+				stateName: 'Virginia'
+			  },
+			  {
+				id: 3,
+				stateCode: 'DC',
+				stateName: 'District of Columbia'
+			  }
+			  ];
+
+			return of(data);
+		}
+
 
  3. In the main page Typescript, *INITIALIZE* the observable
  	a. Create a public class variable: obsUsaStates
@@ -429,15 +453,62 @@ Part 3:  Have the page invoke a Fake REST call to get all USA States
  	c. In the ngOnInit(), initialize the observable
 
 
+	  TypeScript could look like this:
+	  --------------------------------
+	  import {Component, OnInit} from '@angular/core';
+      import {MyStateDTO} from "../../models/my-state-dto";
+      import {Observable} from "rxjs";
+      import {MyLookupService} from "../../services/my-lookup.service";
+
+      @Component({
+        selector: 'app-user-profile',
+        templateUrl: './user-profile.component.html',
+        styleUrls: ['./user-profile.component.scss']
+      })
+      export class UserProfileComponent implements OnInit {
+
+          public obsUsaState: Observable<MyStateDTO[]>;
+
+          constructor(private myLookupService: MyLookupService) { }
+
+          public ngOnInit(): void {
+            // Initialize the observable
+            // NOTE:  The async-pipe will subscribe and unsubscribe to it
+            this.obsUsaState = this.myLookupService.getAllUsaStates();
+          }
+
+      }
 
 
- 4. In the HTML, add the async-pipe *AND* loop through the array of USA States
- 	a. Remove the hard-coded <mat-option> tags
+
+
+ 4. In the HTML / in the States Dropdown / add the async-pipe *AND* loop through the array of USA States
+ 	a. In the HTML / Remove the hard-coded <mat-option> tags
 
 	b. Add an <ng-container> with the async pipe to invoke the observable
 
  	c. Add an <ng-container> with a for loop to add the <mat-option> tags
 
+
+		HTML could look like this:
+		--------------------------
+		<mat-form-field subscriptSizing="dynamic" class="w-full">
+			<mat-label>State</mat-label>
+
+			<!-- Set the panelWidth to an empty string so that the panel stretches to the widest option -->
+			<mat-select title="USA State" aria-label="USA State" panelWidth="">
+
+			  <ng-container *ngIf="(this.obsUsaState | async) as states">
+				  <ng-container *ngFor="let dto of states">
+
+					<mat-option [value]="dto.id">
+						{{ dto.stateCode }} / {{ dto.stateName }}
+					</mat-option>
+
+				  </ng-container>
+			  </ng-container>
+			</mat-select>
+		</mat-form-field>
 
  5. Verify the dropdown shows the 3 fake records
 
@@ -447,7 +518,7 @@ Part 4:  Integrate frontend and backend / Have the frontend service invoke the R
 ---------------------------------------------------------------------------------------------
  1. Edit the frontend service:  MyLookupService
 
- 2. Inject the httpClient
+ 2. Inject the service:  httpClient
 
  3. Edit getAllUsaStates()
     a. Remove all of the code in this method
@@ -464,10 +535,24 @@ Part 4:  Integrate frontend and backend / Have the frontend service invoke the R
  				return this.httpClient.get <MyStateDTO[]>(restUrl);
 
 
+		When finished, the method looks like this
+		-----------------------------------------
+		public getAllUsaStates(): Observable<MyStateDTO[]> {
+			// Construct the URL to this REST call
+			const restUrl: string = environment.baseUrl + '/api/my-lookup/usa-states';
+
+			// Return the observable that will invoke this REST call
+			return this.httpClient.get <MyStateDTO[]>(restUrl);
+		}
+
+
 
  4. Verify that invoking the real REST call works
 
  5. Verify that the dropdown does not have any options for 5 seconds
+
+ 6. Verify the REST call is *SLOW*
+    -- The dropdowns options should appear after 5 seconds
 
 
 
@@ -496,6 +581,8 @@ We are going to add a class variable called "cache" to the MyLookupService that 
  	-- Set this variable is a string
  	-- It always holds "u"                 NOTE:  The string does not matter as long as it is unique in the cache
 
+  		private readonly USA_STATES_KEY: string = "u";
+
 
  4. Change the getAllUsaStates() to look in the cache first
 	a. Get the cache key
@@ -518,7 +605,7 @@ We are going to add a class variable called "cache" to the MyLookupService that 
 
 
 		To this:
-			public getAllUsaStates(): Observable<MyLookupDTO[]> {
+			public getAllUsaStates(): Observable<MyStateDTO[]> {
 				const key: string = this.USA_STATES_KEY;
 
 				if (this.cache[key]) {
@@ -539,3 +626,13 @@ We are going to add a class variable called "cache" to the MyLookupService that 
 				return this.cache[key];
 			}
 
+
+
+ 5. Verify that it works
+    a. Go to the User Profile page
+       -- Verify that the USA States dropdown should take 5 seconds the *FIRST* time you visit the page
+    b. Go to a different page
+    c. Return to the User Profile page
+       -- The USA States dropdown should load instantly
+
+	   WARNING:  If you reload the entire web page, then the cache is cleared
