@@ -19,13 +19,14 @@ Angular 16 Lesson Plan
     <a href="./lesson03_installTailwind.txt">Install Tailwind</a>
     <a href="./lesson04_installFontAwesome.txt">Install Font Awesome Pro</a>
 
- 4. Setup the navbar
-    <a href="./lesson05a_setupNavBarWithAngularMaterialSideNav.txt">Setup Navbar w/Angular Material SideNav (visible/invisible)</a>
-    <a href="./lesson05b_setupNavBarUsingTailWind.txt">Setup Navbar w/Tailwind (visible/invisible)</a>
-    <a href="./lesson05c_setupNavBarUsingTailWindAlwaysVisible.txt">Setup Navbar w/Tailwind (collapsed/expanded)</a>
+ 4. Setup the project
+    a. <a href="https://github.com/traderres/angularApp16/tree/lesson5a/setup-navbar-using-angular-material">Checkout the App16 project</a> w/frontend, backend
+    b. <a href="https://github.com/traderres/angularApp16/tree/lesson6/add-database-and-es">Checkout the App16 project</a> w/frontend, backend, db-migrations, sync-service
+    c. <a href="https://github.com/traderres/angularApp16/tree/lesson7/setup-navbar-using-tailwind">Checkout the App16 project</a> w/frontend, backend, db-migrations, sync-service, and navbar   
 
-      At this point, you have a real web application and can start adding page views
+      At this point, you have a working Angular 16 web app / you can start adding page views to it
     
+
  5. Layouts (using Tailwind CSS)
     a. <a href="./lectures/boring.lecture.basic.layouts.txt">Basic Layouts w/Tailwind</a>            
        <a href="./howToSetupTopRow.txt">How to Setup the Top Row</a>
