@@ -23,6 +23,7 @@ Angular 16 Lesson Plan
     a. <a href="https://github.com/traderres/angularApp16/tree/lesson5a/setup-navbar-using-angular-material">Checkout the App16 project</a> w/frontend, backend
     b. <a href="https://github.com/traderres/angularApp16/tree/lesson6/add-database-and-es">Checkout the App16 project</a> w/frontend, backend, db-migrations, sync-service
     c. <a href="https://github.com/traderres/angularApp16/tree/lesson7/setup-navbar-using-tailwind">Checkout the App16 project</a> w/frontend, backend, db-migrations, sync-service, and navbar   
+    d. <a href="https://github.com/traderres/angularApp16/tree/lesson8/add-grid">Checkout the App16 project</a> w/frontend, backend, db-migrations, sync-service, navbar, and ag-grid   
 
       At this point, you have a working Angular 16 web app / you can start adding page views to it
     
