@@ -98,11 +98,11 @@ Angular 16 Lesson Plan
        Exercise 16d / Listen on autocomplete                  (Answers)
 
  9. Saving Data 
-    a. Submit button invokes a REST call
-    b. Submit button shows spinner while waiting on REST call
-    c. Stop user from doing anything while waiting on REST call
-    d. Auto-save every N seconds with a reactive form
-    e. Auto-save when leaving a page  
+    <a href="./exercises/exercise17a.submit-button-invokes-REST-call.question.txt"   title="Exercise 17a">Exercise 17a</a> / Submit button invokes REST call            (<a href="./exercises/exercise17a.submit-button-invokes-REST-call.answers.txt"  title="Answer to 17a">Answers</a>)
+    Exercise 17b / Show spinner while waiting on REST call
+    Exercise 17c / Use dialogs to freeze user while waiting 
+    Exercise 17d / Auto-save every N seconds with a reactive form
+    Exercise 17e / Auto-save when leaving a page  
 
 10. Sending Messages using Observables, Subjects, and Arrow Functions
     a. How to send messages from one part of the web app to another
