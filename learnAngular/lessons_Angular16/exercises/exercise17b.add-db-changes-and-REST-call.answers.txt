@@ -1,0 +1,241 @@
+Exercise 17b / Saving Data / Add Database Changes, Build REST Call, Integrate REST Call (Answers)
+-------------------------------------------------------------------------------------------------
+Problem:  I need a database table to hold the changes
+          I need a REST call to save the information to the database (and add audit records)
+
+Solution: Create database tables
+		  Use the AuditManager to run a SQL Insert statement *AND* add an audit record
+
+
+            +-------------------------------------------------------------------------------------+
+            | Add a Report                                                             <Help Btn> |
+            +-------------------------------------------------------------------------------------+
+            |                                                                                     |
+            |  <Report Name Textbox>                                                              |
+            |                                                                                     |
+            |  <Source Dropdown>              <Priority Dropdown>       <Classification Dropdown> |
+            |                                                                                     |
+            |  <Choose Authors>                                                                   |
+            |                                                                                     |
+            |  +--------------------------------------------------------------------------------+ |
+            |  | Enter Description                                                              | |
+            |  |                                                                                | |
+            |  +--------------------------------------------------------------------------------+ |
+            |                                                                                     |
+            |                             <Reset Btn>   <Save Btn>                                |
+            +-------------------------------------------------------------------------------------+
+
+			Pressing "Save" will invoke a REST call to save this information to the "reports" table
+
+
+REST Call Contract
+------------------
+ 	 a. What's the URL?    		/api/reports/add
+ 	 b. What is the URL Type?	POST
+ 	 c. What is passed-in?      DTO that holds all of this information -- call it AddReportDTO
+ 	 								reportName
+ 	 								description
+ 	 								sourceId
+ 	 								priorityId
+ 	 								classificationId
+ 	 								authors          [is an array of authorIds]
+
+ 	 d. What is returned?   	Nothing  (but it does return a 200 status code upon success)
+
+ 	 e. What checks are made on the passed-in data?
+
+ 	 f. Which roles are allowed to use this REST call?
+ 		All of them
+
+ 	 g. What does this REST call do?
+ 		-- insert data into the "reports" table
+ 		-- insert an audit record into the "reports_aud" table
+ 		-- It will return a 200 status code for now
+
+
+
+Part 1:  Add the Database Tables
+--------------------------------
+ 1. In Intellij, open a new Query Console (to verify the SQL)
+
+
+ 2. Generate the SQL to add a table:  reports_authors
+ 		id					/ numeric and primary key
+ 		report_id			/ numeric and foreign key to reports
+ 		userid_id           / numeric and foreign key to users table
+
+
+ 3. Generate the SQL to add a table:  reports_authors_aud
+ 	-- It has all columns in the report_authors table  (but no primary key and foreign keys)
+ 	-- It has the 4 audit columns
+		  timestamp            timestamp     not null,
+		  username             varchar(100)  not null,
+		  audit_type           integer       not null,
+		  transaction_id       integer       not null
+
+
+ 4. Generate the SQL to add a table:  reports
+ 		id 					/ numeric and primary key
+		report_name 		/ varchar up to 100 chars
+		description 		/ text
+		sourceId    		/ numeric
+		priorityId  		/ numeric
+		classificationId  	/ numeric
+
+
+ 5. Generate the SQL to add a table:  reports_aud
+  	-- It has all columns in the report_authors table  (but no primary key and foreign keys)
+  	-- It has the 4 audit columns
+		  timestamp            timestamp     not null,
+		  username             varchar(100)  not null,
+		  audit_type           integer       not null,
+		  transaction_id       integer       not null
+
+
+ 6. Copy the verified SQL to your V1.0__baseline.sql script
+
+
+ 7. Verify the database changes are reproducible
+    a. Nuke your database
+    b. Look in your Database Console:  You should see the new tables
+
+
+
+
+Part 2:  Build REST Call
+------------------------
+ 1. Create a backend DTO class:  AddReportDTO
+ 	a. Add the fields to it:
+			reportName
+			description
+			sourceId
+			priorityId
+			classificationId
+			authors
+
+ 	b. Generate the getters & setters
+
+
+
+ 2. Create a backend service class
+ 	a. Crete the backend service class:  ReportService
+
+ 	b. Add the @Service annotation (above the name of the class)
+ 	   NOTE:  This tells Spring to instantiate this class as a singleton and make it injectable
+
+ 	c. Add a logger
+ 	   NOTE:  No, we don't use print statements on the backend.  Not.  Ever.
+
+ 	e. Create a public method called addReport()
+ 	   -- What is passed-in to this REST call?   [look at the REST call contract]
+ 	   -- What is returned from this REST call?  [look at the REST call contract]
+
+ 	f. Fill-in this method with a logger and nothing else
+
+
+
+ 3. Create a backend controller class
+ 	a. Create the backend controller class:  ReportController
+
+ 	b. Add the @Controller annotation (above the name of the class)
+ 	   NOTE:  This tells Spring that this is where REST calls will start
+
+ 	c. Add a logger
+
+ 	d. Inject the ReportService
+
+ 	e. Create a public method called addReport()
+ 	   -- It returns a ResponseEntity<?>
+	    -- What is passed-in to this REST call?   [look at the REST call contract]
+
+ 	f. Add the @RequestMapping annotation
+ 	 		value = URL of this REST call
+ 	 		method = URL Type of this REST call
+ 	 		produces = "application/json"
+
+ 	g. Limit which security roles can hit this REST call by adding the @PreAuthorize annotation
+
+ 	h. Have the method call your ReportService.addReport()
+
+ 	i. Have the method return a 200 status code
+
+
+
+ 4. Use Postman to verify that the REST call *OUTLINE* works
+    a. Startup the backend
+    	-- Read the 3rd last line from the output
+
+    b. Startup Postman
+    	-- Attempt to hit the REST call
+
+    c. Attempt to use the REST call and pass-in information to it
+
+
+
+ 5. Finish developing the REST call so it runs a SQL transaction and inserts a record into the Reports table
+ 	a. Generate the SQL to insert a record into the REPORTS table
+
+ 	b. Edit ReportService.addReport()
+
+ 	c. Add a local variable:  sql  (that holds your insert statement)
+
+ 	d. Instantiate a copy of the AuditManager
+
+ 	e. Generate the new reportId
+
+ 	f. Use the auditManager instance to insert a record into the reports table
+
+ 	g. Use the auditManager instance to insert records into the reports_authors table  (using the new reportId)
+	   -- How will you insert *MULTIPLE* reports_authors records?
+
+    h. Put a SQL Transaction around the addReport() method so it either ALL WORKS or nothing happens
+
+
+
+ 6. Verify your REST call works
+ 	a. Startup the backend
+ 	b. Use Postman to hit it
+ 	c. Verify that the records appear in the Reports and Reports_Authors table
+
+
+
+
+Part 3:  Integrate the frontend and backend / Have the frontend service invoke the real REST call
+-------------------------------------------------------------------------------------------------
+ 1. Edit the frontend service:  ReportService
+
+ 2. Inject the service:  httpClient
+
+ 3. Edit addReport()
+    a. Remove all of the code in this method
+
+    b. Add a line that builds URL to invoke the REST call
+
+ 				// Construct the URL to this REST call
+ 				const restUrl: string = environment.baseUrl + '/api/reports/add';
+
+ 	c. The 2nd line returns an observable hooked-up to this url
+
+ 				// Return the observable that will invoke this REST call
+ 				return this.httpClient.post <void>(restUrl, dto);
+
+
+		When finished, the method looks like this
+		-----------------------------------------
+		public addReport(aDTO: AddReportDTO): Observable<void> {
+			// Construct the URL to this REST call
+			const restUrl: string = environment.baseUrl + '/api/reports/add';
+
+			// Return the observable that will invoke this REST call
+			return this.httpClient.post <void>(restUrl, dto);
+		}
+
+
+
+ 4. Verify that invoking the real REST call works
+ 	-- Do the records appear in the database table?
+ 	-- Do the audit records appear in the audit tables?
+
+
+
+

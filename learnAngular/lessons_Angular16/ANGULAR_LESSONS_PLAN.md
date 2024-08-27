@@ -99,9 +99,9 @@ Angular 16 Lesson Plan
        Exercise 16d / Listen on autocomplete                  (Answers)
 
  9. Saving Data 
-    <a href="./exercises/exercise17a.submit-button-invokes-REST-call.question.txt"   title="Exercise 17a">Exercise 17a</a> / Submit button invokes REST call            (<a href="./exercises/exercise17a.submit-button-invokes-REST-call.answers.txt"  title="Answer to 17a">Answers</a>)
-    Exercise 17b / Show spinner while waiting on REST call
-    Exercise 17c / Use dialogs to freeze user while waiting 
+    <a href="./exercises/exercise17a.submit-button-invokes-REST-call.question.txt"   title="Exercise 17a">Exercise 17a</a> / Setup "Add Report" Page w/fake REST call   (<a href="./exercises/exercise17a.submit-button-invokes-REST-call.answers.txt"  title="Answer to 17a">Answers</a>)
+    <a href="./exercises/exercise17b.add-db-changes-and-REST-call.question.txt"      title="Exercise 17b">Exercise 17b</a> / Add database changes & Build REST call     (<a href="./exercises/exercise17b.add-db-changes-and-REST-call.answers.txt"     title="Answer to 17b">Answers</a>)
+    <a href="./exercises/exercise17c.use-dialog-to-freeze-user.question.txt"         title="Exercise 17c">Exercise 17c</a> / Use dialog to freeze user while waiting    (<a href="./exercises/exercise17d.se-dialog-to-freeze-user.answers.txt"         title="Answer to 17d">Answers</a>)
     Exercise 17d / Auto-save every N seconds with a reactive form
     Exercise 17e / Auto-save when leaving a page  
 
