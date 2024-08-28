@@ -6,5 +6,129 @@ Solution: Use the AuditManager to run your SQL and *automatically* add the audit
 
 
 
+REST Call Types
+---------------
+ 1) Read-only REST calls   (80% of REST calls)
+    These REST calls run SQL SELECT statements or ElasticSearch read-only operations
+
+ 2) Read-Write REST calls  (20% of REST calls)
+    Run your SQL code within a SQL Transaction
+    Use the AuditManager to add an audit record for you
 
 
+Assumptions
+-----------
+ 1. ReportService.addReport(AddReportDTO aDTO)
+    -- This method has a DTO passed-in of type AddReportDTO
+    -- The AddReportDTO has getters and setters for these fields
+			reportName
+			description
+			sourceId
+			priorityId
+			classificationId
+			authors          [is a list of integers]
+
+
+
+How to Run a SQL transaction to insert some records into the Reports table
+--------------------------------------------------------------------------
+ 1. Generate the SQL to insert a record into the REPORTS table
+    *FIRST*   Use the Query Console in IntelliJ to figure out your SQL
+    *SECOND*  Copy your verified SQL into your Java code
+
+
+ 2. Edit your ReportService.java
+
+
+ 3. Inject 3 services:
+ 	-- Inject the DataSource     	/ we need this to execute SQL and use the AuditManager
+ 	-- Inject the UserService    	/ we need this to get the name of the logged-in user
+ 	-- Inject the DatabaseService  	/ we need this to generate a new reportId
+
+
+ 4. Edit ReportService.addReport() so it inserts a single REPORTS record
+	a. Instantiate an instance of the AuditManager
+			AuditManager auditManager = new AuditManager(dataSource, userService.getLoggedInUserName(), databaseService.getMapTableNameToCsvOfColumns());
+
+	b. Add a local variable:  newReportId    (that holds the new reportId)
+	   Use the databaseService.getNextId() method to get the next UNIQUE number from a sequence
+		-- Store this UNIQUE number in newReportId
+
+			// Generate the unique reportId
+			Integer newReportId = databaseService.getNextId();
+
+
+ 	d. Add a local variable:  sql  (that holds your insert statement)
+	   NOTE:  Use named bind parameters
+
+			String sql = """
+						 insert into reports(id, description, priority)
+						 values(:id, :description, :priority)
+						 """;
+
+
+	e. Create a Map<String, Object> that holds all of the variables
+
+			// Create the parameter map
+			Map<String, Object> paramMap = new HashMap<>();
+			paramMap.put("id", 			 newReportId);
+			paramMap.put("description",  aDTO.getDescription() );
+			paramMap.put("priority", 	 aDTO.getPriorityId() );
+
+
+ 	f. Use the auditManager instance to insert a record into the reports table
+
+			// Executing the SQL to add the record to the REPORTS table and add an audit record)
+			auditManager.runSqlInsertOne(sql, paramMap, "report_aud");
+
+
+
+
+ 5. Edit ReportService.addReport() to add *MULTIPLE* records into REPORTS_AUTHORS
+
+ 	Approach #1:  Loop through the list of authors and insert REPORTS_AUTHORS records
+
+
+ 	Approach #2:  Loop through the list of authors and generate a large SQL insert statement / run SQL insert statement
+
+
+
+
+
+ 6. Put a SQL Transaction around the ReportService.addReport() method
+
+ 		public void addReport(AddReportDTO aDTO)  {
+
+			TransactionTemplate tt = new TransactionTemplate();
+			tt.setTransactionManager(new DataSourceTransactionManager(this.dataSource));
+
+			// This transaction will throw a TransactionTimedOutException after 60 seconds (causing the transaction to rollback)
+			tt.setTimeout(Constants.SQL_TRANSACTION_TIMEOUT_SECS);
+
+			tt.execute(new TransactionCallbackWithoutResult() {
+				protected void doInTransactionWithoutResult(TransactionStatus aStatus) {
+
+					// All SQL calls run in a transaction
+					AuditManager auditManager = new AuditManager(dataSource, userService.getLoggedInUserName(), databaseService.getMapTableNameToCsvOfColumns());
+
+					// Generate the unique reportId
+					Integer newReportId = databaseService.getNextId();
+
+					// Construct the SQL to insert a record
+					String sql = """
+								 insert into reports(id, description, priority)
+								 values(:id, :description, :priority)
+								 """;
+
+					// Create the parameter map
+					Map<String, Object> paramMap = new HashMap<>();
+					paramMap.put("id", 			 newReportId);
+					paramMap.put("description",  aDTO.getDescription() );
+					paramMap.put("priority", 	 aDTO.getPriorityId() );
+
+					// Executing the SQL to add the record to the REPORTS table and add an audit record)
+					auditManager.runSqlInsertOne(sql, paramMap, "report_aud");
+				}
+			});
+
+		}
