@@ -1,0 +1,197 @@
+Exercise 17c / Saving Data / Use the Audit Manager in a SQL Transaction
+-----------------------------------------------------------------------
+Problem:  I need to run some SQL to insert some records
+Solution: Use the AuditManager to run your SQL and *automatically* add the audit records
+          Run the SQL Calls in a transaction
+
+
+
+Database Versioning and Auditing
+--------------------------------
+Flyway is a database versioning tool.
+
+			V1.0 of our ENTIRE database has a users and a users_preferences table
+
+			V1.1 of the ENTIRE database has all of the PREVIOUS stuff and these changes
+							-- Add a reports_authors table
+							-- Add a reports_authors_aud table
+
+
+			V1.2 of the ENTIRE database has all of the PREVIOUS stuff and these changes
+							-- We added some columns to the reports and reports_aud table
+
+
+
+		Flyway gives you:
+			1) Ability to share database changes
+			2) Ability to TIE   database changes to a version of the application
+			3) The sync-service runs flyway:migrate every time it starts   (how changes are deployed in production)
+
+
+		On Monday, I'm running V1.1 of the entire system
+
+		On Wednesday, I'm upgrading to V1.2
+			(V1.2 has some database changes -- so we have a V1.2__changes.sql
+
+			a) Sync Service is deployed
+
+			b) Sync Service runs
+				-- Runs a flyway migrate
+				-- Flyway sees it's at version 1.1
+				-- Flyway sees a V1.2 script
+				-- Flyway **APPLIES** the V1.2 script
+
+				Rebuild ElasticSearch caches
+
+
+			c) Deploy the webapps
+
+
+
+Auditing
+--------
+Govt requires all projects to audit records for approximately 5 years
+Govt does not say **HOW**
+
+Approaches to Auditing
+ 1) Audit the big things
+		a) You have a single table of big things (Users or Contracts or something)
+		b) Anytime something "big" happens, append a record to this table
+
+ 2) Audit the little things   [the author's preferred approach]
+	a) For every database table that can be updated by the backend [via a user invoking a REST call or something]
+	   We have **ANOTHER** table that ends with aud
+
+
+				create table REPORTS_AUTHORS (
+					id			 integer not null,
+					user_id      integer not null,
+					report_id    integer not null,
+				    primary key(id),
+					constraint with user_id --> users.id
+				);
+
+				create table REPORTS_AUTHORS_AUD (
+					id			 			integer null,
+					user_id      			integer null,
+					report_id   			integer null,
+					timestamp               timestamp     not null,
+					username                varchar(100)  not null,
+					audit_type              integer       not null,
+					transaction_id          integer       not null
+				);
+
+
+
+				create table REPORTS (
+					id			 integer not null,
+					reportName   varchar(100) not null,
+				    primary key(id)
+				);
+
+
+				create table REPORTS_AUD (
+					id						integer      null,
+					reportName   			varchar(100) null,
+					timestamp               timestamp     not null,
+					username                varchar(100)  not null,
+					audit_type              integer       not null,
+					transaction_id          integer       not null
+				);
+
+
+				-- Valid SQL to insert a single record
+				Insert into reports(id, reportName) values(27, 'Report #1');
+
+
+				The AuditManager takes your SQL and wraps
+
+
+					insert into reports_aud(id, reportName, username, timestamp, audit_type, transaction_id) values(27, 'Report #1', 'john.smith', now(), 0, 5000);
+
+
+					with inserted_data as (
+						Insert into reports(id, reportName) values(27, 'Report #1') RETURNING *
+					)
+					insert into reports_aud(id, reportName, username, timestamp, audit_type, transaction_id)  (
+						-- Inserts the audit records
+						select * from insert_data
+					)
+
+
+
+
+
+				);
+				REPORTS_AUD table
+
+
+
+
+Bind Variable
+-------------
+							Login to my App
+				+---------------------------------------+
+				|                                       |
+				|           Username Textbox            |
+                |           Password Textbox            |
+                |              <Login Btn>              |
+                +---------------------------------------+
+
+
+				+---------------------------------------+
+				|                                       |
+				|           john.smith                  |
+                |           secret                      |
+                |              <Login Btn>              |
+                +---------------------------------------+
+						--> invokes some kind of REST Call
+								--> Backend Controller has to generate some SQL
+
+											select count(id)
+											from users
+											where username='jane.smith' AND password='secret';
+
+
+
+
+
+				+---------------------------------------+
+				|                                       |
+				|           john.smith                  |
+                |           secret '' OR 1=1            |
+                |              <Login Btn>              |
+                +---------------------------------------+
+						--> invokes some kind of REST Call
+								--> Backend Controller has to generate some SQL
+
+                                                                                                                                                         Database
+											select count(id) 						--------------------------------------------------------->    +------------------------------------------------+
+											from users                                                    SQL                                     | 1) Verify the syntax of the SQL is good        |
+											where username=:username AND password=:password                                                                       | 2) Look to see if SQL is in the SPA cache
+                                                                                                                                                  |    If found in cache, used the cache info to determine fastest way to execute
+                                                                                                                                                  |    if not found in cache, determine fastest way to execute and add to cache
+                                                                                                                                                  | 3) Execute SQL and return data
+																																				  +----------------------------------------------------
+
+																																						select a, b, c
+                                                                                                                                                        from users u, reports r --> Determines fastest way to execute
+
+	Advantages of Bind Variables                                                                                                                        select count(id) from users where username=?
+	----------------------------
+	1) Protection from sql-injection
+ 	2) Handles the apostrophes automatically:   O'Reilly case ----> gets converted to O''reilly
+	3) Performance boost of up to 10%
+
+
+	Types of Bind Variables in Spring-JDBC
+	--------------------------------------
+	A) JdbcTemplate uses ?
+			insert into reports(id, reportName)
+			values(?, ?)
+
+	B) NamedParameterJdbcTemplate uses  :id or :stuff
+			insert into reports(id, reportName)
+			values( :id,  :reportName )
+
+

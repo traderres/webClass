@@ -14,7 +14,8 @@ Angular 16 Lesson Plan
     d. One-way-binding and two-way-binding
     e. <a href="./lectures/boring.lecture.approaches.loading.data.txt">Approaches to Loading Data</a>
     f. <a href="./lectures/boring.lecture.what.is.observable.txt">What is an Observable?</a>
-    
+    g. <a href="./lectures/boring.lecture.flyway.auditing.bind.variables.txt">Database Versioning, Auditing, and Bind Variables?</a>
+
  3. Add Frontend Dependencies
     <a href="./lesson03_installTailwind.txt">Install Tailwind</a>
     <a href="./lesson04_installFontAwesome.txt">Install Font Awesome Pro</a>
@@ -101,7 +102,8 @@ Angular 16 Lesson Plan
  9. Saving Data 
     <a href="./exercises/exercise17a.submit-button-invokes-REST-call.question.txt"   title="Exercise 17a">Exercise 17a</a> / Setup "Add Report" Page w/fake REST call   (<a href="./exercises/exercise17a.submit-button-invokes-REST-call.answers.txt"  title="Answer to 17a">Answers</a>)
     <a href="./exercises/exercise17b.add-db-changes-and-REST-call.question.txt"      title="Exercise 17b">Exercise 17b</a> / Add database changes & Build REST call     (<a href="./exercises/exercise17b.add-db-changes-and-REST-call.answers.txt"     title="Answer to 17b">Answers</a>)
-    <a href="./exercises/exercise17c.use-dialog-to-freeze-user.question.txt"         title="Exercise 17c">Exercise 17c</a> / Use dialog to freeze user while waiting    (<a href="./exercises/exercise17c.use-dialog-to-freeze-user.answers.txt"        title="Answer to 17c">Answers</a>)
+    <a href="./exercises/exercise17c.use-audit-manager-in-transaction.question.txt"               title="Exercise 17c">Exercise 17c</a> / Use AuditManager in a SQL Transaction      (<a href="./exercises/exercise17c.use-audit-manager-in-transaction.answers.txt" title="Answer to 17c">Answers</a>)
+    <a href="./exercises/exercise17d.use-dialog-to-freeze-user.question.txt"         title="Exercise 17d">Exercise 17d</a> / Use dialog to freeze user while waiting    (<a href="./exercises/exercise17d.use-dialog-to-freeze-user.answers.txt"        title="Answer to 17d">Answers</a>)
     Exercise 17d / Auto-save every N seconds with a reactive form
     Exercise 17e / Auto-save when leaving a page  
 
