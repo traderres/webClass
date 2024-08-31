@@ -30,8 +30,8 @@ Angular 16 Lesson Plan
     
 
  5. Layouts (using Tailwind CSS)
-    a. <a href="./lectures/boring.lecture.basic.layouts.txt">Basic Layouts w/Tailwind</a>            
-       <a href="./howToSetupTopRow.txt">How to Setup the Top Row</a>
+    a. <a href="./lectures/boring.lecture.basic.layouts.txt"               title="Basic Layouts w/Tailwind">Basic Layouts w/Tailwind</a>            
+       <a href="./howToSetupTopRow.txt"                                    title="How to Setup the Top Row">How to Setup the Top Row</a>
            <a href="./exercises/exercise01a.question.txt"                  title="Exercise 1a">Exercise 1a</a> / Three Boxes Page        (<a href="./exercises/exercise01a.answers.txt"                  title="Answer to 1a">Answers</a>)
            <a href="./exercises/exercise01b.question.txt"                  title="Exercise 1b">Exercise 1b</a> / Fixed & Variable Widths (<a href="./exercises/exercise01b.answers.txt"                  title="Answer to 1b">Answers</a>)
            <a href="./exercises/exercise02.my-settings.question.txt"       title="Exercise 2 ">Exercise 2</a>  / My Settings             (<a href="./exercises/exercise02.my-settings.answers.txt"       title="Answer to 2">Answers</a>)
