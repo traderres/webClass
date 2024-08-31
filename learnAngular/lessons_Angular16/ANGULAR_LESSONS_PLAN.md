@@ -3,28 +3,28 @@ Angular 16 Lesson Plan
 
 <pre>
  1. Setup the Development Env
-    <a href="https://docs.google.com/document/d/1-vutLIaIN0A3WDm0P4gf9yFRLNyVVX8s2RZLWrbdT-o/edit">Setup Development Env (Unix)</a>
-    <a href="https://docs.google.com/document/d/1-vutLIaIN0A3WDm0P4gf9yFRLNyVVX8s2RZLWrbdT-o/edit">Setup Development Env (Windows)</a>
-    <a href="./howToDebugExistingWebapp.txt">Setup debugging in IntelliJ Ultimate</a>
+    <a href="https://docs.google.com/document/d/1-vutLIaIN0A3WDm0P4gf9yFRLNyVVX8s2RZLWrbdT-o/edit" title="Setup Development Env (Unix)">Setup Development Env (Unix)</a>
+    <a href="https://docs.google.com/document/d/1-vutLIaIN0A3WDm0P4gf9yFRLNyVVX8s2RZLWrbdT-o/edit" title="Setup Development Env (Windows)">Setup Development Env (Windows)</a>
+    <a href="./howToDebugExistingWebapp.txt" title="Setup debugging in IntelliJ Ultimate">Setup debugging in IntelliJ Ultimate</a>
 
  2. Boring Lectures
-    a. <a href="./lectures/boring.lecture.overallArchitecture.txt">Overall Architecture (snooze)</a>
-    b. <a href="./lectures/boring.lecture.what.is.tailwind.txt">What is Tailwind?</a>
-    c. <a href="./lectures/boring.lecture.component.lifecycle.txt">Component Life Cycle</a>
+    a. <a href="./lectures/boring.lecture.overallArchitecture.txt"              title="Overall Architecture">Overall Architecture (snooze)</a>
+    b. <a href="./lectures/boring.lecture.what.is.tailwind.txt"                 title="What is Tailwind?">What is Tailwind?</a>
+    c. <a href="./lectures/boring.lecture.component.lifecycle.txt"              title="Component Life Cycle">Component Life Cycle</a>
     d. One-way-binding and two-way-binding
-    e. <a href="./lectures/boring.lecture.approaches.loading.data.txt">Approaches to Loading Data</a>
-    f. <a href="./lectures/boring.lecture.what.is.observable.txt">What is an Observable?</a>
-    g. <a href="./lectures/boring.lecture.flyway.auditing.bind.variables.txt">Database Versioning, Auditing, and Bind Variables?</a>
+    e. <a href="./lectures/boring.lecture.approaches.loading.data.txt"          title="Approaches to Loading Data">Approaches to Loading Data</a>
+    f. <a href="./lectures/boring.lecture.what.is.observable.txt"               title="What is an Observable">What is an Observable?</a>
+    g. <a href="./lectures/boring.lecture.flyway.auditing.bind.variables.txt"   title="Database Versioning">Database Versioning, Auditing, and Bind Variables?</a>
 
  3. Add Frontend Dependencies
     <a href="./lesson03_installTailwind.txt">Install Tailwind</a>
     <a href="./lesson04_installFontAwesome.txt">Install Font Awesome Pro</a>
 
  4. Setup the project
-    a. <a href="https://github.com/traderres/angularApp16/tree/lesson5a/setup-navbar-using-angular-material">Checkout the App16 project</a> w/frontend, backend
-    b. <a href="https://github.com/traderres/angularApp16/tree/lesson6/add-database-and-es">Checkout the App16 project</a> w/frontend, backend, db-migrations, sync-service
-    c. <a href="https://github.com/traderres/angularApp16/tree/lesson7/setup-navbar-using-tailwind">Checkout the App16 project</a> w/frontend, backend, db-migrations, sync-service, navbar   
-    d. <a href="https://github.com/traderres/angularApp16/tree/lesson8/add-grid">Checkout the App16 project</a> w/frontend, backend, db-migrations, sync-service, navbar, ag-grid   
+    a. <a href="https://github.com/traderres/angularApp16/tree/lesson5a/setup-navbar-using-angular-material" title="Checkout AngularApp16 lesson5a">Checkout the App16 project</a> w/frontend, backend
+    b. <a href="https://github.com/traderres/angularApp16/tree/lesson6/add-database-and-es"                  title="Checkout AngularApp16 lesson6">Checkout the App16 project</a> w/frontend, backend, db-migrations, sync-service
+    c. <a href="https://github.com/traderres/angularApp16/tree/lesson7/setup-navbar-using-tailwind"          title="Checkout AngularApp16 lesson7">Checkout the App16 project</a> w/frontend, backend, db-migrations, sync-service, navbar   
+    d. <a href="https://github.com/traderres/angularApp16/tree/lesson8/add-grid"                             title="Checkout AngularApp16 lesson8">Checkout the App16 project</a> w/frontend, backend, db-migrations, sync-service, navbar, ag-grid   
 
       At this point, you have a working Angular 16 web app / you can start adding page views to it
     
