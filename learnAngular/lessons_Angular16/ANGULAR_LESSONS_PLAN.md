@@ -115,10 +115,10 @@ Angular 16 Lesson Plan
     c. Message Service:  Used to display messages
  
 12. TypeScript
-    a. <a href="./howToReferenceEnumClass.txt">How to Use Enumerated Classes in HTML</a>  (constants.ts)
+    a. <a href="./howToReferenceEnumClass.txt" title="How to Use Enumerated Classes in HTML">How to Use Enumerated Classes in HTML</a>  (constants.ts)
 
 13. Grids (using ag-grid)
-    a. <a href="./lectures/boring.lecture.grids.txt">Client-Side vs Server-Side Grids</a>
+    a. <a href="./lectures/boring.lecture.grids.txt" title="Client-Side vs Server-Side Grids">Client-Side vs Server-Side Grids</a>
 
 14. HighCharts
 
