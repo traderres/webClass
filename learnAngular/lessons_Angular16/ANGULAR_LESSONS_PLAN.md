@@ -15,6 +15,8 @@ Angular 16 Lesson Plan
     e. <a href="./lectures/boring.lecture.approaches.loading.data.txt"          title="Approaches to Loading Data">Approaches to Loading Data</a>
     f. <a href="./lectures/boring.lecture.what.is.observable.txt"               title="What is an Observable">What is an Observable?</a>
     g. <a href="./lectures/boring.lecture.flyway.auditing.bind.variables.txt"   title="Database Versioning">Database Versioning, Auditing, and Bind Variables?</a>
+    h. <a href="./lectures/boring.lectures.waiting.for.rest.calls.txt"          title="Holding the user hostage while waiting for a REST call">Stopping users while waiting for a REST call to finish</a>
+    i. The dirty secret w/form validation:  All REST call contracts are ambigous
 
  3. Add Frontend Dependencies
     <a href="./lesson03_installTailwind.txt"    title="Install Tailwind">Install Tailwind</a>
