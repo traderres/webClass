@@ -17,8 +17,8 @@ Angular 16 Lesson Plan
     g. <a href="./lectures/boring.lecture.flyway.auditing.bind.variables.txt"   title="Database Versioning">Database Versioning, Auditing, and Bind Variables?</a>
 
  3. Add Frontend Dependencies
-    <a href="./lesson03_installTailwind.txt">Install Tailwind</a>
-    <a href="./lesson04_installFontAwesome.txt">Install Font Awesome Pro</a>
+    <a href="./lesson03_installTailwind.txt"    title="Install Tailwind">Install Tailwind</a>
+    <a href="./lesson04_installFontAwesome.txt" title="Install Font Awesome Pro">Install Font Awesome Pro</a>
 
  4. Setup the project
     a. <a href="https://github.com/traderres/angularApp16/tree/lesson5a/setup-navbar-using-angular-material" title="Checkout AngularApp16 lesson5a">Checkout the App16 project</a> w/frontend, backend
@@ -53,15 +53,15 @@ Angular 16 Lesson Plan
  6. Forms
     a. Template-based Forms  (used for simpler forms)
     b. Reactive forms        (used for complex forms)
-       <a href="./howToSetupReactiveForm.txt">Setup Reactive Forms</a>
+       <a href="./howToSetupReactiveForm.txt" title="Setup Reactive Forms">Setup Reactive Forms</a>
        Form Validation w/provided validators
        Form Validation w/custom validators (synchronous)
        Form Validation w/custom validators (asynchronous)
 
  7. Buttons, Text-Fields, and Controls (using Angular Material)
-    a. <a href="./lectures/boring.lecture.dropdowns.and.textboxes.txt">Intro to Textboxes & Dropdowns</a> in Angular Material
-    b. <a href="./lectures/boring.lecture.angular.tricks.and.techniques.txt">Angular Material Tricks & Techniques</a>
-    c. <a href="./howToAddHyperlinks.txt">Hyperlinks</a>
+    a. <a href="./lectures/boring.lecture.dropdowns.and.textboxes.txt"       title="Intro to Textboxes & Dropdowns">Intro to Textboxes & Dropdowns</a> in Angular Material
+    b. <a href="./lectures/boring.lecture.angular.tricks.and.techniques.txt" title="Angular Material Tricks">Angular Material Tricks & Techniques</a>
+    c. <a href="./howToAddHyperlinks.txt" title="Hyperlinks">Hyperlinks</a>
     d. Date Pickers
     e. Textareas
     f. Radio Buttons
