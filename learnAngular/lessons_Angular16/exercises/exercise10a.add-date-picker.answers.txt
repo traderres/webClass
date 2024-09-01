@@ -387,6 +387,7 @@ Exercise
   	 		Set the Contract Funding Date to 1st day of the previous month
   	 		Set the Contract Start Date to *TOMORROW*
   	 		Set the Contract End Date to   1 year after the start date
+			-- So if today is 9/14/2024, then the contract start date is 9/15/2024 - 9/15/2025
 
 
 		  private getFirstDayOfPreviousMonth(): Date {
@@ -442,6 +443,105 @@ Exercise
 
  9. Setup Form Validation with these rules:
  	a. The contract name cannot be blank:  it must have atleast one non-space character
+
+ 		1) Add the ValidatorService
+
+				import { Injectable } from '@angular/core';
+				import {AbstractControl, ValidatorFn} from "@angular/forms";
+
+				@Injectable({
+				  providedIn: 'root'
+				})
+				export class ValidatorService {
+
+				  constructor() { }
+
+				  public whiteSpaceValidator(): ValidatorFn {
+					return (control: AbstractControl) => {
+					  // Check if the input length is greater than zero to avoid conflict with required validator
+					  // Ensure that the input has a length greater than zero when spaces are removed
+					  // const isWhitespace = control.value.length > 0 && (control.value || '').trim().length === 0;
+					  // const isValid = !isWhitespace;
+					  let inputString: string = control.value;
+
+					  if (this.isBlank(inputString)) {
+						// Input is blank which is invalid.  So, return an error
+						return {'whitespace': `Input cannot be blank`};
+					  }
+					  else {
+						// Input is not blank which is valid.  So, return null
+						return null;
+					  }
+					}
+				  }
+
+				  public isBlank(aString: string): boolean {
+					if (!aString) {
+					  return true;
+					}
+					else if (aString.length == 0) {
+					  return true;
+					}
+					else return aString.trim().length == 0;
+				  }
+
+
+				}
+
+		2) Inject the ValidatorService
+  				public constructor(private formBuilder: FormBuilder,
+                     			   private validatorService: ValidatorService) {
+
+		3) Use the validatorService.whiteSpaceValidator()
+
+				// Initialize the form group
+				this.myForm = this.formBuilder.group({
+				  contractName:        [null, this.validatorService.whiteSpaceValidator() ],
+				  contractPriority:    [null, null],
+				  contractFundingDate: [null, null],
+				  contractStartDate:   [null, null],
+				  contractEndDate:     [null, null]
+				});
+
+
+
+
  	b. The priority dropdown cannot be null
+
+			// Initialize the form group
+			this.myForm = this.formBuilder.group({
+			  contractName:        [null, this.validatorService.whiteSpaceValidator() ],
+			  contractPriority:    [null, Validators.required ],
+			  contractFundingDate: [null, null],
+			  contractStartDate:   [null, null],
+			  contractEndDate:     [null, null]
+			});
+
+
  	c. The start date must be *TODAY* or in the future
+
+ 		1) Add a class variable that holds the defaultContractStartDate as today
+ 				  public minContractStartDate: Date = new Date();  // Holds today
+
+ 		2) Use the [min] tag on the <mat-date-range-input> to limit the starting date range
+
+      <mat-form-field class="w-[250px]">
+        <mat-label>Contract Date Range</mat-label>
+
+        <!-- Contract Date Range / Date Textbox that holds start & end dates -->
+        <!-- Minimum start date is this.minContractStartDate                 -->
+        <mat-date-range-input [rangePicker]="picker"  [min]="this.minContractStartDate">
+          <input matStartDate formControlName="contractStartDate" placeholder="Start date">
+          <input matEndDate   formControlName="contractEndDate"   placeholder="End date">
+        </mat-date-range-input>
+
+        <!-- Contract Date Range / Date Picker Icon -->
+        <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+        <mat-date-range-picker  #picker></mat-date-range-picker>
+
+      </mat-form-field>
+
+
  	d. The end date must be *AFTER* the start date
+ 		-- Built in to the Date Range Picker
+ 		-- But, we need this for backend validation
