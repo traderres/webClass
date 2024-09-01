@@ -78,7 +78,7 @@ Angular 16 Lesson Plan
 
  8. Loading Data using Observables
     a. Load a dropdown from a REST call
-       <a href="./exercises/exercise13a.load-dropdown-with-subscribe.question.txt"      title="Exercise 13a">Exercise 13a</a> / Loading Dropdown w/subscribe            (<a href="./exercises/exercise13a.load-dropdown-with-subscribe.answers.txt"      title="Answer to 13a">Answers</a>)
+       <a href="./exercises/exercise13a.load-dropdown-with-subscribe.question.txt"      title="Exercise 13a">Exercise 13a</a> / Loading Dropdown w/subscribe                   (<a href="./exercises/exercise13a.load-dropdown-with-subscribe.answers.txt"      title="Answer to 13a">Answers</a>)
        <a href="./exercises/exercise13b.load-dropdown-with-async-pipe.question.txt"     title="Exercise 13b">Exercise 13b</a> / Loading Dropdown w/async pipe           (<a href="./exercises/exercise13b.load-dropdown-with-async-pipe.answers.txt"     title="Answer to 13b">Answers</a>)
        <a href="./exercises/exercise13c.add-rest-call-to-get-priorities.question.txt"   title="Exercise 13c">Exercise 13c</a> / Create the REST call                    (<a href="./exercises/exercise13c.add-rest-call-to-get-priorities.answers.txt"   title="Answer to 13c">Answers</a>)
        <a href="./exercises/exercise13d.integrate-rest-call-with-frontend.question.txt" title="Exercise 13d">Exercise 13d</a> / Integrate the REST call w/the frontend  (<a href="./exercises/exercise13d.integrate-rest-call-with-frontend.answers.txt" title="Answer to 13d">Answers</a>)
