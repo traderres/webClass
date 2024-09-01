@@ -79,36 +79,36 @@ Angular 16 Lesson Plan
  8. Loading Data using Observables
     a. Load a dropdown from a REST call
        <a href="./exercises/exercise13a.load-dropdown-with-subscribe.question.txt"      title="Exercise 13a">Exercise 13a</a> / Loading Dropdown w/subscribe                   (<a href="./exercises/exercise13a.load-dropdown-with-subscribe.answers.txt"      title="Answer to 13a">Answers</a>)
-       <a href="./exercises/exercise13b.load-dropdown-with-async-pipe.question.txt"     title="Exercise 13b">Exercise 13b</a> / Loading Dropdown w/async pipe           (<a href="./exercises/exercise13b.load-dropdown-with-async-pipe.answers.txt"     title="Answer to 13b">Answers</a>)
-       <a href="./exercises/exercise13c.add-rest-call-to-get-priorities.question.txt"   title="Exercise 13c">Exercise 13c</a> / Create the REST call                    (<a href="./exercises/exercise13c.add-rest-call-to-get-priorities.answers.txt"   title="Answer to 13c">Answers</a>)
-       <a href="./exercises/exercise13d.integrate-rest-call-with-frontend.question.txt" title="Exercise 13d">Exercise 13d</a> / Integrate the REST call w/the frontend  (<a href="./exercises/exercise13d.integrate-rest-call-with-frontend.answers.txt" title="Answer to 13d">Answers</a>)
-       <a href="./exercises/exercise13e.multiple-async-pipes.question.txt"              title="Exercise 13e">Exercise 13e</a> / Loading w/multiple async pipes          (<a href="./exercises/exercise13e.multiple-async-pipes.answers.txt"              title="Answer to 13e">Answers</a>)
-       <a href="./exercises/exercise13f.show-loading-message.question.txt"              title="Exercise 13f">Exercise 13f</a> / Show loading message while waiting      (<a href="./exercises/exercise13f.show-loading-message.answers.txt"              title="Answer to 13f">Answers</a>)
+       <a href="./exercises/exercise13b.load-dropdown-with-async-pipe.question.txt"     title="Exercise 13b">Exercise 13b</a> / Loading Dropdown w/async pipe                  (<a href="./exercises/exercise13b.load-dropdown-with-async-pipe.answers.txt"     title="Answer to 13b">Answers</a>)
+       <a href="./exercises/exercise13c.add-rest-call-to-get-priorities.question.txt"   title="Exercise 13c">Exercise 13c</a> / Create the REST call                           (<a href="./exercises/exercise13c.add-rest-call-to-get-priorities.answers.txt"   title="Answer to 13c">Answers</a>)
+       <a href="./exercises/exercise13d.integrate-rest-call-with-frontend.question.txt" title="Exercise 13d">Exercise 13d</a> / Integrate the REST call w/the frontend         (<a href="./exercises/exercise13d.integrate-rest-call-with-frontend.answers.txt" title="Answer to 13d">Answers</a>)
+       <a href="./exercises/exercise13e.multiple-async-pipes.question.txt"              title="Exercise 13e">Exercise 13e</a> / Loading w/multiple async pipes                 (<a href="./exercises/exercise13e.multiple-async-pipes.answers.txt"              title="Answer to 13e">Answers</a>)
+       <a href="./exercises/exercise13f.show-loading-message.question.txt"              title="Exercise 13f">Exercise 13f</a> / Show loading message while waiting             (<a href="./exercises/exercise13f.show-loading-message.answers.txt"              title="Answer to 13f">Answers</a>)
 
     b. Advanced Stock Trade  (putting async pipes into practice)
-       <a href="./exercises/exercise14a.advanced-stock-trade.layout.question.txt"              title="Exercise 14a">Exercise 14a</a> / AST / Setup Layout                      (<a href="./exercises/exercise14a.advanced-stock-trade.layout.answers.txt"              title="Answer to 14a">Answers</a>)
-       <a href="./exercises/exercise14b.advanced-stock-trade.press.quote.btn.question.txt"              title="Exercise 14b">Exercise 14b</a> / AST / Pressing Quote loads data         (<a href="./exercises/exercise14b.advanced-stock-trade.press.quote.btn.answers.txt"              title="Answer to 14b">Answers</a>)
-       <a href="./exercises/exercise14c.advanced-stock-trade.press.listen.for.quotes.question.txt"              title="Exercise 14c">Exercise 14c</a> / AST / Listen on the Quote Text Box      (<a href="./exercises/exercise14c.advanced-stock-trade.press.listen.for.quotes.answers.txt"              title="Answer to 14c">Answers</a>)
-       <a href="./exercises/exercise14d.advanced-stock-trade.autocomplete.question.txt"              title="Exercise 14d">Exercise 14d</a> / AST / Use Autocomplete Text Box         (<a href="./exercises/exercise14d.advanced-stock-trade.autocomplete.answers.txt"              title="Answer to 14d">Answers</a>)
+       <a href="./exercises/exercise14a.advanced-stock-trade.layout.question.txt"              title="Exercise 14a">Exercise 14a</a> / AST / Setup Layout                             (<a href="./exercises/exercise14a.advanced-stock-trade.layout.answers.txt"              title="Answer to 14a">Answers</a>)
+       <a href="./exercises/exercise14b.advanced-stock-trade.press.quote.btn.question.txt"              title="Exercise 14b">Exercise 14b</a> / AST / Pressing Quote loads data                (<a href="./exercises/exercise14b.advanced-stock-trade.press.quote.btn.answers.txt"              title="Answer to 14b">Answers</a>)
+       <a href="./exercises/exercise14c.advanced-stock-trade.press.listen.for.quotes.question.txt"              title="Exercise 14c">Exercise 14c</a> / AST / Listen on the Quote Text Box             (<a href="./exercises/exercise14c.advanced-stock-trade.press.listen.for.quotes.answers.txt"              title="Answer to 14c">Answers</a>)
+       <a href="./exercises/exercise14d.advanced-stock-trade.autocomplete.question.txt"              title="Exercise 14d">Exercise 14d</a> / AST / Use Autocomplete Text Box                (<a href="./exercises/exercise14d.advanced-stock-trade.autocomplete.answers.txt"              title="Answer to 14d">Answers</a>)
    
     c. Edit Stock Trade
-       Exercise 15a / EST / Create "List Stock Trades" Page   (Answers)
-       Exercise 15b / EST / Setup "Edit Stock Trade" Layout   (Answers)
-       Exercise 15c / EST / Get tradeId from the url          (Answers)
-       Exercise 15d / EST / Add Reactive Form                 (Answers)
-       Exercise 15e / EST / Load Form with Saved Trade        (Answers)
+       Exercise 15a / EST / Create "List Stock Trades" Page          (Answers)
+       Exercise 15b / EST / Setup "Edit Stock Trade" Layout          (Answers)
+       Exercise 15c / EST / Get tradeId from the url                 (Answers)
+       Exercise 15d / EST / Add Reactive Form                        (Answers)
+       Exercise 15e / EST / Load Form with Saved Trade               (Answers)
        
     d. Misc Techniques ("kitchen sink")
-       <a href="./exercises/exercise16a.cache.observables.in.service.question.txt"    title="Exercise 16a">Exercise 16a</a> / Cache data in frontend service          (<a href="./exercises/exercise16a.cache.observables.in.service.answers.txt"  title="Answer to 16a">Answers</a>)
-       <a href="./exercises/exercise16b.format-numbers-with-pipes.question.txt"    title="Exercise 16b">Exercise 16b</a> / Format Numbers with Pipes               (<a href="./exercises/exercise16b.format-numbers-with-pipes.answers.txt"        title="Answer to 16b">Answers</a>)
-       Exercise 16c / Simulate a slow REST call               (Answers)
-       Exercise 16d / Listen on autocomplete                  (Answers)
+       <a href="./exercises/exercise16a.cache.observables.in.service.question.txt"    title="Exercise 16a">Exercise 16a</a> / Cache data in frontend service                 (<a href="./exercises/exercise16a.cache.observables.in.service.answers.txt"  title="Answer to 16a">Answers</a>)
+       <a href="./exercises/exercise16b.format-numbers-with-pipes.question.txt"    title="Exercise 16b">Exercise 16b</a> / Format Numbers with Pipes                      (<a href="./exercises/exercise16b.format-numbers-with-pipes.answers.txt"        title="Answer to 16b">Answers</a>)
+       Exercise 16c / Simulate a slow REST call                      (Answers)
+       Exercise 16d / Listen on autocomplete                         (Answers)
 
  9. Saving Data 
-    <a href="./exercises/exercise17a.submit-button-invokes-REST-call.question.txt"   title="Exercise 17a">Exercise 17a</a> / Setup "Add Report" Page w/fake REST call   (<a href="./exercises/exercise17a.submit-button-invokes-REST-call.answers.txt"  title="Answer to 17a">Answers</a>)
-    <a href="./exercises/exercise17b.add-db-changes-and-REST-call.question.txt"      title="Exercise 17b">Exercise 17b</a> / Add database changes & Build REST call     (<a href="./exercises/exercise17b.add-db-changes-and-REST-call.answers.txt"     title="Answer to 17b">Answers</a>)
-    <a href="./exercises/exercise17c.use-audit-manager-in-transaction.question.txt"               title="Exercise 17c">Exercise 17c</a> / Use AuditManager in a SQL Transaction      (<a href="./exercises/exercise17c.use-audit-manager-in-transaction.answers.txt" title="Answer to 17c">Answers</a>)
-    <a href="./exercises/exercise17d.use-dialog-to-freeze-user.question.txt"         title="Exercise 17d">Exercise 17d</a> / Use dialog to freeze user while waiting    (<a href="./exercises/exercise17d.use-dialog-to-freeze-user.answers.txt"        title="Answer to 17d">Answers</a>)
+    <a href="./exercises/exercise17a.submit-button-invokes-REST-call.question.txt"   title="Exercise 17a">Exercise 17a</a> / Setup "Add Report" Page w/fake REST call          (<a href="./exercises/exercise17a.submit-button-invokes-REST-call.answers.txt"  title="Answer to 17a">Answers</a>)
+    <a href="./exercises/exercise17b.add-db-changes-and-REST-call.question.txt"      title="Exercise 17b">Exercise 17b</a> / Add database changes & Build REST call            (<a href="./exercises/exercise17b.add-db-changes-and-REST-call.answers.txt"     title="Answer to 17b">Answers</a>)
+    <a href="./exercises/exercise17c.use-audit-manager-in-transaction.question.txt"               title="Exercise 17c">Exercise 17c</a> / Use AuditManager in a SQL Transaction             (<a href="./exercises/exercise17c.use-audit-manager-in-transaction.answers.txt" title="Answer to 17c">Answers</a>)
+    <a href="./exercises/exercise17d.use-dialog-to-freeze-user.question.txt"         title="Exercise 17d">Exercise 17d</a> / Use dialog to freeze user while waiting           (<a href="./exercises/exercise17d.use-dialog-to-freeze-user.answers.txt"        title="Answer to 17d">Answers</a>)
     Exercise 17d / Auto-save every N seconds with a reactive form
     Exercise 17e / Auto-save when leaving a page  
 
