@@ -65,9 +65,9 @@ Angular 16 Lesson Plan
     b. <a href="./lectures/boring.lecture.angular.tricks.and.techniques.txt" title="Angular Material Tricks">Angular Material Tricks & Techniques</a>
     c. <a href="./howToAddHyperlinks.txt" title="Hyperlinks">Hyperlinks</a>
     d. Date Pickers
-       <a href="./exercises/exercise10a.add-date-picker.question.txt" title="Exercise 10a">Exercise 10a</a> / Add a Date Picker to the page                  (<a href="./exercises/exercise10a.add-date-picker.answers.txt" title="Exercise 10a">Answers</a>)
-       <a href="./exercises/exercise10b.align-date-picker-with-textbox.question.txt" title="Exercise 10b">Exercise 10b</a> / Align Date Picker with a text box              (<a href="./exercises/exercise10b.align-date-picker-with-textbox.answers.txt" title="Exercise 1ba">Answers</a>)
-       Exercise 10c / Set Date Picker with value from a date string
+       <a href="./exercises/exercise10a.add-date-picker.question.txt"                  title="Exercise 10a">Exercise 10a</a> / Add a Date Picker to the page                  (<a href="./exercises/exercise10a.add-date-picker.answers.txt" title="Exercise 10a">Answers</a>)
+       <a href="./exercises/exercise10b.align-date-picker-with-textbox.question.txt"   title="Exercise 10b">Exercise 10b</a> / Align Date Picker with a text box              (<a href="./exercises/exercise10b.align-date-picker-with-textbox.answers.txt" title="Exercise 1ba">Answers</a>)
+       <a href="./exercises/exercise10c.set-datepicker-using-date-string.question.txt" title="Exercise 10c">Exercise 10c</a> / Set Date Picker with value from a date string  (<a href="./exercises/exercise10c.set-datepicker-using-date-string.answers.txt" title="Exercise 1ca">Answers</a>)
        Exercise 10d / Get selected date and format it as YYYY-MM-DD
 
     e. Textareas
