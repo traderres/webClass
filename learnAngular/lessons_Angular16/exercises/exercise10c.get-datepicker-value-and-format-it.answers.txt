@@ -1,13 +1,13 @@
-Exercise 10c / Get the Date Picker Value and format it as YYYY-MM-DDDD (Answers)
---------------------------------------------------------------------------------
+Exercise 10c / Get the Date Picker Value and format it as YYYY-MM-DDDD
+----------------------------------------------------------------------
 Problem:  I need to get the Date Picker value and reformat it
 
 
 Exercise
 --------
  1. Part 1 / Setup the Page
-    a. Generate the component                EditContractSpecification
-    b. Add the route to constants.ts:        the route will be this:   page/add-contract-spec
+    a. Generate the component                AddContractSpecificationWithSubmitRestCall
+    b. Add the route to constants.ts:        the route will be this:   page/add-contract-spec-with-submit
     c. Register the route
     d. Add the route to the database table:  ui_controls        (if using real security)
     e. Add a link to the navbar (using that route)
@@ -19,7 +19,7 @@ Exercise
  2. Fill in the layout (but do not add controls)
 
             +---------------------------------------------------------------------------------+
-            | Add Contract Specification                                         Help Button  |
+            | Add Contract Specification and Save it to backend                  Help Button  |
             +---------------------------------------------------------------------------------+
             |                                                                                 |
             | Contract Spec Name Textbox                                                      |
@@ -28,7 +28,7 @@ Exercise
             |                                                                                 |
             | <Contract Spec Execution Date>  <Extra Days Textbox>                            |                                                                                 |
             |                                                                                 |
-            |                             <Reset Btn>  <Save Btn>                             |
+            |                            <Reset Btn>  <Submit Btn>                            |
             +---------------------------------------------------------------------------------+
             IMPORTANT:  Align the "Contract Spec Execution Date" date picker with the "Extra Days" text box
 
@@ -39,13 +39,231 @@ Exercise
 
 
 
- 4. In the main page typescript class
+
+ 4. Setup a reactive form that holds the 4 fields:  contractName, priority, contractSpecExecutionDate, extraDays
+	a. Inject the formBuilder service
+	b. Create a class variable that holds a FormGroup object
+	c. Use the formBuilder to initialize the form group
+	d. Add the <form> tag to your HTML
+	e. Bind individual form fields to the reactive form
+	f. Add a <pre>...</pre> tag that shows the value for the Contract Spec Execution Date
+
+
+
+ 5. Setup click handlers for the 3 buttons:
+ 	a. Pressing "Submit" should do the following:
+ 	 		touch all form fields.
+ 			If there are any form errors, then stop.
+
+ 	b. Pressing "Reset" should reset the form
+
+
+
+ 6. Create an empty dialog box that is displayed when the user presses "Submit"
+    a. Generate the dialog box:  ConfirmSubmitContractSpecDialog
+
+
+
+ 7. Adjust your main page so that pressing "Submit" opens the dialog
+ 	a. In the main page typescript, inject the magDialog service
+
+ 	b. In the main page submitClicked() method
+ 		-- If there are no errors, then use the matDialog to open the dialog
+
+
+
+ 8. Format the dialog box so it looks like this:
+        				+-----------------------------------------+
+        				| Confirm                                 |
+        				|                                         |
+        				|     Create this contract spec?          |
+        				|                                         |
+        				|            <Cancel> <Submit>            |
+        				+-----------------------------------------+
+
+
+
+Part 2:  Define the REST Call Contract
+--------------------------------------
+  	a. What is the URL?					/api/contract-specs/add
+  	   Rule:  Must start with /api
+
+  	b. What is the URL Type?
+  			GET			Used for read-only operations
+  			PUT			Used for write operations and passing-in 1 parameter on the URL
+  			POST   		Used for write operations and passing-in multiple parameters [no limit]
+  			DELETE		Used for write operations involving deletes
+
+  	c. What is passed-in?
+
+  	d. What is returned?
+
+  	e. What checks are made on the passed-in data?
+
+  	f. What security roles are granted access to this REST call?
+
+  	g. What does this REST call do
+		-- Insert this information into the new contract_specs table
+		-- Add an audit record
+
+
+
+Part 3:  Create a REST call that implements this contract
+----------------------------------------------------------
+ 1. Create a new database table called "contract_specs"
+ 	-- Add a primary key
+ 	-- Add 4 columns:
+ 				id 					/ integer / primary key       / required
+ 				name		   		/ varchar (up to 200 chars)   / required
+ 				priority_id	   		/ integer                     / optional
+ 				execution_date  	/ timestamp with time zone    / required
+ 				extra_days          / integer                     / required
+
+
+ 2. Create a new database table:  contract_specs_aud
+ 	NOTE:  This table has every column as the contract_specs table  (all of these fields are optional)
+ 	       This table has 4 additional columns (all of these 4 fields are REQUIRED)
+				timestamp            timestamp with time zone              not null,
+				username             varchar(100)                          not null,
+				audit_type           integer                               not null,
+				transaction_id       integer                               not null
+
+ 3. Nuke your database
+
+
+ 4. Create a backend DTO:  AddContractSpecDTO
+ 	-- It has a field for the name
+ 	-- It has a field for the priority id
+ 	-- It has a field for the execution date
+ 	-- It has a field for the extra days
+
+
+ 5. Create a backend service:  ContractSpecService
+ 	a. Crete the backend service class:  ContractSpecService
+
+ 	b. Add the @Service annotation (above the name of the class)
+ 	   NOTE:  This tells Spring to instantiate this class as a singleton and make it injectable
+
+ 	c. Add a logger
+ 	   NOTE:  No, we don't use print statements on the backend.  Not.  Ever.
+
+ 	e. Create a public method called addContractSpec()
+ 	   -- What is passed-in to this REST call?   [look at the REST call contract]
+ 	   -- What is returned from this REST call?  [look at the REST call contract]
+
+ 	f. Fill-in this method with a logger and nothing else
+
+
+ 6. Create a backend controller class
+  	a. Create the backend controller class:  ContractSpecController
+
+  	b. Add the @Controller annotation (above the name of the class)
+  	   NOTE:  This tells Spring that this is where REST calls will start
+
+  	c. Add a logger
+
+  	d. Inject the ContractSpecService
+
+  	e. Create a public method called addContractSpec()
+  		-- It returns a ResponseEntity<?>
+ 		-- Nothing is passed-in
+
+  	f. Add the @RequestMapping annotation
+  	 		value = URL of this REST call
+  	 		method = URL Type of this REST call
+  	 		produces = "application/json"
+
+  	g. Limit which security roles can hit this REST call by adding the @PreAuthorize annotation
+ 		-- Limit it to the 4 regular roles
+
+  	h. Have the method call your service to add a contract spec
+
+  	i. Have the method return a 200 status code
+
+
+ 7. Verify the REST call works using Postman
+ 	a. Start Postman
+
+ 	b. Set the URL and URL Type
+
+ 	c. Because we're pass-in data with a post, you must specify the header
+ 		-- You remember the special header?
+
+ 	d. Set a breakpoint
+
+ 	e. Startup your backend
+
+ 	f. Use Postman to hit your backend
+
+
+Part 4:  Have your page integrate with your REST call
+-----------------------------------------------------
+ 1. Add a frontend DTO:  AddContractSpecDTO
+ 	-- It has the same fields as the backend
+
+
+ 2. Add a frontend ContractSpecService
+ 	a. Create the service
+
+ 	b. Inject the httpClient
+
+ 	c. Add a method:  addContractSpec()
+ 		-- What is passed-in?  Look at your REST call contract
+ 		-- What is returned?   Look at your REST call contract
+
+
+ 3. In your dialog typescript / when a user presses "Submit", then manually invoke REST call
+  	a. Inject these services
+  			dialogRef        			/ Type is MatDialogRef<NAME_OF_THIS_DIALOG_COMPLETE> / Used to close the dialog box and change its behavior
+  			messageService  			/ Used to let the user know if the REST call succeeded
+  			contractSpecService  	 	/ Used to invoke the REST call
+
+  	b. Inject the MAT_DIALOG_DATA   	[this is just crazy syntax]
+  			@Inject(MAT_DIALOG_DATA) public data: AddContractSpecDTO
+
+  	c. Create a public class variable:  restCallInProgress
+  		-- Initialize it to false
+
+  	d. Create a method:  cancelClicked()
+  		-- This will close the dialog box and return FALSE
+  		-- Use the dialogRef.close() to do this
+
+  	e. Create a method:  submitClicked()
+  		1) Set the restCallInProgress flag to TRUE
+  		2) Stop the user from closing the dialog box
+  		3) Invoke the REST call to save the report
+  		4) In the REST call FINALLY Block, close the dialog
+  			-- Return TRUE  if the REST call succeeds
+  			-- Return FALSE if the REST call failed or did nothing
+
+ 	f. Add click handler to your buttons
+ 	   1) Clicking on the cancel button should invoke cancelClicked()
+ 	   2) Clicking on the submit button should invoke submitClicked()
+
+
+
+ 4. In your dialog HTML, pressing "Submit" should show a spinner and disable the dialog buttons
+	a. In the HTML, disable the "Cancel" button if restCallInProgress is TRUE
+
+ 	b. In the HTML, disable the "Submit" button if restCAllInProgress is TRUE
+
+ 	c. In the HTML, change the "Submit" button label
+ 		a. If restCallInProgress == false, then show "Save"
+ 		b. If restCAllInProgress == true,  then show "Saving" and a spinner
+
+
+
+Part 5:  Adjust the main page to pass-in the data into the dialog
+-----------------------------------------------------------------
+ 1. In the "Add Contract Spec" Typescript, change the "Submit" button so it opens the dialog
  	a. Inject the locale service
  			constructor(
  				 @Inject(LOCALE_ID) private locale: string
 			)
 
-	b. Use the formatDate() function and this.locale to convert the date object into a formatted date (as a string)
+
+ 	b. Change the submitClicked() method to create an AddReportDTO object
+        Use the formatDate() function and this.locale to convert the date object into a formatted date (as a string)
 
 		let selectedFormattedDateString: string = "";
 
@@ -55,3 +273,19 @@ Exercise
 			// Convert the Date object into a formatted date (as a string)
 			selectedFormattedDateString = formatDate(this.myForm.controls.rptStartDate.value,'yyyy-MM-dd', this.locale);
 		}
+
+
+	c. Pass-in the AddReportDTO object into the dialog using "data"
+
+
+
+
+
+
+ 2. If the user successfully performed an operation, then reset everything in the "Add Contract Spec" page
+ 	a. Listen to see when the dialog closes
+
+ 	b. If the dialog closes and returns TRUE, then reset the myForm
+
+
+
