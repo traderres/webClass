@@ -1,0 +1,351 @@
+How to Setup Login.gov as an Identity Provider Using Open ID Connect (OIDC)
+---------------------------------------------------------------------------
+Problem:  I want users to get redirected to Login.gov for identity
+Solution: Setup Keycloak 25, Create a login.gov sandbox app, and configure Keycloak using Open ID Connect
+
+
+Assumptions:
+ A) You have an email address that ends with .gov or .mil
+ B) You are using Keycloak v25.0.4
+ C) You want the Keycloak Identity provider to use Open ID Connect (OIDC) to talk to login.gov
+
+
+References
+----------
+https://developers.login.gov/
+https://developers.login.gov/saml/getting-started/
+https://developers.login.gov/oidc/getting-started/
+https://developers.login.gov/testing/
+https://developers.login.gov/attributes/
+https://www.keycloak.org/archive/downloads-22.0.1.html
+https://github.com/keycloak/keycloak-quickstarts/tree/22.0.1
+
+
+
+Part 1:  Get your Keycloak cert file (used to transmit info between login.gov and keycloak
+------------------------------------------------------------------------------------------
+ 1. Startup Keycloak v25.0.4
+
+ 2. Create a text file that holds the RS256 cert:  keycloak.rs256.cert.txt
+    a. Create the text file
+
+    b. Add this to the text file:
+    		-----BEGIN CERTIFICATE-----
+
+    		-----END CERTIFICATE-----
+
+ 3. Get the RS256 "SIG" cert from keycloak
+    a. In Keycloak, go to Realms -> MyRealm -> Realm settings
+    b. In Realm settings, click on the "Keys" tab
+    c. In the keys list
+       Look for the line that has Algorithm=RS256 and Use=SIG
+        1) On that row, press the "Certificate" button
+        2) Copy that info
+
+ 4. Paste that certificate into your text file
+
+ 5. When done, the keycloak.rs256.cert.txt looks like this:
+
+	 -----BEGIN CERTIFICATE-----
+	 MIICnTCCAYUCBgGR11VaSzANBgkqhkiG9w0BAQsFADASMRAwDgYDV3gmgjmZDK6dVGzfeZKE/4n/W382rvy+Dm28+Wcss/saTFfFQXa7IL54jp3Mss18Ex4Q==
+	 -----END CERTIFICATE-----
+
+
+
+Part 2:  Start configuring an OIDC Provider and get it's Redirect URI  (as login.gov will need that)
+----------------------------------------------------------------------------------------------------
+ 1. Connect to keycloak as an administrator
+
+ 2. Go to Realms -> MyRealm -> Identity providers
+
+ 3. In the "Identity providers" page, press "Add provider" -> OpenID Connect v1.0
+
+ 4. In the "Add OpenID Connect Provider page
+ 	Alias:  				idp-login-gov        (do not use spaces as this changes the Redirect URI)
+    Display Name:    		Identity Provider for login.gov
+
+    Discovery endpoint:  	https://idp.int.identitysandbox.gov/.well-known/openid-configuration
+
+    Client ID:				TEMP                 (it does not matter -- but we need something right now)
+	Press "Add"
+
+ 5. Copy the Redirect URI   (we will need it in the next step to configure login.gov)
+
+
+
+
+Part 3:  Setup the login.gov "Sandbox Account"
+----------------------------------------------
+NOTE:   Anyone with a .gov or .mil email address may request a "Sandbox Account" WITHOUT any approval from login.gov
+
+ 1. Create the login.gov "Sandbox account"
+    a. Go to https://dashboard.int.identitysandbox.gov/
+    b. Select the "Sign-in" button to create a new account
+	c. Next to "Create your first team", press "Continue"
+
+    d. In the "New Team" page
+    	Name:   	SIT_WebApp_Team
+    	Agency: 	Department of Defense
+		Press "Create"
+
+ 2. Create a login.gov "App" called "My Web App"
+	a. In login.gov, select Apps (on the top menubar)
+	   *OR*
+	   https://dashboard.int.identitysandbox.gov/service_providers
+
+	b. Press "Create a new app"
+
+	c. In the "New App" page
+		Dashboard Configuration:  		Sandbox
+		App name            			DOD-MyWebApp
+		Friendly name:					My Web App  					  (displayed to users when logging in)
+		Team:               			<Select your team from step 1>
+		Authentication Protocol:		OpenID Connect Private Key JWT    (preferred for web apps)
+		Level of Service:				Identity verification permitted   (so the webapp will receive verified attributes)
+		Default Auth Assurance Level:	MFA Required, remember device disallowed (AAL2)
+
+		Attribute bundle:  [check these] / Do not check SSN
+			email
+			x509_subject
+			x509_presented
+			first_name
+			last_name
+			dob
+			address1
+			address2
+			city
+			state
+			zipcode
+			phone
+
+		Issuer:					urn:gov:gsa:openidconnect.profiles:sp:sso:<AGENCY_NAME>:<APP_NAME>
+
+								Replace AGENCY_NAME with DCSA
+								Replace APP_NAME    with sit_webapp
+                                example) urn:gov:gsa:openidconnect.profiles:sp:sso:dcsa:my_webapp
+
+
+		Certificates:			Press "Choose a cert file"
+								Browse to your keycloak.rs256.cert.txt
+
+
+		Failure to Proof URL	https://www.google.com/
+
+		Push notification URL:  <blank>
+
+		Redirect URIs:          <this is keycloak's generated "Redirect URI" for your identity provider>
+							    ex) https://localhost.localdomain:8444/realms/MyRealm/broker/idp-login-gov/endpoint
+
+		Accessible:				Yes
+
+		Sign-in help text:  	"First time here from...."
+
+		Sign-up help text:		"First time here from...."
+
+		Forget password help:   "If you are having trouble accessing your Login.gov..."
+
+		Press "Create app"
+
+
+
+Part 4:  Finish configuring your OpenID Connect Provider for login.gov
+----------------------------------------------------------------------
+ 1. In Keycloak, go to Realms -> MyRealm -> Identity providers -> Identity Provider for login.gov
+
+ 2. Make sure you have these settings
+			alias:  						idp-login-gov
+			Display Name:   				Identity Provider for login.gov
+			Discovery endpoint:				https://idp.int.identitysandbox.gov/.well-known/openid-configuration
+											-- Wait for the keycloak page to resolve this url
+
+			Authorization URL:				https://idp.int.identitysandbox.gov/openid_connect/authorize
+			Token URL:						https://idp.int.identitysandbox.gov/api/openid_connect/token
+			Logout URL						https://idp.int.identitysandbox.gov/openid_connect/logout
+			User Info URL:					https://idp.int.identitysandbox.gov/api/openid_connect/userinfo
+			Issuer:							https://idp.int.identitysandbox.gov/
+			Validate Signatures:			On
+			Use JWKS URL:					On
+			JWKS URL:						https://idp.int.identitysandbox.gov/api/openid_connect/certs
+			Use PKCE:						Off
+
+			Client authentication:			JWT signed with private key
+			Client ID:             			<ISSUER from the login.gov sandbox> / should look something like this:  urn:gov:gsa:openidconnect.profiles:sp:sso:dcsa:sit_webapp
+			Client Secret:					<blank>
+			Client assertion signature alg: RS256
+
+
+
+   3. Set the level of authentication to LOA 3
+ 	  a. Change the Authorization URL from this:
+	          https://idp.int.identitysandbox.gov/openid_connect/authorize
+	   	 To this:
+	          https://idp.int.identitysandbox.gov/openid_connect/authorize?acr_values=http://idmanagement.gov/ns/assurance/loa/1
+			  *OR*
+			  https://idp.int.identitysandbox.gov/openid_connect/authorize?acr_values=http://idmanagement.gov/ns/assurance/loa/3
+
+
+			  If you set acr_values=http://idmanagement.gov/ns/assurance/loa/1, then the user is prompted to enter username/password and set a MFA token:
+
+	          If you set acr_values=http://idmanagement.gov/ns/assurance/loa/3, then the user is prompted for this:
+					  Let’s verify your identity for SIT Web App
+
+					  SIT Web App needs to make sure you are you — not someone pretending to be you. Learn more about verifying your identity(opens new tab)
+					  You’ll need to:
+
+						  Have a driver’s license or state ID
+
+						  Other forms of ID are not accepted. We’ll check that you are the person on your ID.
+						  Enter your Social Security number
+
+						  You will not need your physical SSN card.
+						  Match to your phone number
+
+						  We match your phone number with your personal information and send a one-time code to your phone.
+						  Re-enter your Login.gov password
+
+						  Your password saves and encrypts your personal information.
+
+
+ 	  b. Press "Save"
+
+
+
+ 4. Tell Keycloak to not show the "Update Account Information" form after first login
+    a. In Keycloak, go to Realm Settings -> General
+    b. Click on the "User profile" tab
+    c. Click on username -> 3 dots -> Edit
+       Who can edit?  Uncheck everyone
+
+    d. On the row that has "email" -> 3 dots -> Edit
+       Required Field:  Off
+       Press "Save"
+
+    e. On the row that shows "firstName" -> 3 dots -> Edit
+       Required Field:  Off
+       Press "Save"
+
+    f. On the row that shows "lastName" -> 3 dots -> Edit
+       Required Field:  Off
+       Press "Save"
+
+
+ 5. Tell Keycloak to bring the user attributes back from login.gov and load them into keycloak upon authorization
+    a. In keycloak, go to MyRealm -> Identity Providers -> Identity Provider for login.gov -> "Settings" tab
+    b. In the settings page, press 'Advanced"
+    	    Scopes:   	openid email profile phone address
+
+	c. In keycloak, go to MyRealm -> Identity Providers -> Identity Provider for login.gov -> "Mappers" tab
+
+    d. In the "Mappers" page, press "Add mapper"
+    	Name:  					phone
+    	Sync mode override:		inherit
+		Mapper Type: 			Attribute importer
+		Claim:					phone
+		User Attribute Name 	<Custom> phone
+		Press "Save"
+
+    e. In the "Mappers" page, press "Add mapper"
+    	Name:  					street address
+    	Sync mode override:		inherit
+		Mapper Type: 			Attribute importer
+		Claim:					address.street_address
+		User Attribute Name 	<Custom> street_address
+		Press "Save"
+
+    f. In the "Mappers" page, press "Add mapper"
+    	Name:  					city
+    	Sync mode override:		inherit
+		Mapper Type: 			Attribute importer
+		Claim:					address.locality
+		User Attribute Name 	<Custom> locality
+		Press "Save"
+
+    g. In the "Mappers" page, press "Add mapper"
+    	Name:  					state
+    	Sync mode override:		inherit
+		Mapper Type: 			Attribute importer
+		Claim:					address.region
+		User Attribute Name 	<Custom> region
+		Press "Save"
+
+    h. In the "Mappers" page, press "Add mapper"
+    	Name:  					zip
+    	Sync mode override:		inherit
+		Mapper Type: 			Attribute importer
+		Claim:					address.postal_code
+		User Attribute Name 	<Custom> postal_code
+		Press "Save"
+
+    i. In the "Mappers" page, press "Add mapper"
+    	Name:  					full address
+    	Sync mode override:		inherit
+		Mapper Type: 			Attribute importer
+		Claim:					address.formatted
+		User Attribute Name 	<Custom> formatted
+		Press "Save"
+
+
+ 6. Allow administrators to write unmanaged attributes
+    a. Realm -> Realm Settings -> General Tab
+    	Unmanaged Attributes:  Enabled
+
+
+ 7. Change your Authentication flow to use this Identity Provider
+    a. Go to Realms -> MyRealm -> Authentication
+    b. Press "Create flow"
+    	Name:  		login.gov authentication flow
+    	Flow Type:  Basic flow
+    	Press "Create"
+
+	c. Press "Add execution"
+	   Select Cookie and press "Add"
+
+	d. Press "Add Step"
+	   Select "Identity Provider Redirector" and press "Add"
+
+	e. Set Requirement to both steps as "Alternative"
+
+	f. Press the "Edit" icon next to "Identity Provider Redirector"
+		Alias:    					  idp-login-gov        (use the alias of the login.gov identity provider)
+		Default Identity Provider:    idp-login-gov
+		Press "Save"
+
+ 8. Make sure your keycloak is using the "login.gov authentication flow"
+ 	a. Go to Realms -> MyRealm -> Clients -> app16-webapp -> Advanced tab
+ 	b. In the Authentication flow overrides
+ 			Browser Flow:		login.gov authentication flow
+ 	   Press "Save"
+
+
+ 9. Restart Keycloak
+
+
+
+
+Part 5: Configure your Spring Boot webapp to talk to Keycloak
+-------------------------------------------------------------
+ASSUMPTIONS:
+ 1) Your keycloak is listening on https://localhost.localdomain:8444
+ 2) Your pom.xml is using the spring-boot-starter-oauth2-client
+
+     <dependency>
+       <!-- Sprint Boot / Keycloak Integration / Add the OAuth2/OpenID client to talk to Keycloak and authenticate users -->
+       <groupId>org.springframework.boot</groupId>
+       <artifactId>spring-boot-starter-oauth2-client</artifactId>
+     </dependency>
+
+
+ 1. Edit your application.yaml
+
+ 2. Add this:
+	##############################################################################
+	# Keycloak Settings for Spring Security
+	#
+	# The realm url is probably something like https://keycloak.rbr-tech.com:8444/realms/MyRealm
+	##############################################################################
+	spring.security.oauth2.client.registration.keycloak.client-id: app16-webapp
+	spring.security.oauth2.client.registration.keycloak.client-secret: j4W4c7EpPI2rfT7fKgt28oYDUi19fF66
+	spring.security.oauth2.client.registration.keycloak.authorization-grant-type: authorization_code
+	spring.security.oauth2.client.registration.keycloak.scope: openid,email,profile,phone,address
+	spring.security.oauth2.client.provider.keycloak.issuer-uri: https://localhost.localdomain:8444/realms/MyRealm
+	spring.security.oauth2.client.provider.keycloak.user-name-attribute: preferred_username
