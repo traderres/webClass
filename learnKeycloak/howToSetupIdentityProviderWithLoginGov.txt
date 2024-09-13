@@ -61,12 +61,13 @@ Part 2:  Start configuring an OIDC Provider and get it's Redirect URI  (as login
  3. In the "Identity providers" page, press "Add provider" -> OpenID Connect v1.0
 
  4. In the "Add OpenID Connect Provider page
- 	Alias:  				idp-login-gov        (do not use spaces as this changes the Redirect URI)
-    Display Name:    		Identity Provider for login.gov
+ 	Alias:  					idp-login-gov        (do not use spaces as this changes the Redirect URI)
+    Display Name:    			Identity Provider for login.gov
 
-    Discovery endpoint:  	https://idp.int.identitysandbox.gov/.well-known/openid-configuration
+    Discovery endpoint:  		https://idp.int.identitysandbox.gov/.well-known/openid-configuration
 
-    Client ID:				TEMP                 (it does not matter -- but we need something right now)
+	Client authentication:		JWT signed with private key
+    Client ID:					TEMP                 (it does not matter -- but we need something right now)
 	Press "Add"
 
  5. Copy the Redirect URI   (we will need it in the next step to configure login.gov)
@@ -169,7 +170,9 @@ Part 4:  Finish configuring your OpenID Connect Provider for login.gov
 			Use PKCE:						Off
 
 			Client authentication:			JWT signed with private key
-			Client ID:             			<ISSUER from the login.gov sandbox> / should look something like this:  urn:gov:gsa:openidconnect.profiles:sp:sso:dcsa:sit_webapp
+			Client ID:             			<ISSUER from the login.gov sandbox> / should look something like this:
+			                                 ex) urn:gov:gsa:openidconnect.profiles:sp:sso:dcsa:my_webapp
+
 			Client Secret:					<blank>
 			Client assertion signature alg: RS256
 
@@ -285,12 +288,20 @@ Part 4:  Finish configuring your OpenID Connect Provider for login.gov
 		Press "Save"
 
 
- 6. Allow administrators to write unmanaged attributes
+ 6. Change the default client scope phone number mapper to look for "phone" instead of "phoneNumber"
+ 	a. Go Realm -> MyRealm -> Client Scopes -> phone -> "Mappers" tab
+ 	b. Click on "phone number"
+ 		Name:  			 phone
+ 		User Attribute:  <Custom> phone
+ 		Token Claim Name: phone
+
+
+ 7. Allow administrators to write unmanaged attributes
     a. Realm -> Realm Settings -> General Tab
     	Unmanaged Attributes:  Enabled
 
 
- 7. Change your Authentication flow to use this Identity Provider
+ 8. Change your Authentication flow to use this Identity Provider
     a. Go to Realms -> MyRealm -> Authentication
     b. Press "Create flow"
     	Name:  		login.gov authentication flow
@@ -305,7 +316,7 @@ Part 4:  Finish configuring your OpenID Connect Provider for login.gov
 
 	e. Set Requirement to both steps as "Alternative"
 
-	f. Press the "Edit" icon next to "Identity Provider Redirector"
+	f. Press the "Settings" icon next to "Identity Provider Redirector"
 		Alias:    					  idp-login-gov        (use the alias of the login.gov identity provider)
 		Default Identity Provider:    idp-login-gov
 		Press "Save"
@@ -316,8 +327,46 @@ Part 4:  Finish configuring your OpenID Connect Provider for login.gov
  			Browser Flow:		login.gov authentication flow
  	   Press "Save"
 
+10. Set the phone scope for our client
+    a. Go to MyRealm -> Clients -> app16-webapp -> "Client scopes" tab
+    b. Change "Phone" to be default
 
- 9. Restart Keycloak
+
+11. Grant default roles for user that logs-in with keycloak
+	a. Create the  role:  APP16_SUPERVISOR
+	    1) Go to MyRealm -> Realm Roles
+	    2) Press "Create role"
+	       Role name:   APP16_SUPERVISOR
+	       Press "Save"
+
+	b. Make it a default role
+	   1) Go to MyRealm -> Realm settings -> "User registration" tab
+	   2) Click on the "Default roles" tab
+	   3) Press "Assign role"
+       4) Check app16-webapp APP16_SUPERVISOR
+          Press "Assign"
+
+12. Make sure roles are returned to SpringBoot with the token
+    a. Go to Realms -> MyRealm -> Client scopes
+    b. Click on roles
+    c. Click on the "Settings" tab
+    d. Change these settings:
+    		Include in token scope:  On
+    		Display Order:            1
+       Press "Save"
+
+    a. Go to Realms -> MyRealm -> Client scopes
+    b. Click on roles
+    c. Click on the "Mappers" tab
+    d. Click on "realm roles"
+
+    	Add to ID token:					On
+    	Add to access token:				On
+    	Add to lightweight access token:	Off
+    	Add to userinfo:					On
+    	Add to token introspection			On
+
+13. Restart Keycloak
 
 
 
