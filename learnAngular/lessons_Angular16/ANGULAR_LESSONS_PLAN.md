@@ -16,7 +16,8 @@ Angular 16 Lesson Plan
     f. <a href="./lectures/boring.lecture.what.is.observable.txt"               title="What is an Observable">What is an Observable?</a>
     g. <a href="./lectures/boring.lecture.flyway.auditing.bind.variables.txt"   title="Database Versioning">Database Versioning, Auditing, and Bind Variables?</a>
     h. <a href="./lectures/boring.lectures.waiting.for.rest.calls.txt"          title="Holding the user hostage while waiting for a REST call">Stopping users while waiting for a REST call to finish</a>
-    i. <a href="./lectures/boring.lecture.all-rest-calls-are-ambiguous.txt"     title="The dirty secret w/form validation:  All REST call contracts are ambigous">The dirty secret w/form validation:  All REST call contracts are ambigous</a>
+    i. <a href="./lectures/boring.lecture.all-rest-calls-are-ambiguous.txt"     title="The dirty secret w/form validation:  All REST call contracts are ambiguous">The dirty secret w/form validation:  All REST call contracts are ambigous</a>
+    j. <a href="./lectures/boring.lecture.approaches-asking-many-questions.txt" title="Approaches to asking many question">Approaches to asking many questions</a>
 
  3. Add Frontend Dependencies
     <a href="./lesson03_installTailwind.txt"    title="Install Tailwind">Install Tailwind</a>
@@ -110,23 +111,30 @@ Angular 16 Lesson Plan
     Exercise 17d / Auto-save every N seconds with a reactive form
     Exercise 17e / Auto-save when leaving a page  
 
-10. Sending Messages using Observables, Subjects, and Arrow Functions
+10. Asking the user many questions
+    Exercise 18a / Ask questions using mat-step / single page view
+    Exercise 18b / Ask questions using multiple page views
+    Exercise 18c / Auto-save when leaving a page
+    Exercise 18d / Auto-save every N seconds in a reactive form
+
+
+11. Sending Messages using Observables, Subjects, and Arrow Functions
     a. How to send messages from one part of the web app to another
     b. How to listen for messages across the web app
 
-11. Services
+12. Services
     a. Router service:   Used to navigate to another page view
     b. Lookup Service:   Used to populate dropdowns
     c. Message Service:  Used to display messages
  
-12. TypeScript
+13. TypeScript
     a. <a href="./howToReferenceEnumClass.txt" title="How to Use Enumerated Classes in HTML">How to Use Enumerated Classes in HTML</a>  (constants.ts)
 
-13. Grids (using ag-grid)
+14. Grids (using ag-grid)
     a. <a href="./lectures/boring.lecture.grids.txt" title="Client-Side vs Server-Side Grids">Client-Side vs Server-Side Grids</a>
 
-14. HighCharts
+15. HighCharts
 
-15. The Extended PDF Viewer (using an embedded PDF viewer)
+16. The Extended PDF Viewer (using an embedded PDF viewer)
 
 </pre>
