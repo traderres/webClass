@@ -108,8 +108,6 @@ Angular 16 Lesson Plan
     <a href="./exercises/exercise17b.add-db-changes-and-REST-call.question.txt"      title="Exercise 17b">Exercise 17b</a> / Add database changes & Build REST call            (<a href="./exercises/exercise17b.add-db-changes-and-REST-call.answers.txt"     title="Answer to 17b">Answers</a>)
     <a href="./exercises/exercise17c.use-audit-manager-in-transaction.question.txt"               title="Exercise 17c">Exercise 17c</a> / Use AuditManager in a SQL Transaction             (<a href="./exercises/exercise17c.use-audit-manager-in-transaction.answers.txt" title="Answer to 17c">Answers</a>)
     <a href="./exercises/exercise17d.use-dialog-to-freeze-user.question.txt"         title="Exercise 17d">Exercise 17d</a> / Use dialog to freeze user while waiting           (<a href="./exercises/exercise17d.use-dialog-to-freeze-user.answers.txt"        title="Answer to 17d">Answers</a>)
-    Exercise 17d / Auto-save every N seconds with a reactive form
-    Exercise 17e / Auto-save when leaving a page  
 
 10. Asking the user many questions
     Exercise 18a / Ask questions using mat-step / single page view
