@@ -115,7 +115,6 @@ Angular 16 Lesson Plan
     Exercise 18c / Auto-save when leaving a page
     Exercise 18d / Auto-save every N seconds in a reactive form
 
-
 11. Sending Messages using Observables, Subjects, and Arrow Functions
     a. How to send messages from one part of the web app to another
     b. How to listen for messages across the web app
