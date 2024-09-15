@@ -643,5 +643,166 @@ Exercise
 
 
 
+
 13. Disable the "Next" buttons if there are invalid form fields on page 1, page 2, and page 3
+	a. Make all of the form fields required on page 1
+	b. If any of the form fields are invalid on page 1, then disable the "Next" button on page 1
+
+	c. Make all of hte form fields requires on page 2
+	d. If any of the form fields are invalid on page 2, then disable the "Next" button on page 2
+
+	e. Make all of hte form fields requires on page 3
+    f. If any of the form fields are invalid on page 3, then disable the "Next" button on page 2
+
+
+
+14. Add a custom validator: emailValidator
+	a. Add a public method to your ValidatorService:  emailValidator
+
+		  public emailValidator(): ValidatorFn {
+
+			return (control: AbstractControl) => {
+
+			  // if its null or empty string return a "required" error message
+			  //otherwise its good, so return null
+
+			  let emailText: string = control.value;
+			  if (emailText == null || emailText == "") {
+				// Email field is empty so return error
+				return {'emailError': `Please provide an email`};
+			  }
+			  else {
+				//The /i at the end will make the regular expression case insensitive
+				if(emailText.match( /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,3}$/i )) {
+				  // The email is valid so return null
+				  return  null;
+				}
+				else {
+				  // The email is not valid.
+				  return {'emailError':`Please provide a valid email`};
+				}
+
+			  }
+			}
+		  }
+
+	b. This method checks if the email has a valid syntax
+	c. Inject the ValidatorService into your main page
+	d. Apply the ValidatorService.emailValidator() to your email field
+
+
+
+15. Add a custom validator: phoneNumberValidator
+	a. Add a public method to your ValidatorService:  phoneNumberValidator
+
+		  public phoneNumberValidator():ValidatorFn {
+			return (control: AbstractControl) => {
+
+			  // if its null or empty string return a "required" error message
+			  // if its not 13 characters minlength then return a message of it needing to be 13 characters long
+			  //otherwise its good, so return null
+
+			  let contractNumberText: string = control.value;
+			  if (contractNumberText == null || contractNumberText == "") {
+				// Zipcode is valid so return null
+				return {'telephoneNumberText': `Telephone number is required`};
+			  }
+
+			  else{
+				if(contractNumberText.match( /^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/)) {
+				  // this telephone number is a phone number.  So, it's good.  So, return null.
+				  return  null;
+				}
+				else {
+				  // This telephone number is not telephone number format.  SO, it's bad.
+				  return {'telephoneNumberText':`Your Telephone Number was not in a recognized telephone number format`};
+				}
+
+			  }
+
+			}
+		  }
+
+
+	b. This method checks if the email has a valid syntax
+	c. Inject the ValidatorService into your main page
+	d. Apply the ValidatorService.phoneNumberValidator() to your phone number field
+
+
+
+16. Add a directive to your phone number so it shows-up as xxx-xxx-xxxx
+	a. Create the directive:  phoneMask
+       terminal> ng generate directive directives/phoneMask
+
+    b. Replace the contents of phone-mask.directive.ts with this:
+
+			import {Directive, HostListener} from '@angular/core';
+			import {NgControl} from "@angular/forms";
+
+			@Directive({
+			  selector: '[appPhoneMask]'
+			})
+			export class PhoneMaskDirective {
+
+			  constructor(public ngControl: NgControl) { }
+
+			  /*
+			   * Angular has detected the model has changed
+			   */
+			  @HostListener('ngModelChange', ['$event'])
+			  onModelChange(event: any) {
+				this.onInputChange(event, false);
+			  }
+
+			  /*
+			   * The user pressed the backspace key
+			   */
+			  @HostListener('keydown.backspace', ['$event'])
+			  keydownBackspace(event: { target: { value: any; }; }) {
+				this.onInputChange(event.target.value, true);
+			  }
+
+			  /*
+			   * Examine the text and update it
+			   */
+			  onInputChange(event: string, backspace: boolean) {
+				if (! event) {
+				  return;
+				}
+				else if (! this.ngControl.valueAccessor) {
+				  return;
+				}
+
+				// Remove any non-digits from the entered value
+				let newVal = event.replace(/\D/g, '');
+
+				if (backspace && newVal.length <= 6) {
+				  newVal = newVal.substring(0, newVal.length - 1);
+				}
+				if (newVal.length === 0) {
+				  newVal = '';
+				}
+				else if (newVal.length <= 3) {
+				  newVal = newVal.replace(/^(\d{0,3})/, '($1)');
+				}
+				else if (newVal.length <= 6) {
+				  newVal = newVal.replace(/^(\d{0,3})(\d{0,3})/, '($1) $2');
+				}
+				else if (newVal.length <= 10) {
+				  newVal = newVal.replace(/^(\d{0,3})(\d{0,3})(\d{0,4})/, '($1) $2-$3');
+				}
+				else {
+				  newVal = newVal.substring(0, 10);
+				  newVal = newVal.replace(/^(\d{0,3})(\d{0,3})(\d{0,4})/, '($1) $2-$3');
+				}
+
+				this.ngControl.valueAccessor.writeValue(newVal);
+			  }  // end of onInputChange()
+
+			}
+
+
+	c. Apply the appPhoneMask directive to your phone number text box
+
+	       <input type="text" appPhoneMask formControlName="phoneNumber" matInput title="Enter Phone Number" aria-label="Enter Phone Number" />
 
