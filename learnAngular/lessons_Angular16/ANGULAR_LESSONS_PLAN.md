@@ -110,10 +110,12 @@ Angular 16 Lesson Plan
     <a href="./exercises/exercise17d.use-dialog-to-freeze-user.question.txt"         title="Exercise 17d">Exercise 17d</a> / Use dialog to freeze user while waiting           (<a href="./exercises/exercise17d.use-dialog-to-freeze-user.answers.txt"        title="Answer to 17d">Answers</a>)
 
 10. Asking the user many questions
-    <a href="./exercises/exercise18a.ask-questions-with-mat-step.questions.txt"   title="Exercise 18a">Exercise 18a</a> / Ask questions using mat-step / single page view   (<a href="./exercises/exercise18a.ask-questions-with-mat-step.answers.txt"  title="Answer to 18a">Answers</a>)
-    Exercise 18b / Ask questions using multiple page views
-    Exercise 18c / Auto-save when leaving a page
-    Exercise 18d / Auto-save every N seconds in a reactive form
+    <a href="./exercises/exercise18a.ask-questions-with-mat-step.questions.txt"   title="Exercise 18a">Exercise 18a</a> / Ask questions w/single-page and mat-step / Setup page view   (<a href="./exercises/exercise18a.ask-questions-with-mat-step.answers.txt"  title="Answer to 18a">Answers</a>)
+    <a href="./exercises/exercise18b.ask-questions-with-mat-step-rest-call.questions.txt"   title="Exercise 18b">Exercise 18b</a> / Ask questions w/single-pgae and mat-step / Add REST call     (<a href="./exercises/exercise18b.ask-questions-with-mat-step-rest-call.answers.txt"  title="Answer to 18b">Answers</a>)
+    Exercise 18c / Ask questions w/multiple pages / layout
+    Exercise 18d / Ask questions w/multiple pages / REST calls
+    Exercise 18e / Ask questions w/multiple pages / Auto-save when leaving page
+    Exercise 18f / Ask questions w/multiple pages / Auto-save every N seconds 
 
 11. Sending Messages using Observables, Subjects, and Arrow Functions
     a. How to send messages from one part of the web app to another
