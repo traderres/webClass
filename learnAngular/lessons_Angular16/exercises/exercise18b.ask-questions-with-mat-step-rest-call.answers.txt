@@ -1,65 +1,15 @@
 Exercise 18a / Ask Many Questions with Mat-Step / Add REST Call (Answers)
 -------------------------------------------------------------------------
 Problem:  I want to ask the user lots of questions
-          I want one Submit REST call that saves it all
+          I want one Submit REST call that adds a record to the USERS table with
           If the user leaves the page, all information is lost
-
-Solution: Use the Angular Material <mat-stepper> and <mat-step>
-
-            +---------------------------------------------------------------------------------+
-            | User Registration                                                    <Help Btn> |
-            +---------------------------------------------------------------------------------+
-            |                                                                                 |
-            |         Step 1            Step 2            Step 3            Step 4            |
-            |       User Profile      Business Info     Backup Contact      Review            |
-            |                                                                                 |
-            |                                                                                 |
-            |         User Profile                                                            |
-            |          		<Username Textbox>                                                |
-            |          		<Title Textbox>                                                   |
-            |          		<Email Textbox>                                                   |
-            |          		<Phone Textbox>                                                   |
-            |                                                                                 |
-            |                                    <Next>                                       |
-            +---------------------------------------------------------------------------------+
-			Showing Step 1
+Solution: Create a REST call that updates the USERS record and sets registration_state=2
 
 
-            +---------------------------------------------------------------------------------+
-            | User Registration                                                    <Help Btn> |
-            +---------------------------------------------------------------------------------+
-            |                                                                                 |
-            |         Step 1            Step 2            Step 3            Step 4            |
-            |       User Profile      Business Info     Backup Contact      Review            |
-            |                                                                                 |
-            |                                                                                 |
-            |         Business Info                                                           |
-            |          		<Business CAGE Textbox>   <Verify>                                |
-            |                                                                                 |
-            |         Company Info                                                            |
-            |                6KY98     RBR-Technologies, Inc.                                 |
-            |                                                                                 |
-            |                               <Prev>      <Next>                                |
-            +---------------------------------------------------------------------------------+
-			Showing Step 2
-
-
-			+---------------------------------------------------------------------------------+
-            | User Registration                                                    <Help Btn> |
-			+---------------------------------------------------------------------------------+
-			|                                                                                 |
-            |         Step 1            Step 2            Step 3            Step 4            |
-            |       User Profile      Business Info     Backup Contact      Review            |
-			|                                                                                 |
-			|                                                                                 |
-			|         Backup Contact                                                          |
-			|             Backup Contact Full Name Textbox                                    |
-			|             Backup Contact Email Textbox                                        |
-			|             Backup Contact Phone Number Textbox                                 |
-			|                                                                                 |
-			|                               <Prev>      <Next>                                |
-			+---------------------------------------------------------------------------------+
-			Showing Step 3
+Order of Operations
+-------------------
+ 1) When a user *FIRST* connects to the webapp, insert a USERS record with users.registration_state=1  (pending registration)
+ 2) When a user *SUBMITS registration, update the record by setting users.registration_state=2
 
 
 			+---------------------------------------------------------------------------------+
@@ -79,7 +29,7 @@ Solution: Use the Angular Material <mat-stepper> and <mat-step>
 			|                                                                                 |
 			|                             <Prev>    <Submit>                                  |
 			+---------------------------------------------------------------------------------+
-			Showing Step 4
+			Pressing "Submit" should invoke REST call and disable all buttons while waiting
 
 
 Part 1 / Develop the REST Call Contract to save this info
@@ -98,10 +48,16 @@ Part 1 / Develop the REST Call Contract to save this info
  	d. What is returned?
 
  	e. What checks are made on the passed-in data?
+			USERNAME is required
 
  	f. What security roles are granted access to this REST call?
 
  	g. What does this REST call do
+		    Update the USERS record for the logged-in user
+		 	by setting the cert_username = <username from frontend>
+		 	by setting the email = <email from frontend>
+		 	by setting the registration_state = 2
+		 	by setting last_updated_date to right now
 
 
 
@@ -109,40 +65,340 @@ Part 1 / Develop the REST Call Contract to save this info
 
 Part 2 / Build the REST call on the backend
 -------------------------------------------
- 1. Create the backend DTO
+ 1. Add some database tables:
+  	a. Add a new database table:  registration_states
+		-- It should have 2 columns:  id and name
+		-- The id column is the primary key
 
- 2. Create the backend service:  RegistrationService
+	b. Add 4 records to it
+		1,Unregistered
+		2,Waiting for Verification
+		3,Registration Approved
+		4,Registration Denied
 
- 3. Create the backend controller: RegistrationController
-
- 4. Verify it works using Postman
-
-
+ 	c. Add a column to the users table:  users.registration_state
+ 	   NOTE:  This columns is required and it has a default value of 1 (Unregistered)
+ 	   NOTE:  This is a foreign key to the registration_states.id column
 
 
-Part 3 / Integrate the REST call on the frontend
+
+		-----------------------------------------------------------------------------
+		-- Create this table:  registration_states
+		-----------------------------------------------------------------------------
+		create table registration_states
+		(
+			id   integer     not null,
+			name varchar(100) not null,
+			primary key (id)
+		);
+		comment on table registration_states is 'This table hold the registration states that a user can be in';
+
+
+		-- Insert the lookup values into this table
+		insert into registration_states(id, name) values
+			(1, 'Unregistered'),
+			(2, 'Waiting for Verification'),
+			(3, 'Registration Approved'),
+			(4, 'Registration Denied');
+
+
+		-----------------------------------------------------------------------------
+		-- Create this table:  users
+		-----------------------------------------------------------------------------
+		create table users
+		(
+			id                   integer       not null,
+			version              integer       not null default (1),
+			cert_username        varchar(100)  not null,              -- comes from cac card
+			is_locked            boolean       not null default(false),
+			first_name           varchar(100)      null,
+			last_name            varchar(100)      null,
+			full_name            varchar(200)      null,
+			email                varchar(200)      null,
+			created_date         timestamp     not null,
+			last_login_date      timestamp     not null,
+			last_updated_date    timestamp     not null,
+			registration_state   integer       not null default(1),
+			primary key (id),
+			constraint fk_registration_state FOREIGN KEY (registration_state) references registration_states(id)
+		);
+		comment on table users is 'The Users table holds information about each user';
+
+
+		-----------------------------------------------------------------------------
+		-- Create this table:  users_aud
+		-----------------------------------------------------------------------------
+		create table users_aud
+		(
+			id                   integer           null,
+			version              integer           null,
+			cert_username        varchar(100)      null,
+			is_locked            boolean           null,
+			first_name           varchar(100)      null,
+			last_name            varchar(100)      null,
+			full_name            varchar(200)      null,
+			email                varchar(100)      null,
+			created_date         timestamp         null,
+			last_login_date      timestamp         null,
+			last_updated_date    timestamp         null,
+			registration_state   integer           null,
+			timestamp            timestamp     not null,
+			username             varchar(100)  not null,
+			audit_type           integer       not null, --0 create, 1 update, 2 delete
+			transaction_id       integer       not null
+		);
+		comment on table Users_aud is 'The Audit table for the Users table';
+
+
+ 2. Create the backend DTO for your REST call contract
+
+		import com.fasterxml.jackson.annotation.JsonProperty;
+
+		public class RegisterUserDTO {
+
+			@JsonProperty("email")
+			private String email;
+
+			@JsonProperty("username")
+			private String username;
+
+
+			// ------------------------------ Getters & Setters -----------------------------
+
+			public String getEmail() {
+				return email;
+			}
+
+			public void setEmail(String email) {
+				this.email = email;
+			}
+
+			public String getUsername() {
+				return username;
+			}
+
+			public void setUsername(String username) {
+				this.username = username;
+			}
+		}
+
+
+ 3. Create the backend service:  RegistrationService
+	a. Add a public method called registerUser()
+	b. Pass-in the DTO into this method
+	c. This method will update the USERS for the logged-in userid
+		-- Take a look at the contract!!
+
+		@Service
+		public class RegistrationService {
+			private static final Logger logger = LoggerFactory.getLogger(RegistrationService.class);
+
+			@Resource
+			private DataSource dataSource;
+
+			@Resource
+			private DatabaseService databaseService;
+
+			@Resource
+			private UserService userService;
+
+
+
+			public void registerUser(RegisterUserDTO aDTO) {
+
+				AuditManager auditManager = new AuditManager(this.dataSource, this.userService.getLoggedInFullName(), databaseService.getMapTableNameToCsvOfColumns());
+
+				String sql = """
+							update users
+							set last_login_date=now(), cert_username=:cert_username, email=:email
+							where id=:id
+							""";
+
+				Map<String, Object> paramMap = new HashMap<>();
+				paramMap.put("cert_username", aDTO.getUsername());
+				paramMap.put("email",         aDTO.getEmail());
+				paramMap.put("id",            userService.getLoggedInUserId());
+
+				// Execute the SQL to update the USERS record (and add an audit record)
+				auditManager.runSqlUpdateOne(sql, paramMap, "users_aud");
+			}
+		}
+
+
+
+ 4. Create the backend controller: RegistrationController
+	a. Add a public method called registerUser()  // This is your REST call
+	b. Have your method call your RegistrationService.registerUser() method
+
+		@Controller
+		public class RegistrationController {
+			private static final Logger logger = LoggerFactory.getLogger(RegistrationController.class);
+
+			@Resource
+			private RegistrationService registrationService;
+
+			@RequestMapping(value = "/api/register/user", method = RequestMethod.POST, produces = "application/json")
+			@PreAuthorize("hasAnyRole('APP16_SUPERVISOR', 'APP16_SPECIALIST', 'APP16_ADMIN', 'APP16_REVIEWER')")
+			public ResponseEntity<?> registerUser(@RequestBody RegisterUserDTO aDTO) {
+
+				this.registrationService.registerUser(aDTO);
+
+				// Return a 200 status code
+				return ResponseEntity.status(HttpStatus.OK).build();
+			}
+
+		}
+
+ 5. Verify the REST call works using Postman
+
+
+
+
+Part 3 / Create a "Registration Pending Verification" page
+----------------------------------------------------------
+ 1. Part 1 / Setup the Page
+    a. Generate the component                 registration-pending-verification
+    b. Add the route to constants.ts:         the route will be this:   page/registration-pending-verification
+    c. Register the route
+    d. Add the route to the database table:  ui_controls        (if using real security)
+    e. Add a link to the navbar (using that route)
+    f. Use the debugger to verify that the navbar link works
+
+
+ 2. Fill-in the layout
+    NOTE:  There is no page title
+           There is no help button
+           There is a font-awesome icon with a check (surrounded by a circle) / make it 240 pixels tall / give it a color of rgba(21, 189, 73, 0.76)
+		   There is a large 25px margin around the whole page
+
+			+---------------------------------------------------------------------------------+
+			|						⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⣿⣿⣿⣷⣶⣴⣾⣿⣿⣿⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀                            |
+			|						⠀⠀⠀⠀⣀⣤⣤⣴⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣤⣤⣤⣄⠀⠀⠀⠀                            |
+			|						⠀⠀⠀⣼⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⠀⠀⠀                            |
+			|						⠀⠀⠀⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡀⠀⠀                            |
+			|						⢀⣤⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣦⡀                            |
+			|						⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠟⠁⠈⢻⣿⣿⣿⣿⣿⣿⣿                            |
+			|						⢿⣿⣿⣿⣿⣿⣿⣿⡿⠻⣿⣿⣿⣿⣿⣿⣿⠟⠁⠀⢀⣴⣿⣿⣿⣿⣿⣿⣿⣿                            |
+			|						⢈⣿⣿⣿⣿⣿⣿⣯⡀⠀⠈⠻⣿⣿⣿⠟⠁⠀⢀⣴⣿⣿⣿⣿⣿⣿⣿⣿⣿⡁                            |
+			|						⣾⣿⣿⣿⣿⣿⣿⣿⣿⣦⡀⠀⠈⠛⠁⠀⢀⣴⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷                            |
+			|						⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣦⡀⠀⢀⣴⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿                            |
+			|						⠈⠛⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣶⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠟⠁                            |
+			|						⠀⠀⠀⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠇⠀⠀                            |
+			|						⠀⠀⠀⢻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠀⠀⠀                            |
+			|						⠀⠀⠀⠀⠉⠛⠛⠛⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠟⠛⠛⠉⠁⠀⠀⠀                            |
+			|						⠀⠀⠀⠀⠀⠀⠀⠀⠀⠻⣿⣿⣿⠿⢿⡻⠿⣿⣿⣿⠟⠁⠀⠀⠀⠀⠀⠀⠀⠀                            |
+			|                                                                                 |
+			|                             Submission Received                                 |
+			|                                                                                 |
+			|     			   Your registration was successfully submitted and a             |
+			|     			   reviewer will look through your application shortly.           |
+			+---------------------------------------------------------------------------------+
+
+ 3. Remove the this page from the left-side navbar (as users will not navigate to it)
+
+
+		<div class="m-[25px]">
+
+		  <div class="flex flex-col gap-y-2.5">
+
+			<div class="flex place-content-center self-center">
+				<i class="far fa-check-circle" style="color:rgba(21,189,73,0.76); font-size: 240px" ></i>
+			</div>
+
+			<div class="flex place-content-center">
+			  Submission Received
+			</div>
+
+			<div class="flex place-content-center">
+			  Your registration was successfully submitted and a reviewer will look through your application shortly.
+			</div>
+		  </div>
+
+		</div>
+
+
+
+Part 4 / Integrate the REST call on the frontend
 ------------------------------------------------
  1. Create the frontend DTO
+
+		export class RegisterUserDTO {
+		  public email: string;
+		  public username: string;
+		}
 
 
  2. Create the frontend service:  RegistrationService
  	a. Create the service
 
- 	b. Create a public method that invokes the REST call
+	b. Inject the httpClient
+
+ 	c. Create a public method that invokes the REST call:  registerUser()
+ 		-- Pass-in the DTO
+ 		-- Have it invoke your REST call
+
+		import { Injectable } from '@angular/core';
+		import {RegisterUserDTO} from "../models/register-user-dto";
+		import {Observable} from "rxjs";
+		import {HttpClient} from "@angular/common/http";
+		import {environment} from "../../environments/environment";
+
+		@Injectable({
+		  providedIn: 'root'
+		})
+		export class RegistrationService {
+
+		  constructor(private httpClient: HttpClient) { }
+
+		  public registerUser(aDTO: RegisterUserDTO) : Observable<string> {
+			const restUrl: string = environment.baseUrl + '/api/register/user';
+
+			return this.httpClient.post <string> (restUrl, aDTO);
+		  }
+		}
 
 
- 3. When the user presses "Submit",
+ 3. In the RegistrationService.registerUser() method
+ 	-- Add a 5-second delay to the observable
+
+		  public registerUser(aDTO: RegisterUserDTO) : Observable<string> {
+			const restUrl: string = environment.baseUrl + '/api/register/user';
+
+			return this.httpClient.post <string> (restUrl, aDTO).pipe(delay(5000));
+		  }
+
+
+ 4. When the user presses "Submit",
  	a. Create a DTO
  	b. Invoke the REST call
+ 	c. If the REST call finishes successfully, take the user to the "Registration Pending Verification" page
+ 	 	1) Inject the router
+     	2) Use the router to navigate the user to the "Registration Pending Verification" page
+	d. Try it out
+
+		  public submitClicked(): void {
+
+			// Create the DTO and populate it from the form fields
+			let dto: RegisterUserDTO = new RegisterUserDTO();
+			dto.email = this.myForm.controls.email.value;
+			dto.username = this.myForm.controls.username.value;
+
+			this.registrationService.registerUser(dto).subscribe( () => {
+			  // REST call came back successfully
+			  this.router.navigate([Constants.PENDING_REGISTRATION_ROUTE]).then()
+			});
+		  }
 
 
- 4. Show spinner and disable mat-step header buttons, Previous, and Submit buttons while waiting
+
+
+ 5. Show spinner and disable mat-step header buttons, Previous, and Submit buttons while waiting
     a. Add a class variable:  submitInProgress / initialize to false
       		public submitInProgress: boolean = false;
 
 
     b. Add a CSS class:   not-clickable
-       NOTE:  This class stops all pointer-events
+       NOTE:  When this CSS class is applied, it will *STOP* all pointer/click events
 
 			.not-clickable {
 			  pointer-events: none !important;
@@ -150,9 +406,8 @@ Part 3 / Integrate the REST call on the frontend
 
 
     c. In the submitClicked() event handler
-    	1. Set the submitInProgress = true
-
-   		2. When the REST call finishes, set it to false
+    	1. Set the submitInProgress = true  (as the first thing that happens)
+      	2. In the REST call finally block, set the flag to false
 
 
     d. In the HTML / apply the not-clickable CSS class to the <mat-stepper> if submitInProgress==TRUE
@@ -173,11 +428,358 @@ Part 3 / Integrate the REST call on the frontend
               </div>
 
               <div>
-                <button type="button" mat-raised-button color="accent" (click)="this.submitClicked()"
-                        [disabled]="this.submitInProgress"
-                        title="Submit" aria-label="Submit">Submit</button>
+                  <!-- SUBMIT Button -->
+                  <button type="button" mat-raised-button color="accent" (click)="this.submitClicked()"
+                          [disabled]="this.submitInProgress"
+                          title="Submit" aria-label="Submit">
+
+                    <ng-container *ngIf="this.submitInProgress">
+                        <!-- Submitting REST call.  So, show spinner -->
+                        <i class="fa fa-spin fa-spinner text-lg"></i>
+                        Submitting...
+                    </ng-container>
+
+                    <ng-container *ngIf="!this.submitInProgress">
+                      <!-- Not Submitting REST Call.  So, show "Submit" -->
+                      Submit
+                    </ng-container>
+                  </button>
               </div>
 
 
+	When finished, the TypeScript looks like this:
+	----------------------------------------------
+	import {Component, OnInit, ViewChild} from '@angular/core';
+    import {MatStepper} from "@angular/material/stepper";
+    import {FormBuilder, FormGroup} from "@angular/forms";
+    import {ValidatorService} from "../../services/validator.service";
+    import {RegisterUserDTO} from "../../models/register-user-dto";
+    import {RegistrationService} from "../../services/registration.service";
+    import {Router} from "@angular/router";
+    import {Constants} from "../../utilities/constants";
+
+    @Component({
+      selector: 'app-register-user',
+      templateUrl: './register-user.component.html',
+      styleUrls: ['./register-user.component.scss']
+    })
+    export class RegisterUserComponent implements OnInit {
+      @ViewChild('stepper')  stepper: MatStepper;
+
+      public myForm: FormGroup;
+      public submitInProgress: boolean = false;
+
+      public constructor(private formBuilder: FormBuilder,
+                         private validatorService: ValidatorService,
+                         private registrationService: RegistrationService,
+                         private router: Router) {
+
+      }
+
+      public ngOnInit() : void {
+        // Initialize the form
+        this.myForm = this.formBuilder.group( {
+          username:    [null, this.validatorService.whiteSpaceValidator() ],
+          title:       [null, this.validatorService.whiteSpaceValidator() ],
+          email:       [null, this.validatorService.emailValidator() ],
+          phoneNumber: [null, this.validatorService.phoneNumberValidator() ]
+        });
+      }
+
+      public nextClicked(): void {
+        // marks the steps as completed so the use can go back and forth
+        if (this.stepper.selected) {
+          this.stepper.selected.completed = true;
+        }
+
+        // move to next step
+        this.stepper.next();
+      }
+
+      public previousClicked(): void {
+        // Return to the previous step
+        this.stepper.previous();
+      }
+
+
+      public submitClicked(): void {
+        this.submitInProgress = true;
+
+        // Create the DTO and populate it from the form fields
+        let dto: RegisterUserDTO = new RegisterUserDTO();
+        dto.email = this.myForm.controls.email.value;
+        dto.username = this.myForm.controls.username.value;
+
+        this.registrationService.registerUser(dto).subscribe( () => {
+          // REST call came back successfully
+          this.router.navigate([Constants.PENDING_REGISTRATION_ROUTE]).then()
+        }).add( () => {
+          // REST call finally block
+          this.submitInProgress = false;
+        });
+      }
+
+    }
+
+
+
+	When finished, the SCSS looks like this:
+	----------------------------------------
+	.not-clickable {
+	  pointer-events: none !important;
+	}
+
+
+
+
+	When finished, the HTML looks like this:
+	----------------------------------------
+	<form [formGroup]="this.myForm" autocomplete="off" novalidate>
+    <div class="m-2.5">
+
+      <div class="grid grid-cols-2">
+        <div>
+          <span class="text-xl">User Registration</span>
+        </div>
+
+        <div class="flex place-content-end">Help</div>
+      </div>
+
+      <div class="mt-2.5 overflow-y-auto" style="height: calc(100vh - 145px)">
+
+        <mat-stepper labelPosition="bottom" [linear]=true #stepper
+                     [ngClass]="{'not-clickable': this.submitInProgress }">
+
+          <!-- Define the icon for state="number"  -->
+          <ng-template matStepperIcon="number" let-index="index">
+            <span>{{index + 1}}</span>
+          </ng-template>
+
+          <!-- Define the icon for state="done" -->
+          <ng-template matStepperIcon="done" let-index="index">
+            <span>{{index + 1}}</span>
+          </ng-template>
+
+          <!-- Define the icon for the *SELECTED* step  (by default it is state="edit")  -->
+          <ng-template matStepperIcon="edit" let-index="index">
+            <span>{{index + 1}}</span>
+          </ng-template>
+
+
+
+          <!--   S T E P    # 1    /       U S E R       P R O F I L E  -->
+          <mat-step [completed]="false">
+
+            <!-- Set the Step Label -->
+            <ng-template matStepLabel>User Profile</ng-template>
+
+            <div class="p-2.5 mt-2.5 border border-10">
+              <span class="text-xl">User Profile</span>
+
+              <div class="ml-2.5 flex flex-col gap-y-2.5">
+                <div>
+                  <mat-form-field>
+                    <mat-label>Username</mat-label>
+
+                    <input type="text" formControlName="username" matInput title="Enter Username" aria-label="Enter Username" />
+                  </mat-form-field>
+                </div>
+
+                <div>
+                  <mat-form-field>
+                    <mat-label>Title</mat-label>
+
+                    <input type="text" formControlName="title" matInput title="Enter Title" aria-label="Enter Title" />
+                  </mat-form-field>
+                </div>
+
+                <div>
+                  <mat-form-field>
+                    <mat-label>Email Address</mat-label>
+
+                    <input type="text" formControlName="email" matInput title="Enter Email Address" aria-label="Enter Email Address" />
+                  </mat-form-field>
+                </div>
+
+                <div>
+                  <mat-form-field>
+                    <mat-label>Phone Number</mat-label>
+
+                    <input type="text" appPhoneMask formControlName="phoneNumber" matInput title="Enter Phone Number" aria-label="Enter Phone Number" />
+                  </mat-form-field>
+                </div>
+
+                <div class="flex place-content-center">
+                  <div>
+                    <button type="button" mat-raised-button (click)="this.nextClicked()"
+                            [disabled]="!this.myForm.controls.username.valid || !this.myForm.controls.title.valid || !this.myForm.controls.email.valid || !this.myForm.controls.phoneNumber.valid"
+                     title="Next" aria-label="Next">Next</button>
+                  </div>
+                </div>
+              </div>
+
+    <pre>
+    this.myForm.valid = {{ this.myForm.valid }}
+    this.myForm.controls.username.valid = {{  this.myForm.controls.username.valid }}
+    this.myForm.controls.title.valid = {{  this.myForm.controls.title.valid }}
+    this.myForm.controls.email.valid = {{  this.myForm.controls.email.valid }}
+    this.myForm.controls.phoneNumber.valid = {{  this.myForm.controls.phoneNumber.valid }}
+    </pre>
+
+            </div>
+          </mat-step>
+
+          <!--   S T E P    # 2    /    B U S I N E S S       I N F O  -->
+          <mat-step [completed]="false">
+            <ng-template matStepLabel>Business Info</ng-template>
+
+            <div class="p-2.5 mt-2.5 border border-10">
+              <span class="text-xl">Business Info</span>
+
+              <div class="ml-2.5 flex flex-col gap-y-2.5">
+                <div>
+                  <mat-form-field>
+                    <mat-label>CAGE Code</mat-label>
+
+                    <input type="text" matInput title="Enter CAGE" aria-label="Enter CAGE" />
+                  </mat-form-field>
+                </div>
+
+                <div>
+                  List of Registered CAGE Codes
+                </div>
+
+                <div class="flex place-content-center gap-x-2.5">
+                  <div>
+                    <button type="button" mat-raised-button (click)="this.previousClicked()" title="Previous" aria-label="Previous">Prev</button>
+                  </div>
+
+                  <div>
+                    <button type="button" mat-raised-button (click)="this.nextClicked()" title="Next" aria-label="Next">Next</button>
+                  </div>
+                </div>
+              </div>
+
+
+            </div>
+          </mat-step>
+
+
+          <!--   S T E P    # 3    /    B A C K U P       P O C     -->
+          <mat-step [completed]="false">
+            <ng-template matStepLabel>Backup POC</ng-template>
+
+            <div class="p-2.5 mt-2.5 border border-10">
+              <span class="text-xl">Backup Point of Contact</span>
+
+              <div class="ml-2.5 flex flex-col gap-y-2.5">
+                <div>
+                  <mat-form-field>
+                    <mat-label>Backup POC Full Name</mat-label>
+
+                    <input type="text" matInput title="Enter Backup POC Full Name" aria-label="Enter Backup POC Full Name" />
+                  </mat-form-field>
+                </div>
+
+                <div>
+                  <mat-form-field>
+                    <mat-label>Backup POC Email Address</mat-label>
+
+                    <input type="text" matInput title="Enter Backup POC Email Address" aria-label="Enter Backup POC Email Address" />
+                  </mat-form-field>
+                </div>
+
+                <div>
+                  <mat-form-field>
+                    <mat-label>Backup POC Phone Number</mat-label>
+
+                    <input type="text" matInput title="Enter Backup POC Phone Number" aria-label="Enter Backup POC Phone Number" />
+                  </mat-form-field>
+                </div>
+
+                <div class="flex place-content-center gap-x-2.5">
+                  <div>
+                    <button type="button" mat-raised-button (click)="this.previousClicked()" title="Previous" aria-label="Previous">Prev</button>
+                  </div>
+
+                  <div>
+                    <button type="button" mat-raised-button (click)="this.nextClicked()" title="Next" aria-label="Next">Next</button>
+                  </div>
+                </div>
+              </div>
+
+
+            </div>
+          </mat-step>
+
+
+
+          <!--   S T E P    # 4    /    R E V I E W      -->
+          <mat-step [completed]="false">
+            <ng-template matStepLabel>Review</ng-template>
+
+            <div class="p-2.5 mt-2.5 border border-10">
+              <span class="text-xl">Review</span>
+
+              <div class="ml-2.5 flex flex-col gap-y-2.5">
+                <div>
+                  Entered Username
+                </div>
+
+                <div>
+                  Entered Title
+                </div>
+
+                <div>
+                  Entered Email
+                </div>
+
+                <div>
+                  Entered Phone
+                </div>
+
+                <div>
+                  Entered CAGE / Business Name
+                </div>
+
+                <div class="flex place-content-center gap-x-2.5">
+                  <div>
+                    <button type="button" mat-raised-button (click)="this.previousClicked()"
+                            [disabled]="this.submitInProgress"
+                            title="Previous" aria-label="Previous">Prev</button>
+                  </div>
+
+                  <div>
+
+                    <!-- SUBMIT Button -->
+                    <button type="button" mat-raised-button color="accent" (click)="this.submitClicked()"
+                            [disabled]="this.submitInProgress"
+                            title="Submit" aria-label="Submit">
+
+                      <ng-container *ngIf="this.submitInProgress">
+                          <!-- Submitting REST call.  So, show spinner -->
+                          <i class="fa fa-spin fa-spinner text-lg"></i>
+                          Submitting...
+                      </ng-container>
+
+                      <ng-container *ngIf="!this.submitInProgress">
+                        <!-- Not Submitting REST Call.  So, show "Submit" -->
+                        Submit
+                      </ng-container>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+
+            </div>
+          </mat-step>
+
+        </mat-stepper>
+
+      </div>
+
+    </div>
+    </form>
 
 
