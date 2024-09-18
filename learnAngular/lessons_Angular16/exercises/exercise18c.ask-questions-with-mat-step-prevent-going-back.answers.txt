@@ -14,3 +14,302 @@ Order of Operations
  3) User sees the "Pending Registration Verification" page
  4) User Presses Back
  	-- PROBLEM:  User can see "Register User" page a *SECOND* time
+
+
+
+Part 1 / Create a REST call that gets the logged-in user's current registration state
+-------------------------------------------------------------------------------------
+ 1. Develop the contract for this REST call
+ 	a. What is the URL?
+ 	   Rule:  Must start with /api
+
+ 	b. What is the URL Type?
+ 			GET			Used for read-only operations
+ 			PUT			Used for write operations and passing-in 1 parameter on the URL
+ 			POST   		Used for write operations and passing-in multiple parameters [no limit]
+ 			DELETE		Used for write operations involving deletes
+
+ 	c. What is passed-in?
+
+ 	d. What is returned?
+
+ 	e. What checks are made on the passed-in data?
+
+ 	f. What security roles are granted access to this REST call?
+
+ 	g. What does this REST call do
+
+
+ 2. Create a backend DTO:  UserRegistrationInfoDTO
+ 	-- Add the registration state to it
+
+		public class UserRegistrationInfoDTO {
+			@JsonProperty("registrationState")
+			private Integer registrationState;
+
+			public Integer getRegistrationState() {
+				return registrationState;
+			}
+
+			public void setRegistrationState(Integer registrationState) {
+				this.registrationState = registrationState;
+			}
+		}
+
+
+ 3. Add a method to the backend UserService:  getUserRegistrationInfo()
+ 	-- It queries the database for the current registration state
+ 	-- It puts the info into a DTO
+ 	-- It returns the DTO
+
+		public UserRegistrationInfoDTO getUserRegistrationInfo() {
+			String sql = "select registration_state from users where id=?";
+
+			JdbcTemplate jt = new JdbcTemplate(this.dataSource);
+
+			Integer loggedInUserid = getLoggedInUserId();
+
+			// Execute the SQL, returning a Integer from the first row/first column
+			Integer registrationStateId = jt.queryForObject(sql, Integer.class, loggedInUserid);
+
+			UserRegistrationInfoDTO dto = new UserRegistrationInfoDTO();
+			dto.setRegistrationState(registrationStateId);
+
+			return dto;
+		}
+
+
+ 4. Add a method to the backend UserController:  getUserRegistrationInfo()
+
+
+		/**
+		 * REST endpoint /api/user/registration-state
+		 */
+		@RequestMapping(value = "/api/user/registration-state", method = RequestMethod.GET, produces = "application/json")
+		@PreAuthorize("hasAnyRole('APP16_SUPERVISOR', 'APP16_SPECIALIST', 'APP16_ADMIN', 'APP16_REVIEWER')")
+		public ResponseEntity<?> getUserRegistrationInfo() {
+
+			UserRegistrationInfoDTO dto = userService.getUserRegistrationInfo();
+
+			// Return a response of 200 and the UserRegistrationInfoDTO object
+			return ResponseEntity.status(HttpStatus.OK).body(dto);
+		}
+
+
+ 5. Verify the REST call works with Postman
+
+
+
+
+Part 2 / Create a frontend service that can invoke this REST call
+------------------------------------------------------------------
+ 1. Create the frontend DTO:  UserRegistrationInfoDTO
+
+		export class UserRegistrationInfoDTO {
+		  public registrationState: number;
+		}
+
+
+ 2. Add a public method to the frontend userService:  getUserRegistrationInfo()
+ 	-- What's passed-in?  Look at the contract.
+ 	-- What's returned?   Look at the contract.
+
+	  public getUserRegistrationInfo(): Observable<UserRegistrationInfoDTO> {
+		const restUrl: string = environment.baseUrl + '/api/user/registration-state';
+
+		return this.httpClient.get <UserRegistrationInfoDTO> (restUrl);
+	  }
+
+
+
+Part 3 / Create a guard that prevents the user from registering twice
+---------------------------------------------------------------------
+ 1. Create the guard
+    terminal> ng generate guard guards/StopUserFromRegisteringAgain  --implements CanActivate
+
+ 	MAJOR PROBLEM:  Angular has deprecated guards so we're going to turn it into a namespace (like a static class in Angular)
+
+ 2. Change the guard into a namespace
+ 	Replace your code with this:
+
+		export namespace StopUserFromRegisteringAgainGuard {
+
+		   @Injectable({
+			 providedIn: 'root'
+		   })
+		   class InternalPageGuardService {
+
+			}
+		}
+
+
+ 3. Inside your InternalPageGuardService, add a constructor
+
+ 		export namespace StopUserFromRegisteringAgainGuard {
+
+ 		   @Injectable({
+ 			 providedIn: 'root'
+ 		   })
+ 		   class InternalPageGuardService {
+
+ 		 		constructor() {  }
+
+ 			}
+ 		}
+
+
+ 4. Inject the router and userService
+
+  		export namespace StopUserFromRegisteringAgainGuard {
+
+  		   @Injectable({
+  			 providedIn: 'root'
+  		   })
+  		   class InternalPageGuardService {
+
+   			  constructor(private router: Router,
+               			  private userService: UserService) {}
+
+  			}
+  		}
+
+ 5. Add a method called canActive inside your InternalPageGuardService
+
+   		export namespace StopUserFromRegisteringAgainGuard {
+
+   		   @Injectable({
+   			 providedIn: 'root'
+   		   })
+   		   class InternalPageGuardService {
+
+    			  constructor(private router: Router,
+                			  private userService: UserService) {}
+
+
+					 /*
+					  * If this method returns an Observable<boolean>, then the router will subscribe and WAIT for the result
+					  * So, this method must return an observable that holds TRUE or FALSE
+					  *
+					  * If the observable holds TRUE, then the router will open the page
+					  * If the observable holds FALSE, then the router will *NOT* open the page
+					  */
+					 public canActivate(aActivatedRouteSnapshot: ActivatedRouteSnapshot): Observable<boolean> {
+
+					   return this.userService.getUserRegistrationInfo().pipe(
+						 switchMap((aUserDTO: UserRegistrationInfoDTO) => {
+						   console.log('in stop-user.canActivate()  aUserDTO.registrationState=', aUserDTO.registrationState);
+
+						   if (aUserDTO.registrationState == 1) {
+							 // User is not registered.  So, return TRUE to let the user open the page
+							 return of(true);
+						   }
+						   else if(aUserDTO.registrationState == 2) {
+							 // User has submitted registration.  So, take the user back to the "Pending Verification Page"
+							 this.router.navigate([Constants.PENDING_REGISTRATION_ROUTE]).then();
+							 return of(false);
+						   }
+						   else{
+							 // Don't let the user navigate to this page
+							 return of(false);
+						   }
+
+						 }));
+
+					 } // end of canActivate()
+
+			   }  // end of InternalPageGuardService
+
+   		}
+
+ 6. Outside of your InternalPageGuardService, call your method and inject the InternalPageGuardService
+
+
+			/*
+			 * Problem:    Angular is deprecating the CanActivate interface
+			 * Solution:   if you have older guards, then you can still use them
+			 *             Convert your older guard into a service and inject it below
+			 */
+			export const canActivate: CanActivateFn = (aActivatedRouteSnapshot: ActivatedRouteSnapshot, aRouterStateSnapshot: RouterStateSnapshot) => {
+			  // Inject the InternalPageGuardService and call canActivate()
+			  return inject(InternalPageGuardService).canActivate(aActivatedRouteSnapshot);
+			};
+
+
+
+	 When finished, it should look like this:
+	 ----------------------------------------
+	 import {ActivatedRouteSnapshot, CanActivateFn, Router, RouterStateSnapshot} from '@angular/router';
+	 import {inject, Injectable} from "@angular/core";
+	 import {UserService} from "../services/user.service";
+	 import {Observable, of, switchMap} from "rxjs";
+	 import {Constants} from "../utilities/constants";
+	 import {UserRegistrationInfoDTO} from "../models/user-registration-info-dto";
+
+	 export namespace StopUserFromRegisteringAgainGuard {
+
+	   @Injectable({
+		 providedIn: 'root'
+	   })
+	   class InternalPageGuardService {
+
+		 constructor(private router: Router,
+					 private userService: UserService) {}
+
+
+		 /*
+		  * If this method returns an Observable<boolean>, then the router will subscribe and WAIT for the result
+		  * So, this method must return an observable that holds TRUE or FALSE
+		  *
+		  * If the observable holds TRUE, then the router will open the page
+		  * If the observable holds FALSE, then the router will *NOT* open the page
+		  */
+		 public canActivate(aActivatedRouteSnapshot: ActivatedRouteSnapshot): Observable<boolean> {
+
+		   return this.userService.getUserRegistrationInfo().pipe(
+			 switchMap((aUserDTO: UserRegistrationInfoDTO) => {
+			   console.log('in stop-user.canActivate()  aUserDTO.registrationState=', aUserDTO.registrationState);
+
+			   if (aUserDTO.registrationState == 1) {
+				 // User is not registered.  So, return TRUE to let the user open the page
+				 return of(true);
+			   }
+			   else if(aUserDTO.registrationState == 2) {
+				 // User has submitted registration.  So, take the user back to the "Pending Verification Page"
+				 this.router.navigate([Constants.PENDING_REGISTRATION_ROUTE]).then();
+				 return of(false);
+			   }
+			   else{
+				 // Don't let the user navigate to this page
+				 return of(false);
+			   }
+
+			 }));
+
+		 } // end of canActivate()
+
+	   }  // end of InternalPageGuardService
+
+
+	   /*
+		* Problem:    Angular is deprecating the CanActivate interface
+		* Solution:   if you have older guards, then you can still use them
+		*             Convert your older guard into a service and inject it below
+		*/
+	   export const canActivate: CanActivateFn = (aActivatedRouteSnapshot: ActivatedRouteSnapshot, aRouterStateSnapshot: RouterStateSnapshot) => {
+		 // Inject the InternalPageGuardService and call canActivate()
+		 return inject(InternalPageGuardService).canActivate(aActivatedRouteSnapshot);
+	   };
+
+	 }
+
+
+ 7. Protect the "Register User" page
+ 	a. Edit app.module.ts
+
+ 	b. Add the guard to canActivate
+
+ 	  { path:  Constants.REGISTER_USER_ROUTE,     component: RegisterUserComponent,        canActivate: [PageGuard.canActivate, StopUserFromRegisteringAgainGuard.canActivate ] },
+
+
+  Now, if a user attempts to go back, the guard will redirect the user back to the "Pending Registration Verification" page
+
