@@ -114,7 +114,6 @@ Angular 16 Lesson Plan
     <a href="./exercises/exercise18b.ask-questions-with-mat-step-rest-call.questions.txt"          title="Exercise 18b">Exercise 18b</a> / Ask questions w/single-page and mat-step / Add REST call       (<a href="./exercises/exercise18b.ask-questions-with-mat-step-rest-call.answers.txt"  title="Answer to 18b">Answers</a>)
     <a href="./exercises/exercise18c.ask-questions-with-mat-step-prevent-going-back.questions.txt" title="Exercise 18c">Exercise 18c</a> / Ask questions w/single-page and mat-step / Stop Double Submit  (<a href="./exercises/exercise18c.ask-questions-with-mat-step-prevent-going-back.answers.txt"  title="Answer to 18c">Answers</a>)
     <a href="./exercises/exercise19a.ask-questions-with-multiple-pages-layout.question.txt" title="Exercise 19a">Exercise 19a</a> / Ask questions w/multiple pages / Setup Layout                  (<a href="./exercises/exercise19a.ask-questions-with-multiple-pages-layout.answers.txt"  title="Answer to 19a">Answers</a>)
-    Exercise 19a / Ask questions w/multiple pages / Setup Layout
     Exercise 19b / Ask questions w/multiple pages / REST calls
     Exercise 19c / Ask questions w/multiple pages / Auto-save when leaving page
     Exercise 19d / Ask questions w/multiple pages / Auto-save every N seconds 
