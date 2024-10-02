@@ -18,7 +18,8 @@ Angular 16 Lesson Plan
     h. <a href="./lectures/boring.lectures.waiting.for.rest.calls.txt"          title="Holding the user hostage while waiting for a REST call">Stopping users while waiting for a REST call to finish</a>
     i. <a href="./lectures/boring.lecture.all-rest-calls-are-ambiguous.txt"     title="The dirty secret w/form validation:  All REST call contracts are ambiguous">The dirty secret w/form validation:  All REST call contracts are ambigous</a>
     j. <a href="./lectures/boring.lecture.approaches-asking-many-questions.txt" title="Approaches to asking many question">Approaches to asking many questions</a>
-
+    k. <a href="./lectures/boring.lecture.angular.tricks.and.techniques.txt"    title="Tricks & Techniques">Tricks & Techniques</a>
+    
  3. Add Frontend Dependencies
     <a href="./lesson03_installTailwind.txt"    title="Install Tailwind">Install Tailwind</a>
     <a href="./lesson04_installFontAwesome.txt" title="Install Font Awesome Pro">Install Font Awesome Pro</a>
