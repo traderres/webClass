@@ -9,17 +9,18 @@ Angular 16 Lesson Plan
 
  2. Boring Lectures
     a. <a href="./lectures/boring.lecture.overallArchitecture.txt"              title="Overall Architecture">Overall Architecture (snooze)</a>
-    b. <a href="./lectures/boring.lecture.what.is.tailwind.txt"                 title="What is Tailwind?">What is Tailwind?</a>
-    c. <a href="./lectures/boring.lecture.component.lifecycle.txt"              title="Component Life Cycle">Component Life Cycle</a>
-    d. One-way-binding and two-way-binding
-    e. <a href="./lectures/boring.lecture.approaches.loading.data.txt"          title="Approaches to Loading Data">Approaches to Loading Data</a>
-    f. <a href="./lectures/boring.lecture.what.is.observable.txt"               title="What is an Observable">What is an Observable?</a>
-    g. <a href="./lectures/boring.lecture.flyway.auditing.bind.variables.txt"   title="Database Versioning">Database Versioning, Auditing, and Bind Variables?</a>
-    h. <a href="./lectures/boring.lectures.waiting.for.rest.calls.txt"          title="Holding the user hostage while waiting for a REST call">Stopping users while waiting for a REST call to finish</a>
-    i. <a href="./lectures/boring.lecture.all-rest-calls-are-ambiguous.txt"     title="The dirty secret w/form validation:  All REST call contracts are ambiguous">The dirty secret w/form validation:  All REST call contracts are ambigous</a>
-    j. <a href="./lectures/boring.lecture.approaches-asking-many-questions.txt" title="Approaches to asking many question">Approaches to asking many questions</a>
-    k. <a href="./lectures/what.is.the.contract.txt"    title="What is the Contract?">What is the contract?</a>
-    l. <a href="./lectures/boring.lecture.angular.tricks.and.techniques.txt"    title="Tricks & Techniques">Tricks & Techniques</a>
+    b. <a href="./lectures/boring.lecture.terminology.txt"                      title="Terminology">Terminology (wake me up when it's done!)</a>
+    c. <a href="./lectures/boring.lecture.what.is.tailwind.txt"                 title="What is Tailwind?">What is Tailwind?</a>
+    d. <a href="./lectures/boring.lecture.component.lifecycle.txt"              title="Component Life Cycle">Component Life Cycle</a>
+    e. One-way-binding and two-way-binding
+    f. <a href="./lectures/boring.lecture.approaches.loading.data.txt"          title="Approaches to Loading Data">Approaches to Loading Data</a>
+    g. <a href="./lectures/boring.lecture.what.is.observable.txt"               title="What is an Observable">What is an Observable?</a>
+    h. <a href="./lectures/boring.lecture.flyway.auditing.bind.variables.txt"   title="Database Versioning">Database Versioning, Auditing, and Bind Variables?</a>
+    i. <a href="./lectures/boring.lectures.waiting.for.rest.calls.txt"          title="Holding the user hostage while waiting for a REST call">Stopping users while waiting for a REST call to finish</a>
+    j. <a href="./lectures/boring.lecture.all-rest-calls-are-ambiguous.txt"     title="The dirty secret w/form validation:  All REST call contracts are ambiguous">The dirty secret w/form validation:  All REST call contracts are ambigous</a>
+    k. <a href="./lectures/boring.lecture.approaches-asking-many-questions.txt" title="Approaches to asking many question">Approaches to asking many questions</a>
+    l. <a href="./lectures/what.is.the.contract.txt"    title="What is the Contract?">What is the contract?</a>
+    m. <a href="./lectures/boring.lecture.angular.tricks.and.techniques.txt"    title="Tricks & Techniques">Tricks & Techniques</a>
     
  3. Add Frontend Dependencies
     <a href="./lesson03_installTailwind.txt"    title="Install Tailwind">Install Tailwind</a>
