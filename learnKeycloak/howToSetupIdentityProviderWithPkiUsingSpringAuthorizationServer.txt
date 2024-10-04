@@ -1,0 +1,172 @@
+How to Setup a Custom Open ID Connect Identity (OIDC) Provider / Build using Spring Boot
+----------------------------------------------------------------------------------------
+Problem:  I want to create my own Open ID Connect (OIDC) Identity Provider that uses PKI authentication
+          So, the Keycloak Login page has an option that says "Continue with CAC"
+Solution: Create a spring authorization server to build a custom OIDC Provider
+
+Spring Authorization Server is a framework that provides implementations of the OAuth 2.1 and OpenID Connect 1.0 specifications
+and other related specifications. It is built on top of Spring Security to provide a secure, light-weight,
+and customizable foundation for building OpenID Connect 1.0 Identity Providers and OAuth2 Authorization Server products.
+
+OAuth 2.0 is an authorization framework that enables secure access to resources without sharing credentials
+-- You are not sharing credentials with the application; instead you are authorizing the web application to access your resources on your behalf.
+-- This is achieved through the exchange of tokens, such as access tokens and refresh tokens
+
+OpenID Connect is an authentication layer built on top of OAuth 2.0.
+-- It provides identity verification, allowing users to log in to applications using their preferred identity provider (IdP),
+
+
+
+References
+----------
+https://www.baeldung.com/spring-security-oauth-auth-server
+https://github.com/spring-projects/spring-authorization-server
+https://docs.spring.io/spring-authorization-server/reference/
+https://serengetitech.com/tech/simplifying-oauth-2-0-and-openid-connect-implementation-with-spring-authorization-server/
+https://docs.spring.io/spring-authorization-server/reference/how-to.html
+https://www.youtube.com/watch?v=TyS9EDy5r9M
+
+
+
+
+Part 1:  Build your Custom OIDC Provider
+----------------------------------------
+ 1. Create a new IntelliJ Project: custom-oidc-provider
+ 	a. Create a new project with IntelliJ
+
+ 	b. Use the quickStart archetype
+
+
+ 2. Change the project pom.xml so it has the required dependencies and uses Java 17
+
+ <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+   <modelVersion>4.0.0</modelVersion>
+
+   <groupId>com.lessons</groupId>
+   <artifactId>custom-oidc-provider</artifactId>
+   <version>1.0-SNAPSHOT</version>
+   <packaging>jar</packaging>
+
+   <name>custom-oidc-provider</name>
+
+
+   <properties>
+     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+     <!-- Tell Maven to compile for Java 17 -->
+     <maven.compiler.release>17</maven.compiler.release>
+     <maven.compiler.verbose>false</maven.compiler.verbose>
+   </properties>
+
+   <build>
+     <pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
+       <plugins>
+         <!-- clean lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#clean_Lifecycle -->
+         <plugin>
+           <artifactId>maven-clean-plugin</artifactId>
+           <version>3.1.0</version>
+         </plugin>
+         <!-- default lifecycle, jar packaging: see https://maven.apache.org/ref/current/maven-core/default-bindings.html#Plugin_bindings_for_jar_packaging -->
+         <plugin>
+           <artifactId>maven-resources-plugin</artifactId>
+           <version>3.0.2</version>
+         </plugin>
+         <plugin>
+           <artifactId>maven-compiler-plugin</artifactId>
+           <version>3.8.0</version>
+         </plugin>
+         <plugin>
+           <artifactId>maven-surefire-plugin</artifactId>
+           <version>2.22.1</version>
+         </plugin>
+         <plugin>
+           <artifactId>maven-jar-plugin</artifactId>
+           <version>3.0.2</version>
+         </plugin>
+         <plugin>
+           <artifactId>maven-install-plugin</artifactId>
+           <version>2.5.2</version>
+         </plugin>
+         <plugin>
+           <artifactId>maven-deploy-plugin</artifactId>
+           <version>2.8.2</version>
+         </plugin>
+         <!-- site lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#site_Lifecycle -->
+         <plugin>
+           <artifactId>maven-site-plugin</artifactId>
+           <version>3.7.1</version>
+         </plugin>
+         <plugin>
+           <artifactId>maven-project-info-reports-plugin</artifactId>
+           <version>3.0.0</version>
+         </plugin>
+       </plugins>
+     </pluginManagement>
+     <plugins>
+       <plugin>
+         <groupId>org.apache.maven.plugins</groupId>
+         <artifactId>maven-compiler-plugin</artifactId>
+         <configuration>
+           <source>17</source>
+           <target>17</target>
+         </configuration>
+       </plugin>
+     </plugins>
+   </build>
+ </project>
+
+
+
+
+
+Part 2:  Start up all of the Applications
+-----------------------------------------
+ 1) Your protected webapp is listening on http://localhost:8080/admin
+    terminal> java -Dspring.profiles.active=local_oauth2  -Djavax.net.ssl.trustStorePassword=changeit  -Djavax.net.ssl.trustStore=admin-backend/src/main/dev-resources/cacerts -jar admin-backend/target/admin-backend-1.0-SNAPSHOT-exec.jar
+
+ 2) Your keycloak is up listening on http://localhost:8444
+    Running keycloak with this command:
+           bin/kc.sh start-dev --http-port=8444
+
+ 3) Your Custom OIDC provider is listening on https://localhost:9443/
+
+
+
+
+Part 3:  Configure Keycloak to use your Custom OIDC Provider
+------------------------------------------------------------
+ 1. Connect to Keycloak
+
+ 2. Add the Custom OIDC Identity Provider in Keycloak
+    a. Go to myRealm -> Identity Providers
+    b. Press "Add Provider" -> OpenID Connect v1.0
+    c. In the "Add OpenID Connect provider" page
+       Make sure you have these settings
+			alias:  						custom-oidc-provider     				# You make it what you want
+			Display Name:   				Login with Custom OIDC Provider         # Displayed in the Login Page
+
+			Discovery endpoint:				https://localhost:9443/.well-known/openid-configuration
+											-- Wait for the keycloak page to resolve this url
+
+					Authorization URL:		http://localhost:9444/oauth2/authorize
+					Token URL:				http://localhost:9444/oauth2/token
+					Logout URL				http://localhost:9444/connect/logout
+					User Info URL:			http://localhost:9444/userinfo
+					Issuer:					http://localhost:9444
+					Validate Signatures:	On
+					Use JWKS URL:			On
+					JWKS URL:				http://localhost:9444/oauth2/jwks
+					Use PKCE:				Off
+
+			Client authentication:			Client secret sent as post
+			Client ID:                      oidc-client                             # It must match the spring.security.oauth2.authorizationserver.client.oidc-connect.registration.client-id
+			Client Secret:					secret									# It must match the spring.security.oauth2.authorizationserver.client.oidc-connect.registration.client-secret
+
+		Press "Add"
+
+
+ 3. Tell Keycloak to bring the user attributes back from login.gov and return them to spring-boot upon authorization
+    a. In keycloak, go to MyRealm -> Identity Providers -> Identity Provider for login.gov -> "Settings" tab
+    b. In the settings page, press 'Advanced"
+    	    Scopes:   	openid profile
