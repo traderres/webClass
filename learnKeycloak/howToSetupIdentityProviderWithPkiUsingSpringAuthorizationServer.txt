@@ -25,6 +25,7 @@ https://docs.spring.io/spring-authorization-server/reference/
 https://serengetitech.com/tech/simplifying-oauth-2-0-and-openid-connect-implementation-with-spring-authorization-server/
 https://docs.spring.io/spring-authorization-server/reference/how-to.html
 https://www.youtube.com/watch?v=TyS9EDy5r9M
+https://docs.spring.io/spring-authorization-server/reference/configuration-model.html   # See the info on x509 certificates
 
 
 
@@ -39,83 +40,579 @@ Part 1:  Build your Custom OIDC Provider
 
  2. Change the project pom.xml so it has the required dependencies and uses Java 17
 
- <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-   <modelVersion>4.0.0</modelVersion>
+		 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+		   <modelVersion>4.0.0</modelVersion>
 
-   <groupId>com.lessons</groupId>
-   <artifactId>custom-oidc-provider</artifactId>
-   <version>1.0-SNAPSHOT</version>
-   <packaging>jar</packaging>
+		   <groupId>com.lessons</groupId>
+		   <artifactId>custom-oidc-provider</artifactId>
+		   <version>1.0-SNAPSHOT</version>
+		   <packaging>jar</packaging>
 
-   <name>custom-oidc-provider</name>
+		   <name>custom-oidc-provider</name>
 
 
-   <properties>
-     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-     <!-- Tell Maven to compile for Java 17 -->
-     <maven.compiler.release>17</maven.compiler.release>
-     <maven.compiler.verbose>false</maven.compiler.verbose>
-   </properties>
+			<properties>
+				<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-   <build>
-     <pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
-       <plugins>
-         <!-- clean lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#clean_Lifecycle -->
-         <plugin>
-           <artifactId>maven-clean-plugin</artifactId>
-           <version>3.1.0</version>
-         </plugin>
-         <!-- default lifecycle, jar packaging: see https://maven.apache.org/ref/current/maven-core/default-bindings.html#Plugin_bindings_for_jar_packaging -->
-         <plugin>
-           <artifactId>maven-resources-plugin</artifactId>
-           <version>3.0.2</version>
-         </plugin>
-         <plugin>
-           <artifactId>maven-compiler-plugin</artifactId>
-           <version>3.8.0</version>
-         </plugin>
-         <plugin>
-           <artifactId>maven-surefire-plugin</artifactId>
-           <version>2.22.1</version>
-         </plugin>
-         <plugin>
-           <artifactId>maven-jar-plugin</artifactId>
-           <version>3.0.2</version>
-         </plugin>
-         <plugin>
-           <artifactId>maven-install-plugin</artifactId>
-           <version>2.5.2</version>
-         </plugin>
-         <plugin>
-           <artifactId>maven-deploy-plugin</artifactId>
-           <version>2.8.2</version>
-         </plugin>
-         <!-- site lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#site_Lifecycle -->
-         <plugin>
-           <artifactId>maven-site-plugin</artifactId>
-           <version>3.7.1</version>
-         </plugin>
-         <plugin>
-           <artifactId>maven-project-info-reports-plugin</artifactId>
-           <version>3.0.0</version>
-         </plugin>
-       </plugins>
-     </pluginManagement>
-     <plugins>
-       <plugin>
-         <groupId>org.apache.maven.plugins</groupId>
-         <artifactId>maven-compiler-plugin</artifactId>
-         <configuration>
-           <source>17</source>
-           <target>17</target>
-         </configuration>
-       </plugin>
-     </plugins>
-   </build>
- </project>
+				<!-- Tell Maven to compile for Java 17 -->
+				<maven.compiler.release>17</maven.compiler.release>
+				<maven.compiler.verbose>false</maven.compiler.verbose>
+			</properties>
 
+			<dependencyManagement>
+				<dependencies>
+
+					<dependency>
+						<!-- Set the Spring Boot Version -->
+						<groupId>org.springframework.boot</groupId>
+						<artifactId>spring-boot-dependencies</artifactId>
+						<version>3.2.0</version>
+						<type>pom</type>
+						<scope>import</scope>
+					</dependency>
+
+				</dependencies>
+			</dependencyManagement>
+
+			<dependencies>
+
+				<dependency>
+					<!-- Spring Boot Web -->
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-starter-web</artifactId>
+
+					<exclusions>
+						<exclusion>
+							<!-- Remove Tomcat from Spring Boot -->
+							<groupId>org.springframework.boot</groupId>
+							<artifactId>spring-boot-starter-tomcat</artifactId>
+						</exclusion>
+
+						<exclusion>
+							<!-- Remove logging from spring as we will use logback -->
+							<groupId>org.springframework.boot</groupId>
+							<artifactId>spring-boot-starter-logging</artifactId>
+						</exclusion>
+					</exclusions>
+				</dependency>
+
+				<dependency>
+					<!-- Add Dependency for the Undertow App Server -->
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-starter-undertow</artifactId>
+
+					<exclusions>
+						<exclusion>
+							<!-- Remove logging from undertow as we will use logback -->
+							<groupId>org.springframework.boot</groupId>
+							<artifactId>spring-boot-starter-logging</artifactId>
+						</exclusion>
+					</exclusions>
+				</dependency>
+
+				<dependency>
+					<!-- Send logging from Java Common Logging to SLF4J -->
+					<groupId>org.slf4j</groupId>
+					<artifactId>jcl-over-slf4j</artifactId>
+					<version>2.0.5</version>
+				</dependency>
+
+				<dependency>
+					<!-- SLF4J will use Logback-classic as its logging implementation -->
+					<groupId>ch.qos.logback</groupId>
+					<artifactId>logback-classic</artifactId>
+					<version>1.4.11</version>
+				</dependency>
+
+				<dependency>
+					<!-- Add the dependency for the SSLContextFactory's use of DatatypeConverter -->
+					<!-- This ensures that SSLContextFactory will compile with Java 17           -->
+					<groupId>jakarta.xml.bind</groupId>
+					<artifactId>jakarta.xml.bind-api</artifactId>
+					<version>3.0.0</version>
+				</dependency>
+
+				<dependency>
+					<groupId>org.springframework</groupId>
+					<artifactId>spring-web</artifactId>
+					<version>6.1.2</version>
+				</dependency>
+
+				<dependency>
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-starter-security</artifactId>
+				</dependency>
+
+				<dependency>
+					<!-- Spring Boot / Resource Server (so this program acts as an Open ID Connect Provider -->
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-starter-oauth2-authorization-server</artifactId>
+				</dependency>
+
+				<dependency>
+					<!-- Send logging from Java Util Logging to SLF4J -->
+					<groupId>org.slf4j</groupId>
+					<artifactId>jul-to-slf4j</artifactId>
+					<version>1.7.30</version>
+				</dependency>
+
+				<dependency>
+					<!-- StringUtils Dependency -->
+					<groupId>org.apache.commons</groupId>
+					<artifactId>commons-lang3</artifactId>
+					<version>3.14.0</version>
+				</dependency>
+
+				<dependency>
+					<groupId>junit</groupId>
+					<artifactId>junit</artifactId>
+					<version>4.13.2</version>
+					<scope>test</scope>
+				</dependency>
+
+			</dependencies>
+
+
+			<build>
+				<pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
+					<plugins>
+						<!-- clean lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#clean_Lifecycle -->
+						<plugin>
+							<artifactId>maven-clean-plugin</artifactId>
+							<version>3.1.0</version>
+						</plugin>
+						<!-- default lifecycle, jar packaging: see https://maven.apache.org/ref/current/maven-core/default-bindings.html#Plugin_bindings_for_jar_packaging -->
+						<plugin>
+							<artifactId>maven-resources-plugin</artifactId>
+							<version>3.0.2</version>
+						</plugin>
+						<plugin>
+							<artifactId>maven-compiler-plugin</artifactId>
+							<version>3.8.0</version>
+						</plugin>
+						<plugin>
+							<artifactId>maven-surefire-plugin</artifactId>
+							<version>2.22.1</version>
+						</plugin>
+						<plugin>
+							<artifactId>maven-jar-plugin</artifactId>
+							<version>3.0.2</version>
+						</plugin>
+						<plugin>
+							<artifactId>maven-install-plugin</artifactId>
+							<version>2.5.2</version>
+						</plugin>
+						<plugin>
+							<artifactId>maven-deploy-plugin</artifactId>
+							<version>2.8.2</version>
+						</plugin>
+						<!-- site lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#site_Lifecycle -->
+						<plugin>
+							<artifactId>maven-site-plugin</artifactId>
+							<version>3.7.1</version>
+						</plugin>
+						<plugin>
+							<artifactId>maven-project-info-reports-plugin</artifactId>
+							<version>3.0.0</version>
+						</plugin>
+					</plugins>
+				</pluginManagement>
+
+
+				<plugins>
+					<plugin>
+						<!-- This plugin provides the tools needed to repackage the Spring Boot JAR into a runnable JAR
+							 Run this command to generate the runnable Spring Boot Jar
+								mvn clean package  *or*
+								mvn clean package spring-boot:repackage
+						 -->
+						<groupId>org.springframework.boot</groupId>
+						<artifactId>spring-boot-maven-plugin</artifactId>
+						<version>3.2.0</version>
+						<configuration>
+							<addResources>true</addResources>
+						</configuration>
+
+						<executions>
+							<execution>
+								<goals>
+									<goal>repackage</goal>
+								</goals>
+								<configuration>
+									<classifier>exec</classifier>
+								</configuration>
+							</execution>
+						</executions>
+
+					</plugin>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-compiler-plugin</artifactId>
+						<configuration>
+							<source>17</source>
+							<target>17</target>
+						</configuration>
+					</plugin>
+
+
+					<plugin>
+						<!-- Use the git-commit-id plugin to generate the git.properties file that has info about who compiled the app  -->
+						<!-- See https://github.com/git-commit-id/git-commit-id-maven-plugin                                            -->
+						<groupId>io.github.git-commit-id</groupId>
+						<artifactId>git-commit-id-maven-plugin</artifactId>
+						<version>7.0.0</version>
+
+						<executions>
+							<execution>
+								<id>get-the-git-infos</id>
+								<goals>
+									<goal>revision</goal>
+								</goals>
+							</execution>
+							<execution>
+								<id>validate-the-git-infos</id>
+								<goals>
+									<goal>validateRevision</goal>
+								</goals>
+							</execution>
+						</executions>
+
+						<configuration>
+							<verbose>false</verbose>
+							<generateGitPropertiesFile>true</generateGitPropertiesFile>
+						</configuration>
+					</plugin>
+
+				</plugins>
+			</build>
+		</project>
+
+
+ 3. Add this class:  WebSecurityConfig
+
+		import org.springframework.context.annotation.Bean;
+		import org.springframework.context.annotation.Configuration;
+		import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+		import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+		import org.springframework.security.web.SecurityFilterChain;
+
+		/*
+			WebSecurityConfig is a configuration class to define Security Settings
+			that will protect our endpoints from unauthorized access:
+		 */
+		@Configuration
+		@EnableWebSecurity
+		public class WebSecurityConfig {
+
+			@Bean
+			public SecurityFilterChain defaultFilterChain(HttpSecurity http) throws Exception {
+				http.
+						authorizeHttpRequests(authorize ->
+								authorize
+										.anyRequest().authenticated())
+						.x509()
+						.subjectPrincipalRegex("CN=(.*?),")
+						.authenticationUserDetailsService( new X509AuthenticatedUserDetailsService() );
+
+				return http.build();
+			}
+
+
+		}
+
+ 4. Add this class:  X509AuthenticatedUserDetailsService
+
+		 import org.springframework.security.core.GrantedAuthority;
+		 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+		 import org.springframework.security.core.userdetails.AuthenticationUserDetailsService;
+		 import org.springframework.security.core.userdetails.User;
+		 import org.springframework.security.core.userdetails.UserDetails;
+		 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+		 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
+
+		 import java.security.cert.X509Certificate;
+		 import java.util.Collection;
+		 import java.util.List;
+
+		 public class X509AuthenticatedUserDetailsService implements AuthenticationUserDetailsService<PreAuthenticatedAuthenticationToken> {
+
+			 @Override
+			 public UserDetails loadUserDetails(PreAuthenticatedAuthenticationToken token) throws UsernameNotFoundException {
+				 X509Certificate certificate = (X509Certificate)token.getCredentials();
+				 // do your extra checking here...
+
+				 // add granted authorities, etc.
+				 Collection<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("APP16_SUPERVISOR"));
+
+				 String password = " ";
+
+				 // generate your user how you deem fit
+				 User user = new User(certificate.getSubjectX500Principal().getName(), password, authorities);
+				 return user;
+			 }
+
+		 }
+
+
+ 5. Add this class:   AuthorizationServerConfig
+
+		import org.springframework.context.annotation.Bean;
+		import org.springframework.context.annotation.Configuration;
+		import org.springframework.core.Ordered;
+		import org.springframework.core.annotation.Order;
+		import org.springframework.http.MediaType;
+		import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+		import org.springframework.security.core.authority.AuthorityUtils;
+		import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
+		import org.springframework.security.oauth2.server.authorization.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
+		import org.springframework.security.oauth2.server.authorization.config.annotation.web.configurers.OAuth2AuthorizationServerConfigurer;
+		import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
+		import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
+		import org.springframework.security.web.SecurityFilterChain;
+		import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
+		import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
+
+		import java.util.Collections;
+		import java.util.Set;
+		import java.util.stream.Collectors;
+
+		import static org.springframework.security.config.Customizer.withDefaults;
+
+		@Configuration
+		public class AuthorizationServerConfig {
+
+			@Bean
+			@Order(Ordered.HIGHEST_PRECEDENCE)
+			public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity aHttp) throws Exception {
+				OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(aHttp);
+
+				aHttp
+						.x509()
+						.subjectPrincipalRegex("CN=(.*?),")
+						.authenticationUserDetailsService( new X509AuthenticatedUserDetailsService() );
+
+				aHttp   .getConfigurer(OAuth2AuthorizationServerConfigurer.class)
+						.oidc(withDefaults()); // Enable OpenID Connect 1.0
+				aHttp
+						.exceptionHandling((exceptions) -> exceptions
+								.defaultAuthenticationEntryPointFor(
+										new LoginUrlAuthenticationEntryPoint("/login"),
+										new MediaTypeRequestMatcher(MediaType.TEXT_HTML)
+								)
+						)
+						.oauth2ResourceServer((resourceServer) -> resourceServer.jwt(withDefaults()));
+
+				return aHttp.build();
+			}
+
+
+			@Bean
+			public OAuth2TokenCustomizer<JwtEncodingContext> jwtTokenCustomizer() {
+				return (context) -> {
+					if (OAuth2TokenType.ACCESS_TOKEN.equals(context.getTokenType())) {
+						context.getClaims().claims((claims) -> {
+							Set<String> roles = AuthorityUtils.authorityListToSet(context.getPrincipal().getAuthorities())
+									.stream()
+									.map(c -> c.replaceFirst("^ROLE_", ""))
+									.collect(Collectors.collectingAndThen(Collectors.toSet(), Collections::unmodifiableSet));
+							claims.put("roles", roles);
+						});
+					}
+				};
+			}
+
+
+		}
+
+
+ 6. Add this class:  VersionService:
+
+		import jakarta.annotation.PostConstruct;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import org.springframework.stereotype.Service;
+
+		import java.io.InputStream;
+		import java.util.Properties;
+
+		@Service("VersionService")
+		public class VersionService {
+
+			private static final Logger logger = LoggerFactory.getLogger(VersionService.class);
+
+			private String appVersion = null;
+			private String commitId = null;      	// Holds the latest commit MD5 value from git
+
+
+			@PostConstruct
+			public void init() throws Exception {
+
+				// Read the contents of the git.properties file to get the latest git commit
+				initializeCommitInfo();
+			}
+
+
+
+			private void initializeCommitInfo() throws Exception {
+				// Use a try-with-resources block to open git.properties, read it, and close it at the end of the try block
+				// NOTE:  The git-commit-id-plugin plugin creates the git.properties file and this code reads that file
+				try (InputStream inputStream = this.getClass().getClassLoader().getResourceAsStream("git.properties")) {
+
+					if (inputStream == null) {
+						logger.warn("Warning:  Could not find git.properties.  So, could not find app version and commit id.");
+
+						// set the app version to a value in dev mode, so the exception service can save the record
+						this.appVersion = "dev-mode";
+						return;
+					}
+
+					final Properties properties = new Properties();
+
+					// Load the file into a properties object
+					properties.load(inputStream);
+
+					// Pull out the git commitId from the properties object
+					this.commitId = properties.getProperty("git.commit.id");
+
+					// Pull the application version value from the properties object
+					this.appVersion  = properties.getProperty("git.build.version");
+				}
+			}
+
+
+
+			public String getAppVersion() {
+				return appVersion;
+			}
+
+			public String getCommitId() {
+				return commitId;
+			}
+		}
+
+
+ 7. Add this class:  ResourceServerApplication
+
+		 import gov.dcsa.services.VersionService;
+		 import org.slf4j.Logger;
+		 import org.slf4j.LoggerFactory;
+		 import org.springframework.boot.Banner;
+		 import org.springframework.boot.SpringApplication;
+		 import org.springframework.boot.autoconfigure.SpringBootApplication;
+		 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
+		 import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
+		 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
+		 import org.springframework.context.ConfigurableApplicationContext;
+
+
+		 @SpringBootApplication(exclude = {DataSourceAutoConfiguration.class, HibernateJpaAutoConfiguration.class, SecurityAutoConfiguration.class})
+		 public class ResourceServerApplication  {
+
+			 private static final Logger logger = LoggerFactory.getLogger(ResourceServerApplication.class);
+
+
+			 /**
+			  * The Spring Authorization Server app starts here
+			  *
+			  * @param args holds an array of passed-in arguments from the command-line
+			  */
+			 public static void main( String[] args ) {
+				 logger.debug("main() started.");
+
+				 // Start up Spring Boot but disable the banner
+				 SpringApplication app = new SpringApplication(ResourceServerApplication.class);
+				 app.setBannerMode(Banner.Mode.OFF);
+				 ConfigurableApplicationContext context  = app.run(args);
+
+				 // Get a reference to the versionService
+				 VersionService versionService = (VersionService) context.getBean("VersionService");
+
+				 // Log a message so that Tier 3 Support knows which version and commit Id is actually running
+				 logger.info("Custom OIDC Provider is Up / {} / {}\n", versionService.getAppVersion(), versionService.getCommitId() );
+			 }
+
+
+		 }
+
+ 8. Add this file:  src/main/resources/application.yaml
+
+		#################################################################################################
+		# Filename:  application.yaml
+		#
+		# You will need these VM options to run in your debugger or command-line
+		#    -Djavax.net.ssl.trustStorePassword=changeit  -Djavax.net.ssl.trustStore=/path/to/dev-resources/cacerts
+		#################################################################################################
+
+
+		##########################################################
+		# Configure the Spring Authorization Server
+		#
+		##########################################################
+		server:
+		  port: 9444             # This custom oidc provider listens on port 9444
+		  ssl:
+			key-store: keycloak/custom-oidc-provider/src/main/dev-resources/webapp.keystore.jks
+			key-store-password: changeit
+			key-store-type: JKS
+			trust-store: keycloak/custom-oidc-provider/src/main/dev-resources/webapp.truststore.jks
+			trust-store-password: changeit
+			trust-store-type: JKS
+			enabled: true
+			client-auth: need                   # You must provide a PKI Cert
+
+
+		spring:
+		  application:
+			name: authorization-server
+
+		  security:
+			oauth2:
+			  authorizationserver:
+				client:
+				  oidc-client:
+					registration:
+					  client-id: "oidc-client"
+					  client-secret: "{noop}secret"
+					  client-authentication-methods:
+						- "client_secret_basic"
+					  authorization-grant-types:
+						- "authorization_code"
+						- "refresh_token"
+					  redirect-uris:
+						- "https://localhost.localdomain:8444/realms/MyRealm/broker/oidc/endpoint"
+					  post-logout-redirect-uris:
+						- "http://127.0.0.1:8080/"
+					  scopes:
+						- "openid"
+						- "profile"
+					require-authorization-consent: true
+
+
+ 9.  Add this file:  src/main/resources/logback.yaml
+
+		 <?xml version="1.0" encoding="UTF-8" ?>
+		 <configuration debug="false">
+
+			 <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+				 <encoder>
+					 <pattern>%d{MM/dd/yyyy HH:mm:ss} %15t %-5level %c - %msg%n</pattern>
+				 </encoder>
+			 </appender>
+
+			 <logger name="org.springframework" level="TRACE" additivity="false">
+				 <appender-ref ref="CONSOLE"/>
+			 </logger>
+
+			 <logger name="gov.dcsa" level="DEBUG" additivity="false">
+				 <appender-ref ref="CONSOLE"/>
+			 </logger>
+
+			 <root level="DEBUG">
+				 <appender-ref ref="CONSOLE"/>
+			 </root>
+		 </configuration>
 
 
 
@@ -148,17 +645,17 @@ Part 3:  Configure Keycloak to use your Custom OIDC Provider
 			alias:  						custom-oidc-provider     				# You make it what you want
 			Display Name:   				Login with Custom OIDC Provider         # Displayed in the Login Page
 
-			Discovery endpoint:				https://localhost:9443/.well-known/openid-configuration
+			Discovery endpoint:				https://localhost.localdomain:9443/.well-known/openid-configuration
 											-- Wait for the keycloak page to resolve this url
 
-					Authorization URL:		http://localhost:9444/oauth2/authorize
-					Token URL:				http://localhost:9444/oauth2/token
-					Logout URL				http://localhost:9444/connect/logout
-					User Info URL:			http://localhost:9444/userinfo
-					Issuer:					http://localhost:9444
+					Authorization URL:		https://localhost.localdomain:9443/oauth2/authorize
+					Token URL:				https://localhost.localdomain:9443/oauth2/token
+					Logout URL				https://localhost.localdomain:9443/connect/logout
+					User Info URL:			https://localhost.localdomain:9443/userinfo
+					Issuer:					https://localhost.localdomain:9443/
 					Validate Signatures:	On
 					Use JWKS URL:			On
-					JWKS URL:				http://localhost:9444/oauth2/jwks
+					JWKS URL:				https://localhost.localdomain:9443/oauth2/jwks
 					Use PKCE:				Off
 
 			Client authentication:			Client secret sent as post
