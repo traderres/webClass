@@ -44,18 +44,6 @@ OpenID Connect is an authentication layer built on top of OAuth 2.0.
 
 
 
-Outline
--------
- Part 1:  Create the certificate authority, server certs, and PKI client cert (p12 file)
- Part 2:  Install Keycloak v26 and setup the keycloak realm
- Part 3:  Setup the App16 webapp to use Keycloak for Oauth2 Authentication
- Part 4:  Build the Custom OIDC Provider
- Part 5:  Configure keycloak to use the custom OIDC Provider
- Part 6:  Verify it works
-
-
-
-
 References
 ----------
 https://www.baeldung.com/spring-security-oauth-auth-server
@@ -68,10 +56,70 @@ https://docs.spring.io/spring-authorization-server/reference/configuration-model
 
 
 
+Outline
+-------
+ Part 1:  Create the certificate authority, server certs, and PKI client cert (p12 file)
+ Part 2:  Install Keycloak v26 and setup the keycloak realm
+ Part 3:  Setup the App16 webapp to use Keycloak for Oauth2 Authentication
+ Part 4:  Build the Custom OIDC Provider
+ Part 5:  Configure keycloak to use the custom OIDC Provider
+ Part 6:  Verify it works
+
+
 
 
 Part 1:  Create the certificate authority, server certs, and PKI client cert (p12 file)
 ---------------------------------------------------------------------------------------
+ASSUMPTIONS
+ A) You want your server certificate hold localhost.localdomain2
+ B) So, you will connect to your app16 webapp using https://localhost.localdomain2:8443/app16
+
+ 1. Add localhost.localdomain2 to your /etc/hosts
+    unix> sudo vi /etc/hosts
+            127.0.0.1   localhost.localdomain2
+
+
+ 2. Create your own certificate authority
+    Follow the steps in learnSSL / howToUseYourCertAuthority_InitialSetup_centos7.txt
+
+
+ 3. Create your client cert that holds "john.smith.22222"
+    Follow the steps in learnSSL / howToUseYourCertAuthority_MakeClientCert_centos7.txt
+                Common Name:                john.smith.22222
+
+
+ 4. Create your server cert with a subject name alternative called "localhost.localdomain2"
+    Follow the steps in learnSSL / howToUseYourCertAuthority_MakeServerCertWithSubAlt_centos7.txt
+
+                export SUBJ_NAME_ALT=DNS:localhost.localdomain2
+
+		NOTE:  In step 3a /Create an extension file that has your subject name alternative
+				   [alt_names]
+				   DNS.1 = localhost.localdomain2
+
+
+ 5. Import the public root.pem (found ~/root-ca/public/root.pem) into your firefox web browser
+    a. Startup Firefox
+    b. Search for cert
+    c. Click "View Certificates"
+    d. In the "Certificate Manager", Click on this tab:  "Authorities"
+    e. Click "Import"
+    f. Browse to where you have the/home/<your unix account>/root-ca/public/root.pem
+    g. Check “Trust this CA to identify websites"
+       Check "Trust this CA to identify email users"
+       Press OK
+       Press OK
+
+ 6. Import the signed client certificate into your firefox web browser
+    a. Startup Firefox
+    b. Search for cert
+    c. Click "View Certificates"
+    d. In the "Certificate Manager", Click on this tab:  "Your Certificates"
+    d. Click "Import"
+    e. Browser to where the client.p12 file is located:  /tmp/client_cert/client.p12
+       Enter password from the previous step:  secret
+
+	-- Now, your firefox web browser trusts your root certificate authority and it has the john.smith.22222 PKI client certificate
 
 
 
@@ -91,25 +139,25 @@ Part 2:  Install Keycloak v26 and setup the keycloak realm
 
  2. Verify that you are running Java 17
     unix> java -version
-    --  You should be running Java 17 or later
+    -- You should be running Java 17 or later
 
 
  3. Run keycloak in "start-dev" mode listening on port 8444
-    unix> cd ~/Downloads/keycloak-26.0.0/
+    unix> cd keycloak-26.0.0/
     unix> bin/kc.sh start-dev --http-port=8444
 
 
  4. Create an Admin User
-    a. Go to http://localhost:8080
+    a. Go to http://localhost:8444
     b. Set the admin user by entering in on the welcome page
        Username:  admin
        password:  secret
-       Press "Create"
+       Press "Create user"
 
 
  5. Create a Realm
     NOTE:  Keycloak includes a single realm, called master. Use this realm only for managing Keycloak and not for managing any applications.
-    a. Go to http://localhost:8080/admin/
+    a. Go to http://localhost:8444/admin/
     b. Enter the admin user/password
     c. In the upper left corner, select Master
        Press "Create Realm"
@@ -119,13 +167,224 @@ Part 2:  Install Keycloak v26 and setup the keycloak realm
 
 
  6. Create a new client:  app16-webapp
+     a. Go to MyRealm -> Clients
+     b. Press "Create client"
+     c. In the "Create client" page
+			Client type:  OpenID Connect
+			Client id:    app16-webapp
+			name:         App16 Webapp
+			Press Next
+			Press Next
+			Press Save
+
+     d. Update these settings for app16-webapp:
+
+     	 	Access settings:
+				Root URL:              https://localhost.localdomain2:8443/app16
+				Home URL:              https://localhost.localdomain2:8443/app16
+
+			Capability Config:
+			  	Client authentication  On
+			  	Authorization          On
+			  	Authentication Flow:   Check Standard flow
+
+			Login Settings
+			   	Login theme:               keycloak
+			   	Consent required:          Off
+			   	Display client on screen:  Off
+
+			Press "Save"
+
+
+ 7. Configure Keycloak to listen on TLS at https://localhost.localdomain:8444/
+    a. Press Control-C to stop keycloak listening on http://localhost:8444/
+
+    b. Create this file:  start.kc.ssl.sh
+       unix> vi ~/Downloads/keycloak-26.0.0/start.kc.ssl.sh
+
+			####################################################################################################################
+			# Filename:   start.kc.ssl.sh
+			#
+			# Purpose:
+			#     Run keycloak in SSL mode listening on https://localhost.localdomain2:8444/
+			#
+			# ASSUMPTIONS:
+			#   1) You ran bin/kc.sh build  (first)
+			#   2) You have a Java 17 JDK
+			#   3) You have localhost.localdomain2 defined in your /etc/hosts file
+			#
+			# NOTES:
+			#   --https-client-auth=<none|request|required>        "request" means keycloak will also accept requests without a cert but validates cert if it exists
+			#   --hostname=localhost.localdomain2                  tells it to listen on the hostname called localhost.localdomain
+			####################################################################################################################
+
+ 			export JAVA_OPTS_APPEND="  -Djavax.net.ssl.trustStorePassword=changeit  -Djavax.net.ssl.trustStore=/home/adam/intellijProjects/angularApp16b/backend/src/main/dev-resources/cacerts "
+
+			# Run keycloak in TLS mode
+			bin/kc.sh start    --spi-theme-cache-themes=false --spi-theme-cache-templates=false --http-enabled=false --https-port=8444 --https-key-store-file=/home/adam/intellijProjects/angularApp16b/backend/src/main/dev-resources/webapp.keystore.jks --https-key-store-type=JKS --https-key-store-password=changeit  --https-client-auth=none  --log-level=INFO  --hostname-strict=false --hostname=localhost.localdomain2
+
+
+	c. Run keycloak listening on https://localhost.localdomain2:8444/
+       unix> cd ~/Downloads/keycloak-26.0.0
+       unix> chmod u+x ./start.kc.ssl.sh
+       unix> ./start.kc.ssl.sh
+
+    d. In the browser used to talk to Keycloak, import the CA found here:  ~/intellijProjects/angularApp16/backend/src/main/dev-resources/public.ca.root.pem
+	   1) Startup Firefox
+	   2) Pull Tools / Settings
+	   3) Search for cert
+	   4) Click "View Certificates"
+	   5) In the "Certificate Manager", Click on this tab:  "Authorities"
+	   6) Click "Import"
+	   7) Browse to here:   ~/intellijProjects/angularApp16/backend/src/main/dev-resources/public.ca.root.pem
+	   8) Check “Trust this CA to identify websites"
+		  Check "Trust this CA to identify email users"
+		   Press OK
+		   Press OK
+
+    e. Connect to keycloak using TLS
+       Go to https://localhost.localdomain2:8444/
+
+	   Leave Keycloak Running on https://localhost.localdomain2:8444/
 
 
 
 
 Part 3:  Setup the App16 webapp to use Keycloak for Oauth2 Authentication
 -------------------------------------------------------------------------
+ 1. Clone the project and verify it runs in http mode
+    a. Clone the project
+       unix> git clone https://github.com/traderres/angularApp16.git  angularApp16b
 
+    b. Checkout the correct branch
+       unix> cd angularApp16
+       unix> git checkout lesson8/add-grid
+
+    c. Initialize the local postgres database by following the steps in docs/howToInitializePostgresDatabase.dev.txt
+
+    d. Build the project
+       unix> mvn clean package -Pprod
+
+    e. Nuke the database and rebuild ElasticSearch
+       unix> java -Dapp.datasource.flyway-clean-on-startup=TRUE -jar ./sync-service/target/sync-service-1.0-SNAPSHOT-exec.jar
+
+    f. Run the webapp (using plain-text http)
+       unix> java -jar ./backend/target/backend-1.0-SNAPSHOT-exec.jar
+
+    g. Connect to the webapp listening on port 8080
+       Go to http://localhost:8080/app16
+
+    h. Stop the webapp by pressing Control-C
+
+
+ 2. Get the app16 project to use keycloak for authentication and have it listen on TLS
+    a. Copy the text below to this new file:  angularApp16/backend/src/main/resources/application-local_oauth2.yaml
+
+##############################################################################
+# Settings for the "local_oauth2" profile
+##############################################################################
+name: admin
+server.servlet.context-path: /admin
+
+# Provide the trustStore for the local keycloak
+
+
+# Disable cors check because we are running in local dev mode
+# NOTE:  order is important.  Make sure disable.cors comes *AFTER* you set the profile
+disable.cors: true
+
+
+# Show Exception info to local developers
+exception_handler.return_dev_info: true
+
+
+# Disable setting the last_login_date upon authentication
+# NOTE:  When running in local mode, there is no saved session.  So, every REST call runs sql to update the user's last login date
+#        Setting this flag to false ensures that the last login date is NOT set (which reduces the load on the developer's laptop)
+authenticate.set_last_login_date.is_enabled: false
+
+
+
+##########################################################
+# Security & SSL Settings
+#
+# Set the security mode to "keycloak" so it authenticates against keycloak
+##########################################################
+security.mode: keycloak          # Possible values are localdev or keycloak
+
+server:
+  port: 8443
+  ssl:
+    key-store: backend/src/main/dev-resources/webapp.keystore.jks
+    key-store-password: changeit
+    key-store-type: JKS
+    trust-store: backend/src/main/dev-resources/webapp.truststore.jks
+    trust-store-password: changeit
+    trust-store-type: JKS
+    enabled: true
+
+# Secure the cookies
+server.servlet.session.cookie.secure: true
+server.servlet.session.cookie.http-only: true
+
+server.use-forward-headers: true
+
+
+##############################################################################
+# Keycloak Settings for Spring Security
+#
+# The realm url is probably something like https://keycloak.rbr-tech.com:8444/realms/MyRealm
+##############################################################################
+spring.security.oauth2.client.registration.keycloak.client-id: app16-webapp
+spring.security.oauth2.client.registration.keycloak.client-secret: CLIENT_SECRET_FROM_KEYCLOAK
+spring.security.oauth2.client.registration.keycloak.authorization-grant-type: authorization_code
+spring.security.oauth2.client.registration.keycloak.scope: openid,email,profile,phone,address
+spring.security.oauth2.client.provider.keycloak.issuer-uri: https://localhost.localdomain2:8444/realms/MyRealm
+spring.security.oauth2.client.provider.keycloak.user-name-attribute: preferred_username
+
+
+##########################################################
+# Database Settings
+##########################################################
+app.datasource:
+  enabled: true
+  driver-class-name: org.postgresql.Driver
+  url: jdbc:postgresql://localhost:5432/app16_db
+  username: app16_user
+  password: secret
+  schema: app16_db
+  maxPoolSize: 2
+  database-name: app16_db
+
+
+##########################################################
+# ElasticSearch Settings
+##########################################################
+es:
+  url: http://localhost:9201
+  ssl_enabled: false
+
+  b. Get the client secret for app16-webapp from keycloak
+     Connect to http://localhost:8444/admin
+     Go to MyRealm -> Clients -> app16-webapp
+     Click on "Credentials" tab
+     Copy the Client Secret
+
+  c. Paste the Client Secret into the application-localoauth2.yaml
+  	 -- Replace CLIENT_SECRET_FROM_KEYCLOAK with the Client Secret value
+
+
+ 3. Run the app16 webapp with this profile
+    a. Build the project
+       unix> mvn clean package -Pprod
+
+    b. Run the app16 webapp using TLS and using keycloak for authentication
+       NOTE:  Keycloak must be up and running on https://localhost.localdomain2:8444/
+       unix> java -Dspring.profiles.active=local_oauth2  -Djavax.net.ssl.trustStorePassword=changeit  -Djavax.net.ssl.trustStore=backend/src/main/dev-resources/cacerts
+ -jar ./backend/target/backend-1.0-SNAPSHOT-exec.jar
+
+    c. Connect to app16 using TLS
+       Go to https://localhost.localdomain2:8443/app16
 
 
 
