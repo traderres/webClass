@@ -4,6 +4,33 @@ Problem:  I want to create my own Open ID Connect (OIDC) Identity Provider that 
           So, the Keycloak Login page has an option that says "Continue with CAC"
 Solution: Create a spring authorization server to build a custom OIDC Provider
 
+                                                                                                                  john.smith.12345
+              TLS                TLS                             PKI                   TLS                TLS     is authenticated
+	 Web    ------>  Protected  ------>  Keycloak Login Page   ------>  Custom OIDC  ------>  Keycloak  ------>  Viewing Protected
+   Browser            Web App            "Continue with CAC"             Provider                                     Web App
+                      (app16)               (keycloak)                                                                (app16)
+
+
+Order of Operations
+-------------------
+ 1. User attempts to connect to the protected (app16) by going to https://localhost.localdomain:8443/app16
+ 2. App16 detects that the user is not authenticated
+ 	-- The user is redirected to the Keycloak Login page
+ 3. User is presented the "Keycloak Login" page
+ 4. User presses "Continue with CAC"
+ 5. User goes to our custom oidc provider -- e.g., https://localhost.localdomain:9444
+    -- This custom oidc provider PROMPTS for a PKI certificate
+ 6. User provides a PKI client certificate
+ 7. The custom oidc provider let's anyone in with a trusted PKI client certificate
+ 8. The custom oidc provider redirects the user back to keycloak
+    -- So, keycloak knows that the user is authenticated
+ 9. Keycloak redirects the user to the protected webapp (app16) along with OAUTH2 credentials
+10. The protected webapp (app16) runs its authentication code
+    -- It gets credentials that were passed-in the token
+11. The protected webapp (app16) then displays its information
+
+
+
 Spring Authorization Server is a framework that provides implementations of the OAuth 2.1 and OpenID Connect 1.0 specifications
 and other related specifications. It is built on top of Spring Security to provide a secure, light-weight,
 and customizable foundation for building OpenID Connect 1.0 Identity Providers and OAuth2 Authorization Server products.
@@ -28,10 +55,75 @@ https://www.youtube.com/watch?v=TyS9EDy5r9M
 https://docs.spring.io/spring-authorization-server/reference/configuration-model.html   # See the info on x509 certificates
 
 
+Outline
+-------
+ Part 1:  Create the certificate authority, server certs, and PKI client cert (p12 file)
+ Part 2:  Install Keycloak v26 and setup the keycloak realm
+ Part 3:  Setup the App16 webapp to use Keycloak for Oauth2 Authentication
+ Part 4:  Build the Custom OIDC Provider
+ Part 5:  Configure keycloak to use the custom OIDC Provider
+ Part 6:  Verify it works
 
 
-Part 1:  Build your Custom OIDC Provider
-----------------------------------------
+Part 1:  Create the certificate authority, server certs, and PKI client cert (p12 file)
+---------------------------------------------------------------------------------------
+
+
+Part 2:  Install Keycloak v26 and setup the keycloak realm
+------------------------------------------------------------
+1. Download and Extract Keycloak v26.0.0
+    a. Go to https://github.com/keycloak/keycloak/releases/download/26.0.0/keycloak-26.0.0.zip
+
+    b. Save the file to your Downloads directory
+
+    c. Unzip it
+       unix> cd ~/Downloads
+       unix> unzip keycloak-26.0.0.zip
+       -- This will create a directory keycloak-26.0.0/
+
+
+ 2. Verify that you are running Java 17
+    unix> java -version
+    --  You should be running Java 17 or later
+
+
+ 3. Run keycloak in "start-dev" mode listening on port 8444
+    unix> cd ~/Downloads/keycloak-26.0.0/
+    unix> bin/kc.sh start-dev --http-port=8444
+
+
+ 4. Create an Admin User
+    a. Go to http://localhost:8080
+    b. Set the admin user by entering in on the welcome page
+       Username:  admin
+       password:  secret
+       Press "Create"
+
+
+ 5. Create a Realm
+    NOTE:  Keycloak includes a single realm, called master. Use this realm only for managing Keycloak and not for managing any applications.
+    a. Go to http://localhost:8080/admin/
+    b. Enter the admin user/password
+    c. In the upper left corner, select Master
+       Press "Create Realm"
+
+       Realm Name:  MyRealm
+       Press "Create"
+
+
+ 6. Create a new client:  app16-webapp
+
+
+
+
+Part 3:  Setup the App16 webapp to use Keycloak for Oauth2 Authentication
+-------------------------------------------------------------------------
+
+
+
+
+Part 4:  Build the Custom OIDC Provider (using Spring Authorization Server)
+---------------------------------------------------------------------------
  1. Create a new IntelliJ Project: custom-oidc-provider
  	a. Create a new project with IntelliJ
 
@@ -44,250 +136,235 @@ Part 1:  Build your Custom OIDC Provider
 		   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 		   <modelVersion>4.0.0</modelVersion>
 
-		   <groupId>com.lessons</groupId>
-		   <artifactId>custom-oidc-provider</artifactId>
-		   <version>1.0-SNAPSHOT</version>
-		   <packaging>jar</packaging>
+	           <groupId>com.lessons</groupId>
+			   <artifactId>custom-oidc-provider</artifactId>
+			   <version>1.0-SNAPSHOT</version>
 
-		   <name>custom-oidc-provider</name>
+				<packaging>jar</packaging>
+
+				<name>custom-oidc-provider</name>
 
 
+				<properties>
+					<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-			<properties>
-				<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+					<!-- Tell Maven to compile for Java 17 -->
+					<maven.compiler.release>17</maven.compiler.release>
+					<maven.compiler.verbose>false</maven.compiler.verbose>
+				</properties>
 
-				<!-- Tell Maven to compile for Java 17 -->
-				<maven.compiler.release>17</maven.compiler.release>
-				<maven.compiler.verbose>false</maven.compiler.verbose>
-			</properties>
+				<dependencyManagement>
+					<dependencies>
 
-			<dependencyManagement>
+						<dependency>
+							<!-- Set the Spring Boot Version -->
+							<groupId>org.springframework.boot</groupId>
+							<artifactId>spring-boot-dependencies</artifactId>
+							<version>3.3.0</version>
+							<type>pom</type>
+							<scope>import</scope>
+						</dependency>
+
+					</dependencies>
+				</dependencyManagement>
+
 				<dependencies>
 
 					<dependency>
-						<!-- Set the Spring Boot Version -->
+						<!-- Spring Boot Web -->
 						<groupId>org.springframework.boot</groupId>
-						<artifactId>spring-boot-dependencies</artifactId>
-						<version>3.2.0</version>
-						<type>pom</type>
-						<scope>import</scope>
+						<artifactId>spring-boot-starter-web</artifactId>
+
+						<exclusions>
+							<exclusion>
+								<!-- Remove Tomcat from Spring Boot -->
+								<groupId>org.springframework.boot</groupId>
+								<artifactId>spring-boot-starter-tomcat</artifactId>
+							</exclusion>
+
+							<exclusion>
+								<!-- Remove logging from spring as we will use logback -->
+								<groupId>org.springframework.boot</groupId>
+								<artifactId>spring-boot-starter-logging</artifactId>
+							</exclusion>
+						</exclusions>
+					</dependency>
+
+					<dependency>
+						<!-- Add Dependency for the Undertow App Server -->
+						<groupId>org.springframework.boot</groupId>
+						<artifactId>spring-boot-starter-undertow</artifactId>
+
+						<exclusions>
+							<exclusion>
+								<!-- Remove logging from undertow as we will use logback -->
+								<groupId>org.springframework.boot</groupId>
+								<artifactId>spring-boot-starter-logging</artifactId>
+							</exclusion>
+						</exclusions>
+					</dependency>
+
+					<dependency>
+						<!-- Send logging from Java Common Logging to SLF4J -->
+						<groupId>org.slf4j</groupId>
+						<artifactId>jcl-over-slf4j</artifactId>
+						<version>2.0.5</version>
+					</dependency>
+
+					<dependency>
+						<!-- SLF4J will use Logback-classic as its logging implementation -->
+						<groupId>ch.qos.logback</groupId>
+						<artifactId>logback-classic</artifactId>
+						<version>1.4.11</version>
+					</dependency>
+
+					<dependency>
+						<groupId>org.springframework</groupId>
+						<artifactId>spring-web</artifactId>
+						<version>6.1.13</version>
+					</dependency>
+
+					<dependency>
+						<groupId>org.springframework.boot</groupId>
+						<artifactId>spring-boot-starter-security</artifactId>
+					</dependency>
+
+					<dependency>
+						<!-- Spring Boot / Resource Server (so this program acts as an Open ID Connect Provider -->
+						<groupId>org.springframework.boot</groupId>
+						<artifactId>spring-boot-starter-oauth2-authorization-server</artifactId>
+					</dependency>
+
+					<dependency>
+						<!-- Send logging from Java Util Logging to SLF4J -->
+						<groupId>org.slf4j</groupId>
+						<artifactId>jul-to-slf4j</artifactId>
+						<version>1.7.30</version>
+					</dependency>
+
+					<dependency>
+						<groupId>junit</groupId>
+						<artifactId>junit</artifactId>
+						<version>4.13.2</version>
+						<scope>test</scope>
 					</dependency>
 
 				</dependencies>
-			</dependencyManagement>
-
-			<dependencies>
-
-				<dependency>
-					<!-- Spring Boot Web -->
-					<groupId>org.springframework.boot</groupId>
-					<artifactId>spring-boot-starter-web</artifactId>
-
-					<exclusions>
-						<exclusion>
-							<!-- Remove Tomcat from Spring Boot -->
-							<groupId>org.springframework.boot</groupId>
-							<artifactId>spring-boot-starter-tomcat</artifactId>
-						</exclusion>
-
-						<exclusion>
-							<!-- Remove logging from spring as we will use logback -->
-							<groupId>org.springframework.boot</groupId>
-							<artifactId>spring-boot-starter-logging</artifactId>
-						</exclusion>
-					</exclusions>
-				</dependency>
-
-				<dependency>
-					<!-- Add Dependency for the Undertow App Server -->
-					<groupId>org.springframework.boot</groupId>
-					<artifactId>spring-boot-starter-undertow</artifactId>
-
-					<exclusions>
-						<exclusion>
-							<!-- Remove logging from undertow as we will use logback -->
-							<groupId>org.springframework.boot</groupId>
-							<artifactId>spring-boot-starter-logging</artifactId>
-						</exclusion>
-					</exclusions>
-				</dependency>
-
-				<dependency>
-					<!-- Send logging from Java Common Logging to SLF4J -->
-					<groupId>org.slf4j</groupId>
-					<artifactId>jcl-over-slf4j</artifactId>
-					<version>2.0.5</version>
-				</dependency>
-
-				<dependency>
-					<!-- SLF4J will use Logback-classic as its logging implementation -->
-					<groupId>ch.qos.logback</groupId>
-					<artifactId>logback-classic</artifactId>
-					<version>1.4.11</version>
-				</dependency>
-
-				<dependency>
-					<!-- Add the dependency for the SSLContextFactory's use of DatatypeConverter -->
-					<!-- This ensures that SSLContextFactory will compile with Java 17           -->
-					<groupId>jakarta.xml.bind</groupId>
-					<artifactId>jakarta.xml.bind-api</artifactId>
-					<version>3.0.0</version>
-				</dependency>
-
-				<dependency>
-					<groupId>org.springframework</groupId>
-					<artifactId>spring-web</artifactId>
-					<version>6.1.2</version>
-				</dependency>
-
-				<dependency>
-					<groupId>org.springframework.boot</groupId>
-					<artifactId>spring-boot-starter-security</artifactId>
-				</dependency>
-
-				<dependency>
-					<!-- Spring Boot / Resource Server (so this program acts as an Open ID Connect Provider -->
-					<groupId>org.springframework.boot</groupId>
-					<artifactId>spring-boot-starter-oauth2-authorization-server</artifactId>
-				</dependency>
-
-				<dependency>
-					<!-- Send logging from Java Util Logging to SLF4J -->
-					<groupId>org.slf4j</groupId>
-					<artifactId>jul-to-slf4j</artifactId>
-					<version>1.7.30</version>
-				</dependency>
-
-				<dependency>
-					<!-- StringUtils Dependency -->
-					<groupId>org.apache.commons</groupId>
-					<artifactId>commons-lang3</artifactId>
-					<version>3.14.0</version>
-				</dependency>
-
-				<dependency>
-					<groupId>junit</groupId>
-					<artifactId>junit</artifactId>
-					<version>4.13.2</version>
-					<scope>test</scope>
-				</dependency>
-
-			</dependencies>
 
 
-			<build>
-				<pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
+				<build>
+					<pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
+						<plugins>
+							<!-- clean lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#clean_Lifecycle -->
+							<plugin>
+								<artifactId>maven-clean-plugin</artifactId>
+								<version>3.1.0</version>
+							</plugin>
+							<!-- default lifecycle, jar packaging: see https://maven.apache.org/ref/current/maven-core/default-bindings.html#Plugin_bindings_for_jar_packaging -->
+							<plugin>
+								<artifactId>maven-resources-plugin</artifactId>
+								<version>3.0.2</version>
+							</plugin>
+							<plugin>
+								<artifactId>maven-compiler-plugin</artifactId>
+								<version>3.8.0</version>
+							</plugin>
+							<plugin>
+								<artifactId>maven-surefire-plugin</artifactId>
+								<version>2.22.1</version>
+							</plugin>
+							<plugin>
+								<artifactId>maven-jar-plugin</artifactId>
+								<version>3.0.2</version>
+							</plugin>
+							<plugin>
+								<artifactId>maven-install-plugin</artifactId>
+								<version>2.5.2</version>
+							</plugin>
+							<plugin>
+								<artifactId>maven-deploy-plugin</artifactId>
+								<version>2.8.2</version>
+							</plugin>
+							<!-- site lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#site_Lifecycle -->
+							<plugin>
+								<artifactId>maven-site-plugin</artifactId>
+								<version>3.7.1</version>
+							</plugin>
+							<plugin>
+								<artifactId>maven-project-info-reports-plugin</artifactId>
+								<version>3.0.0</version>
+							</plugin>
+						</plugins>
+					</pluginManagement>
+
+
 					<plugins>
-						<!-- clean lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#clean_Lifecycle -->
 						<plugin>
-							<artifactId>maven-clean-plugin</artifactId>
-							<version>3.1.0</version>
+							<!-- This plugin provides the tools needed to repackage the Spring Boot JAR into a runnable JAR
+								 Run this command to generate the runnable Spring Boot Jar
+									mvn clean package  *or*
+									mvn clean package spring-boot:repackage
+							 -->
+							<groupId>org.springframework.boot</groupId>
+							<artifactId>spring-boot-maven-plugin</artifactId>
+							<version>3.2.0</version>
+							<configuration>
+								<addResources>true</addResources>
+							</configuration>
+
+							<executions>
+								<execution>
+									<goals>
+										<goal>repackage</goal>
+									</goals>
+									<configuration>
+										<classifier>exec</classifier>
+									</configuration>
+								</execution>
+							</executions>
+
 						</plugin>
-						<!-- default lifecycle, jar packaging: see https://maven.apache.org/ref/current/maven-core/default-bindings.html#Plugin_bindings_for_jar_packaging -->
 						<plugin>
-							<artifactId>maven-resources-plugin</artifactId>
-							<version>3.0.2</version>
-						</plugin>
-						<plugin>
+							<groupId>org.apache.maven.plugins</groupId>
 							<artifactId>maven-compiler-plugin</artifactId>
-							<version>3.8.0</version>
+							<configuration>
+								<source>17</source>
+								<target>17</target>
+							</configuration>
 						</plugin>
+
+
 						<plugin>
-							<artifactId>maven-surefire-plugin</artifactId>
-							<version>2.22.1</version>
+							<!-- Use the git-commit-id plugin to generate the git.properties file that has info about who compiled the app  -->
+							<!-- See https://github.com/git-commit-id/git-commit-id-maven-plugin                                            -->
+							<groupId>io.github.git-commit-id</groupId>
+							<artifactId>git-commit-id-maven-plugin</artifactId>
+							<version>7.0.0</version>
+
+							<executions>
+								<execution>
+									<id>get-the-git-infos</id>
+									<goals>
+										<goal>revision</goal>
+									</goals>
+								</execution>
+								<execution>
+									<id>validate-the-git-infos</id>
+									<goals>
+										<goal>validateRevision</goal>
+									</goals>
+								</execution>
+							</executions>
+
+							<configuration>
+								<verbose>false</verbose>
+								<generateGitPropertiesFile>true</generateGitPropertiesFile>
+							</configuration>
 						</plugin>
-						<plugin>
-							<artifactId>maven-jar-plugin</artifactId>
-							<version>3.0.2</version>
-						</plugin>
-						<plugin>
-							<artifactId>maven-install-plugin</artifactId>
-							<version>2.5.2</version>
-						</plugin>
-						<plugin>
-							<artifactId>maven-deploy-plugin</artifactId>
-							<version>2.8.2</version>
-						</plugin>
-						<!-- site lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#site_Lifecycle -->
-						<plugin>
-							<artifactId>maven-site-plugin</artifactId>
-							<version>3.7.1</version>
-						</plugin>
-						<plugin>
-							<artifactId>maven-project-info-reports-plugin</artifactId>
-							<version>3.0.0</version>
-						</plugin>
+
 					</plugins>
-				</pluginManagement>
-
-
-				<plugins>
-					<plugin>
-						<!-- This plugin provides the tools needed to repackage the Spring Boot JAR into a runnable JAR
-							 Run this command to generate the runnable Spring Boot Jar
-								mvn clean package  *or*
-								mvn clean package spring-boot:repackage
-						 -->
-						<groupId>org.springframework.boot</groupId>
-						<artifactId>spring-boot-maven-plugin</artifactId>
-						<version>3.2.0</version>
-						<configuration>
-							<addResources>true</addResources>
-						</configuration>
-
-						<executions>
-							<execution>
-								<goals>
-									<goal>repackage</goal>
-								</goals>
-								<configuration>
-									<classifier>exec</classifier>
-								</configuration>
-							</execution>
-						</executions>
-
-					</plugin>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-compiler-plugin</artifactId>
-						<configuration>
-							<source>17</source>
-							<target>17</target>
-						</configuration>
-					</plugin>
-
-
-					<plugin>
-						<!-- Use the git-commit-id plugin to generate the git.properties file that has info about who compiled the app  -->
-						<!-- See https://github.com/git-commit-id/git-commit-id-maven-plugin                                            -->
-						<groupId>io.github.git-commit-id</groupId>
-						<artifactId>git-commit-id-maven-plugin</artifactId>
-						<version>7.0.0</version>
-
-						<executions>
-							<execution>
-								<id>get-the-git-infos</id>
-								<goals>
-									<goal>revision</goal>
-								</goals>
-							</execution>
-							<execution>
-								<id>validate-the-git-infos</id>
-								<goals>
-									<goal>validateRevision</goal>
-								</goals>
-							</execution>
-						</executions>
-
-						<configuration>
-							<verbose>false</verbose>
-							<generateGitPropertiesFile>true</generateGitPropertiesFile>
-						</configuration>
-					</plugin>
-
-				</plugins>
-			</build>
-		</project>
+				</build>
+			</project>
 
 
  3. Add this class:  WebSecurityConfig
@@ -313,7 +390,6 @@ Part 1:  Build your Custom OIDC Provider
 								authorize
 										.anyRequest().authenticated())
 						.x509()
-						.subjectPrincipalRegex("CN=(.*?),")
 						.authenticationUserDetailsService( new X509AuthenticatedUserDetailsService() );
 
 				return http.build();
@@ -322,38 +398,62 @@ Part 1:  Build your Custom OIDC Provider
 
 		}
 
+
  4. Add this class:  X509AuthenticatedUserDetailsService
 
-		 import org.springframework.security.core.GrantedAuthority;
-		 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-		 import org.springframework.security.core.userdetails.AuthenticationUserDetailsService;
-		 import org.springframework.security.core.userdetails.User;
-		 import org.springframework.security.core.userdetails.UserDetails;
-		 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-		 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
+		import org.springframework.security.core.GrantedAuthority;
+		import org.springframework.security.core.authority.SimpleGrantedAuthority;
+		import org.springframework.security.core.userdetails.AuthenticationUserDetailsService;
+		import org.springframework.security.core.userdetails.User;
+		import org.springframework.security.core.userdetails.UserDetails;
+		import org.springframework.security.core.userdetails.UsernameNotFoundException;
+		import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 
-		 import java.security.cert.X509Certificate;
-		 import java.util.Collection;
-		 import java.util.List;
+		import java.security.cert.X509Certificate;
+		import java.util.Collection;
+		import java.util.List;
+		import java.util.regex.Matcher;
+		import java.util.regex.Pattern;
 
-		 public class X509AuthenticatedUserDetailsService implements AuthenticationUserDetailsService<PreAuthenticatedAuthenticationToken> {
+		public class X509AuthenticatedUserDetailsService implements AuthenticationUserDetailsService<PreAuthenticatedAuthenticationToken> {
 
-			 @Override
-			 public UserDetails loadUserDetails(PreAuthenticatedAuthenticationToken token) throws UsernameNotFoundException {
-				 X509Certificate certificate = (X509Certificate)token.getCredentials();
-				 // do your extra checking here...
+			private static final Pattern patExtractCN = Pattern.compile("cn=(.*?)(?:,|/|\\z)", Pattern.CASE_INSENSITIVE);
 
-				 // add granted authorities, etc.
-				 Collection<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("APP16_SUPERVISOR"));
 
-				 String password = " ";
+			@Override
+			public UserDetails loadUserDetails(PreAuthenticatedAuthenticationToken token) throws UsernameNotFoundException {
+				X509Certificate certificate = (X509Certificate)token.getCredentials();
+				// do your extra checking here...
 
-				 // generate your user how you deem fit
-				 User user = new User(certificate.getSubjectX500Principal().getName(), password, authorities);
-				 return user;
-			 }
+				// add granted authorities, etc.
+				Collection<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("APP16_SUPERVISOR"));
 
-		 }
+				String password = "";
+
+				String longDn = certificate.getSubjectX500Principal().getName();
+				String cnValue = getCnValueFromLongDnString(longDn);
+
+				// generate your user how you deem fit
+				User user = new User(cnValue, password, authorities);
+				return user;
+			}
+
+
+
+
+			private static String getCnValueFromLongDnString(String userDN) {
+				String cnValue = null;
+				// Use the regular expression pattern to getByUserId the value part of "CN=value"
+				Matcher matcher = patExtractCN.matcher(userDN);
+				if (matcher.find()) {
+					cnValue = matcher.group(1);
+				}
+
+				return cnValue;
+			}
+
+		}
+
 
 
  5. Add this class:   AuthorizationServerConfig
@@ -364,6 +464,7 @@ Part 1:  Build your Custom OIDC Provider
 		import org.springframework.core.annotation.Order;
 		import org.springframework.http.MediaType;
 		import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+		import org.springframework.security.config.http.SessionCreationPolicy;
 		import org.springframework.security.core.authority.AuthorityUtils;
 		import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 		import org.springframework.security.oauth2.server.authorization.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
@@ -390,7 +491,6 @@ Part 1:  Build your Custom OIDC Provider
 
 				aHttp
 						.x509()
-						.subjectPrincipalRegex("CN=(.*?),")
 						.authenticationUserDetailsService( new X509AuthenticatedUserDetailsService() );
 
 				aHttp   .getConfigurer(OAuth2AuthorizationServerConfigurer.class)
@@ -404,8 +504,12 @@ Part 1:  Build your Custom OIDC Provider
 						)
 						.oauth2ResourceServer((resourceServer) -> resourceServer.jwt(withDefaults()));
 
+				aHttp.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
+
 				return aHttp.build();
 			}
+
+
 
 
 			@Bean
@@ -495,61 +599,59 @@ Part 1:  Build your Custom OIDC Provider
 
  7. Add this class:  ResourceServerApplication
 
-		 import gov.dcsa.services.VersionService;
-		 import org.slf4j.Logger;
-		 import org.slf4j.LoggerFactory;
-		 import org.springframework.boot.Banner;
-		 import org.springframework.boot.SpringApplication;
-		 import org.springframework.boot.autoconfigure.SpringBootApplication;
-		 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
-		 import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
-		 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
-		 import org.springframework.context.ConfigurableApplicationContext;
+		import gov.dcsa.services.VersionService;
+		import org.slf4j.Logger;
+		import org.slf4j.LoggerFactory;
+		import org.springframework.boot.Banner;
+		import org.springframework.boot.SpringApplication;
+		import org.springframework.boot.autoconfigure.SpringBootApplication;
+		import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
+		import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
+		import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
+		import org.springframework.context.ConfigurableApplicationContext;
 
 
-		 @SpringBootApplication(exclude = {DataSourceAutoConfiguration.class, HibernateJpaAutoConfiguration.class, SecurityAutoConfiguration.class})
-		 public class ResourceServerApplication  {
+		@SpringBootApplication(exclude = {DataSourceAutoConfiguration.class, HibernateJpaAutoConfiguration.class, SecurityAutoConfiguration.class})
+		public class ResourceServerApplication  {
 
-			 private static final Logger logger = LoggerFactory.getLogger(ResourceServerApplication.class);
-
-
-			 /**
-			  * The Spring Authorization Server app starts here
-			  *
-			  * @param args holds an array of passed-in arguments from the command-line
-			  */
-			 public static void main( String[] args ) {
-				 logger.debug("main() started.");
-
-				 // Start up Spring Boot but disable the banner
-				 SpringApplication app = new SpringApplication(ResourceServerApplication.class);
-				 app.setBannerMode(Banner.Mode.OFF);
-				 ConfigurableApplicationContext context  = app.run(args);
-
-				 // Get a reference to the versionService
-				 VersionService versionService = (VersionService) context.getBean("VersionService");
-
-				 // Log a message so that Tier 3 Support knows which version and commit Id is actually running
-				 logger.info("Custom OIDC Provider is Up / {} / {}\n", versionService.getAppVersion(), versionService.getCommitId() );
-			 }
+			private static final Logger logger = LoggerFactory.getLogger(ResourceServerApplication.class);
 
 
-		 }
+			/**
+			 * The Spring Authorization Server app starts here
+			 *
+			 * @param args holds an array of passed-in arguments from the command-line
+			 */
+			public static void main( String[] args ) {
+				logger.debug("main() started.");
+
+				// Start up Spring Boot but disable the banner
+				SpringApplication app = new SpringApplication(ResourceServerApplication.class);
+				app.setBannerMode(Banner.Mode.OFF);
+				ConfigurableApplicationContext context  = app.run(args);
+
+				// Get a reference to the versionService
+				VersionService versionService = (VersionService) context.getBean("VersionService");
+
+				// Log a message so that Tier 3 Support knows which version and commit Id is actually running
+				logger.info("Custom OIDC Provider is Up / {} / {}\n", versionService.getAppVersion(), versionService.getCommitId() );
+			}
+
+		}
+
 
  8. Add this file:  src/main/resources/application.yaml
-
 		#################################################################################################
 		# Filename:  application.yaml
 		#
 		# You will need these VM options to run in your debugger or command-line
-		#    -Djavax.net.ssl.trustStorePassword=changeit  -Djavax.net.ssl.trustStore=/path/to/dev-resources/cacerts
-		#################################################################################################
+		#    -Djavax.net.ssl.trustStorePassword=changeit  -Djavax.net.ssl.trustStore=custom-oidc-provider/src/main/dev-resources/cacerts
+		###################################################################################################
 
 
-		##########################################################
-		# Configure the Spring Authorization Server
-		#
-		##########################################################
+		###################################################################
+		# Configure the Spring Security with a keystore and truststore
+		###################################################################
 		server:
 		  port: 9444             # This custom oidc provider listens on port 9444
 		  ssl:
@@ -560,9 +662,13 @@ Part 1:  Build your Custom OIDC Provider
 			trust-store-password: changeit
 			trust-store-type: JKS
 			enabled: true
-			client-auth: need                   # You must provide a PKI Cert
+			client-auth: want                   # I can talk with keycloak if set to "want" instead of "need"
 
 
+
+		###################################################################
+		# Configure the Spring Authorization Server
+		###################################################################
 		spring:
 		  application:
 			name: authorization-server
@@ -575,65 +681,47 @@ Part 1:  Build your Custom OIDC Provider
 					registration:
 					  client-id: "oidc-client"
 					  client-secret: "{noop}secret"
-					  client-authentication-methods:
-						- "client_secret_basic"
+					  client-authentication-methods: "client_secret_post"           # possible values are "client_secret_basic" or "client_secret_post"
 					  authorization-grant-types:
 						- "authorization_code"
 						- "refresh_token"
 					  redirect-uris:
 						- "https://localhost.localdomain:8444/realms/MyRealm/broker/oidc/endpoint"
-					  post-logout-redirect-uris:
-						- "http://127.0.0.1:8080/"
 					  scopes:
 						- "openid"
 						- "profile"
-					require-authorization-consent: true
+					require-authorization-consent: false
+
+
 
 
  9.  Add this file:  src/main/resources/logback.yaml
 
-		 <?xml version="1.0" encoding="UTF-8" ?>
-		 <configuration debug="false">
+		<?xml version="1.0" encoding="UTF-8" ?>
+		<configuration debug="false">
 
-			 <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-				 <encoder>
-					 <pattern>%d{MM/dd/yyyy HH:mm:ss} %15t %-5level %c - %msg%n</pattern>
-				 </encoder>
-			 </appender>
+			<appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+				<encoder>
+					<pattern>%d{MM/dd/yyyy HH:mm:ss} %15t %-5level %c - %msg%n</pattern>
+				</encoder>
+			</appender>
 
-			 <logger name="org.springframework" level="TRACE" additivity="false">
-				 <appender-ref ref="CONSOLE"/>
-			 </logger>
+			<logger name="org.springframework" level="DEBUG" additivity="false">
+				<appender-ref ref="CONSOLE"/>
+			</logger>
 
-			 <logger name="gov.dcsa" level="DEBUG" additivity="false">
-				 <appender-ref ref="CONSOLE"/>
-			 </logger>
+			<logger name="com.lessons" level="DEBUG" additivity="false">
+				<appender-ref ref="CONSOLE"/>
+			</logger>
 
-			 <root level="DEBUG">
-				 <appender-ref ref="CONSOLE"/>
-			 </root>
-		 </configuration>
-
-
-
-
-Part 2:  Start up all of the Applications
------------------------------------------
- 2) Startup your keycloak so is up listening on http://localhost:8444
-    Running keycloak with this command:
-           bin/kc.sh start-dev --http-port=8444
-
- 1) Your protected webapp is listening on http://localhost:8080/admin
-    terminal> java -Dspring.profiles.active=local_oauth2  -Djavax.net.ssl.trustStorePassword=changeit  -Djavax.net.ssl.trustStore=admin-backend/src/main/dev-resources/cacerts -jar admin-backend/target/admin-backend-1.0-SNAPSHOT-exec.jar
+			<root level="DEBUG">
+				<appender-ref ref="CONSOLE"/>
+			</root>
+		</configuration>
 
 
 
- 3) Your Custom OIDC provider is listening on https://localhost:9443/
-
-
-
-
-Part 3:  Configure Keycloak to use your Custom OIDC Provider
+Part 5:  Configure keycloak to use the custom OIDC Provider
 ------------------------------------------------------------
  1. Connect to Keycloak
 
@@ -669,3 +757,19 @@ Part 3:  Configure Keycloak to use your Custom OIDC Provider
     a. In keycloak, go to MyRealm -> Identity Providers -> Identity Provider for login.gov -> "Settings" tab
     b. In the settings page, press 'Advanced"
     	    Scopes:   	openid profile
+
+
+
+
+
+Part 6:  Verify it works
+------------------------
+                                                                                                                  john.smith.12345
+              TLS                TLS                             PKI                   TLS                TLS     is authenticated
+	 Web    ------>  Protected  ------>  Keycloak Login Page   ------>  Custom OIDC  ------>  Keycloak  ------>  Viewing Protected
+   Browser            Web App            "Continue with CAC"             Provider                                     Web App
+                      (app16)               (keycloak)                                                                (app16)
+
+
+
+
