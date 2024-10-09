@@ -61,9 +61,10 @@ Outline
  Part 1:  Create the certificate authority, server certs, and PKI client cert (p12 file)
  Part 2:  Install Keycloak v26 and setup the keycloak realm
  Part 3:  Setup the App16 webapp to use Keycloak for Oauth2 Authentication
- Part 4:  Build the Custom OIDC Provider
- Part 5:  Configure keycloak to use the custom OIDC Provider
- Part 6:  Verify it works
+ Part 4:  Grant the APP16_SUPERVISOR to logged-in users in angularApp16  (when logging-in via keycloak)
+ Part 5:  Build the Custom OIDC Provider
+ Part 6:  Configure keycloak to use the custom OIDC Provider
+ Part 7:  Verify it works
 
 
 
@@ -195,8 +196,48 @@ Part 2:  Install Keycloak v26 and setup the keycloak realm
 
 			Press "Save"
 
+ 7. Configure the MyRealm's User Profile so that email, first name, and last name are *NOT* required
+    NOTE:  This is needed so that upon authentication, keycloak does not prompt for the user's first name, last name, or email address
+    a. Go to Realms -> MyRealm -> Realm Settings
+    b. Click on "User Profile" tab
+    c. Click on Email
+       1) Uncheck "Required field"
+       2) Press "Save"
+    d. Click on FirstName
+       1) Uncheck "Required field"
+       2) Press "Save"
+    e. Click on lastName
+       1) Uncheck "Required field"
+       2) Press "Save"
 
- 7. Configure Keycloak to listen on TLS at https://localhost.localdomain:8444/
+
+ 8. Make sure roles are returned to SpringBoot with the token
+    a. Go to Realms -> MyRealm -> Client scopes
+    b. Click on roles  (you may have to advance to the 2nd page of client scopes to see it)
+    c. Click on the "Settings" tab
+    d. Change these settings:
+    		Include in token scope:  On
+    		Display Order:            1
+       Press "Save"
+
+    a. Go to Realms -> MyRealm -> Client scopes
+    b. Click on roles
+    c. Click on the "Mappers" tab
+    d. Click on "realm roles"
+
+    	Add to ID token:					On
+    	Add to access token:				On
+    	Add to lightweight access token:	Off
+    	Add to userinfo:					On
+    	Add to token introspection			On
+
+
+
+
+
+
+
+ 9. Configure Keycloak to listen on TLS at https://localhost.localdomain:8444/
     a. Press Control-C to stop keycloak listening on http://localhost:8444/
 
     b. Create this file:  start.kc.ssl.sh
@@ -390,7 +431,46 @@ es:
 
 
 
-Part 4:  Build the Custom OIDC Provider (using Spring Authorization Server)
+Part 4:  Grant the APP16_SUPERVISOR to logged-in users in angularApp16  (when logging-in via keycloak)
+------------------------------------------------------------------------------------------------------
+  Approach #1  Adjust the angularApp16/src/main/java/com/lessons/models/authentication/KeycloakUserInfoDTO.java
+
+				Change this line from this:
+					    this.grantedAuthorities = new ArrayList<>();
+
+				To this:
+						this.grantedAuthorities = new ArrayList<>();
+						this.grantedAuthorities.add(new SimpleGrantedAuthority("ROLE_APP16_SUPERVISOR"));
+
+				**OR**
+
+  Approach #2:  Tell Keycloak to grant APP16_SUPERVISOR as a default role for all users in this realm
+  				a. Connect to keycloak by going to https://localhost.localdomain2:8444
+
+  				b. Create the role:  APP16_SUPERVISOR
+                   1) Go to MyRealm -> Realm Roles
+                   2) Press "Create role"
+                      Role name:   APP16_SUPERVISOR
+                      Press "Save"
+
+				c. Make it a default role
+				   1) Go to MyRealm -> Realm settings -> "User registration" tab
+				   2) Click on the "Default roles" tab
+				   3) Press "Assign role"
+				   4) Select "Filter to realm roles"
+				   4) Check APP16_SUPERVISOR
+					  Press "Assign"
+
+				**OR**
+
+  Approach #3:  Adjust the AuthenticationService.generateUserInfoWithOauth2InfoFromKeyCloak()
+                so it queries the database for whatever roles this user should be granted
+
+
+
+
+
+Part 5:  Build the Custom OIDC Provider (using Spring Authorization Server)
 ---------------------------------------------------------------------------
  1. Clone the customOidcProvider project
     unix> cd ~/intellijProjects
@@ -404,7 +484,8 @@ Part 4:  Build the Custom OIDC Provider (using Spring Authorization Server)
     unix> java  -Djavax.net.ssl.trustStorePassword=changeit  -Djavax.net.ssl.trustStore=backend/src/main/dev-resources/cacerts  -jar ./target/custom-oidc-provider-1.0-SNAPSHOT-exec.jar
 
 
-Part 5:  Configure keycloak to use the custom OIDC Provider
+
+Part 6:  Configure keycloak to use the custom OIDC Provider
 ------------------------------------------------------------
 ASSUMPTIONS:
  A) Keycloak is running
@@ -450,27 +531,51 @@ ASSUMPTIONS:
 
 
 
-Part 6:  Verify it works
+Part 7:  Verify it works
 ------------------------
-                                                                                                                  john.smith.12345
+                                                                                                                  john.smith.22222
               TLS                TLS                             PKI                   TLS                TLS     is authenticated
 	 Web    ------>  Protected  ------>  Keycloak Login Page   ------>  Custom OIDC  ------>  Keycloak  ------>  Viewing Protected
-   Browser            Web App            "Continue with CAC"             Provider                                     Web App
+   Browser            Web App            "Login with PKI Cert"           Provider                                     Web App
                       (app16)               (keycloak)                                                                (app16)
 
 
  1. Startup the Admin Webapp with the oauth2_local profile
-    a. Compile angularApp16
+    a. Verify that the custom-oidc-provider has the correct Redirect URI
+       1) Look at custom-oidc-provider/src/main/resources/application.yaml
+               redirect-uris:   "https://localhost.localdomain2:8444/realms/MyRealm/broker/custom-oidc-provider/endpoint"
+
+          Look at keycloak -> Realms -> MyRealm -> Identity Providers -> Login witH PKI Certificate
+                Redirect URI:    https://localhost.localdomain2:8444/realms/MyRealm/broker/custom-oidc-provider/endpoint
+
+          -- Verify that these are the *SAME*
+
+
+       2) Look at custom-oidc-provider/src/main/resources/application.yaml
+              client-id: "oidc-client"
+              client-secret: "{noop}secret"
+
+         Look at keycloak -> Realms -> MyRealm -> Identity Providers -> Login witH PKI Certificate
+              Client ID:  oidc-client
+              Client Secret:  secret
+
+          -- Verify that these are the *SAME*
+
+
+    b. Compile angularApp16
        unix> cd ~/intellijProjects/angularApp16
        unix> mvn clean package -Pprod
 
-    b. Run the app16 webapp using TLS and using keycloak for authentication
+    c. Run the app16 webapp using TLS and using keycloak for authentication
        NOTE:  Keycloak must be up and running on https://localhost.localdomain2:8444/
        unix> java -Dspring.profiles.active=local_oauth2  -Djavax.net.ssl.trustStorePassword=changeit  -Djavax.net.ssl.trustStore=backend/src/main/dev-resources/cacerts  -jar ./backend/target/backend-1.0-SNAPSHOT-exec.jar
+
 
  2. Connect to app16 using TLS
     Go to https://localhost.localdomain2:8443/app16
 
  3. In the "MyRealm" keycloak page, press "Login with PKI Certificate"
+    -- The custom oidc provider should prompt you for a PKI Certificate
 
  4. Select john.smith.2222 as the PKI Certificate
+    -- You should see the Admin Web App
