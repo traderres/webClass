@@ -119,16 +119,24 @@ ASSUMPTIONS
      b. Save the allCerts.zip to your Downloads
 
      c. Unzip certificates
-        unix> mkdir -p ~/Downloads/certs
-        unix> mv ~/Downloads/AllCerts.zip ~/Downloads/certs
-        unix> cd ~/Downloads/certs
-        unix> unzip AllCerts.zip
-        unix> rm AllCerts.zip
+        unix> cd ~/Downloads
+        unix> unzip -d certs AllCerts.zip          # Unzip the files to ~/Downloads/certs directory
 
 
-     d. Add the CAs to your trust
-     		**INCOMPLETE**
+     d. Add the CAs to your trust (to be used for the custom oidc provider only)
+     	Download addDodCertsToCaCerts.sh
+     	unix> wget https://raw.githubusercontent.com/traderres/webClass/refs/heads/master/learnKeycloak/addDodCertsToCaCerts.sh
 
+     e. Edit addDodCertsToCaCerts.sh
+        -- Set the CACERTS_FILE_PATH to where your destination cacerts file you want to add the DOD trusts to
+        -- Set the CERTS_DIR the path of the directory that holds all of the uncompressed cert files
+
+     f. Run addDodCertsToCaCerts.sh
+        unix> chmod u+x ./addDodCertsToCaCerts
+        unix> ./addDodCertsToCaCerts
+
+		What does it do?  Run the keytool import command and give each trust a unique alias
+		   keytool -import -alias ca135 -file "/home/adam/Downloads/certs/DOD DERILITY CA-4.cer" -keystore /home/adam/intellijProjects/custom-oidc-provider/src/main/dev-resources/cacerts -storepass changeit  -trustcacerts   -noprompt
 
 
  6. Import DOD certificates into Firefox
@@ -513,8 +521,10 @@ Part 5:  Build the Custom OIDC Provider (using Spring Authorization Server)
     unix> cd custom-oidc-provider
     unix> mvn clean package
 
- 3. RUn the custom oidc provider so it listens on https://localhost.localdomain2:9444/
-    unix> java  -Djavax.net.ssl.trustStorePassword=changeit  -Djavax.net.ssl.trustStore=backend/src/main/dev-resources/cacerts  -jar ./target/custom-oidc-provider-1.0-SNAPSHOT-exec.jar
+ 3. Run the custom oidc provider so it listens on https://localhost.localdomain2:9444/  *AND* trusts the DOD root certificate authorities
+    NOTE:  Set the -Dserver.ssl.truststore=/path/to/cacerts  [that holds the DOD trusts]
+           Set the -Djavax.net.ssl.trustStore=/path/to/cacerts  [that holds the DOD trusts]
+    unix> java -Dserver.ssl.truststore=/home/adam/intellijProjects/custom-oidc-provider/src/main/dev-resources/cacerts  -Dserver.ssl.trust-store-password=changeit  -Djavax.net.ssl.trustStorePassword=changeit  -Djavax.net.ssl.trustStore=backend/src/main/dev-resources/cacerts  -jar ./target/custom-oidc-provider-1.0-SNAPSHOT-exec.jar
 
 
 
@@ -533,7 +543,7 @@ ASSUMPTIONS:
     c. In the "Add OpenID Connect provider" page
        Make sure you have these settings
 			alias:  						custom-oidc-provider     				# You make it what you want
-			Display Name:   				Login with PKI Certificate              # Displayed in the Login Page
+			Display Name:   				Login with CAC                          # Displayed in the Login Page
 
 			Discovery endpoint:				https://localhost.localdomain2:9444/.well-known/openid-configuration
 											-- Wait for the keycloak page to resolve this url
@@ -568,7 +578,7 @@ Part 7:  Verify it works
                                                                                                                   john.smith.22222
               TLS                TLS                             PKI                   TLS                TLS     is authenticated
 	 Web    ------>  Protected  ------>  Keycloak Login Page   ------>  Custom OIDC  ------>  Keycloak  ------>  Viewing Protected
-   Browser            Web App            "Login with PKI Cert"           Provider                                     Web App
+   Browser            Web App            "Login with CAC"                Provider                                     Web App
                       (app16)               (keycloak)                                                                (app16)
 
 
@@ -577,7 +587,7 @@ Part 7:  Verify it works
        1) Look at custom-oidc-provider/src/main/resources/application.yaml
                redirect-uris:   "https://localhost.localdomain2:8444/realms/MyRealm/broker/custom-oidc-provider/endpoint"
 
-          Look at keycloak -> Realms -> MyRealm -> Identity Providers -> Login witH PKI Certificate
+          Look at keycloak -> Realms -> MyRealm -> Identity Providers -> Login witH CAC
                 Redirect URI:    https://localhost.localdomain2:8444/realms/MyRealm/broker/custom-oidc-provider/endpoint
 
           -- Verify that these are the *SAME*
@@ -587,7 +597,7 @@ Part 7:  Verify it works
               client-id: "oidc-client"
               client-secret: "{noop}secret"
 
-         Look at keycloak -> Realms -> MyRealm -> Identity Providers -> Login witH PKI Certificate
+         Look at keycloak -> Realms -> MyRealm -> Identity Providers -> Login witH CAC
               Client ID:  oidc-client
               Client Secret:  secret
 
@@ -606,7 +616,7 @@ Part 7:  Verify it works
  2. Connect to app16 using TLS
     Go to https://localhost.localdomain2:8443/app16
 
- 3. In the "MyRealm" keycloak page, press "Login with PKI Certificate"
+ 3. In the "MyRealm" keycloak page, press "Login with CAC"
     -- The custom oidc provider should prompt you for a PKI Certificate
 
  4. Select john.smith.2222 as the PKI Certificate
