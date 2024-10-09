@@ -1,5 +1,5 @@
-How to Setup a Custom Open ID Connect Identity (OIDC) Provider / Build using Spring Boot / Accepts X509 Certs from Fake CA
---------------------------------------------------------------------------------------------------------------------------
+How to Setup a Custom Open ID Connect Identity (OIDC) Provider / Build using Spring Boot / Accepts X509 Certs from CAC
+----------------------------------------------------------------------------------------------------------------------
 Problem:  I want to create my own Open ID Connect (OIDC) Identity Provider that uses PKI authentication
           So, the Keycloak Login page has an option that says "Continue with PKI Cert"
 
@@ -10,8 +10,8 @@ Solution: Adjust the angularApp16 to run in a spring profile that tells it to au
                                                                                                                         john.smith.12345
               TLS                TLS                                  PKI                   TLS                TLS     is authenticated
 	 Web    ------>  Protected  ------>  Keycloak Login Page        ------>  Custom OIDC  ------>  Keycloak  ------>  Viewing Protected
-   Browser            Web App            "Continue with PKI Cert"             Provider                                     Web App
-                      (app16)               (keycloak)                                                                     (app16)
+   Browser            Web App            "Continue with CAC"                 Provider                                     Web App
+                      (app16)               (keycloak)                   (that accepts CAC)                               (app16)
 
 
 Order of Operations
@@ -61,7 +61,7 @@ https://docs.spring.io/spring-authorization-server/reference/configuration-model
 
 Outline
 -------
- Part 1:  Create the certificate authority, server certs, and PKI client cert (p12 file)
+ Part 1:  Create the certificate authority & server cert (for localhost.localdomain2), and DOD trust
  Part 2:  Install Keycloak v26 and setup the keycloak realm
  Part 3:  Setup the App16 webapp to use Keycloak for Oauth2 Authentication
  Part 4:  Grant the APP16_SUPERVISOR to logged-in users in angularApp16  (when logging-in via keycloak)
@@ -72,8 +72,8 @@ Outline
 
 
 
-Part 1:  Create the certificate authority, server certs, and PKI client cert (p12 file)
----------------------------------------------------------------------------------------
+Part 1:  Create the certificate authority & server cert (for localhost.localdomain2), and DOD trust
+---------------------------------------------------------------------------------------------------
 ASSUMPTIONS
  A) You want your server certificate hold localhost.localdomain2
  B) So, you will connect to your app16 webapp using https://localhost.localdomain2:8443/app16
@@ -87,12 +87,7 @@ ASSUMPTIONS
     Follow the steps in learnSSL / howToUseYourCertAuthority_InitialSetup_centos7.txt
 
 
- 3. Create your client cert that holds "john.smith.22222"
-    Follow the steps in learnSSL / howToUseYourCertAuthority_MakeClientCert_centos7.txt
-                Common Name:                john.smith.22222
-
-
- 4. Create your server cert with a subject name alternative called "localhost.localdomain2"
+ 3. Create your server cert with a subject name alternative called "localhost.localdomain2"
     Follow the steps in learnSSL / howToUseYourCertAuthority_MakeServerCertWithSubAlt_centos7.txt
 
                 export SUBJ_NAME_ALT=DNS:localhost.localdomain2
@@ -102,7 +97,7 @@ ASSUMPTIONS
 				   DNS.1 = localhost.localdomain2
 
 
- 5. Import the public root.pem (found ~/root-ca/public/root.pem) into your firefox web browser
+ 4. Import the public root.pem (found ~/root-ca/public/root.pem) into your firefox web browser
     a. Startup Firefox
     b. Search for cert
     c. Click "View Certificates"
@@ -114,17 +109,55 @@ ASSUMPTIONS
        Press OK
        Press OK
 
- 6. Import the signed client certificate into your firefox web browser
-    a. Startup Firefox
-    b. Search for cert
-    c. Click "View Certificates"
-    d. In the "Certificate Manager", Click on this tab:  "Your Certificates"
-    d. Click "Import"
-    e. Browser to where the client.p12 file is located:  /tmp/client_cert/client.p12
-       Enter password from the previous step:  secret
-
 	-- Now, your firefox web browser trusts your root certificate authority and it has the john.smith.22222 PKI client certificate
 
+
+ 5. Add the DOD trusts to your truststore
+     a. Download all DOD certificates
+        https://militarycac.com/maccerts/AllCerts.zip
+
+     b. Save the allCerts.zip to your Downloads
+
+     c. Unzip certificates
+        unix> mkdir -p ~/Downloads/certs
+        unix> mv ~/Downloads/AllCerts.zip ~/Downloads/certs
+        unix> cd ~/Downloads/certs
+        unix> unzip AllCerts.zip
+        unix> rm AllCerts.zip
+
+
+     d. Add the CAs to your trust
+     		**INCOMPLETE**
+
+
+
+ 6. Import DOD certificates into Firefox
+    a. Pull Edit -> Preferences > Search for View Certificates
+    b. Click oN "View Certificates..."
+    c. Click on Authorities
+    d. Press Import
+       Browse to ~/Downloads/certs/DOD EMAIL CA-33.cer
+       Check "Trust this CA to identify websites"
+       Check "Trust this CA to identify email users"
+
+    e. Repeat for
+		DOD EMAIL CA-34.cer
+		DOD EMAIL CA-39.cer  to  44.cer
+		DOD EMAIL CA-49.cer  to  52.cer
+		DOD EMAIL CA-59.cer
+
+		DOD ID CA-33.cer  to  34
+		DOD ID CA-39.cer  to  44.cer
+		DOD ID CA-49.cer  to  52.cer
+		DOD ID CA-59.cer
+
+		DOD ID SW CA-35.cer  to  38
+		DOD ID SW CA-45.cer  to  48.cer
+
+        DODRoot2.cer - DoDRoot5.cer
+
+        DOD SW CA-53.cer to DOD SW CA-58.cer
+        DOD SW CA-60.cer to DOD SW CA-61.cer
 
 
 
