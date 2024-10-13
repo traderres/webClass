@@ -74,13 +74,23 @@ Angular 16 Lesson Plan
        <a href="./exercises/exercise10a.add-date-picker.question.txt"                    title="Exercise 10a">Exercise 10a</a> / Add a Date Picker to the page                  (<a href="./exercises/exercise10a.add-date-picker.answers.txt"                      title="Exercise 10a">Answers</a>)
        <a href="./exercises/exercise10b.set-datepicker-using-date-string.question.txt"   title="Exercise 10b">Exercise 10b</a> / Set Date Picker with value from a date string  (<a href="./exercises/exercise10b.set-datepicker-using-date-string.answers.txt"     title="Exercise 10b">Answers</a>)
        <a href="./exercises/exercise10c.get-datepicker-value-and-format-it.question.txt" title="Exercise 10c">Exercise 10c</a> / Get selected date and format it as YYYY-MM-DD  (<a href="./exercises/exercise10c.get-datepicker-value-and-format-it.answers.txt"   title="Exercise 10c">Answers</a>)
-    e. Tabs Groups
-    f. Radio Buttons
-    g. Popup Menus
-    h. AutoCompletes
-    i. Derivative Dropdowns  [After selecting 1 dropdown value, change a 2nd dropdown's options]
+    e. Radio Buttons
+    f. Popup Menus
+    g. AutoCompletes
+    h. Derivative Dropdowns  [After selecting 1 dropdown value, change a 2nd dropdown's options]
+    
+ 8. Client Side Grids (using ag-grid)
+    Exercise 11a / Setup page with Client Side Grid
 
- 8. Loading Data using Observables
+ 9. Tabs Groups
+    <a href="./exercises/exercise12a.setup-tab-group.question.txt" title="Exercise 11a">Exercise 11a</a> / Tab Group / Setup page w/empty tabs            (<a href="./exercises/exercise12a.setup-tab-group.answers.txt"   title="Exercise 12a">Answers</a>)
+    Exercise 12b / Tab Group / Make the tabs look pretty
+    Exercise 12c / Tab Group / Add navbar links to different tabs
+    Exercise 12d / Tab Group / Crete a page with a search box
+    Exercise 12e / Tab Group / Open tab group in a dialog
+    Exercise 12f / Tab Group / Cache vs non-caching of tabs
+
+ 9. Loading Data using Observables
     a. Load a dropdown from a REST call
        <a href="./exercises/exercise13a.load-dropdown-with-subscribe.question.txt"      title="Exercise 13a">Exercise 13a</a> / Loading Dropdown w/subscribe                   (<a href="./exercises/exercise13a.load-dropdown-with-subscribe.answers.txt"      title="Answer to 13a">Answers</a>)
        <a href="./exercises/exercise13b.load-dropdown-with-async-pipe.question.txt"     title="Exercise 13b">Exercise 13b</a> / Loading Dropdown w/async pipe                  (<a href="./exercises/exercise13b.load-dropdown-with-async-pipe.answers.txt"     title="Answer to 13b">Answers</a>)
@@ -108,13 +118,13 @@ Angular 16 Lesson Plan
        Exercise 16c / Simulate a slow REST call                      (Answers)
        Exercise 16d / Listen on autocomplete                         (Answers)
 
- 9. Saving Data 
+10. Saving Data 
     <a href="./exercises/exercise17a.submit-button-invokes-REST-call.question.txt"   title="Exercise 17a">Exercise 17a</a> / Setup "Add Report" Page w/fake REST call          (<a href="./exercises/exercise17a.submit-button-invokes-REST-call.answers.txt"  title="Answer to 17a">Answers</a>)
     <a href="./exercises/exercise17b.add-db-changes-and-REST-call.question.txt"      title="Exercise 17b">Exercise 17b</a> / Add database changes & Build REST call            (<a href="./exercises/exercise17b.add-db-changes-and-REST-call.answers.txt"     title="Answer to 17b">Answers</a>)
     <a href="./exercises/exercise17c.use-audit-manager-in-transaction.question.txt"               title="Exercise 17c">Exercise 17c</a> / Use AuditManager in a SQL Transaction             (<a href="./exercises/exercise17c.use-audit-manager-in-transaction.answers.txt" title="Answer to 17c">Answers</a>)
     <a href="./exercises/exercise17d.use-dialog-to-freeze-user.question.txt"         title="Exercise 17d">Exercise 17d</a> / Use dialog to freeze user while waiting           (<a href="./exercises/exercise17d.use-dialog-to-freeze-user.answers.txt"        title="Answer to 17d">Answers</a>)
 
-10. Asking the user many questions
+11. Asking the user many questions
     <a href="./exercises/exercise18a.ask-questions-with-mat-step.questions.txt"                    title="Exercise 18a">Exercise 18a</a> / Ask questions w/single-page and mat-step / Setup Layout        (<a href="./exercises/exercise18a.ask-questions-with-mat-step.answers.txt"  title="Answer to 18a">Answers</a>)
     <a href="./exercises/exercise18b.ask-questions-with-mat-step-rest-call.questions.txt"          title="Exercise 18b">Exercise 18b</a> / Ask questions w/single-page and mat-step / Add REST call       (<a href="./exercises/exercise18b.ask-questions-with-mat-step-rest-call.answers.txt"  title="Answer to 18b">Answers</a>)
     <a href="./exercises/exercise18c.ask-questions-with-mat-step-prevent-going-back.questions.txt" title="Exercise 18c">Exercise 18c</a> / Ask questions w/single-page and mat-step / Stop Double Submit  (<a href="./exercises/exercise18c.ask-questions-with-mat-step-prevent-going-back.answers.txt"  title="Answer to 18c">Answers</a>)
@@ -123,19 +133,19 @@ Angular 16 Lesson Plan
     Exercise 19c / Ask questions w/multiple pages / Auto-save when leaving page
     Exercise 19d / Ask questions w/multiple pages / Auto-save every N seconds 
 
-11. Sending Messages using Observables, Subjects, and Arrow Functions
+12. Sending Messages using Observables, Subjects, and Arrow Functions
     a. How to send messages from one part of the web app to another
     b. How to listen for messages across the web app
 
-12. Services
+13. Services
     a. Router service:   Used to navigate to another page view
     b. Lookup Service:   Used to populate dropdowns
     c. Message Service:  Used to display messages
  
-13. TypeScript
+14. TypeScript
     a. <a href="./howToReferenceEnumClass.txt" title="How to Use Enumerated Classes in HTML">How to Use Enumerated Classes in HTML</a>  (constants.ts)
 
-14. Grids (using ag-grid)
+15. Server Side Grids (using ag-grid)
     a. <a href="./lectures/boring.lecture.grids.txt" title="Client-Side vs Server-Side Grids">Client-Side vs Server-Side Grids</a>
 
 15. HighCharts
