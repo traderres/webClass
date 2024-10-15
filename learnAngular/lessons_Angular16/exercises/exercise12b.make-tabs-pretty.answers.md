@@ -164,10 +164,31 @@ Exercise
 
 		  </div>
 		</div>
+		
+		
+		
+Tab Group v1  (bare bones Angular Material styles)
 ```
 ![](../images/exercise12b_image1.png)
 ```
++ We have established a tab group with 4 tabs
++ The tabs fit inside the page
++ The tabs look pretty boring
 
+
+
+
+ 
+ 5. Change the tabs so that the active tab has a darker blue color (instead of fading back to white)
+ 
+ 
+ 6. Change the tabs so thaty are rounded
+    Change the tabs so that they have a dark-blue to light-blue gradient
+    When finished it should look like this:
+    
+    
+ 
+ 
 ```
 
 
