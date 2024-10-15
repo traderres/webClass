@@ -1,6 +1,6 @@
 ```
 Exercise 12b / Make the Tabs Pretty (Answers)
------------------------------------
+---------------------------------------------
 Problem:  The standard mat-tab looks pretty boring
 Solution: Use CSS to make it look better
 
