@@ -1,9 +1,3 @@
-<style>
-        .container-lg {
-          max-width: inherit !important;
-        }
-</style>
-
 ```
 Exercise 1ba / Make the Tabs Pretty (Answers)
 ---------------------------------------------
@@ -170,9 +164,10 @@ Exercise
 
 		  </div>
 		</div>
-
 ```
 ![](../images/exercise12b_image1.png)
+```
+
 ```
 
 
