@@ -1,8 +1,74 @@
 ```
-Exercise 1ba / Make the Tabs Pretty (Answers)
----------------------------------------------
+Exercise 12b / Make the Tabs Pretty (Answers)
+-----------------------------------
 Problem:  The standard mat-tab looks pretty boring
 Solution: Use CSS to make it look better
+
+
+	Showing the "Enrichment" tab
+	+------------------------------------------------------------------------------+
+	| Pretty Tab Group Page                                                   Help |
+	+------------------------------------------------------------------------------+
+	|                                                                              |
+	|  +-----------------+-------------------------+---------------+------------+  |
+	|  | Enrichment Tab  | Original Submission Tab | Documents Tab | History Tab|  |
+	|  +-----------------+-------------------------+---------------+------------+  |
+	|  | Enrichment Tab                                                         |  |
+	|  |                                                                        |  |
+	|  | This is the Enrichment Tab                                             |  |
+	|  |                                                                        |  |
+	|  +------------------------------------------------------------------------+  |
+	+------------------------------------------------------------------------------+
+
+
+	Showing the "Original Submission" tab
+	+------------------------------------------------------------------------------+
+	| Pretty Tab Group Page                                                   Help |
+	+------------------------------------------------------------------------------+
+	|                                                                              |
+	|  +-----------------+-------------------------+---------------+------------+  |
+	|  | Enrichment Tab  | Original Submission Tab | Documents Tab | History Tab|  |
+	|  +-----------------+-------------------------+---------------+------------+  |
+	|  | Original Submission Tab                                                |  |
+	|  |                                                                        |  |
+	|  | This is the Original Submission Tab                                    |  |
+	|  |                                                                        |  |
+	|  +------------------------------------------------------------------------+  |
+	+------------------------------------------------------------------------------+
+
+
+	Showing the "Documents" tab
+	+------------------------------------------------------------------------------+
+	| Pretty Tab Group Page                                                   Help |
+	+------------------------------------------------------------------------------+
+	|                                                                              |
+	|  +-----------------+-------------------------+---------------+------------+  |
+	|  | Enrichment Tab  | Original Submission Tab | Documents Tab | History Tab|  |
+	|  +-----------------+-------------------------+---------------+------------+  |
+	|  | Documents Tab                                                          |  |
+	|  |                                                                        |  |
+	|  | This is the Documeents Tab                                             |  |
+	|  |                                                                        |  |
+	|  +------------------------------------------------------------------------+  |
+	+------------------------------------------------------------------------------+
+
+
+	Showing the "History" tab
+	+------------------------------------------------------------------------------+
+	| Pretty Tab Group Page                                                   Help |
+	+------------------------------------------------------------------------------+
+	|                                                                              |
+	|  +-----------------+-------------------------+---------------+------------+  |
+	|  | Enrichment Tab  | Original Submission Tab | Documents Tab | History Tab|  |
+	|  +-----------------+-------------------------+---------------+------------+  |
+	|  | History   Tab                                                          |  |
+	|  |                                                                        |  |
+	|  | This is the History Tab                                                |  |
+	|  |                                                                        |  |
+	|  +------------------------------------------------------------------------+  |
+	+------------------------------------------------------------------------------+
+
+
 
 
 Exercise
@@ -16,158 +82,59 @@ Exercise
     f. Use the debugger to verify that the navbar link works
 
 
-
- 2. Setup this page layout w/4 tabs
-
-     Showing the "Enrichment" tab
-     +--------------------------------------------------------------------------+
-     | Pretty Tabs Page                                                    Help |
-     +--------------------------------------------------------------------------+
-     |                                                                          |
-     | Enrichment Tab  | Original submission Tab | Documents Tab  | History Tab |
-     | -------------------------------------------------------------------------+
-     | Enrichment                                                               |
-     |   This is the Enrichment Tab                                             |
-     |                                                                          |
-     +--------------------------------------------------------------------------+
+ 
+ 2. Setup this page layout
+     +-------------------------------------------------------------------+
+     | Tab Group Page                                               Help |
+     +-------------------------------------------------------------------+
+     |                                                                   |
+     |                                                                   |
+     +-------------------------------------------------------------------+
 
 
-
-     Showing the "Original Submission" tab
-     +--------------------------------------------------------------------------+
-     | Pretty Tabs Page                                                    Help |
-     +--------------------------------------------------------------------------+
-     |                                                                          |
-     | Enrichment Tab  | Original submission Tab | Documents Tab  | History Tab |
-     | -------------------------------------------------------------------------+
-     | Original Submission                                                      |
-     |   This is the Original Submission Tab                                    |
-     |                                                                          |
-     +--------------------------------------------------------------------------+
+ 3. Create a component for each tab
+    NOTE:  Create these components in the same directory as your tab group page
+ 	a. Create this component:   tabEnrichment
+ 	b. Create this component:   tabOriginalSubmission
+ 	c. Create this component:   tabDocuments
+ 	d. Create this component:   tabHistory
 
 
-
-     Showing the "Documents" tab
-     +--------------------------------------------------------------------------+
-     | Pretty Tabs Page                                                    Help |
-     +--------------------------------------------------------------------------+
-     |                                                                          |
-     | Enrichment Tab  | Original submission Tab | Documents Tab  | History Tab |
-     | -------------------------------------------------------------------------+
-     | Documents                                                                |
-     |   This is the Documents Tab                                              |
-     |                                                                          |
-     +--------------------------------------------------------------------------+
+ 4. Create the tab-group by adding a <mat-tab-group> tag to the main page
 
 
-     Showing the "History" tab
-     +--------------------------------------------------------------------------+
-     | Pretty Tabs Page                                                    Help |
-     +--------------------------------------------------------------------------+
-     |                                                                          |
-     | Enrichment Tab  | Original submission Tab | Documents Tab  | History Tab |
-     | -------------------------------------------------------------------------+
-     | History                                                                  |
-     |   This is the History Tab                                                |
-     |                                                                          |
-     +--------------------------------------------------------------------------+
+ 5. Add each tab **COMPONENT** to the <mat-tab-group>
 
 
- 3. Make sure that each tab uses the *REMAINING VISIBLE HEIGHT* of the web browser
+ 6. Within each tab, create a simple outline with a tab title and a one-liner
+	-- Setup each tab with a title and a one-sentence description
 
-	SCSS looks like this
-	--------------------
-	:host ::ng-deep .mat-mdc-tab-header {
-      // Indent the Tab Headers
-      margin-left: 10px;
-    }
-
-
-	HTML looks like this
-	--------------------
-		<div class="m-2.5">
-		  <div class="grid grid-cols-2">
-			<div>
-			  <span class="text-xl">Pretty Tabs Page</span>
-			</div>
-
-			<div class="flex place-content-end">
-			  Help
-			</div>
-		  </div>
+        Showing the "Enrichment" tab
+        +------------------------------------------------------------------------------+
+        | Pretty Tab Group Page                                                   Help |
+        +------------------------------------------------------------------------------+
+        |                                                                              |
+        |  +-----------------+-------------------------+---------------+------------+  |
+        |  | Enrichment Tab  | Original Submission Tab | Documents Tab | History Tab|  |
+        |  +-----------------+-------------------------+---------------+------------+  |
+        |  | Enrichment Tab                                                         |  |
+        |  |                                                                        |  |
+        |  | This is the Enrichment Tab                                             |  |
+        |  |                                                                        |  |
+        |  +------------------------------------------------------------------------+  |
+        +------------------------------------------------------------------------------+
+        
 
 
-		  <div class="mt-2.5">
-
-			<mat-tab-group class="mt-2.5">
-
-			  <!-- E N R I C H M E N T       T A B -->
-			  <mat-tab label="Enrichment">
-				<div class="mx-2.5 mb-1 p-2.5 mat-elevation-z6 overflow-y-auto" style="height: calc(100vh - 195px)">
-				  <div class="flex flex-col">
-					<div>
-					  <span class="text-xl">Enrichment</span>
-					</div>
-					<div class="mt-2.5">
-					  This is the Enrichment Tab
-					</div>
-				  </div>
-				</div>
+	
+ 7. Within each tab, have the tab use *REMAINING VISIBLE HEIGHT* of the web browser
+	-- At this point, you have 4 somewhat empty tabs
 
 
-			  </mat-tab>
-
-			  <!-- O R I G I N A L        S U B M I S S I O N       T A B -->
-			  <mat-tab label="Original Submission">
-				<div class="mx-2.5 mb-1 p-2.5 mat-elevation-z6 overflow-y-auto" style="height: calc(100vh - 195px)">
-				  <div class="flex flex-col">
-					<div>
-					  <span class="text-xl">Original Submission</span>
-					</div>
-					<div class="mt-2.5">
-					  This is the Original Submission Tab
-					</div>
-				  </div>
-				</div>
-			  </mat-tab>
-
-			  <!-- D O C U M E N T S     T A B -->
-			  <mat-tab label="Documents">
-				<div class="mx-2.5 mb-1 p-2.5 mat-elevation-z6 overflow-y-auto" style="height: calc(100vh - 195px)">
-				  <div class="flex flex-col">
-					<div>
-					  <span class="text-xl">Documents</span>
-					</div>
-					<div class="mt-2.5">
-					  This is the Documents Tab
-					</div>
-				</div>
-			  </div>
-			  </mat-tab>
-
-
-			  <!-- H I S T O R Y     T A B -->
-			  <mat-tab label="History">
-				<div class="mx-2.5 mb-1 p-2.5 mat-elevation-z6 overflow-y-auto" style="height: calc(100vh - 195px)">
-				  <div class="flex flex-col">
-					<div>
-					  <span class="text-xl">History</span>
-					</div>
-					<div class="mt-2.5">
-					  This is the History Tab
-					</div>
-				  </div>
-				</div>
-			  </mat-tab>
-
-			</mat-tab-group>
-
-		  </div>
-		</div>
-		
-		
-		
-Tab Group v1  (bare bones Angular Material styles)
+ 8. Create a 3D effect within each tab
+    NOTE:  Make sure the tab buttons LEFT-ALIGN with the tab	
+	
+    Tab Group v1  (bare bones Angular Material styles)
 ```
 ![](../images/exercise12b_image1.png)
 ```
@@ -179,18 +146,12 @@ Tab Group v1  (bare bones Angular Material styles)
 
 
  
- 5. Change the tabs so that the active tab has a darker blue color (instead of fading back to white)
+ 9. Change the tabs so that they have a dark-grey background and white taxt
  
  
- 6. Change the tabs so thaty are rounded
-    Change the tabs so that they have a dark-blue to light-blue gradient
-    When finished it should look like this:
-    
-    
- 
- 
+10. Change the tabs so thaty are rounded
+  
+   
+
+
 ```
-
-
-
-
