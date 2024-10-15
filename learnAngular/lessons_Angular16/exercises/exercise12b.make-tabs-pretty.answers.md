@@ -1,3 +1,9 @@
+<style>
+        .container-lg {
+          max-width: inherit !important;
+        }
+</style>
+
 ```
 Exercise 1ba / Make the Tabs Pretty (Answers)
 ---------------------------------------------
