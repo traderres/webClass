@@ -139,8 +139,9 @@ Exercise
 ![](../images/exercise12b_image1.png)
 ```
 + We have established a tab group with 4 tabs
-+ The tabs fit inside the page
-+ The tabs look pretty boring
++ Each tab uses the REMAINING VISIBLE HEIGHT 
++ Each tab has a 3D effect 
++ Overall, the tabs look pretty boring
 
 
 
