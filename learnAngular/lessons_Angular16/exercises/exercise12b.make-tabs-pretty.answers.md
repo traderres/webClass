@@ -147,12 +147,48 @@ Exercise
 
 
  
- 9. Change the tabs so that they have a dark-grey background and white taxt
+ 9. Change the tabs so that they have a dark-grey #364150 background and white taxt
  
- 
+         :host ::ng-deep .mdc-tab.mdc-tab {
+          /* Change background color of all tab */
+          background-color: #364150;
+        }
+
+        :host ::ng-deep  .mat-mdc-tab-group, .mat-mdc-tab-nav-bar {
+          --mat-tab-header-active-focus-label-text-color: white;
+          --mat-tab-header-active-label-text-color : white;
+          --mat-tab-header-inactive-label-text-color: white;
+          --mat-tab-header-inactive-focus-label-text-color: white;
+          --mat-tab-header-inactive-hover-label-text-color : white;
+          --mdc-tab-indicator-active-indicator-color: white;
+          --mat-tab-header-active-hover-label-text-color: white;
+          --mat-tab-header-active-ripple-color: white;
+          --mat-tab-header-inactive-ripple-color: white;
+        }
+         
+10. Remove the border to the bottom of the ACTIVE TAB
+
+        :host ::ng-deep .mdc-tab-indicator__content {
+          /* Remove the the bar underneath the ACTIVE tab */
+          display: none;
+        }
+
+
 10. Change the tabs so thaty are rounded
   
-   
-
+        :host ::ng-deep .mdc-tab {
+          /* label style */
+          color: white;
+          width: 200px !important;
+        
+          font-family: 'Open Sans';
+          font-style: normal;
+          font-weight: 700;
+          font-size: 16px;
+          margin: 5px;
+        
+          border-radius: 20px;
+        }
+        
 
 ```
