@@ -241,3 +241,125 @@ Part 3:  Build Tab Group v3  (Change the tab header background to be a gradient)
 ```
 + Tab Group v3 has rounded tabs on the active tab only and a gradient
 + Overall, the tabs look better
+
+        The SCSS for Part 3
+        -------------------
+        :host ::ng-deep .mat-mdc-tab-header {
+          // Indent the Tab Headers
+          margin-left: 10px;
+          margin-right: 10px;
+        
+          /* Permalink - use to edit and share this gradient: https://colorzilla.com/gradient-editor/#000000+1,485b6b+50,000000+100 */
+          background: linear-gradient(to right,  #000000 1%,#485b6b 50%,#000000 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+        }
+        
+        :host ::ng-deep  .mat-mdc-tab-group, .mat-mdc-tab-nav-bar {
+          /* Change the text color of the tabs -- there are many states */
+          --mat-tab-header-active-focus-label-text-color: white;
+          --mat-tab-header-active-label-text-color : white;
+          --mat-tab-header-inactive-label-text-color: white;
+          --mat-tab-header-inactive-focus-label-text-color: white;
+          --mat-tab-header-inactive-hover-label-text-color : white;
+          --mdc-tab-indicator-active-indicator-color: white;
+          --mat-tab-header-active-hover-label-text-color: white;
+          --mat-tab-header-active-ripple-color: white;
+          --mat-tab-header-inactive-ripple-color: white;
+        }
+        
+        :host ::ng-deep .mdc-tab-indicator__content {
+          /* Remove the the bar underneath the ACTIVE tab */
+          display: none;
+        }
+        
+        :host ::ng-deep .mdc-tab {
+          /* label style */
+          color: white;
+          width: 200px !important;
+        
+          font-family: 'Open Sans';
+          font-style: normal;
+          font-weight: 700;
+          font-size: 16px;
+          margin: 5px;
+        
+          /* Add a transparent border so that when a user clicks on a tab, there is no "bump" */
+          border: 1px solid white;
+          box-sizing: border-box;
+          border-radius: 20px;
+        }
+        
+
+
+
+
+Part 4:  Build Tab Group v4  (Change the gradient colors)
+---------------------------------------------------------
+ 1. Change all tabs so that they have a gradient of #009ffd (light blue) to #201735 (dark blue)
+    
+ 2. Change all tabs to have a border of 2px solid with the dark blue
+ 
+ 3. Change all tabs to have a border-radius of 20px
+  
+ 2. The active tab should have a border of 2px solid #201735 with a radius of 20 px
+
+```
+![](../images/exercise12b_image4.png)
+```
++ Tab Group v3 has rounded tabs on the active tab only and a gradient
++ Overall, the tabs look better
+
+    
+    The SCSS for Part 4
+    -------------------
+    :host ::ng-deep .mat-mdc-tab-header {
+      // Indent the Tab Headers
+      margin-left: 10px;
+      margin-right: 10px;
+    
+      /* Set the default background color of the header */
+      background-color: #201735;
+    }
+    
+    
+    :host ::ng-deep  .mat-mdc-tab-group, .mat-mdc-tab-nav-bar {
+      /* Change the text color of the tabs -- there are many states */
+      --mat-tab-header-active-focus-label-text-color: white;
+      --mat-tab-header-active-label-text-color : white;
+      --mat-tab-header-inactive-label-text-color: white;
+      --mat-tab-header-inactive-focus-label-text-color: white;
+      --mat-tab-header-inactive-hover-label-text-color : white;
+      --mdc-tab-indicator-active-indicator-color: white;
+      --mat-tab-header-active-hover-label-text-color: white;
+      --mat-tab-header-active-ripple-color: white;
+      --mat-tab-header-inactive-ripple-color: white;
+    }
+    
+    :host ::ng-deep .mdc-tab-indicator__content {
+      /* Remove the the bar underneath the ACTIVE tab */
+      display: none;
+    }
+    
+    :host ::ng-deep .mdc-tab {
+      /* label style */
+      //min-width: 175px !important;
+      color: white;
+      font-family: 'Open Sans';
+      font-style: normal;
+      font-weight: 700;
+      font-size: 15px;
+      margin: 3px;
+    
+      border: 2px solid #201735;
+      border-radius: 20px;
+    
+      /* Set color when tab loses focus */
+      background-image: linear-gradient(315deg, #009ffd 0%, #201735 91%);
+      opacity: 1;
+    }
+    
+    :host ::ng-deep .mdc-tab--active {
+      /* Styles for the active tab label */
+      border: 2px solid #009ffd;
+      border-radius: 20px;
+    }
+
