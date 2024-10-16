@@ -146,8 +146,8 @@ Exercise
 
 
 
-Part 2:  Build Tab Group v2
----------------------------
+Part 2:  Build Tab Group v2 (round the tab edges)
+-------------------------------------------------
  1. Change the tabs so that they have a dark-grey #364150 background and white taxt
  
          :host ::ng-deep .mdc-tab.mdc-tab {
@@ -197,3 +197,47 @@ Part 2:  Build Tab Group v2
 ```
 ![](../images/exercise12b_image2.png)
 ```
++ Tab Group v2 has rounded tabs
++ Overall, the tabs look a little better
+
+
+Part 3:  Build Tab Group v3  (Change the tab header background to be a gradient)
+--------------------------------------------------------------------------------
+ 1. Change the tab header to be a gradient from #000000 TO #485b6b to #000000
+        https://www.colorzilla.com/gradient-editor
+
+        :host ::ng-deep .mat-mdc-tab-header {
+          // Indent the Tab Headers
+          margin-left: 10px;
+          margin-right: 10px;
+        
+          /* Permalink - use to edit and share this gradient: https://colorzilla.com/gradient-editor/#000000+1,485b6b+50,000000+100 */
+          background: linear-gradient(to right,  #000000 1%,#485b6b 50%,#000000 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+        }
+
+
+
+ 2. Add 1 px white border to the active tab
+
+        :host ::ng-deep .mdc-tab--active {
+          /* Active tabs have a white border */
+          border: 1px solid white;
+          box-sizing: border-box;
+          border-radius: 20px;
+        }
+
+
+ 3. Add 1 px transparent border to the non-active tabs
+ 
+        :host ::ng-deep .mdc-tab {
+          /* All tabs have a transparent border */
+          border: 1px solid transparent;
+          box-sizing: border-box;
+          border-radius: 20px;
+        }
+
+```
+![](../images/exercise12b_image3.png)
+```
++ Tab Group v3 has rounded tabs on the active tab only and a gradient
++ Overall, the tabs look better
