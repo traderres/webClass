@@ -146,15 +146,17 @@ Exercise
 
 
 
- 
- 9. Change the tabs so that they have a dark-grey #364150 background and white taxt
+Part 2:  Build Tab Group v2
+---------------------------
+ 1. Change the tabs so that they have a dark-grey #364150 background and white taxt
  
          :host ::ng-deep .mdc-tab.mdc-tab {
-          /* Change background color of all tab */
+          /* Change background color of all tabs */
           background-color: #364150;
         }
-
+        
         :host ::ng-deep  .mat-mdc-tab-group, .mat-mdc-tab-nav-bar {
+            /* Change the text color of the tabs -- there are many states */
           --mat-tab-header-active-focus-label-text-color: white;
           --mat-tab-header-active-label-text-color : white;
           --mat-tab-header-inactive-label-text-color: white;
@@ -166,7 +168,7 @@ Exercise
           --mat-tab-header-inactive-ripple-color: white;
         }
          
-10. Remove the border to the bottom of the ACTIVE TAB
+ 2. Remove the border to the bottom of the ACTIVE TAB
 
         :host ::ng-deep .mdc-tab-indicator__content {
           /* Remove the the bar underneath the ACTIVE tab */
@@ -174,7 +176,7 @@ Exercise
         }
 
 
-10. Change the tabs so thaty are rounded
+ 3. Change the tabs so that are rounded
   
         :host ::ng-deep .mdc-tab {
           /* label style */
@@ -190,5 +192,8 @@ Exercise
           border-radius: 20px;
         }
         
-
+ 4. Adjust the tabs height calcs (so that you do not see a vertical scrollbar)
+ 
+```
+![](../images/exercise12b_image2.png)
 ```
