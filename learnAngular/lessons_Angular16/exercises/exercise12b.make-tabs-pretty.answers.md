@@ -356,6 +356,7 @@ Part 4:  Build Tab Group v4  (Change the gradient colors)
  5. Change all tabs so that the mininum width and maximum width is 225px
 
 + Tab Group v4 has rounded tabs and a light-blue-to-dark-blue gradient
++ Every tab has the same width of 225px
 + Overall, the tabs look better
 ```
 ![](../images/exercise12b_image4.png)
