@@ -1,6 +1,6 @@
 ```
 Exercise 12b / Make the Tabs Pretty
------------------------------------
+---------------------------------------------
 Problem:  The standard mat-tab looks pretty boring
 Solution: Use CSS to make it look better
 
@@ -146,17 +146,62 @@ Exercise
 
 
 
+Part 2:  Build Tab Group v2 (round the tab edges)
+-------------------------------------------------
+ 1. Change the tabs so that they have a dark-grey #364150 background and white taxt
+    
+ 2. Remove the border to the bottom of the ACTIVE TAB
+
+ 3. Change the tabs so that are rounded
+
+ 4. Adjust the tabs height calcs (so that you do not see a vertical scrollbar)
  
- 9. Change the tabs so that they have a dark-grey background and white taxt
+```
+![](../images/exercise12b_image2.png)
+```
++ Tab Group v2 has rounded tabs
++ Overall, the tabs look a little better
+
+
+
+
+
+Part 3:  Build Tab Group v3  (Change the tab header background to be a gradient)
+--------------------------------------------------------------------------------
+ 1. Change the tab header to be a gradient from #000000 TO #485b6b to #000000
+        https://www.colorzilla.com/gradient-editor
+
+ 2. Add 1 px white border to the active tab
+
+ 3. Add 1 px transparent border to the non-active tabs
  
- 
- 
- 
-10. Change the tabs so thaty are rounded
- 
- 
-  
-   
 
 
 ```
+![](../images/exercise12b_image3.png)
+```
++ Tab Group v3 has rounded tabs on the active tab only and a gradient
++ Overall, the tabs look better
+
+
+
+
+
+Part 4:  Build Tab Group v4  (Change the gradient colors)
+---------------------------------------------------------
+ 1. Change all tabs so that they have a gradient of #009ffd (light blue) to #201735 (dark blue)
+    
+ 2. Change all tabs to have a border of 2px solid with the dark blue
+ 
+ 3. Change all tabs to have a border-radius of 20px
+  
+ 2. The active tab should have a border of 2px solid #201735 with a radius of 20 px
+
+```
+![](../images/exercise12b_image4.png)
+```
++ Tab Group v3 has rounded tabs on the active tab only and a gradient
++ Overall, the tabs look better
+
+    
+ 

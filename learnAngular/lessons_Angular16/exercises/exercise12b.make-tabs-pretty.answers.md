@@ -200,6 +200,52 @@ Part 2:  Build Tab Group v2 (round the tab edges)
 + Tab Group v2 has rounded tabs
 + Overall, the tabs look a little better
 
+        The SCSS for V2 is as follows
+        -----------------------------
+        :host ::ng-deep .mat-mdc-tab-header {
+          // Indent the Tab Headers
+          margin-left: 10px;
+          margin-right: 10px;
+        }
+        
+        :host ::ng-deep .mdc-tab.mdc-tab {
+          /* Change background color of all tabs */
+          background-color: #364150;
+        }
+        
+        :host ::ng-deep .mdc-tab-indicator__content {
+          /* Remove the the bar underneath the ACTIVE tab */
+          display: none;
+        }
+        
+        :host ::ng-deep .mdc-tab {
+          /* label style */
+          color: white;
+          width: 200px !important;
+        
+          font-family: 'Open Sans';
+          font-style: normal;
+          font-weight: 700;
+          font-size: 16px;
+          margin: 5px;
+        
+          /* Add a transparent border so that when a user clicks on a tab, there is no "bump" */
+          border-radius: 20px;
+        }
+        
+        
+        :host ::ng-deep  .mat-mdc-tab-group, .mat-mdc-tab-nav-bar{
+          --mat-tab-header-active-focus-label-text-color: white;
+          --mat-tab-header-active-label-text-color : white;
+          --mat-tab-header-inactive-label-text-color: white;
+          --mat-tab-header-inactive-focus-label-text-color: white;
+          --mat-tab-header-inactive-hover-label-text-color : white;
+          --mdc-tab-indicator-active-indicator-color: white;
+          --mat-tab-header-active-hover-label-text-color: white;
+          --mat-tab-header-active-ripple-color: white;
+          --mat-tab-header-inactive-ripple-color: white;
+        }
+
 
 Part 3:  Build Tab Group v3  (Change the tab header background to be a gradient)
 --------------------------------------------------------------------------------
