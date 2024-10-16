@@ -393,7 +393,7 @@ Part 4:  Build Tab Group v4  (Change the gradient colors)
     }
     
     :host ::ng-deep .mdc-tab {
-      /* label style */
+      /* Styles for ALL tabs */
       //min-width: 175px !important;
       color: white;
       font-family: 'Open Sans';
@@ -405,13 +405,12 @@ Part 4:  Build Tab Group v4  (Change the gradient colors)
       border: 2px solid #201735;
       border-radius: 20px;
     
-      /* Set color when tab loses focus */
       background-image: linear-gradient(315deg, #009ffd 0%, #201735 91%);
       opacity: 1;
     }
     
     :host ::ng-deep .mdc-tab--active {
-      /* Styles for the active tab label */
+      /* Styles for the ACTIVE tab */
       border: 2px solid #009ffd;
       border-radius: 20px;
     }
