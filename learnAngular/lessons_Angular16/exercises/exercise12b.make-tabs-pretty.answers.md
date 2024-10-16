@@ -394,7 +394,7 @@ Part 4:  Build Tab Group v4  (Change the gradient colors)
     
     :host ::ng-deep .mdc-tab {
       /* Styles for ALL tabs */
-      //min-width: 175px !important;
+      width: 175px !important;           /* Set every tab to be 175px wide */
       color: white;
       font-family: 'Open Sans';
       font-style: normal;
