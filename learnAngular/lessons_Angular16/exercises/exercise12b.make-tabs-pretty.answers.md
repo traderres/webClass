@@ -133,15 +133,17 @@ Exercise
 
  8. Create a 3D effect within each tab
     NOTE:  Make sure the tab buttons LEFT-ALIGN with the tab	
+
 	
-    Tab Group v1  (bare bones Angular Material styles)
-```
-![](../images/exercise12b_image1.png)
-```
+Tab Group v1  (bare bones Angular Material styles)
 + We have established a tab group with 4 tabs
 + Each tab uses the REMAINING VISIBLE HEIGHT 
 + Each tab has a 3D effect 
 + Overall, the tabs look pretty boring
+```
+![](../images/exercise12b_image1.png)
+```
+
 
 
 
@@ -193,12 +195,14 @@ Part 2:  Build Tab Group v2 (round the tab edges)
         }
         
  4. Adjust the tabs height calcs (so that you do not see a vertical scrollbar)
- 
+
+
++ Tab Group v2 has rounded tabs
++ Overall, the tabs look a little better 
 ```
 ![](../images/exercise12b_image2.png)
 ```
-+ Tab Group v2 has rounded tabs
-+ Overall, the tabs look a little better
+
 
         The SCSS for V2 is as follows
         -----------------------------
@@ -282,11 +286,12 @@ Part 3:  Build Tab Group v3  (Change the tab header background to be a gradient)
           border-radius: 20px;
         }
 
+
++ Tab Group v3 has rounded tabs on the active tab only and a gradient
++ Overall, the tabs look better
 ```
 ![](../images/exercise12b_image3.png)
 ```
-+ Tab Group v3 has rounded tabs on the active tab only and a gradient
-+ Overall, the tabs look better
 
         The SCSS for Part 3
         -------------------
@@ -348,11 +353,13 @@ Part 4:  Build Tab Group v4  (Change the gradient colors)
   
  2. The active tab should have a border of 2px solid #201735 with a radius of 20 px
 
+
++ Tab Group v4 has rounded tabs and a light-blue-to-dark-blue gradient
++ Overall, the tabs look better
 ```
 ![](../images/exercise12b_image4.png)
 ```
-+ Tab Group v3 has rounded tabs on the active tab only and a gradient
-+ Overall, the tabs look better
+
 
     
     The SCSS for Part 4
