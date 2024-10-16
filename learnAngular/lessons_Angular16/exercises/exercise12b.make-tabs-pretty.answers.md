@@ -351,15 +351,15 @@ Part 4:  Build Tab Group v4  (Change the gradient colors)
  
  3. Change all tabs to have a border-radius of 20px
   
- 2. The active tab should have a border of 2px solid #201735 with a radius of 20 px
+ 4. The active tab should have a border of 2px solid #201735 with a radius of 20 px
 
+ 5. Change all tabs so that the mininum width and maximum width is 225px
 
 + Tab Group v4 has rounded tabs and a light-blue-to-dark-blue gradient
 + Overall, the tabs look better
 ```
 ![](../images/exercise12b_image4.png)
 ```
-
 
     
     The SCSS for Part 4
@@ -393,8 +393,9 @@ Part 4:  Build Tab Group v4  (Change the gradient colors)
     }
     
     :host ::ng-deep .mdc-tab {
-      /* Styles for ALL tabs */
-      width: 175px !important;           /* Set every tab to be 175px wide */
+      /* label style */
+      min-width: 225px !important;           /* Set every tab to be 175px wide */
+      max-width: 225px !important;           /* Set every tab to be 175px wide */
       color: white;
       font-family: 'Open Sans';
       font-style: normal;
@@ -405,13 +406,13 @@ Part 4:  Build Tab Group v4  (Change the gradient colors)
       border: 2px solid #201735;
       border-radius: 20px;
     
+      /* Set color when tab loses focus */
       background-image: linear-gradient(315deg, #009ffd 0%, #201735 91%);
       opacity: 1;
     }
     
     :host ::ng-deep .mdc-tab--active {
-      /* Styles for the ACTIVE tab */
+      /* Styles for the active tab label */
       border: 2px solid #009ffd;
       border-radius: 20px;
     }
-
