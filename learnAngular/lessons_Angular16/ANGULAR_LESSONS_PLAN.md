@@ -86,7 +86,7 @@ Angular 16 Lesson Plan
     <a href="./exercises/exercise12a.setup-tab-group.question.txt" title="Exercise 12a">Exercise 12a</a> / Tab Group / Setup page w/tabs                     (<a href="./exercises/exercise12a.setup-tab-group.answers.txt"   title="Exercise 12a">Answers</a>)
     <a href="./exercises/exercise12b.make-tabs-pretty.question.md" title="Exercise 12b">Exercise 12b</a> / Tab Group / Make the tabs look pretty             (<a href="./exercises/exercise12b.make-tabs-pretty.answers.md"   title="Exercise 12b">Answers</a>)
     Exercise 12c / Tab Group / Add navbar links to different tabs
-    Exercise 12d / Tab Group / Switching tabs and scrolling with code
+    Exercise 12d / Tab Group / Switching tabs and scrolling down
     Exercise 12e / Tab Group / Open tab group in a dialog
     <a href="./exercises/exercise12f.tab-caching.question.txt" title="Exercise 12f">Exercise 12f</a> / Tab Group / Cache vs non-caching of tabs          (<a href="./exercises/exercise12f.tab-caching.answers.txt"   title="Exercise 12f">Answers</a>)
 
