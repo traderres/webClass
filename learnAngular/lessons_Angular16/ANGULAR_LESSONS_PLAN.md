@@ -88,7 +88,7 @@ Angular 16 Lesson Plan
     Exercise 12c / Tab Group / Add navbar links to different tabs
     Exercise 12d / Tab Group / Crete a page with a search box
     Exercise 12e / Tab Group / Open tab group in a dialog
-    <a href="./exercises/exercise12f.tab-caching.question.txt" title="Exercise 12f">Exercise 12f</a> / Tab Group / Cache vs non-caching of tabs          (<a href="./exercises/exercise12f.tab-caching.answers.txt"   title="Exercise 12b">Answers</a>)
+    <a href="./exercises/exercise12f.tab-caching.question.txt" title="Exercise 12f">Exercise 12f</a> / Tab Group / Cache vs non-caching of tabs          (<a href="./exercises/exercise12f.tab-caching.answers.txt"   title="Exercise 12f">Answers</a>)
 
  9. Loading Data using Observables
     a. Load a dropdown from a REST call
