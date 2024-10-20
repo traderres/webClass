@@ -99,7 +99,7 @@ Angular 16 Lesson Plan
     Exercise 12e / Tab Group / Open tab group in a dialog
     <a href="./exercises/exercise12f.tab-caching.question.txt" title="Exercise 12f">Exercise 12f</a> / Tab Group / Cache vs non-caching of tabs          (<a href="./exercises/exercise12f.tab-caching.answers.txt"   title="Exercise 12f">Answers</a>)
 
- 9. Loading Data using Observables
+10. Loading Data using Observables
     a. Load a dropdown from a REST call
        <a href="./exercises/exercise13a.load-dropdown-with-subscribe.question.txt"      title="Exercise 13a">Exercise 13a</a> / Loading Dropdown w/subscribe                   (<a href="./exercises/exercise13a.load-dropdown-with-subscribe.answers.txt"      title="Answer to 13a">Answers</a>)
        <a href="./exercises/exercise13b.load-dropdown-with-async-pipe.question.txt"     title="Exercise 13b">Exercise 13b</a> / Loading Dropdown w/async pipe                  (<a href="./exercises/exercise13b.load-dropdown-with-async-pipe.answers.txt"     title="Answer to 13b">Answers</a>)
@@ -127,13 +127,13 @@ Angular 16 Lesson Plan
        Exercise 16c / Simulate a slow REST call                      (Answers)
        Exercise 16d / Listen on autocomplete                         (Answers)
 
-10. Saving Data 
+11. Saving Data 
     <a href="./exercises/exercise17a.submit-button-invokes-REST-call.question.txt"   title="Exercise 17a">Exercise 17a</a> / Setup "Add Report" Page w/fake REST call          (<a href="./exercises/exercise17a.submit-button-invokes-REST-call.answers.txt"  title="Answer to 17a">Answers</a>)
     <a href="./exercises/exercise17b.add-db-changes-and-REST-call.question.txt"      title="Exercise 17b">Exercise 17b</a> / Add database changes & Build REST call            (<a href="./exercises/exercise17b.add-db-changes-and-REST-call.answers.txt"     title="Answer to 17b">Answers</a>)
     <a href="./exercises/exercise17c.use-audit-manager-in-transaction.question.txt"               title="Exercise 17c">Exercise 17c</a> / Use AuditManager in a SQL Transaction             (<a href="./exercises/exercise17c.use-audit-manager-in-transaction.answers.txt" title="Answer to 17c">Answers</a>)
     <a href="./exercises/exercise17d.use-dialog-to-freeze-user.question.txt"         title="Exercise 17d">Exercise 17d</a> / Use dialog to freeze user while waiting           (<a href="./exercises/exercise17d.use-dialog-to-freeze-user.answers.txt"        title="Answer to 17d">Answers</a>)
 
-11. Asking the user many questions
+12. Asking the user many questions
     <a href="./exercises/exercise18a.ask-questions-with-mat-step.questions.txt"                    title="Exercise 18a">Exercise 18a</a> / Ask questions w/single-page and mat-step / Setup Layout        (<a href="./exercises/exercise18a.ask-questions-with-mat-step.answers.txt"  title="Answer to 18a">Answers</a>)
     <a href="./exercises/exercise18b.ask-questions-with-mat-step-rest-call.questions.txt"          title="Exercise 18b">Exercise 18b</a> / Ask questions w/single-page and mat-step / Add REST call       (<a href="./exercises/exercise18b.ask-questions-with-mat-step-rest-call.answers.txt"  title="Answer to 18b">Answers</a>)
     <a href="./exercises/exercise18c.ask-questions-with-mat-step-prevent-going-back.questions.txt" title="Exercise 18c">Exercise 18c</a> / Ask questions w/single-page and mat-step / Stop Double Submit  (<a href="./exercises/exercise18c.ask-questions-with-mat-step-prevent-going-back.answers.txt"  title="Answer to 18c">Answers</a>)
@@ -142,23 +142,23 @@ Angular 16 Lesson Plan
     Exercise 19c / Ask questions w/multiple pages / Auto-save when leaving page
     Exercise 19d / Ask questions w/multiple pages / Auto-save every N seconds 
 
-12. Sending Messages using Observables, Subjects, and Arrow Functions
+13. Sending Messages using Observables, Subjects, and Arrow Functions
     a. How to send messages from one part of the web app to another
     b. How to listen for messages across the web app
 
-13. Services
+14. Services
     a. Router service:   Used to navigate to another page view
     b. Lookup Service:   Used to populate dropdowns
     c. Message Service:  Used to display messages
  
-14. TypeScript
+15. TypeScript
     a. <a href="./howToReferenceEnumClass.txt" title="How to Use Enumerated Classes in HTML">How to Use Enumerated Classes in HTML</a>  (constants.ts)
 
-15. Server Side Grids (using ag-grid)
+16. Server Side Grids (using ag-grid)
     a. <a href="./lectures/boring.lecture.grids.txt" title="Client-Side vs Server-Side Grids">Client-Side vs Server-Side Grids</a>
 
-15. HighCharts
+17. HighCharts
 
-16. The Extended PDF Viewer (using an embedded PDF viewer)
+18. The Extended PDF Viewer (using an embedded PDF viewer)
 
 </pre>
