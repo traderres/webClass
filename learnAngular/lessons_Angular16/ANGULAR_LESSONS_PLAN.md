@@ -20,7 +20,8 @@ Angular 16 Lesson Plan
     j. <a href="./lectures/boring.lecture.all-rest-calls-are-ambiguous.txt"     title="The dirty secret w/form validation:  All REST call contracts are ambiguous">The dirty secret w/form validation:  All REST call contracts are ambigous</a>
     k. <a href="./lectures/boring.lecture.approaches-asking-many-questions.txt" title="Approaches to asking many question">Approaches to asking many questions</a>
     l. <a href="./lectures/what.is.the.contract.txt"    title="What is the Contract?">What is the contract?</a>
-    m. <a href="./lectures/boring.lecture.angular.tricks.and.techniques.txt"    title="Tricks & Techniques">Tricks & Techniques</a>
+    m. <a href="./lectures/boring.lecture.angular.tricks.and.techniques.txt"    title="Angular Material Tricks & Techniques">Angular Material Tricks & Techniques</a>
+    n. <a href="./lectures/boring.lecture.ag-grid.tricks.and.techniques.txt"    title="Ag-grid Tricks & Techniques">ag-grid Tricks & Techniques</a>
     
  3. Add Frontend Dependencies
     <a href="./lesson03_installTailwind.txt"    title="Install Tailwind">Install Tailwind</a>
@@ -80,7 +81,15 @@ Angular 16 Lesson Plan
     h. Derivative Dropdowns  [After selecting 1 dropdown value, change a 2nd dropdown's options]
     
  8. Client Side Grids (using ag-grid)
-    Exercise 11a / Setup page with Client Side Grid
+    <a href="./exercises/exercise11a.client-grid-add-to-project.answers.txt" title="Exercise 11a">Exercise 11a</a> / Add ag-grid to the project                        (<a href="./exercises/exercise11a.client-grid-add-to-project.answers.txt"   title="Exercise 11a">Answers</a>)
+    <a href="./exercises/exercise11b.client-grid-set-license-key.answers.txt" title="Exercise 11b">Exercise 11b</a> / Set ag-grid enterprise license key                (<a href="./exercises/exercise11b.client-grid-set-license-key.answers.txt"   title="Exercise 11b">Answers</a>)
+    <a href="./exercises/exercise11c.client-grid-add-grid-page.question.txt" title="Exercise 11c">Exercise 11c</a> / Add a Grid Page                                   (<a href="./exercises/exercise11c.client-grid-add-grid-page.answers.txt"      title="Exercise 11c">Answers</a>)
+    Exercise 11d / Load the grid with a frontend service
+    Exercise 11e / Cell Renderers / Format the rows with CSS
+    Exercise 11f / Cell Renderers / Add HTML controls to rows
+    Exercise 11g / Row Selection & checkboxes
+    Exercise 11h / Open a dialog
+    Exercise 11i / Remember grid columns & sorting
 
  9. Tabs Groups
     <a href="./exercises/exercise12a.setup-tab-group.question.txt" title="Exercise 12a">Exercise 12a</a> / Tab Group / Setup page w/tabs                     (<a href="./exercises/exercise12a.setup-tab-group.answers.txt"   title="Exercise 12a">Answers</a>)
