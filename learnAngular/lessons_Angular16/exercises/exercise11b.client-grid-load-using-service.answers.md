@@ -274,14 +274,154 @@ Part 4 / Configure the grid to load it's rowData with the fake service
 ![](../images/exercise11b_image2.png)
 ```
 
+    The Completed MySearchService looks like this
+    ---------------------------------------------
+    import { Injectable } from '@angular/core';
+    import {SavedSearchDTO} from "../models/saved-search-dto";
+    import {Observable, of} from "rxjs";
+    
+    @Injectable({
+      providedIn: 'root'
+    })
+    export class MySearchService {
+    
+      constructor() { }
+    
+      public getUsersSavedSearches(): Observable<SavedSearchDTO[]> {
+        let data: SavedSearchDTO[] = [
+          {
+            id: 1,
+            name: 'Reported created in 2024',
+            search_query: "created_date >= '01/01/2024'",
+            last_executed_date: '07/01/2024'
+          },
+    
+          {
+            id: 2,
+            name: 'Most popular reports',
+            search_query: "most_popular(report)",
+            last_executed_date: '07/02/2024'
+          },
+          {
+            id: 3,
+            name: 'Reported created in 2023',
+            search_query: "created_date >= '01/01/2023 AND created_date < 01/01/2024'",
+            last_executed_date: '07/05/2024'
+          },
+        ];
+    
+        return of(data);
+      }
+    
+    }
+
+
 
     The Completed TypeScript looks like this
     ----------------------------------------
-  
+    import { Component } from '@angular/core';
+    import {ColDef, ColumnApi, GridApi, GridOptions, GridReadyEvent} from "ag-grid-community";
+    import {SavedSearchDTO} from "../../models/saved-search-dto";
+    import {MySearchService} from "../../services/my-search.service";
+    
+    @Component({
+      selector: 'app-my-searches-grid',
+      templateUrl: './my-searches-grid.component.html',
+      styleUrls: ['./my-searches-grid.component.scss']
+    })
+    export class MySearchesGridComponent {
+    
+      public constructor(private mySearchService: MySearchService) {
+    
+      }
+    
+      private gridApi: GridApi;
+      private gridColumnApi: ColumnApi;
+    
+      public gridOptions: GridOptions = {
+        domLayout: 'normal',
+        debug: true,
+        rowModelType: 'clientSide'
+      };
+    
+    
+      public columnDefs: ColDef[] = [
+        {
+          field: 'id'
+        },
+        {
+          field: 'name'
+        },
+        {
+          field: 'search_query'
+        },
+        {
+          field: 'last_executed_date'
+        }
+      ];
+    
+    
+      public defaultColumnDef: ColDef = {
+        flex: 1,
+        sortable: true,
+        filter: true,
+        floatingFilter: true
+      }
+    
+    
+      public onGridReady(aParams: GridReadyEvent) {
+        // Get a reference to the gridApi and gridColumnApi (which we will need later to get selected rows)
+        this.gridApi = aParams.api;
+        this.gridColumnApi = aParams.columnApi;
+    
+        // Show the loading overlay
+        this.gridApi.showLoadingOverlay();
+    
+        // Invoke the REST call to get the grid data
+        this.mySearchService.getUsersSavedSearches().subscribe( (aData: SavedSearchDTO[]) => {
+          // REST call came back with data
+    
+          // Load the grid with data from the REST call
+          this.gridApi.setRowData(aData);
+        })
+    
+      }
+    
+    }
+
  
  
     The Completed HTML looks like this
     ----------------------------------
+    <div class="m-2.5">
+    
+      <div class="grid grid-cols-2">
+        <div>
+          <span class="text-xl">My Searches</span>
+        </div>
+    
+        <div class="flex place-content-end">
+          Help
+        </div>
+      </div>
+    
+      <div class="mt-2.5">
+        <!-- Add Grid Here -->
+        <div class="overflow-y-auto" style="height: calc(100vh - 150px)">
+    
+          <ag-grid-angular class="w-full h-full ag-theme-alpine"
+            [gridOptions]="this.gridOptions"
+            [columnDefs]="this.columnDefs"
+            [defaultColDef]="this.defaultColumnDef"
+            (gridReady)="this.onGridReady($event)"
+          ></ag-grid-angular>
+    
+        </div>
+    
+      </div>
+    
+    
+    </div>
 
  
 ```
