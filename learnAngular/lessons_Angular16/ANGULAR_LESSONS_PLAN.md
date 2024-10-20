@@ -81,15 +81,15 @@ Angular 16 Lesson Plan
     h. Derivative Dropdowns  [After selecting 1 dropdown value, change a 2nd dropdown's options]
     
  8. Client Side Grids (using ag-grid)
-    <a href="./exercises/exercise11a.client-grid-add-to-project.answers.txt" title="Exercise 11a">Exercise 11a</a> / Add ag-grid to the project                        (<a href="./exercises/exercise11a.client-grid-add-to-project.answers.txt"   title="Exercise 11a">Answers</a>)
-    <a href="./exercises/exercise11b.client-grid-set-license-key.answers.txt" title="Exercise 11b">Exercise 11b</a> / Set ag-grid enterprise license key                (<a href="./exercises/exercise11b.client-grid-set-license-key.answers.txt"   title="Exercise 11b">Answers</a>)
-    <a href="./exercises/exercise11c.client-grid-add-grid-page.question.txt" title="Exercise 11c">Exercise 11c</a> / Add a Grid Page                                   (<a href="./exercises/exercise11c.client-grid-add-grid-page.answers.txt"      title="Exercise 11c">Answers</a>)
-    Exercise 11d / Load the grid with a frontend service
-    Exercise 11e / Cell Renderers / Format the rows with CSS
-    Exercise 11f / Cell Renderers / Add HTML controls to rows
-    Exercise 11g / Row Selection & checkboxes
-    Exercise 11h / Open a dialog
-    Exercise 11i / Remember grid columns & sorting
+    <a href="./ag-grid.add-to-project.txt" title="Add ag-grid to the project">Add ag-grid to the project</a>
+    <a href="./ag-grid.set-license-key.txt" title="Set ag-grid license key">Set ag-grid enterprise license key</a>
+    <a href="./exercises/exercise11a.client-grid-add-grid-page.question.txt" title="Exercise 11a">Exercise 11a</a> / Client Grid / Add a Grid Page                             (<a href="./exercises/exercise11a.client-grid-add-grid-page.answers.txt"      title="Exercise 11c">Answers</a>)
+    Exercise 11b / Client Grid / Load grid with a frontend service
+    Exercise 11c / Client Grid / Cell Renderers / Format the rows with CSS
+    Exercise 11d / Client Grid / Cell Renderers / Add HTML controls to rows
+    Exercise 11e / Client Grid / Row Selection & checkboxes
+    Exercise 11f / Client Grid / Open a dialog
+    Exercise 11g / Client Grid / Remember grid columns & sorting
 
  9. Tabs Groups
     <a href="./exercises/exercise12a.setup-tab-group.question.txt" title="Exercise 12a">Exercise 12a</a> / Tab Group / Setup page w/tabs                     (<a href="./exercises/exercise12a.setup-tab-group.answers.txt"   title="Exercise 12a">Answers</a>)
