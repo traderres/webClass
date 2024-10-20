@@ -83,9 +83,10 @@ Angular 16 Lesson Plan
  8. Client Side Grids (using ag-grid)
     <a href="./ag-grid.add-to-project.txt" title="Add ag-grid to the project">Add ag-grid to the project</a>
     <a href="./ag-grid.set-license-key.txt" title="Set ag-grid license key">Set ag-grid enterprise license key</a>
-    <a href="./exercises/exercise11a.client-grid-add-grid-page.question.md" title="Exercise 11a">Exercise 11a</a> / Client Grid / Add a Grid Page                             (<a href="./exercises/exercise11a.client-grid-add-grid-page.answers.md"      title="Exercise 11a">Answers</a>)
-    Exercise 11b / Client Grid / Load grid with a frontend service
-    Exercise 11c / Client Grid / Cell Renderers / Format the rows with CSS
+    <a href="./exercises/exercise11a.client-grid-add-grid-page.question.md"      title="Exercise 11a">Exercise 11a</a> / Client Grid / Add a Grid Page                                (<a href="./exercises/exercise11a.client-grid-add-grid-page.answers.md"    title="Exercise 11a">Answers</a>)
+    <a href="./exercises/exercise11b.client-grid-load-using-service.question.md" title="Exercise 11b">Exercise 11b</a> / Client Grid / Load grid using a frontend service             (<a href="./exercises/exercise11b.client-grid-load-using-service.answers.md"          title="Exercise 11b">Answers</a>)
+    Exercise 11b / Client Grid / Load grid using a frontend service
+    Exercise 11c / Client Grid / Cell Renderers / Format rows w/conditional CSS
     Exercise 11d / Client Grid / Cell Renderers / Add HTML controls to rows
     Exercise 11e / Client Grid / Row Selection & checkboxes
     Exercise 11f / Client Grid / Open a dialog
