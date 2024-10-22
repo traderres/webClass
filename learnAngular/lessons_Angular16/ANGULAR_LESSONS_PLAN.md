@@ -83,10 +83,11 @@ Angular 16 Lesson Plan
  8. Client Side Grids (using ag-grid)
     <a href="./ag-grid.add-to-project.txt" title="Add ag-grid to the project">Add ag-grid to the project</a>
     <a href="./ag-grid.set-license-key.txt" title="Set ag-grid license key">Set ag-grid enterprise license key</a>
-    <a href="./exercises/exercise11a.client-grid-add-grid-page.question.md"      title="Exercise 11a">Exercise 11a</a> / Client Grid / Add a Grid Page                                (<a href="./exercises/exercise11a.client-grid-add-grid-page.answers.md"    title="Exercise 11a">Answers</a>)
-    <a href="./exercises/exercise11b.client-grid-load-using-service.question.md" title="Exercise 11b">Exercise 11b</a> / Client Grid / Load grid using a frontend service             (<a href="./exercises/exercise11b.client-grid-load-using-service.answers.md"          title="Exercise 11b">Answers</a>)
-    Exercise 11c / Client Grid / Cell Renderers / Format rows w/conditional CSS
-    Exercise 11d / Client Grid / Cell Renderers / Add HTML controls to rows
+    <a href="./exercises/exercise11a.client-grid-add-grid-page.question.md"      title="Exercise 11a">Exercise 11a</a> / Client Grid / Add a Grid Page                     (<a href="./exercises/exercise11a.client-grid-add-grid-page.answers.md"                    title="Exercise 11a">Answers</a>)
+    <a href="./exercises/exercise11b.client-grid-load-using-service.question.md" title="Exercise 11b">Exercise 11b</a> / Client Grid / Load grid using a frontend service  (<a href="./exercises/exercise11b.client-grid-load-using-service.answers.md"               title="Exercise 11b">Answers</a>)
+    <a href="./exercises/exercise11c.client-grid-add-filters.question.md"        title="Exercise 11c">Exercise 11c</a> / Client Grid / Add Filters                         (<a href="./exercises/exercise11c.client-grid-add-filters.answers.md"                      title="Exercise 11c">Answers</a>)
+    <a href="./exercises/exercise11d.client-grid-format-cell-with-cell-renderers.question.md"     title="Exercise 11d">Exercise 11d</a> / Client Grid / Format cells w/cell renderers       (<a href="./exercises/exercise11d.client-grid-format-cell-with-cell-renderers.answers.md"  title="Exercise 11d">Answers</a>)
+    Exercise 11d / Client Grid / Add HTML controls w/cell renderers
     Exercise 11e / Client Grid / Row Selection & checkboxes
     Exercise 11f / Client Grid / Open a dialog
     Exercise 11g / Client Grid / Remember grid columns & sorting
