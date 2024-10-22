@@ -363,9 +363,7 @@ Part 4 / Configure the grid to load it's rowData with the fake service
     
       public defaultColumnDef: ColDef = {
         flex: 1,
-        sortable: true,
-        filter: true,
-        floatingFilter: true
+        sortable: true
       }
     
     

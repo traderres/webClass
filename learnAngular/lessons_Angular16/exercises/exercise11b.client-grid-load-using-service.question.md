@@ -75,7 +75,7 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
                 
  3. Add a public class variable:  defaultColumnDef
     -- The type is ColDef
-    -- Initialize it so that flex = 1, sortable = true, filter = true, floatingFilter = true
+    -- Initialize it so that flex = 1, sortable = true
 
      
                 

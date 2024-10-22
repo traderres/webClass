@@ -293,9 +293,7 @@ Exercise
     
         public defaultColumnDef: ColDef = {
           flex: 1,
-          sortable: true,
-          filter: true,
-          floatingFilter: true
+          sortable: true
         }
     
     
