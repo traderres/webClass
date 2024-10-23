@@ -2,7 +2,7 @@
 Exercise 11c / Client Grid / Add Filters  (Answers)
 ---------------------------------------------------
 Problem:  How do I activate and customize the client-side grid filters
-Solution: Make sure you have filter and filterParams set   [see code in bold]
+Solution: Make sure you have floatingFilter=TRUE, filter set to the filter type, and filterParams set i
 
 
       // Customize the filters (when turned on)
