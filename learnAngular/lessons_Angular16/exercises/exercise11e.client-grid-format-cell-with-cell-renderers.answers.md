@@ -1,5 +1,5 @@
 ```
-Exercise 11d / Client Grid / Format Cells with Cell Renderers  (Answer)
+Exercise 11e / Client Grid / Format Cells with Cell Renderers  (Answer)
 -----------------------------------------------------------------------
 Problem 1:  I want to apply CSS to a specific column cell
 Problem 2:  I want to display multiple values in a cell

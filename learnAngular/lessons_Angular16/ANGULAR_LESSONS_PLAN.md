@@ -85,12 +85,13 @@ Angular 16 Lesson Plan
     <a href="./ag-grid.set-license-key.txt" title="Set ag-grid license key">Set ag-grid enterprise license key</a>
     <a href="./exercises/exercise11a.client-grid-add-grid-page.question.md"      title="Exercise 11a">Exercise 11a</a> / Client Grid / Add a Grid Page                     (<a href="./exercises/exercise11a.client-grid-add-grid-page.answers.md"                    title="Exercise 11a">Answers</a>)
     <a href="./exercises/exercise11b.client-grid-load-using-service.question.md" title="Exercise 11b">Exercise 11b</a> / Client Grid / Load grid using a frontend service  (<a href="./exercises/exercise11b.client-grid-load-using-service.answers.md"               title="Exercise 11b">Answers</a>)
-    <a href="./exercises/exercise11c.client-grid-add-filters.question.md"        title="Exercise 11c">Exercise 11c</a> / Client Grid / Add Filters                         (<a href="./exercises/exercise11c.client-grid-add-filters.answers.md"                      title="Exercise 11c">Answers</a>)
-    <a href="./exercises/exercise11d.client-grid-format-cell-with-cell-renderers.question.md"     title="Exercise 11d">Exercise 11d</a> / Client Grid / Format cells w/cell renderers       (<a href="./exercises/exercise11d.client-grid-format-cell-with-cell-renderers.answers.md"  title="Exercise 11d">Answers</a>)
-    Exercise 11d / Client Grid / Add HTML controls w/cell renderers
-    Exercise 11e / Client Grid / Row Selection & checkboxes
-    Exercise 11f / Client Grid / Open a dialog
-    Exercise 11g / Client Grid / Remember grid columns & sorting
+    <a href="./exercises/exercise11c.client-grid-add-text-filters.question.md"        title="Exercise 11c">Exercise 11c</a> / Client Grid / Add Text Filters                    (<a href="./exercises/exercise11c.client-grid-add-text-filters.answers.md"            title="Exercise 11c">Answers</a>)
+    <a href="./exercises/exercise11c.client-grid-add-date-filters.question.md"        title="Exercise 11d">Exercise 11d</a> / Client Grid / Add Date Filters                    (<a href="./exercises/exercise11d.client-grid-add-date-filters.answers.md"            title="Exercise 11d">Answers</a>)
+    <a href="./exercises/exercise11e.client-grid-format-cell-with-cell-renderers.question.md"     title="Exercise 11e">Exercise 11d</a> / Client Grid / Format cells w/cell renderers       (<a href="./exercises/exercise11d.client-grid-format-cell-with-cell-renderers.answers.md"  title="Exercise 11d">Answers</a>)
+    Exercise 11f / Client Grid / Add HTML controls w/cell renderers
+    Exercise 11g / Client Grid / Row Selection & checkboxes
+    Exercise 11h / Client Grid / Open a dialog
+    Exercise 11i / Client Grid / Remember grid columns & sorting
 
  9. Tabs Groups
     <a href="./exercises/exercise12a.setup-tab-group.question.txt" title="Exercise 12a">Exercise 12a</a> / Tab Group / Setup page w/tabs                     (<a href="./exercises/exercise12a.setup-tab-group.answers.txt"   title="Exercise 12a">Answers</a>)

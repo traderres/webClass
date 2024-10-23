@@ -1,6 +1,6 @@
 ```
-Exercise 11c / Client Grid / Add Filters  (Answers)
----------------------------------------------------
+Exercise 11c / Client Grid / Add Text Filters  (Answers)
+--------------------------------------------------------
 Problem:  How do I activate and customize the client-side grid filters
 Solution: Make sure you have floatingFilter=TRUE, filter set to the filter type, and filterParams set i
 

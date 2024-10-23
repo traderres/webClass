@@ -1,4 +1,4 @@
 ```
-Exercise 11d / Client Grid / Format Cells with Cell Renderers
+Exercise 11e / Client Grid / Format Cells with Cell Renderers
 -------------------------------------------------------------
 ```

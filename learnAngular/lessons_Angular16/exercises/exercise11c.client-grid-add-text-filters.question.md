@@ -1,6 +1,6 @@
 ```
-Exercise 11c / Client Grid / Add Filters
-----------------------------------------
+Exercise 11c / Client Grid / Add Text Filters
+---------------------------------------------
 Problem:  How do I activate and customize the client-side grid filters
 Solution: Make sure you have filter and filterParams set
 
