@@ -145,12 +145,14 @@ Angular 16 Lesson Plan
     Exercise 19d / Ask questions w/multiple pages / Auto-save every N seconds 
 
 13. Sending Messages using Observables, Subjects, and Arrow Functions
-    a. How to send messages from one part of the web app to another
-    b. How to listen for messages across the web app
+    a. Exercise 20a / How to send messages from one part of the web app to another
+    b. Exercise 20b / How to listen for messages across the web app
+    c. Exercise 20c / Refresh Notifications in the navbar / using timer
+    c. Exercise 20d / Refresh Notifications in the navbar / listening for message
 
 14. Acknowledgement / Prevent users from proceeding until a button is clickeed
-    a. Add Acknowledgement Dialog
-    b. Add Acknowledgement Page
+    a. Exercise 21a / Add Acknowledgement Dialog
+    b. Exercise 21b / Add Acknowledgement Page
 
 15. Services
     a. Router service:   Used to navigate to another page view
