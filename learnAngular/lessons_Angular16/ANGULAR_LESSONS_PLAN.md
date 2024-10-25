@@ -148,19 +148,23 @@ Angular 16 Lesson Plan
     a. How to send messages from one part of the web app to another
     b. How to listen for messages across the web app
 
-14. Services
+14. Acknowledgement / Prevent users from proceeding until a button is clickeed
+    a. Add Acknowledgement Dialog
+    b. Add Acknowledgement Page
+
+15. Services
     a. Router service:   Used to navigate to another page view
     b. Lookup Service:   Used to populate dropdowns
     c. Message Service:  Used to display messages
  
-15. TypeScript
+16. TypeScript
     a. <a href="./howToReferenceEnumClass.txt" title="How to Use Enumerated Classes in HTML">How to Use Enumerated Classes in HTML</a>  (constants.ts)
 
-16. Server Side Grids (using ag-grid)
+17. Server Side Grids (using ag-grid)
     a. <a href="./lectures/boring.lecture.grids.txt" title="Client-Side vs Server-Side Grids">Client-Side vs Server-Side Grids</a>
 
-17. HighCharts
+18. HighCharts
 
-18. The Extended PDF Viewer (using an embedded PDF viewer)
+19. The Extended PDF Viewer (using an embedded PDF viewer)
 
 </pre>
