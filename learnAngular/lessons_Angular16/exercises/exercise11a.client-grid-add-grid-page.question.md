@@ -105,7 +105,8 @@ Exercise
     
  
 
-10. Change the column header's so it shows "Start Date" instead of "Start_date"
+10. Change the column headers so it shows "Start Date" instead of "Start_date"
+    Change the column headers so it shows "End Date" instead of "End_date"
 
   
  
