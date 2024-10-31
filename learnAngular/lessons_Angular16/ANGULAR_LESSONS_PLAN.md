@@ -154,13 +154,12 @@ Angular 16 Lesson Plan
 14. Acknowledgement / Prevent users from proceeding until a button is clickeed
     a. Exercise 21a / Add Acknowledgement Dialog
     b. Exercise 21b / Add Acknowledgement Page
+    
+15. Responsive Design Strikes Back
+    a. Exercise 22a / Show a message if web browser is too small or too short
+    b. Exercise 22b / Update individual pages to fit your user's browser sizes
 
-15. Services
-    a. Router service:   Used to navigate to another page view
-    b. Lookup Service:   Used to populate dropdowns
-    c. Message Service:  Used to display messages
- 
-16. TypeScript
+16. TypeScript / Kitchen Sink
     a. <a href="./howToReferenceEnumClass.txt" title="How to Use Enumerated Classes in HTML">How to Use Enumerated Classes in HTML</a>  (constants.ts)
 
 17. Server Side Grids (using ag-grid)
