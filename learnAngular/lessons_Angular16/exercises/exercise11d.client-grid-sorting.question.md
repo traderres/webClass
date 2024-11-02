@@ -213,7 +213,7 @@ Solution: Build a custom "comparator" method that will compare the dates in your
         
                 let yearNumber:   string = aDateAsString.substring(6, 10);
                 let monthNumber:  string = aDateAsString.substring(0, 2);
-                let dayNumber:	  string = aDateAsString.substring(3, 5);
+                let dayNumber:    string = aDateAsString.substring(3, 5);
                 let hourNumber:   string = aDateAsString.substring(11, 13);
                 let minuteNumber: string = aDateAsString.substring(14, 16);
                 let secondNumber: string = aDateAsString.substring(17, 19);
