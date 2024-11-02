@@ -8,7 +8,7 @@ Problem 2:  In client-side grids, How do I sort on date fields?
 
 
 ```
-![](../images/exercise11d_image1.png)
+![](../images/exercise11d_image2.png)
 ```
 
 
