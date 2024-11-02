@@ -316,7 +316,7 @@ Part 4 / Configure the grid to load it's rowData with the fake service
 ```
 ![](../images/exercise11d_image2.png)
 ```
-Houston, we have a problem:  The date field do not sort correctly!!!
+Houston, we have a problem:  The date fields do *NOT* sort correctly!!!
 
 
 Part 5 / Get the Date Fields to Sort in a Client Side Grid
