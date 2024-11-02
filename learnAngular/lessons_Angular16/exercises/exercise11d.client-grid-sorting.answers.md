@@ -340,9 +340,9 @@ Solution: Build a custom "comparator" method that will compare the dates in your
         
             if (aDateAsString.length == 10) {
                 // Convert mm/dd/yyyy --> yyyymmdd   (as a number)
-                let yearNumber: string  = aDateAsString.substring(6, 10);
+                let yearNumber:  string = aDateAsString.substring(6, 10);
                 let monthNumber: string = aDateAsString.substring(0, 2);
-                let dayNumber:   string  = aDateAsString.substring(3, 5);
+                let dayNumber:   string = aDateAsString.substring(3, 5);
         
                 let resultAsString =  `${yearNumber}${monthNumber}${dayNumber}`;
                 return Number(resultAsString);
