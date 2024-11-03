@@ -188,7 +188,7 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
     
     
  
- 7. Tell the ag-grid-angular to use your class variables
+ 6. Tell the ag-grid-angular to use your class variables
     -- Set gridOptions property     to your public class variable
     -- Set columnDefs property      to use your public class variable
     -- Set defaultColDef property   to use your public class variable
@@ -239,7 +239,7 @@ Part 3 / Create the Frontend Service that will simulate a REST call (fake servic
         NOTE:  This method returns an observable that holds an array of GridSortingRowDataDTO
 
      c. Fill-in this public method
-        1) Create a local variable that holds an array of SavedSearchDTO objects 
+        1) Create a local variable that holds an array of GridSortingRowDataDTO objects 
         2) Fill-in the array with 3 fake objects
         3) Convert the array into an observable
         4) Return the observable
