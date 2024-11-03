@@ -163,7 +163,7 @@ Angular 16 Lesson Plan
     a. <a href="./howToReferenceEnumClass.txt" title="How to Use Enumerated Classes in HTML">How to Use Enumerated Classes in HTML</a>  (constants.ts)
 
 17. Server Side Grids (using ag-grid)
-    a. <a href="./lectures/boring.lecture.grids.txt" title="Client-Side vs Server-Side Grids">Client-Side vs Server-Side Grids</a>
+    <a href="./lectures/boring.lecture.server-vs-client-grids.txt" title="Client-Side vs Server-Side Grids">Client-Side vs Server-Side Grids</a>
 
 18. HighCharts
 
