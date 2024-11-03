@@ -216,10 +216,10 @@ Part 3 / Create the Frontend Service that will simulate a REST call (fake servic
 ----------------------------------------------------------------------------------
  1. Create a frontend DTO:  GridSortingRowDataDTO
         id                  // This is numeric
-        contract_name       // Every will hold text
-        cage_code           // Every will hold text 
-        start_date          // This will hold text -- e.g., '05/01/2024'
-        end_date            // This will hold text -- e.g., '05/01/2024'
+        contract_name       // This is text
+        cage_code           // This is text 
+        start_date          // This is text -- e.g., '05/01/2024'
+        end_date            // This is text -- e.g., '05/01/2024'
    
    
         export class GridSortingRowDataDTO {
@@ -305,7 +305,26 @@ Part 4 / Configure the grid to load it's rowData with the fake service
     -- Invoke the fake REST call (you made in the previous step)
     -- When the REST call comes in, set the grid row data
     
+  
+      public onGridReady(aParams: GridReadyEvent) {
+        // Get a reference to the gridApi and gridColumnApi (which we will need later to get selected rows)
+        this.gridApi = aParams.api;
+        this.gridColumnApi = aParams.columnApi;
     
+        // Show the loading overlay
+        this.gridApi.showLoadingOverlay();
+    
+        // Invoke the REST call to get the grid data
+        this.mySearchService.getAllContracts().subscribe( (aData: GridSortingRowDataDTO[]) => {
+          // REST call came back with data
+    
+          // Load the grid with data from the REST call
+          this.gridApi.setRowData(aData);
+        })
+    
+      }
+      
+        
  
  4. In the HTML, tell the grid to call your onGridReady() when the grid is fully initialized
  

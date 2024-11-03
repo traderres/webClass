@@ -121,10 +121,10 @@ Part 3 / Create the Frontend Service that will simulate a REST call (fake servic
 ----------------------------------------------------------------------------------
  1. Create a frontend DTO:  GridSortingRowDataDTO
         id                  // This is numeric
-        contract_name       // Every will hold text
-        cage_code           // Every will hold text 
-        start_date          // This will hold text -- e.g., '05/01/2024'
-        end_date            // This will hold text -- e.g., '05/01/2024'
+        contract_name       // This is text
+        cage_code           // This is text 
+        start_date          // This is text -- e.g., '05/01/2024'
+        end_date            // This is text -- e.g., '05/01/2024'
    
    
 
