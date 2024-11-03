@@ -258,7 +258,8 @@ Fix the problem in which the bottom part of the custom cell is cut off by settin
 ```
 ![](../images/exercise11e_image4.png)
 ```
-
+Custom Cell Renderer V2:  Notice the columns holding text are *NOT* vertically aligned  (still looks like shit!)
+ 
 
 
 
