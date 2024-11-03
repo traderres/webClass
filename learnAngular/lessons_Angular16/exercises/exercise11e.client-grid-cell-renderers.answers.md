@@ -472,7 +472,8 @@ Approach #2:  Create a custom CSS class and apply it to the regular text-cell co
   
  ```
 ![](../images/exercise11e_image5.png)
-```      
+```
+Custom Cell Renderer V3:  The custom cell renderer looks good *AND* the text rows are vertically aligned    
        
 
 
