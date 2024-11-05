@@ -151,7 +151,7 @@ Angular 16 Lesson Plan
     Exercise 20c / Refresh Notifications in the navbar / using timer
     Exercise 20d / Refresh Notifications in the navbar / listening for message
 
-14. Acknowledgement / Prevent users from proceeding until a button is clickeed
+14. Acknowledgement / Hide or disable all pages until the user acknowledges a message
     <a href="./exercises/exercise21a.acknowledgement-page.add-rest-calls.question.txt"    title="Exercise 21a">Exercise 21a</a> / Add Acknowledgement Page / Add REST Calls                      (<a href="./exercises/exercise21a.acknowledgement-page.add-rest-calls.answers.txt"  title="Answer to 21a">Answers</a>)
     Exercise 21b / Add Acknowledgement Page / Add HTML Page over main page
     Exercise 21c / Add Acknowledgement Dialog
