@@ -46,6 +46,7 @@ Part 1 / Setup the Page with a button that invokes your acknowledge REST call
                 
     c. Edit app.component.ts / In ngOnInit(), initialize the observable so it's hooked-up to your REST call
     
+    
  4. Change the main page so that it invokes an async pipe
     a. Edit app.component.html / Use an async pipe to invoke your observable
     
@@ -53,6 +54,23 @@ Part 1 / Setup the Page with a button that invokes your acknowledge REST call
             if the user has not acknowledged, then show your acknowledgement page
             If the user has     acknowledged, then show everything else
             
+      
+            <ng-container *ngIf="(this.userAcknowledgedDodConsentObs | async) as userAcknowledgedConsent">
+            
+              <ng-container *ngIf="! userAcknowledgedConsent.userAcknowledged">
+                <!-- User has NOT acknowledged.  So, show the acknowledge page -->
+                <app-dod-acknowledgement-page></app-dod-acknowledgement-page>
+              </ng-container>
+              
+                <ng-container  *ngIf="userAcknowledgedConsent.userAcknowledged">
+                    <!-- User has acknowledged the DOD Consent.  So, show the header and navbar -->
+                
+                    <!-- R E S T    O F    M A I N       L A Y O U T     P A G E  -->
+                
+                </ng-container>
+             </ng-container>
+             
+             
             
             
 Part 2:  Send a message from your Acknowledgement Page to the app.component.ts that it should check again to see if the user has acknwoledged
