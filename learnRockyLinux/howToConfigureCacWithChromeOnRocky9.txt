@@ -1,0 +1,198 @@
+How to Get Card Reader to Work with Chrome on Rocky 9
+------------------------------------------------------
+Problem:  I have a CAC Card Reader (IO Gear GSR 202) but my chrome browser does not accept it
+
+
+References
+----------
+https://militarycac.com/linux.htm
+
+
+Procedure
+---------
+ 1. Install epel-release
+    unix> sudo dnf install epel-release
+
+ 2. Install the plltool command
+    unix> sudo dnf install gnutls-utils
+
+ 3. Install the pcsc_scan tool
+    unix> sudo dnf install pcsc-tools
+
+ 4. Install opensc
+    unix> sudo dnf install opensc
+
+ 5. Attach your IOGear to your Rocky Linux 9
+
+ 6. Insert you CAC
+
+ 7. List registered modules
+    unix> p11-kit list-modules
+
+	module: p11-kit-trust
+		path: /usr/lib64/pkcs11/p11-kit-trust.so
+		uri: pkcs11:library-description=PKCS%2311%20Kit%20Trust%20Module;library-manufacturer=PKCS%2311%20Kit
+		library-description: PKCS#11 Kit Trust Module
+		library-manufacturer: PKCS#11 Kit
+		library-version: 0.25
+		token: System Trust
+			uri: pkcs11:model=p11-kit-trust;manufacturer=PKCS%2311%20Kit;serial=1;token=System%20Trust
+			manufacturer: PKCS#11 Kit
+			model: p11-kit-trust
+			serial-number: 1
+			hardware-version: 0.25
+			flags:
+				  write-protected
+				  token-initialized
+		token: Default Trust
+			uri: pkcs11:model=p11-kit-trust;manufacturer=PKCS%2311%20Kit;serial=1;token=Default%20Trust
+			manufacturer: PKCS#11 Kit
+			model: p11-kit-trust
+			serial-number: 1
+			hardware-version: 0.25
+			flags:
+				  write-protected
+				  token-initialized
+	module: opensc
+		path: /usr/lib64/pkcs11/opensc-pkcs11.so
+		uri: pkcs11:library-description=OpenSC%20smartcard%20framework;library-manufacturer=OpenSC%20Project
+		library-description: OpenSC smartcard framework
+		library-manufacturer: OpenSC Project
+		library-version: 0.23
+
+
+ 8. List all certificates in a registered module
+    unix> p11tool --list-all-certs
+
+	pkcs11:model=p11-kit-trust;manufacturer=PKCS%2311%20Kit;serial=1;token=System%20Trust
+	pkcs11:model=p11-kit-trust;manufacturer=PKCS%2311%20Kit;serial=1;token=Default%20Trust
+	pkcs11:model=PKCS%2315%20emulated;manufacturer=piv_II;serial=1235110d7e1;token=SMITH.JOHN.L.123456790     <-- This should be your CAC credentials
+
+
+ 9. List your OpenSC module
+    unix> cat /usr/share/p11-kit/modules/opensc.module
+
+	# This file describes how to load the opensc module
+	# See: http://p11-glue.freedesktop.org/doc/p11-kit/config.html
+
+	# This is a relative path, which means it will be loaded from
+	# the p11-kit default path which is usually $(libdir)/pkcs11.
+	# Doing it this way allows for packagers to package opensc for
+	# 32-bit and 64-bit and make them parallel installable
+	module: opensc-pkcs11.so
+
+
+10. Download & import the DOD Certificates so that Chrome trusts it
+ 	a. Download DOD certificates from public.cyber.mil
+       1) Go to https://public.cyber.mil/pki-pke/admins/#toggle-id-1
+       2) Click on DoD Approved External PKI Certificate Trust Chains - Version 11.1
+          *OR*
+       Go to https://dl.dod.cyber.mil/wp-content/uploads/pki-pke/zip/unclass-dod_approved_external_pkis_trust_chains.zip
+
+     b. Save the zip file to your Downloads
+
+     c. Unzip certificates
+        unix> cd ~/Downloads
+        unix> unzip -d certs AllCerts.zip          # Unzip the files to ~/Downloads/certs directory
+
+	d. In Chrome, Go to the "Manage Certificates" setting
+	   Go to the chrome://settings/certificates?search=cert
+    e. Click on Authorities
+    f. Press Import
+    g. Browse to ~/Downloads/certs/DoD_Approved_External_PKIs_Trust_Chains_v11.1_20240716/_Dod/Intermediate_and_Issuing_CA_Certs
+       Change the Filter to "All Files"  [so you can see the .cer files]
+
+	h. Select 1_DOD_DERILITY_CA-1.cer
+       Check "Trust this CA to identify websites"
+       Check "Trust this CA to identify email users"
+
+  	i. REPEAT this step for every other .cer file
+
+
+11. Configure Chrome to clear your cache when you quit
+	a. Open the Chrome browser
+	b. Go to settings using this url:   chrome://settings/
+	c. Go to Privacy and Security -> Site settings -> Additional Content Settings -> on-device Site data
+	d. Choose "Delete data sites have saved to your device when you close all windows"
+    e. Close Chrome
+
+
+12. Configure Chrome to use your opensc driver
+    a. Close the Chrome browser
+
+    b. List the PKCS #11 modules (BEFORE)
+       unix> modutil -dbdir sql:.pki/nssdb/ -list
+
+
+		Listing of PKCS #11 Modules
+		-----------------------------------------------------------
+		  1. NSS Internal PKCS #11 Module
+			   uri: pkcs11:library-manufacturer=Mozilla%20Foundation;library-description=NSS%20Internal%20Crypto%20Services;library-version=3.90
+			 slots: 2 slots attached
+			status: loaded
+
+			 slot: NSS Internal Cryptographic Services
+			token: NSS Generic Crypto Services
+			  uri: pkcs11:token=NSS%20Generic%20Crypto%20Services;manufacturer=Mozilla%20Foundation;serial=0000000000000000;model=NSS%203
+
+			 slot: NSS User Private Key and Certificate Services
+			token: NSS Certificate DB
+			  uri: pkcs11:token=NSS%20Certificate%20DB;manufacturer=Mozilla%20Foundation;serial=0000000000000000;model=NSS%203
+		-----------------------------------------------------------
+
+    c. Add "CAC Module"
+	   unix> modutil -dbdir sql:.pki/nssdb/ -add "CAC Module" -libfile /usr/lib64/opensc-pkcs11.so
+
+	d. At the next prompt, you will see this:
+		WARNING: Performing this operation while the browser is running could cause
+		corruption of your security databases. If the browser is currently running,
+		you should exit browser before continuing this operation. Type
+		'q <enter>' to abort, or <enter> to continue:
+
+		Press <Enter>
+
+	e. List the PKCS #11 modules (AFTER)
+       unix> modutil -dbdir sql:.pki/nssdb/ -list
+
+		Listing of PKCS #11 Modules
+		-----------------------------------------------------------
+		  1. NSS Internal PKCS #11 Module
+			   uri: pkcs11:library-manufacturer=Mozilla%20Foundation;library-description=NSS%20Internal%20Crypto%20Services;library-version=3.90
+			 slots: 2 slots attached
+			status: loaded
+
+			 slot: NSS Internal Cryptographic Services
+			token: NSS Generic Crypto Services
+			  uri: pkcs11:token=NSS%20Generic%20Crypto%20Services;manufacturer=Mozilla%20Foundation;serial=0000000000000000;model=NSS%203
+
+			 slot: NSS User Private Key and Certificate Services
+			token: NSS Certificate DB
+			  uri: pkcs11:token=NSS%20Certificate%20DB;manufacturer=Mozilla%20Foundation;serial=0000000000000000;model=NSS%203
+
+		  2. CAC Module
+			library name: /usr/lib64/opensc-pkcs11.so
+			   uri: pkcs11:library-manufacturer=OpenSC%20Project;library-description=OpenSC%20smartcard%20framework;library-version=0.23
+			 slots: 1 slot attached
+			status: loaded
+
+			 slot: Alcor Micro AU9520 00 00
+			token: SMITH.JOHN.1234567890
+			  uri: pkcs11:token=SMITH.JOHN.123456789;manufacturer=piv_II;serial=5184c308455f810d7f5;model=PKCS%2315%20emulated
+		-----------------------------------------------------------
+
+
+13. Verify your browser works with CAC support
+    a. Using chrome, go to https://webmail.apps.mil/mail
+	b. Enter your email of your govt email address
+	   Press "Next"
+	c. Press "Sign in with CAC/PIV"
+    d. You should be prompted to use your CAC Pin
+       -- Enter your CAC pin
+
+    e. You should be prompted for your CAC certificate
+       -- Select your certificate
+
+       -- You should be logged-in
+
+
+
