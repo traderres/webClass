@@ -1,0 +1,154 @@
+How to Get Card Reader to Work with Firefox on Rocky 9
+------------------------------------------------------
+Problem:  I have a CAC Card Reader (IO Gear GSR 202) but my firefox browser does not accept it
+
+
+
+
+Procedure
+---------
+ 1. Install epel-release
+    unix> sudo dnf install epel-release
+
+ 2. Install the plltool command
+    unix> sudo dnf install gnutls-utils
+
+ 3. Install the pcsc_scan tool
+    unix> sudo dnf install pcsc-tools
+
+ 4. Install opensc
+    unix> sudo dnf install opensc
+
+ 5. Attach your IOGear to your Rocky Linux 9
+
+ 6. Insert you CAC
+
+ 7. List registered modules
+    unix> p11-kit list-modules
+
+	module: p11-kit-trust
+		path: /usr/lib64/pkcs11/p11-kit-trust.so
+		uri: pkcs11:library-description=PKCS%2311%20Kit%20Trust%20Module;library-manufacturer=PKCS%2311%20Kit
+		library-description: PKCS#11 Kit Trust Module
+		library-manufacturer: PKCS#11 Kit
+		library-version: 0.25
+		token: System Trust
+			uri: pkcs11:model=p11-kit-trust;manufacturer=PKCS%2311%20Kit;serial=1;token=System%20Trust
+			manufacturer: PKCS#11 Kit
+			model: p11-kit-trust
+			serial-number: 1
+			hardware-version: 0.25
+			flags:
+				  write-protected
+				  token-initialized
+		token: Default Trust
+			uri: pkcs11:model=p11-kit-trust;manufacturer=PKCS%2311%20Kit;serial=1;token=Default%20Trust
+			manufacturer: PKCS#11 Kit
+			model: p11-kit-trust
+			serial-number: 1
+			hardware-version: 0.25
+			flags:
+				  write-protected
+				  token-initialized
+	module: opensc
+		path: /usr/lib64/pkcs11/opensc-pkcs11.so
+		uri: pkcs11:library-description=OpenSC%20smartcard%20framework;library-manufacturer=OpenSC%20Project
+		library-description: OpenSC smartcard framework
+		library-manufacturer: OpenSC Project
+		library-version: 0.23
+
+
+ 8. List all certificates in a registered module
+    unix> p11tool --list-all-certs
+
+	pkcs11:model=p11-kit-trust;manufacturer=PKCS%2311%20Kit;serial=1;token=System%20Trust
+	pkcs11:model=p11-kit-trust;manufacturer=PKCS%2311%20Kit;serial=1;token=Default%20Trust
+	pkcs11:model=PKCS%2315%20emulated;manufacturer=piv_II;serial=1235110d7e1;token=SMITH.JOHN.L.123456790     <-- This should be your CAC credentials
+
+
+ 9. List your OpenSC module
+    unix> cat /usr/share/p11-kit/modules/opensc.module
+
+	# This file describes how to load the opensc module
+	# See: http://p11-glue.freedesktop.org/doc/p11-kit/config.html
+
+	# This is a relative path, which means it will be loaded from
+	# the p11-kit default path which is usually $(libdir)/pkcs11.
+	# Doing it this way allows for packagers to package opensc for
+	# 32-bit and 64-bit and make them parallel installable
+	module: opensc-pkcs11.so
+
+
+10. Download & import the DOD Certificates so that Firefox trusts it
+ 	a. Download DOD certificates from public.cyber.mil
+       1) Go to https://public.cyber.mil/pki-pke/admins/#toggle-id-1
+       2) Click on DoD Approved External PKI Certificate Trust Chains - Version 11.1
+          *OR*
+       Go to https://dl.dod.cyber.mil/wp-content/uploads/pki-pke/zip/unclass-dod_approved_external_pkis_trust_chains.zip
+
+     b. Save the zip file to your Downloads
+
+     c. Unzip certificates
+        unix> cd ~/Downloads
+        unix> unzip -d certs AllCerts.zip          # Unzip the files to ~/Downloads/certs directory
+
+	d. In Firefox, Pull Edit -> Preferences > Search for View Certificates
+    e. Click on "View Certificates..."
+    f. Click on Authorities
+    g. Press Import
+    h. Browse to ~/Downloads/certs/DoD_Approved_External_PKIs_Trust_Chains_v11.1_20240716/_Dod/Intermediate_and_Issuing_CA_Certs
+
+	i. Select 1_DOD_DERILITY_CA-1.cer
+       Check "Trust this CA to identify websites"
+       Check "Trust this CA to identify email users"
+
+  	j. REPEAT this step for every other .cer file
+
+
+11. Configure Firefox to use the opensc-pkcs11.so module
+    a. startup Firefox
+    b. Pull Edit -> Preferences
+    c. Search for Security devices and press "Security Devices"
+    d. In the "Device Manager"
+       1) Press "Load"
+       2) In the popup
+          Module Name:      CAC Reader
+          Module filename:  /usr/lib64/opensc-pkcs11.so
+          Press OK
+
+     e. Single-Click on CAC Reader -> "Alcor Micro AU9520 00"
+     f. Press Login
+     g. You should be prompted for your CAC Card pin
+        -- Enter you CAC pin
+     h. Press OK
+
+
+12. Remove the p11-kit-proxy from firefox
+    NOTE:  This step ensures that Firefox does not keep restoring the p11-kit-proxy (found in "Security Devices") every time you startup Firefox
+    a. Backup the nss-p11-kit.config
+       unix> sudo cp /etc/crypto-policies/local.d/nss-p11-kit.config  /etc/crypto-policies/local.d/nss-p11-kit.config.OLD
+
+       unix> ls -l  /etc/crypto-policies/local.d/
+
+			Now, I have 2 files:
+			-rw-r--r--. 1 root root 46 May  1  2024 nss-p11-kit.config
+			-rw-r--r--. 1 root root 46 Nov  5 14:27 nss-p11-kit.config.OLD
+
+
+	b. Remove the nss-p11-kit.config
+	   unix> sudo rm /etc/crypto-policies/local.d/nss-p11-kit.config
+
+	c. Update the policies
+	   unix> sudo update-crypto-policies
+
+	d. Restart the operating system
+	   unix> sudo reboot
+
+
+13. Verify your browser works with CAC support
+    a. Using firefox, go to https://webmail.apps.mil/mail
+    b. You should be prompted to use your CAC
+       -- Select your CAC
+    c. You should see a message saying
+       Your account has been successfully authenticated
+
