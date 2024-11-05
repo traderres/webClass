@@ -153,7 +153,7 @@ Angular 16 Lesson Plan
 
 14. Acknowledgement / Hide or disable all pages until the user acknowledges a message
     <a href="./exercises/exercise21a.acknowledgement-page.add-rest-calls.question.txt"    title="Exercise 21a">Exercise 21a</a> / Add Acknowledgement Page / Add REST Calls                      (<a href="./exercises/exercise21a.acknowledgement-page.add-rest-calls.answers.txt"  title="Answer to 21a">Answers</a>)
-    Exercise 21b / Add Acknowledgement Page / Add HTML Page over main page
+    <a href="./exercises/exercise21b.acknowledgement-page.add-html-page.question.md"      title="Exercise 21a">Exercise 21b</a> / Add Acknowledgement Page / Add HTML Page over main pag         (<a href="./exercises/exercise21b.acknowledgement-page.add-html-page.answers.md"  title="Answer to 21b">Answers</a>)
     Exercise 21c / Add Acknowledgement Dialog
 
 15. Responsive Design Strikes Back
