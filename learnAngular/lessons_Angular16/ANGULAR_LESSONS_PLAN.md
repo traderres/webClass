@@ -146,15 +146,17 @@ Angular 16 Lesson Plan
     Exercise 19d / Ask questions w/multiple pages / Auto-save every N seconds 
 
 13. Sending Messages using Observables, Subjects, and Arrow Functions
-    a. Exercise 20a / How to send messages from one part of the web app to another
-    b. Exercise 20b / How to listen for messages across the web app
-    c. Exercise 20c / Refresh Notifications in the navbar / using timer
-    c. Exercise 20d / Refresh Notifications in the navbar / listening for message
+    Exercise 20a / How to send messages from one part of the web app to another
+    Exercise 20b / How to listen for messages across the web app
+    Exercise 20c / Refresh Notifications in the navbar / using timer
+    Exercise 20d / Refresh Notifications in the navbar / listening for message
 
 14. Acknowledgement / Prevent users from proceeding until a button is clickeed
-    a. Exercise 21a / Add Acknowledgement Dialog
-    b. Exercise 21b / Add Acknowledgement Page
-    
+    <a href="./exercises/exercise21a.acknowledgement-page.add-rest-calls.question.txt"    title="Exercise 21a">Exercise 21a</a> / Add Acknowledgement Page / Add REST Calls                      (<a href="./exercises/exercise21a.acknowledgement-page.add-rest-calls.answers.txt"  title="Answer to 21a">Answers</a>)
+    Exercise 21b / Add Acknowledgement Page / Add HTML Page over main page
+    Exercise 21c / Add Acknowledgement Dialog
+
+
 15. Responsive Design Strikes Back
     a. Exercise 22a / Show a message if web browser is too small or too short
     b. Exercise 22b / Update individual pages to fit your user's browser sizes
