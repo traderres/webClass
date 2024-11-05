@@ -156,7 +156,6 @@ Angular 16 Lesson Plan
     Exercise 21b / Add Acknowledgement Page / Add HTML Page over main page
     Exercise 21c / Add Acknowledgement Dialog
 
-
 15. Responsive Design Strikes Back
     Exercise 22a / Show a message if web browser is too small or too short
     Exercise 22b / Update individual pages to fit your user's browser sizes
