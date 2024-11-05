@@ -158,11 +158,11 @@ Angular 16 Lesson Plan
 
 
 15. Responsive Design Strikes Back
-    a. Exercise 22a / Show a message if web browser is too small or too short
-    b. Exercise 22b / Update individual pages to fit your user's browser sizes
+    Exercise 22a / Show a message if web browser is too small or too short
+    Exercise 22b / Update individual pages to fit your user's browser sizes
 
 16. TypeScript / Kitchen Sink
-    a. <a href="./howToReferenceEnumClass.txt" title="How to Use Enumerated Classes in HTML">How to Use Enumerated Classes in HTML</a>  (constants.ts)
+    <a href="./howToReferenceEnumClass.txt" title="How to Use Enumerated Classes in HTML">How to Use Enumerated Classes in HTML</a>  (constants.ts)
 
 17. Server Side Grids (using ag-grid)
     <a href="./lectures/boring.lecture.ag-grid.server-vs-client-grids.txt" title="Client-Side vs Server-Side Grids">Client-Side vs Server-Side Grids</a>
