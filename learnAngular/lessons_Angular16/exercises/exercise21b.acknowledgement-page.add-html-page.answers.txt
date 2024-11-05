@@ -25,22 +25,57 @@ Part 1 / Setup the Page with a button that invokes your acknowledge REST call
 
  3. Setup the "Acknowledge" button so that it invokes the REST call
  	a. Create the frontend service:  AcknowledgementService
+       terminal> cd frontend
+       terminal> ng generate service services/acknowledgement
+
 
     b. Edit acknowledgement.service.ts / inject the httpClient
+
+			public constructor(private httpClient: HttpClient)  { }
+
+
 
     c. Edit acknowledgement.service.ts / add a public method:  markUserAsAcknowledged()
         -- What is passed-in?  Nothing
         -- What is returned?   Observable that holds a string
         -- Use the httpClient to create an observable hooked-up to your get-acknowledgement-status REST call
 
+		  public markUserAsAcknowledged(): Observable<string> {
+			// Construct the URL to get the data to load all the Notes for a specific case ID
+			const restUrl = environment.baseUrl + '/api/acknowledge/set';
+
+			// Return an observable that (when invoked) returns a string
+			return this.httpClient.put (restUrl, {}, {responseType: 'text'});
+		  }
+
+
 
 	d. Edit the  Acknowledgement Page TypeScript
 		1) Inject the AcknowledgementService
 
+			public constructor(private acknowledgementService: AcknowledgementService)  { }
+
+
+
 		2) Add a public method:  acknowledgeClicked()
 			-- This method invokes your REST call to set the acknowledgement date to now
 
+			  /*
+			   * User pressed the "Acknowledge" button
+			   */
+			  public acknowledgeClicked(): void {
+			    	// Invoke REST call to mark the user as acknowledged
+					this.userService.markUserAsAcknowledged().subscribe();
+			  }
+
+
 	e. Edit the Acknowledgement Page HTML / add a click handler to call	acknowledgeClicked()
+
+			  <button mat-raised-button class="primary" title="Acknowledge" aria-label="Acknowledge"
+					  (click)="this.acknowledgeClicked()">
+				Acknowledge
+			  </button>
+
 
 
  4. Try it out!!!
@@ -60,6 +95,16 @@ Part 2:  Change the main page so that it shows the "Acknowledgement" page if nee
         -- It should have the same boolean as that used in your backend java class
            NOTE:  This frontend DTO should have the **SAME** name as the backend DTO  (or suffer my wrath of angry developers!!!)
 
+	a. Generate the class
+	   terminal> cd frontend
+	   terminal> ng generate class models/AcknowledgementStatusDTO
+
+
+	b. Add the boolean to the DTO:
+			export class AcknowledgementStatusDTO {
+				public userHasAcknowledged: boolean;
+			}
+
 
  2. Edit acknowledgement.service.ts
     add a public method:  getUserAcknowledged()
@@ -68,13 +113,31 @@ Part 2:  Change the main page so that it shows the "Acknowledgement" page if nee
         -- Use the httpClient to create an observable hooked-up to your get-acknowledgement-status REST call
 
 
+		  public getUserAcknowledged(): Observable<AcknowledgementStatusDTO> {
+				// Construct the URL of the REST call
+				const restUrl: string = environment.baseUrl + '/api/acknowledge/get';
+
+				// Return an observable that (when invoked) returns a AcknowledgementStatusDTO object
+				return this.httpClient.get <AcknowledgementStatusDTO> (restUrl);
+		  }
+
+
+
  3. Change the main page so that it shows your acknowledgement page if the user has not acknowledged
     a. Edit app.component.ts / Inject the AcknowledgementService
 
-    b. Edit app.component.ts / Add a class variable
+
+    b. Edit app.component.ts / Add a public class variable
                 userAcknowledgedObs  / The type is an Observable that holds AcknowledgementStatusDTO
 
+ 			 public userAcknowledgedObs: Observable<AcknowledgementStatusDTO>;
+
+
+
     c. Edit app.component.ts / In ngOnInit(), initialize the observable so it's hooked-up to your REST call
+
+   				this.userAcknowledgedObs = this.userService.getUserAcknowledgeDodConsent();
+
 
 
  4. Change the main page so that it invokes an async pipe
@@ -85,14 +148,14 @@ Part 2:  Change the main page so that it shows the "Acknowledgement" page if nee
             If the user has     acknowledged, then show everything else
 
 
-            <ng-container *ngIf="(this.userAcknowledgedDodConsentObs | async) as userAcknowledgedConsent">
+            <ng-container *ngIf="(this.userAcknowledgedObs | async) as userAcknowledgedInfo">
 
-              <ng-container *ngIf="! userAcknowledgedConsent.userAcknowledged">
+              <ng-container *ngIf="! userAcknowledgedInfo.userAcknowledged">
                 <!-- User has NOT acknowledged.  So, show the acknowledge page -->
                 <app-dod-acknowledgement-page></app-dod-acknowledgement-page>
               </ng-container>
 
-                <ng-container  *ngIf="userAcknowledgedConsent.userAcknowledged">
+                <ng-container  *ngIf="userAcknowledgedInfo.userAcknowledged">
                     <!-- User has acknowledged the DOD Consent.  So, show the header and navbar -->
 
                     <!-- R E S T    O F    M A I N       L A Y O U T     P A G E  -->
@@ -103,7 +166,7 @@ Part 2:  Change the main page so that it shows the "Acknowledgement" page if nee
 
 
 
-Part 3:  Send a message from your Acknowledgement Page to the app.component.ts that it should check again to see if the user has acknwoledged
+Part 3:  Send a message from your Acknowledgement Page to the app.component.ts that it should check again to see if the user has acknowledged
 ---------------------------------------------------------------------------------------------------------------------------------------------
  1. Edit acknowledgement.service.ts
 
