@@ -1,0 +1,210 @@
+How to Sign Commits with a CAC (on Rocky Linux 9)
+-------------------------------------------------
+Problem:  My Gitlab environment requires me to sign commits with a CAC
+
+
+Assumptions
+ A) You have gpg 2.2.20 or later
+
+
+Part 1 / Install needed tools (Rocky Linux 9)
+---------------------------------------------
+ 1. Install tools
+    unix> sudo dnf install gnupg-pkcs11-scd opensc  gnupg2 dirmngr gnupg2-smime
+
+ 2. Verify gpg is configured
+    unix> gpgconf
+
+	gpg:OpenPGP:/usr/bin/gpg
+	gpgsm:S/MIME:/usr/bin/gpgsm
+	keyboxd:Public Keys:/usr/libexec/keyboxd
+	gpg-agent:Private Keys:/usr/bin/gpg-agent
+	scdaemon:Smartcards:/usr/libexec/scdaemon
+	dirmngr:Network:/usr/bin/dirmngr
+	pinentry:Passphrase Entry:/usr/bin/pinentry
+
+
+ 3. Create this file:  ~/.gnupg/gnupg-pkcs11-scd.conf
+    unix> vi ~/.gnupg/gnupg-pkcs11-scd.conf
+
+		providers p1
+		provider-p1-library /usr/lib64/opensc-pkcs11.so
+		providers smartcardhsm
+		provider-smartcardhsm-library /usr/lib64/opensc-pkcs11.so
+
+
+ 4. Create this file:  ~/.gnupg/gpg-agent.conf
+    unix> vi ~/.gnupg/gpg-agent.conf
+
+		scdaemon-program /usr/bin/gnupg-pkcs11-scd
+
+
+ 5. If you want to enter a command-line interface to enter your pin
+    unix> echo 'pinentry-program /usr/bin/pinentry-curses' >> ~/.gnupg/gpg-agent.conf
+    unix> echo 'export GPG_TTY=$(tty)' >> ~/.bashrc
+
+
+ 6. Run gpg - -card-status to verify that the gnupg program can detect your card
+ 	unix> sudo systemctl restart pcscd     # Reset the pcscd daemon
+    unix> gpg --card-status
+
+	Reader ...........: Alcor Micro AU9520 00 00
+	Application ID ...: FF7F00
+	Application type .: Unknown
+
+
+ 7. Add DoD Root Certificate 3 and 6 to your systems root trust store by doing the following:
+    unix> cd ~/Downloads
+    unix> wget https://dl.dod.cyber.mil/wp-content/uploads/pki-pke/zip/unclass-dod_approved_external_pkis_trust_chains.zip
+    unix> unzip unclass-dod_approved_external_pkis_trust_chains.zip
+    unix> sudo cp DoD_Approved_External_PKIs_Trust_Chains_v11.1_20240716/_DoD/Trust_Anchors_Self-Signed/0-DoD_Root_CA_3.cer  /etc/pki/ca-trust/source/anchors
+    unix> sudo cp DoD_Approved_External_PKIs_Trust_Chains_v11.1_20240716/_DoD/Trust_Anchors_Self-Signed/0-DoD_Root_CA_6.cer  /etc/pki/ca-trust/source/anchors
+    unix> sudo update-ca-trust
+
+
+ 8. Add DoD Root Certificate 6 to your systems root trust store by doing the following:
+    unix> cd ~/Downloads
+    unix> wget https://dl.dod.cyber.mil/wp-content/uploads/pki-pke/zip/unclass-certificates_pkcs7_v5-6_dod.zip
+    unix> unzip unclass-certificates_pkcs7_v5-6_dod.zip
+    unix> sudo cp -p Certificates_PKCS7_v5.6_DoD/DoD_PKE_CA_chain.pem /etc/pki/ca-trust/source/anchors/DoD_PKE_CA_chain.crt
+    unix> sudo update-ca-trust
+
+
+ 9. Verify that Dod Root CA 3 is trusted
+    unix> trust list | grep -i 'DoD Root CA 3'
+	label: DoD Root CA 3
+
+    unix> trust list | grep -i 'DoD Root CA 6'
+    label: DoD Root CA 6
+
+
+
+10. Get the id of the x509 certificate used for "Digital Signature"
+    unix> pkcs15-tool --list-certificates
+
+		Using reader with a card: Alcor Micro AU9520 00 00
+		X.509 Certificate [Certificate for PIV Authentication]
+			Object Flags   : [0x00]
+			Authority      : no
+			Path           : 0101cece
+			ID             : 01
+			Encoded serial : 02 03 07DA43
+
+		X.509 Certificate [Certificate for Digital Signature]
+			Object Flags   : [0x00]
+			Authority      : no
+			Path           : 0100cece
+			ID             : 02              <------------------ This is the ID we want!!
+			Encoded serial : 02 03 087594
+
+		X.509 Certificate [Certificate for Key Management]
+			Object Flags   : [0x00]
+			Authority      : no
+			Path           : 0102cece
+			ID             : 03
+			Encoded serial : 02 03 08A10A
+
+		X.509 Certificate [Certificate for Card Authentication]
+			Object Flags   : [0x00]
+			Authority      : no
+			Path           : 0500cece
+			ID             : 04
+			Encoded serial : 02 03 07C246
+
+
+10. Run the following to import the Root CRL for your certificate (using the ID from the previous step)
+    a. Verify that you can get the cert from your CAC
+       unix> pkcs15-tool --read-certificate 02
+
+		-----BEGIN CERTIFICATE-----
+		MIIE2DCCA8CgAwIBAgIDCHWUMA0GCSqGSIb3DQEBCwUAMF0xCzAJBgNVBAYTAlVT
+		MRgwFgYDVQQKEw9VLlMuIEdvdmVybm1lbnQxDDAKBgNVBAsTA0RvRDEMMAoGA1UE
+		CxMDUEtJMRgwFgYDVQQDEw9ET0QgRU1BSUwgQ0EtNzIwHhcNMjQwODAyMDAwMDAw
+		WhcNMjUwNDE3MjM1OTU5WjCBgzELMAkGA1UEBhMCVVMxGDAWBgNVBAoTD1UuUy4g
+		R292ZXJubWVudDEMMAoGA1UECxMDRG9EMQwwCgYDVQQLEwNQS0kxEzARBgNVBAsT
+		CkNPTlRSQUNUT1IxKTAnBgNVBAMTIFJFU05JQ0suQURBTS5MQVdSRU5DRS4xNTEx
+		NjUxOTAxMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5Rd2ZluPo2HQ
+		UDY3Td2ICDJ8+vPkEDjzu08LiixYhkAcbVSkUkqPz+3CpclOqZsH2VLvvZQWcCXf
+		W/0YScSj5JK86IxWQR7BHnT4cPmENgEprxta4pjtPiTZlAfTlK0/kKguZMndDXSR
+		NAdg1lUXObVMCdB+v9cGALrfHaI3/L7ckP4cYB/LxFEdKUMCP74keibC9gLx8znI
+		K6RVJi4gEX+GKVzh5ijMiPtziTyNmqFOjDeQIpYDva5KqJhwXFdPOYKySaRK4wQg
+		AQQBgjcKAwwwDQYJKoZIhvcNAQELBQADggEBAC5SVwPuo61P+Kv+fXniGiuAhlt1
+		4cecB7Utn3K5cSEdUhTJWBzRsnP/tIDXn/FNNRCzeC5tid0/rlS5GUG8oHKf0cPC
+		vpKr+NTPobD6zCn55FBu2hA8JKPkfGunVRzcDj2TOTuioaZMDCl3GvOczzoibup2
+		Q5FDFwasHPpVGjdpckDDua6Zuc5nvY6wJ/xZf8fra4EPNkxMN8OSAngwPXHoQSGm
+		9KbYEHJDHDQxrLHDtObwkO87kUF6svHng2DhM+9hr41DE+Hz/mlkj1hoqtp5PV57
+		mpAsFoiRQUUXjWxhNYia1RufADeesb2QVv2+psLky+8bMVBjiqezh8Qn1Es=
+		-----END CERTIFICATE-----
+
+    b. Write the cert to a file called mycert.crt
+  	   unix> pkcs15-tool --read-certificate 02 > mycert.crt
+
+    c. Download the cer file for your CAC
+       unix> wget $(openssl x509 -in mycert.crt -text | grep "CA Issuers" | awk '{ print $4 }' | sed 's/URI://g')
+       -- Downloads DODEMAILCA_72.cer
+
+    d. Tell gpg to trust your
+       unix> export CER_FILENAME=DODEMAILCA_72.cer         # name of downloaded file from previous step
+       unix> touch ~/.gnupg/trustlist.txt
+       unix> dirmngr --debug --fetch-crl $(openssl x509 -inform der -in $CER_FILENAME -text | grep crl | grep -v "CA Issuers" | sed 's/URI://g')
+       unix> gpgsm --import $CER_FILENAME
+       unix> gpgsm --import mycert.crt
+
+
+
+
+Part 3 / Associate your GPG key with Git
+----------------------------------------
+ 1. List the GPG keys (associated with this email address)
+ 	unix> gpg --list-secret-keys --keyid-format LONG   <EMAIL ADDRESS>
+	      gpg --list-secret-keys --keyid-format LONG  john.smith@zztop.com
+
+                           +------------ This is the private key id
+                           |
+                           V
+		sec   rsa4096/D832634BCB4D7494 2024-10-21 [SC] [expires: 2029-10-20]
+			  26C7A241D4AB535BEBDDDEA6D832634BCB4D7494
+		uid                 [ultimate] John Smith (my gpg key) <john.smith@zztop.com>
+		ssb   rsa4096/DDA2D531A0D8A038 2024-10-21 [E] [expires: 2029-10-20]
+
+
+ 2. Copy the GPG private key ID that starts with sec  -- e.g., D832634BCB4D7494
+
+ 3. Run this command to configure Git to sign your commits with your key,
+    replacing <KEY ID> with your GPG key ID:
+    unix> git config --global user.signingkey <KEY ID>
+          git config --global user.signingkey D832634BCB4D7494
+
+ 4. Run this command to set your user.email
+    ## This is needed for the commits to appear as "Verified" ##
+    unix> git config --global user.email 'john.smith@zztop.com'
+
+
+
+
+
+Part 4 / Tell IntelliJ to sign commits with the GPG key
+-------------------------------------------------------
+ 1. Open the project with IntelliJ
+ 2. Pull File -> Settings
+ 3. Select Version Control -> Git
+ 4. Press "Configure GPG Key..."
+ 5. In the popup
+    a. Check "Sign with GPG key"
+    b. Select your GPG key
+
+	-- At this point, IntelliJ will sign your commits with the selected GPG key for this project only
+
+
+
+
+
+
+
+
+
+
+
+
+
+
