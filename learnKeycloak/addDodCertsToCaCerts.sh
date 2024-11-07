@@ -3,40 +3,43 @@
 # Filename:  addDodCertsToCaCerts.sh
 #######################################################
 # Purpose:
-#   Loop through the list of users in the system
+#   Loop through the list of certs and add them to a destination cacerts (or trust) file
 #
 # Usage:
 #   unix> chmod u+x ./addDodCertsToCaCerts.sh
 #   unix> ./addDodCertsToCaCerts.sh
 #######################################################
-declare -A listOfFileNames
+export CACERTS_FILE_PATH=/tmp/cacerts
+export CERTS_DIR=/home/adam/Downloads/DoD_Approved_External_PKIs_Trust_Chains_v11.1_20240716
 
-export CACERTS_FILE_PATH=/home/adam/intellijProjects/custom-oidc-provider/src/main/dev-resources/cacerts
-export CERTS_DIR=/home/adam/Downloads/certs
+
+if [ ! -f $CACERTS_FILE_PATH ]; then
+   # The destination cacerts file does not exist.  So, provide procedure on how to create an empty one.
+   echo -e "\nThe CACERTS_FILE_PATH path is this: $CACERTS_FILE_PATH"
+   echo -e "\nYou could an empty cacerts file using these commands:"
+   echo -e "\tkeytool -genkeypair -alias boguscert -storepass changeit -keypass changeit -keystore $CACERTS_FILE_PATH -keysize 4096 -keyalg RSA  -dname 'CN=Developer, OU=Department, O=Company, L=City, ST=State, C=CA' "
+   echo -e "\tkeytool -delete -alias boguscert -storepass changeit -keystore $CACERTS_FILE_PATH"
+   exit 1
+fi
 
 
 echo "Script started as of `date`"
 
-# Get a list of file names
-listOfFileNames=` ls -b ${CERTS_DIR}  `
 
+# Start the index with 100
 declare -i index=100
 
-OIFS="$IFS"
 IFS=$'\n'
 
-# Loop through the list, removing the role
+# Loop through the files  (not may not work if the filenames have spaces in them)
 for filepath in `find $CERTS_DIR -type f -print`; do
 
-    echo -e "\tfilepath=${filepath}"
-
-  
     index+=1
-    echo -e "\tAttempting to add this file to cacerts:  ${filepath}   index=${index}"
+    echo -e "\n\tAttempting to add this file to cacerts:  ${filepath}   index=${index}"
 
     # Add this file to cacerts
-    echo \e "\tkeytool -import -alias ca${index} -file \"$filepath\" -keystore ${CACERTS_FILE_PATH} -storepass changeit  -trustcacerts   -noprompt "
-    keytool -import -alias ca${index} -file "$filepath" -keystore ${CACERTS_FILE_PATH} -storepass changeit  -trustcacerts   -noprompt 
+    echo -e "\tkeytool -import -alias ca${index} -file \"$filepath\" -keystore ${CACERTS_FILE_PATH} -storepass changeit  -trustcacerts   -noprompt "
+    keytool -import -alias ca${index} -file "$filepath" -keystore ${CACERTS_FILE_PATH} -storepass changeit  -trustcacerts   -noprompt
 
     if [ $? -ne 0 ]; then
         # The last command had a problem.
@@ -47,7 +50,7 @@ for filepath in `find $CERTS_DIR -type f -print`; do
     fi
 done
 
+
 echo "Script finished as of `date`"
 
 exit 0
-
