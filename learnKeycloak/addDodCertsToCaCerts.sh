@@ -15,8 +15,8 @@ export CERTS_DIR=/home/adam/Downloads/certs
 
 if [ ! -f $CACERTS_FILE_PATH ]; then
    # The destination cacerts file does not exist.  So, provide procedure on how to create an empty one.
-   echo -e "\nThe CACERTS_FILE_PATH path is this: $CACERTS_FILE_PATH"
-   echo -e "\nYou could an empty cacerts file using these commands:"
+   echo -e "\nThe CACERTS_FILE_PATH does NOT exist:   $CACERTS_FILE_PATH"
+   echo -e "\nRun these commands to create an empty cacerts file:"
    echo -e "\tkeytool -genkeypair -alias boguscert -storepass changeit -keypass changeit -keystore $CACERTS_FILE_PATH -keysize 4096 -keyalg RSA  -dname 'CN=Developer, OU=Department, O=Company, L=City, ST=State, C=CA' "
    echo -e "\tkeytool -delete -alias boguscert -storepass changeit -keystore $CACERTS_FILE_PATH"
    exit 1
