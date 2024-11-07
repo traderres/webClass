@@ -10,7 +10,7 @@
 #   unix> ./addDodCertsToCaCerts.sh
 #######################################################
 export CACERTS_FILE_PATH=/tmp/cacerts
-export CERTS_DIR=/home/adam/Downloads/certs2
+export CERTS_DIR=/home/adam/Downloads/certs
 
 
 if [ ! -f $CACERTS_FILE_PATH ]; then
