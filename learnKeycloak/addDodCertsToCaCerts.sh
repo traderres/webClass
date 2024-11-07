@@ -10,7 +10,7 @@
 #   unix> ./addDodCertsToCaCerts.sh
 #######################################################
 export CACERTS_FILE_PATH=/tmp/cacerts
-export CERTS_DIR=/home/adam/Downloads/DoD_Approved_External_PKIs_Trust_Chains_v11.1_20240716
+export CERTS_DIR=/home/adam/Downloads/certs2
 
 
 if [ ! -f $CACERTS_FILE_PATH ]; then
@@ -31,7 +31,7 @@ declare -i index=100
 
 IFS=$'\n'
 
-# Loop through the files  (not may not work if the filenames have spaces in them)
+# Loop through the files  (this will work with filenames that have spaces)
 for filepath in `find $CERTS_DIR -type f -print`; do
 
     index+=1
