@@ -10,7 +10,7 @@ Assumptions
 Part 1 / Install needed tools (Rocky Linux 9)
 ---------------------------------------------
  1. Install tools
-    unix> sudo dnf install gnupg-pkcs11-scd opensc  gnupg2 dirmngr gnupg2-smime
+    unix> sudo dnf install gnupg-pkcs11-scd opensc  gnupg2 dirmngr gnupg2-smime pcsc-tools
 
  2. Verify gpg is configured
     unix> gpgconf
@@ -39,18 +39,41 @@ Part 1 / Install needed tools (Rocky Linux 9)
 		scdaemon-program /usr/bin/gnupg-pkcs11-scd
 
 
+
  5. If you want to enter a command-line interface to enter your pin
     unix> echo 'pinentry-program /usr/bin/pinentry-curses' >> ~/.gnupg/gpg-agent.conf
     unix> echo 'export GPG_TTY=$(tty)' >> ~/.bashrc
 
 
- 6. Run gpg - -card-status to verify that the gnupg program can detect your card
- 	unix> sudo systemctl restart pcscd     # Reset the pcscd daemon
+ 6. Run gpg --card-status to verify that the gnpug program can detect your card
     unix> gpg --card-status
 
-	Reader ...........: Alcor Micro AU9520 00 00
-	Application ID ...: FF7F00
-	Application type .: Unknown
+	I got the following output:
+		gpg: WARNING: server 'scdaemon' is older than us (0.10.0 < 2.3.3)
+		gpg: Note: Outdated servers may lack important security fixes.
+		gpg: Note: Use the command "gpgconf --kill all" to restart them.
+		Reader ...........: [none]
+		Application ID ...: D276000124011150313138F4114D1111
+		Application type .: OpenPGP
+		Version ..........: 11.50
+		Manufacturer .....: ?
+		Serial number ....: 38F4114D
+		Name of cardholder: [not set]
+		Language prefs ...: [not set]
+		Salutation .......:
+		URL of public key : [not set]
+		Login data .......: [not set]
+		Signature PIN ....: forced
+		Key attributes ...: rsa48 rsa48 rsa48
+		Max. PIN lengths .: 0 0 0
+		PIN retry counter : 0 0 0
+		Signature counter : 0
+		Signature key ....: [none]
+		Encryption key....: [none]
+		Authentication key: [none]
+		General key info..: [none]
+
+
 
 
  7. Add DoD Root Certificate 3 and 6 to your systems root trust store by doing the following:
@@ -146,10 +169,87 @@ Part 1 / Install needed tools (Rocky Linux 9)
     d. Tell gpg to trust your
        unix> export CER_FILENAME=DODEMAILCA_72.cer         # name of downloaded file from previous step
        unix> touch ~/.gnupg/trustlist.txt
-       unix> dirmngr --debug --fetch-crl $(openssl x509 -inform der -in $CER_FILENAME -text | grep crl | grep -v "CA Issuers" | sed 's/URI://g')
+       unix> dirmngr  --fetch-crl $(openssl x509 -inform der -in $CER_FILENAME -text | grep crl | grep -v "CA Issuers" | sed 's/URI://g')
+
+		You should see this:
+			dirmngr[18045.0]: permanently loaded certificates: 151
+			dirmngr[18045.0]:     runtime cached certificates: 0
+			dirmngr[18045.0]:            trusted certificates: 151 (151,0,0,0)
+			dirmngr[18045.0]: number of system provided CAs: 377
+			dirmngr[18045.0]: root certificate is not marked trusted
+			dirmngr[18045.0]: fingerprint=D37ECF61C0B4ED88681EF3630C4E2FC787B37AEF
+			dirmngr[18045.0]: DBG: BEGIN Certificate 'issuer':
+			dirmngr[18045.0]: DBG:      serial: 01
+			dirmngr[18045.0]: DBG:   notBefore: 2023-01-24 16:36:17
+			dirmngr[18045.0]: DBG:    notAfter: 2053-01-24 16:36:17
+			dirmngr[18045.0]: DBG:      issuer: CN=DoD Root CA 6,OU=PKI,OU=DoD,O=U.S. Government,C=US
+			dirmngr[18045.0]: DBG:     subject: CN=DoD Root CA 6,OU=PKI,OU=DoD,O=U.S. Government,C=US
+			dirmngr[18045.0]: DBG:   hash algo: 1.2.840.113549.1.1.12
+			dirmngr[18045.0]: DBG:   SHA1 fingerprint: D37ECF61C0B4ED88681EF3630C4E2FC787B37AEF
+			dirmngr[18045.0]: DBG: END Certificate
+
+
        unix> gpgsm --import $CER_FILENAME
        unix> gpgsm --import mycert.crt
 
+
+11. Restart the GPG agent
+    unix> gpgconf --kill all
+
+
+
+12. Tell git to use this signing key
+    unix> signingEmail=$(gpgsm --list-secret-keys | grep aka | awk '{ print $2 }')
+    unix> echo $signingEmail
+          -- You should see the email address for your account
+
+	unix> signingkey=$( gpgsm --list-secret-keys | egrep '(key usage|ID)' | grep -B 1 digitalSignature | awk '/ID/ {print $2}')
+	unix> echo $signingkey
+	      -- You should see your signing key
+
+	unix> git config --global user.email $signingEmail
+	unix> git config --global user.signingkey $signingkey
+	unix> git config --global gpg.format x509
+	unix> git config --global gpg.x509.program gpgsm
+	unix> git config --global commit.gpgsign true
+    unix> git config --global gpg.program /usr/bin/gpg
+
+	unix> cd ~/intellijProjects/core-service
+	unix> git config  user.email $signingEmail
+	unix> git config  user.signingkey $signingkey
+	unix> git config  gpg.format x509
+	unix> git config  gpg.x509.program gpgsm
+	unix> git config  commit.gpgsign true
+
+
+13. Attempt your first commit (from command line)
+    a. Change a file
+    b. Do the commit from command-line
+       unix> git commit -a -m "Made a change"
+
+    c. You will be prompted:
+       "Do you ultimately trust....."
+       -- Select "YES"
+
+	d. You will be prompted:
+	   Please verify that the certified identified has the finger print
+	   -- Select "Correct"
+
+	e. Verify that your trust list has been updated
+	   unix> cat ~/.gnupg/trustlist.txt
+
+
+13. Try your first commit
+    a. Open the project in Intellij
+    b. Pull File -> Settings -> Version Control -> Git
+    c. Press "Configure GPG Key"
+       -- It should be checked
+       -- It should show the same key as the variable above
+
+    d. Make a change in IntelliJ
+    e. Do a commit and push
+       -- NOTE:  It fails
+                      root certificate is not marked trusted
 
 
 
