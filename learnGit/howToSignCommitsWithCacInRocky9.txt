@@ -3,12 +3,13 @@ How to Sign Commits with a CAC (on Rocky Linux 9)
 Problem:  My Gitlab environment requires me to sign commits with a CAC
 
 
-Assumptions
- A) You have gpg 2.2.20 or later
+References
+----------
+https://p1docs.dso.mil/docs/party-bus/mission-devops-mdo/how-tos/gitlab/commit-signing-with-cac/
 
 
-Part 1 / Install needed tools (Rocky Linux 9)
----------------------------------------------
+Procedure (Works on Rocky Linux 9)
+----------------------------------
  1. Install tools
     unix> sudo dnf install gnupg-pkcs11-scd opensc  gnupg2 dirmngr gnupg2-smime pcsc-tools
 
@@ -40,12 +41,13 @@ Part 1 / Install needed tools (Rocky Linux 9)
 
 
 
- 5. If you want to enter a command-line interface to enter your pin
+ 5. Configure the gpg agent to use a command-line interface to enter your pin
+    NOTE:  We will change it to a graphical one later / but we need it initially
     unix> echo 'pinentry-program /usr/bin/pinentry-curses' >> ~/.gnupg/gpg-agent.conf
     unix> echo 'export GPG_TTY=$(tty)' >> ~/.bashrc
 
 
- 6. Run gpg --card-status to verify that the gnpug program can detect your card
+ 6. Run gpg --card-status to verify that the gpg program can detect your card
     unix> gpg --card-status
 
 	I got the following output:
@@ -93,7 +95,7 @@ Part 1 / Install needed tools (Rocky Linux 9)
     unix> sudo update-ca-trust
 
 
- 9. Verify that Dod Root CA 3 is trusted
+ 9. Verify that Dod Root CA 3 and Root CA 6 are trusted
     unix> trust list | grep -i 'DoD Root CA 3'
 	label: DoD Root CA 3
 
@@ -166,7 +168,7 @@ Part 1 / Install needed tools (Rocky Linux 9)
        unix> wget $(openssl x509 -in mycert.crt -text | grep "CA Issuers" | awk '{ print $4 }' | sed 's/URI://g')
        -- Downloads DODEMAILCA_72.cer
 
-    d. Tell gpg to trust your
+    d. Tell gpg to trust your cert
        unix> export CER_FILENAME=DODEMAILCA_72.cer         # name of downloaded file from previous step
        unix> touch ~/.gnupg/trustlist.txt
        unix> dirmngr  --fetch-crl $(openssl x509 -inform der -in $CER_FILENAME -text | grep crl | grep -v "CA Issuers" | sed 's/URI://g')
@@ -187,7 +189,6 @@ Part 1 / Install needed tools (Rocky Linux 9)
 			dirmngr[18045.0]: DBG:   hash algo: 1.2.840.113549.1.1.12
 			dirmngr[18045.0]: DBG:   SHA1 fingerprint: D37ECF61C0B4ED88681EF3630C4E2FC787B37AEF
 			dirmngr[18045.0]: DBG: END Certificate
-
 
        unix> gpgsm --import $CER_FILENAME
        unix> gpgsm --import mycert.crt
@@ -239,7 +240,7 @@ Part 1 / Install needed tools (Rocky Linux 9)
 	   unix> cat ~/.gnupg/trustlist.txt
 
 
-15. Configure intelliJ to prompt for pin and using GPG key
+15. Configure intelliJ to prompt for pin using a GRAPHICAL pin program
     a. Tell gpg-agent to use a graphical pin program
        unix> vi ~/.gnupg/gpg-agent.conf
 
@@ -254,6 +255,7 @@ Part 1 / Install needed tools (Rocky Linux 9)
 
 
 16. Try your first commit in IntelliJ
+    a. Close IntelliJ
     a. Open the project in Intellij
     b. Pull File -> Settings -> Version Control -> Git
     c. Press "Configure GPG Key"
