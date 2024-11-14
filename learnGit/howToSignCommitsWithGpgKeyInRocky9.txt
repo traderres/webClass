@@ -1,0 +1,217 @@
+How to Sign Commits with a Generated GPG Key in Rocky Linux 9
+-------------------------------------------------------------
+Problem:  My Gitlab environment requires me to use a GPG key to sign commits
+Solution: Create a GPG key, add it to your account, and associate your GPG key with Git
+
+References
+----------
+https://p1docs.dso.mil/docs/party-bus/mission-devops-mdo/how-tos/gitlab/commit-signing-with-gpg/
+
+
+Assumptions
+ A) You have gpg 2.2.20 or later
+
+
+Part 1 / Create the GPG key
+---------------------------
+ 1. Generate the key pair
+    unix> gpg --full-gen-key
+
+
+ 2. Please select what kind of key you want:
+    (1) RSA and RSA (default)
+    (2) DSA and Elgamal
+    (3) DSA (sign only)
+    (4) RSA (sign only)
+    (14) Existing key from card
+
+	-- Enter 1 for RSA and RSA (default)
+
+
+ 3. RSA keys may be between 1024 and 4096 bits long.
+    What keysize do you want? (2048)
+
+    -- Enter 4096
+
+
+ 4. Please specify how long the key should be valid.
+         0 = key does not expire
+      <n>  = key expires in n days
+      <n>w = key expires in n weeks
+      <n>m = key expires in n months
+      <n>y = key expires in n years
+
+    -- Enter 5y (so the key expires in 5 years)
+
+
+ 5. Key expires at Sat 20 Oct 2029 10:45:50 AM EDT
+    Is this correct? (y/N)
+
+	-- Enter Y
+
+
+
+ 6. GnuPG needs to construct a user ID to identify your key.
+    Real Name:  John Smith
+
+ 7. Email Address:   john.smith@zztop.com
+
+ 8. Comment:  my gpg key
+
+ 9. You selected this USER-ID:
+      "John Smith (my gpg key) <john.smith@zztop.com>"
+      Change (N)ame, (C)omment, (E)mail or (O)kay/(Q)uit?
+
+    -- Enter O
+
+
+10. Enter passphrase
+    a. Leave it blank
+    b. Press OK
+    c. Press "Yes, Protection is not needed"
+
+
+11. Enter passphrase
+    a. Leave it blank
+    b. Press OK
+    c. Press "Yes, Protection is not needed"
+
+
+	You will see this output
+	------------------------
+	gpg: key D832634BCB4D7494 marked as ultimately trusted
+	gpg: revocation certificate stored as '/home/YOUR_ACCOUNT/.gnupg/openpgp-revocs.d/26C7A241D4AB535BEBDDDEA6D832634BCB4D7494.rev'
+	public and secret key created and signed.
+
+	pub   rsa4096 2024-10-21 [SC] [expires: 2029-10-20]
+		  26C7A241D4AB535BEBDDDEA6D832634BCB4D7494
+	uid                      John Smith (my gpg key) <john.smith@zztop.com>
+	sub   rsa4096 2024-10-21 [E] [expires: 2029-10-20]
+
+
+
+
+
+
+Part 2 / Add the GPG key to your account
+----------------------------------------
+ 1. Get the public certificate
+    a. List the GPG keys (associated with this email address)
+ 	   unix> gpg --list-secret-keys --keyid-format LONG   <EMAIL ADDRESS>
+	         gpg --list-secret-keys --keyid-format LONG  john.smith@zztop.com
+
+
+		sec   rsa4096/D832634BCB4D7494 2024-10-21 [SC] [expires: 2029-10-20]
+			  26C7A241D4AB535BEBDDDEA6D832634BCB4D7494
+		uid                 [ultimate] John Smith (my gpg key) <john.smith@zztop.com>
+		ssb   rsa4096/DDA2D531A0D8A038 2024-10-21 [E] [expires: 2029-10-20]
+					         ^
+					         |
+					         +---------- This is the ID
+
+    b. Use the ID to show the public key
+       unix> gpg --armor --export ID
+
+      *OR*
+
+      unix> gpg --armor --export DDA2D531A0D8A038
+
+
+      You should see:
+     	 -----BEGIN PGP PUBLIC KEY BLOCK-----
+		XAokw8iBMvFMR54hCzz3/P7NFb8GJ2sWp7EUC6tPbhIePLrc9yGZGQo2arFIFC34
+		sYZkRuTZT3S3dWYE8dp6ZKTirLWbCUCf5uX13JJpzBMmqDQY6cZMDSsx+rNqMMYU
+		VKZddlV43m2iJoI7oTv2zH2AYJ/YVNjkKLRhjkjIqW9QcXCJATpXrLChWHv0L2R/
+		5LufjM3g12h8qAomO6ymfL8szdmBYQ==
+		=Szrm
+		-----END PGP PUBLIC KEY BLOCK-----
+
+
+ 2. Copy the PGP public key (including the top and bottom lines)
+
+ 3. Sign in to GitLab.
+
+ 4. On the left sidebar, select your avatar.
+
+ 5. Select Edit profile.
+
+ 6. Select GPG Keys.
+
+ 7. Press Add new key.
+
+ 8. In Key, paste your public key.
+    Press "Add key"
+
+
+
+
+
+Part 3 / Associate your GPG key with Git
+----------------------------------------
+ 1. List the GPG keys (associated with this email address)
+ 	unix> gpg --list-secret-keys --keyid-format LONG   <EMAIL ADDRESS>
+	      gpg --list-secret-keys --keyid-format LONG  john.smith@zztop.com
+
+                           +------------ This is the private key id
+                           |
+                           V
+		sec   rsa4096/D832634BCB4D7494 2024-10-21 [SC] [expires: 2029-10-20]
+			  26C7A241D4AB535BEBDDDEA6D832634BCB4D7494
+		uid                 [ultimate] John Smith (my gpg key) <john.smith@zztop.com>
+		ssb   rsa4096/DDA2D531A0D8A038 2024-10-21 [E] [expires: 2029-10-20]
+
+
+ 2. Copy the GPG private key ID that starts with sec  -- e.g., D832634BCB4D7494
+
+ 3. Run this command to configure Git to sign your commits with your key,
+    replacing <KEY ID> with your GPG key ID:
+    unix> git config --global user.signingkey <KEY ID>
+          git config --global user.signingkey D832634BCB4D7494
+
+ 4. Run this command to set your user.email
+    ## This is needed for the commits to appear as "Verified" ##
+    unix> git config --global user.email 'john.smith@zztop.com'
+
+
+
+Part 4 / Tell IntelliJ to sign commits with the GPG key
+-------------------------------------------------------
+ 1. Open the project with IntelliJ
+ 2. Pull File -> Settings
+ 3. Select Version Control -> Git
+ 4. Press "Configure GPG Key..."
+ 5. In the popup
+    a. Check "Sign with GPG key"
+    b. Select your GPG key
+
+	-- At this point, IntelliJ will sign your commits with the selected GPG key for this project only
+
+
+
+
+
+How to Delete all of your GPG keys
+----------------------------------
+ 1. List the keys
+    unix> gpg --list-keys
+
+ 2. Delete the private key *FIRST*
+    unix> gpg --delete-secret-key "JOHN SMITH"         # Delete the private key
+
+      Delete this key from the keyring?   Y
+
+ 3. Delete the public key *SECOND*
+    unix> gpg --delete-key "JOHN SMITH"
+
+
+ 4. Verify that the key is gone by listing the keys
+    unix> gpg --list-keys
+
+
+
+
+
+
+
+
+
