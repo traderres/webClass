@@ -178,7 +178,20 @@ Part 3 / Download & Install smimesign
 
 
 
-Part 4 / Get the ID of your CAC Digital Signature
+Part 4 / Import the latest DOD Trusts
+-------------------------------------
+ 1. Download this file:
+    Go to https://dl.dod.cyber.mil/wp-content/uploads/pki-pke/msi/InstallRoot_5.6x64.msi
+
+    NOTE:  The InstallRoot User Guide is here:
+           https://dl.dod.cyber.mil/wp-content/uploads/pki-pke/pdf/unclass-rg-installroot_niprnet_user_guide.pdf
+
+ 2. Run InstallRoot_5.6x64.msi
+
+
+
+
+Part 5 / Get the ID of your CAC Digital Signature
 -------------------------------------------------
  1. Insert your CAC
 
@@ -215,6 +228,59 @@ Part 4 / Get the ID of your CAC Digital Signature
                  S/N:  12345
 
     d. Copy the ID above that serial number
+
+
+
+
+ 5. Get the certificate of your CAC as an x509 format
+	a. Open the Certificate Manager
+	 -- Right-click on your CAC cert for Document Signing -> ALl Tasks -> Export...
+	 -- Press Next
+	 -- Press Next   (do not export private key)
+	 -- Press Next   User DER encoded
+	 -- c:\temp\cert
+		Press Next
+		Press Finish
+
+    b. Convert the file from DER format to pem
+		Convert the DER file to PEM
+		terminal> cd c:\temp
+		terminal> openssl x509 -in cert.cer -inform DER -out cert.pem
+		terminal> cat cert.pem
+
+
+ 6. Download the cer file for your CAC
+	a. Get the CA Issuers for your cert
+       terminal> openssl x509 -in cert.pem -text | findstr "CA Issuers"
+
+		You should see something like this:
+			CA Issuers - URI:http://crl.disa.mil/sign/DODEMAILCA_72.cer
+
+
+	b. Download the CER
+	   terminal> curl -O <paste-in the url>
+	   *OR*
+   	   terminal> curl -O http://crl.disa.mil/sign/DODEMAILCA_72.cer
+
+
+	c. Get the issuer for the CER you just downloaded
+	   terminal> openssl x509 -inform der -in <NAME_OF_CER_FILE> -text | findstr crl
+
+	   terminal> openssl x509 -inform der -in DODEMAILCA_72.cer -text | findstr crl
+
+       You should se something like this:
+		URI:http://crl.disa.mil/crl/DODROOTCA6.crl      <-------------------- This is the to copy
+ 		CA Issuers - URI:http://crl.disa.mil/issuedto/DODROOTCA6_IT.p7c
+
+
+    d. Import the CRL
+       terminal> dirmngr --fetch-crl  <URL after URI: in the previous step>
+       *OR*
+       terminal> dirmngr --fetch-crl  http://crl.disa.mil/crl/DODROOTCA6.crl
+
+
+
+
 
 
 
@@ -263,7 +329,11 @@ Part 5 / Try your first git commit signing w/cac from command-line
         -- Uncheck "Sign with GPG Key"
         -- Press OK
 
- 4. Create a new branch
+ 4. Tell Git to sign again
+    terminal> git config --local commit.gpgsign true
+
+
+ 5. Create a new branch
     a. In IntelliJ, open the above project
        terminal> git checkout -b YOUR_INITIALS/test
 
@@ -275,16 +345,14 @@ Part 5 / Try your first git commit signing w/cac from command-line
 
  7. Do the commit from *COMMAND LINE*  (so you can tell Git to *TRUST* this)
     terminal> cd c:\tools\projects\my-project
-    terminal>
     terminal> git commit -a -m "This is a test"
 
-    a. You will be prompted:
-       "Do you ultimately trust....."
-       -- Select "YES"
+    -- You should be prompted to enter your CAC pin
 
-	b. You will be prompted:
-	   Please verify that the certified identified has the finger print
-	   -- Select "Correct"
+ 8. Attempt to push the commit up
+    terminal> git push --set-upstream origin YOUR_INITIALS/test
+
+
 
 
 
