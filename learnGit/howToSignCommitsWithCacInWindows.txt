@@ -273,152 +273,39 @@ Part 3 / Get the ID of your CAC Digital Signature
     terminal> gpgconf --kill all
 
 
- 7. Get the ID of the CAC
-    a. In the Certificate Manager
-       -- Double-click on your CAC cert that has an "Intended Purpose" of "Secure Email, Document Signing"
-
- 	b. Click on the "Details" tab
-
- 	c. Single-click on "Thumbprint"
-
- 	d. From the bottom of the popup, copy this ID
-
-
- 8. Tell Git to use this signing key
- 	terminal> cd c:\tools\projects\bogus
- 	terminal> git config --local user.signingkey   <PASTE IN THE THUMBPRINT ID>
-	terminal> git config --local gpg.x509.program c:\tools\GnuPG\bin\gpgsm.exe
-	terminal> git config --local commit.gpgsign true
-	terminal> git config --local gpg.program c:\tools\gnupg\bin\gpg.exe
-
-			 9.
-
-						d. Single click on your CAC INFORMATION certClick on Details
-						   1) Click on the "Details" tab
-						   2) Copy the serial number
-						   NOTE:  You should be able to copy it from the lower part of this "Details" popup
-						   -- Paste it in a file somewhere.  We will need it later
-
-
-					 4. Use smimesign to get the ID of your CAC Digital signature
-						a. Open a new terminal
-						b. In the terminal, run these commands:
-						   terminal> smimesign –-list-keys
-
-						c. Look for the group that has your serial number
-						   NOTE:  The listing may strip off leading zeros
-								  If your serial number is 012345
-								  Then, you are looking for
-									  ID:  123456789123456789123456789         <-- This is your CAC user.signingkey
-									 S/N:  12345
-
-						d. Copy the ID above that serial number
-
-
-
-
-					 5. Get the certificate of your CAC as an x509 format
-						a. Open the Certificate Manager
-						 -- Right-click on your CAC cert for Document Signing -> ALl Tasks -> Export...
-						 -- Press Next
-						 -- Press Next   (do not export private key)
-						 -- Press Next   User DER encoded
-						 -- c:\temp\cert
-							Press Next
-							Press Finish
-
-						b. Convert the file from DER format to pem
-							Convert the DER file to PEM
-							terminal> cd c:\temp
-							terminal> openssl x509 -in cert.cer -inform DER -out cert.pem
-							terminal> cat cert.pem
-
-
-
-
-
-			 6. Download the cer file for your CAC
-				a. Get the CA Issuers for your cert
-				   terminal> openssl x509 -in cert.pem -text | findstr "CA Issuers"
-
-					You should see something like this:
-						CA Issuers - URI:http://crl.disa.mil/sign/DODEMAILCA_72.cer
-
-
-				b. Download the CER
-				   terminal> curl -O <paste-in the url>
-				   *OR*
-				   terminal> curl -O http://crl.disa.mil/sign/DODEMAILCA_72.cer
-
-
-				c. Get the issuer for the CER you just downloaded
-				   terminal> openssl x509 -inform der -in <NAME_OF_CER_FILE> -text | findstr crl
-
-				   terminal> openssl x509 -inform der -in DODEMAILCA_72.cer -text | findstr crl
-
-				   You should se something like this:
-					URI:http://crl.disa.mil/crl/DODROOTCA6.crl          <-------------------- This URL is what you want to copy
-					CA Issuers - URI:http://crl.disa.mil/issuedto/DODROOTCA6_IT.p7c
-
-				d. Download the Root CA CRL
-				   terminal> dirmngr  --fetch-crl http://crl.disa.mil/crl/DODROOTCA6.crl
-
-
-
-
-				d. Download the DoD Root Certificates
-				   Go to https://dl.dod.cyber.mil/wp-content/uploads/pki-pke/zip/unclass-certificates_pkcs7_v5-6_dod.zip
-
-
-				d. Import the CA Root 6 Certificate authority
-
-				d. Import the CER_FILENAME
-				   terminal> gpgsm --import $CER_FILENAME
-
-
-				e. Import the CAC cert
-				   terminal> gpgsm --import cert.pem
-
-
-
-
+ 7. Startup Klepatra
+    -- Tell it to trust your CAC
 
 
 
 
 Part 4 / Configure Git to use your signing key/email address/full name
 ----------------------------------------------------------------------
-
+ 1. Verify that gpgsm can see the secret key for your CAC
 	terminal> gpgsm --list-secret-keys
 
-	You should see this:
-           ID: 0x7BC333D5             <---- This is the ID
-          S/N: 087594
-        (dec): 554388
-       Issuer: /CN=DOD EMAIL CA-72/OU=PKI/OU=DoD/O=U.S. Government/C=US
-      Subject: /CN=RESNICK.ADAM.LAWRENCE.1511651901/OU=CONTRACTOR/OU=PKI/OU=DoD/O=U.S. Government/C=US
-          aka: adam.l.resnick.ctr@mail.mil
-     validity: 2024-08-02 00:00:00 through 2025-04-17 23:59:59
-     key type: rsa2048
-    key usage: digitalSignature nonRepudiation
-ext key usage: emailProtection (suggested), ms-documentSigning (suggested)
-     policies: 2.16.840.1.101.2.1.11.42:N:
-     sha1 fpr: 16:B2:9B:06:F3:82:86:81:E7:E8:95:F0:9C:EB:E3:8B:7B:C3:33:D5
-     sha2 fpr: A1:F0:92:13:25:E0:BD:92:5E:38:91:3B:AE:C1:1B:C3:3B:19:3C:3F:13:AE:B3:41:59:63:6B:C5:11:4E:33:5A
-     card s/n: D276000124011150313138F4114D1111
+		You should see this:
+					   ID: 0x7BC333D5
+					  S/N: 087594
+					(dec): 554388
+				   Issuer: /CN=DOD EMAIL CA-72/OU=PKI/OU=DoD/O=U.S. Government/C=US
+				  Subject: /CN=RESNICK.ADAM.LAWRENCE.1511651901/OU=CONTRACTOR/OU=PKI/OU=DoD/O=U.S. Government/C=US
+					  aka: adam.l.resnick.ctr@mail.mil
+				 validity: 2024-08-02 00:00:00 through 2025-04-17 23:59:59
+				 key type: rsa2048
+				key usage: digitalSignature nonRepudiation
+			ext key usage: emailProtection (suggested), ms-documentSigning (suggested)
+				 policies: 2.16.840.1.101.2.1.11.42:N:
+				 sha1 fpr: 16:B2:9B:06:F3:82:86:81:E7:E8:95:F0:9C:EB:E3:8B:7B:C3:33:D5
+				 sha2 fpr: A1:F0:92:13:25:E0:BD:92:5E:38:91:3B:AE:C1:1B:C3:3B:19:3C:3F:13:AE:B3:41:59:63:6B:C5:11:4E:33:5A
+				 card s/n: D276000124011150313138F4114D1111
 
 
-	terminal> git config --local user.signingkey <THE ID>
-
-	terminal> git config --local gpg.x509.program c:\tools\GnuPG\bin\gpgsm.exe
-
-	terminal> git config --local commit.gpgsign true
-	terminal> git config --local gpg.program c:\tools\gnupg\bin\gpg.exe
-
-
- 1. Tell Git to use that serial number for this project
+ 2. Finish configuring git for YOUR PROJECT
     terminal> cd c:\tools\projects\my-project
-    terminal> git config --local user.signingkey 123456789123456789123456789
+	terminal> git config --local user.signingkey <THE THUMBRPRINT ID>
+	terminal> git config --local gpg.x509.program c:\tools\GnuPG\bin\gpgsm.exe
+	terminal> git config --local commit.gpgsign true
 
  2. Run this command to set your user.email
     terminal> git config --local user.email john.smith@zztop.com
@@ -427,12 +314,7 @@ ext key usage: emailProtection (suggested), ms-documentSigning (suggested)
     NOTE:  Use double quotes  (not apostrophes!!!)
     terminal> git config --local user.name "John Smith"
 
- 4. Run this command to tell Git where to find the gpg command
-    terminal> git config --local gpg.x509.program c:\tools\smimesign\smimesign.exe
-    terminal> git config --local gpg.format x509
-	terminal> git config --local commit.gpgsign true
-
- 5. Verify that these values are set
+ 4. Verify that these values are set
     terminal> git config --local --list | sort
 
     You should see:
@@ -447,42 +329,35 @@ ext key usage: emailProtection (suggested), ms-documentSigning (suggested)
 
 Part 5 / Try your first git commit signing w/cac from command-line
 ------------------------------------------------------------------
- 1. Startup IntelliJ
+ 1. Open a terminal
 
- 2. Open the above project
+ 2. Run these commands:
+    terminal> cd c:\tools\projects\bogus
+    terminal> git checkout -b YOUR_INITIALS/test
 
- 3. Make sure git is *NOT* configured to use the GPG key
-    a. Pull File -> Settings
-    b. Search for gpg
-    c. Press "Configure GPG Key..."
-    d. In the popup
-        -- Uncheck "Sign with GPG Key"
-        -- Press OK
+ 3. Make a change to the README.med
+    terminal> echo "hi" >> README.md
 
- 4. Tell Git to sign again
-    terminal> git config --local commit.gpgsign true
-
-
- 5. Create a new branch
-    a. In IntelliJ, open the above project
-       terminal> git checkout -b YOUR_INITIALS/test
-
- 5. Make a change to the README.md
-
- 6. Close IntelliJ
-
-		 !!!!DO THE NEXT STEP FROM COMMAND-LINE!!!!
-
- 7. Do the commit from *COMMAND LINE*  (so you can tell Git to *TRUST* this)
-    terminal> cd c:\tools\projects\my-project
-    terminal> git commit -a -m "This is a test"
+ 4. Attempt to commit the change
+    terminal> git commit -a -m "Test Commit"
 
     -- You should be prompted to enter your CAC pin
 
- 8. Attempt to push the commit up
+ 5. Attempt to push the commit up
     terminal> git push --set-upstream origin YOUR_INITIALS/test
 
+    -- Verify that this works
 
+ 6. Look at the signature in the log
+    terminal> git log --show-signature
+
+    You should see
+    	smimesign:  Signature made using certificate ID.....
+    	smimesign:  Good signature from "CN=......"
+    	Author		<Your full name> <Your email address>
+    	Date:		<Today's Date>
+
+    		Test Commit
 
 
 
@@ -496,14 +371,10 @@ Part 6 / Try your first git commit signing w/cac from intelliJ
     a. Pull File -> Settings -> Version Control -> Git
     b. Press "Configure GPG Key"
        -- It should be checked
-       -- It should show the same key as the variable above
 
- 4. Make a change in IntelliJ to a file
+ 4. Make a change in IntelliJ to the README.md
 
  5. Do a commit and push
     -- It will prompt you for your PIN
-
-
-
-
+	-- Verify that the push works
 
