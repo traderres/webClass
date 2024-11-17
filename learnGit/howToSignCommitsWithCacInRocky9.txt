@@ -8,8 +8,8 @@ References
 https://p1docs.dso.mil/docs/party-bus/mission-devops-mdo/how-tos/gitlab/commit-signing-with-cac/
 
 
-Procedure (Works on Rocky Linux 9)
-----------------------------------
+Part 1 / Configure gpgsm and gpg
+--------------------------------
  1. Install tools
     unix> sudo dnf install gnupg-pkcs11-scd opensc  gnupg2 dirmngr gnupg2-smime pcsc-tools
 
@@ -40,7 +40,6 @@ Procedure (Works on Rocky Linux 9)
 		scdaemon-program /usr/bin/gnupg-pkcs11-scd
 
 
-
  5. Configure the gpg agent to use a command-line interface to enter your pin
     NOTE:  We will change it to a graphical one later / but we need it initially
     unix> echo 'pinentry-program /usr/bin/pinentry-curses' >> ~/.gnupg/gpg-agent.conf
@@ -48,7 +47,10 @@ Procedure (Works on Rocky Linux 9)
 
 
  6. Run gpg --card-status to verify that the gpg program can detect your card
-    unix> gpg --card-status
+    a. Insert your cac card into your card reader
+
+    b. Run this command
+       unix> gpg --card-status
 
 	I got the following output:
 		gpg: WARNING: server 'scdaemon' is older than us (0.10.0 < 2.3.3)
@@ -119,7 +121,7 @@ Procedure (Works on Rocky Linux 9)
 			Object Flags   : [0x00]
 			Authority      : no
 			Path           : 0100cece
-			ID             : 02              <------------------ This is the ID we want!!
+			ID             : 02              <------------------ This is the ID we want because it is for "Digital Signature"!!
 			Encoded serial : 02 03 087594
 
 		X.509 Certificate [Certificate for Key Management]
@@ -138,7 +140,8 @@ Procedure (Works on Rocky Linux 9)
 
 
 11. Run the following to import the Root CRL for your certificate (using the ID from the previous step)
-    a. Verify that you can get the cert from your CAC
+    a. Remove and insert your CAC card into your card reader
+    b. Run this command to get the certificate of your CAC digital signature
        unix> pkcs15-tool --read-certificate 02
 
 		-----BEGIN CERTIFICATE-----
@@ -149,9 +152,6 @@ Procedure (Works on Rocky Linux 9)
 		R292ZXJubWVudDEMMAoGA1UECxMDRG9EMQwwCgYDVQQLEwNQS0kxEzARBgNVBAsT
 		CkNPTlRSQUNUT1IxKTAnBgNVBAMTIFJFU05JQ0suQURBTS5MQVdSRU5DRS4xNTEx
 		NjUxOTAxMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5Rd2ZluPo2HQ
-		UDY3Td2ICDJ8+vPkEDjzu08LiixYhkAcbVSkUkqPz+3CpclOqZsH2VLvvZQWcCXf
-		W/0YScSj5JK86IxWQR7BHnT4cPmENgEprxta4pjtPiTZlAfTlK0/kKguZMndDXSR
-		NAdg1lUXObVMCdB+v9cGALrfHaI3/L7ckP4cYB/LxFEdKUMCP74keibC9gLx8znI
 		K6RVJi4gEX+GKVzh5ijMiPtziTyNmqFOjDeQIpYDva5KqJhwXFdPOYKySaRK4wQg
 		AQQBgjcKAwwwDQYJKoZIhvcNAQELBQADggEBAC5SVwPuo61P+Kv+fXniGiuAhlt1
 		4cecB7Utn3K5cSEdUhTJWBzRsnP/tIDXn/FNNRCzeC5tid0/rlS5GUG8oHKf0cPC
@@ -162,7 +162,9 @@ Procedure (Works on Rocky Linux 9)
 		-----END CERTIFICATE-----
 
     b. Write the cert to a file called mycert.crt
-  	   unix> pkcs15-tool --read-certificate 02 > mycert.crt
+       1) Remove and insert your CAC card into your card reader
+  	   2) Run this command to write your CAC certificate to a file
+  	      unix> pkcs15-tool --read-certificate 02 > mycert.crt
 
     c. Download the cer file for your CAC
        unix> wget $(openssl x509 -in mycert.crt -text | grep "CA Issuers" | awk '{ print $4 }' | sed 's/URI://g')
@@ -198,49 +200,158 @@ Procedure (Works on Rocky Linux 9)
     unix> gpgconf --kill all
 
 
+13. Use gpgsm find your user.signingkey
+    unix> gpgsm --list-secret-keys
 
-13. Tell git to use this signing key
-    unix> signingEmail=$(gpgsm --list-secret-keys | grep aka | awk '{ print $2 }')
-    unix> echo $signingEmail
-          -- You should see the email address for your account
+  /home/adam/.gnupg/pubring.kbx
+  -----------------------------
+             ID: 0x7BC325214       <---------- This is your git user.signingkey
+            S/N: 085595
+          (dec): 557328
+         Issuer: /CN=DOD EMAIL CA-72/OU=PKI/OU=DoD/O=U.S. Government/C=US
+        Subject: /CN=SMITH.JOHN.1234567890/OU=CONTRACTOR/OU=PKI/OU=DoD/O=U.S. Government/C=US
+            aka: john.smith.ctr@mail.mil
+       validity: 2024-08-02 00:00:00 through 2025-04-17 23:59:59
+       key type: rsa2048
+      key usage: digitalSignature nonRepudiation
+  ext key usage: emailProtection (suggested), ms-documentSigning (suggested)
+       policies: 2.16.840.1.101.2.1.11.42:N:
+       sha1 fpr: 16:B2:9B:06:F3:82:86:81:E7:E8:95:F0:9C:EB:E3:8B:7B:C3:33:D5
+       sha2 fpr: A1:F0:92:13:25:E0:BD:92:5E:38:91:3B:AE:C1:1B:C3:3B:19:3C:3F:13:AE:B3:41:59:63:6B:C5:11:4E:33:5A
+       card s/n: FF7F00
 
+
+
+
+
+Part 2 / Clone the IL5 Project
+------------------------------
+ 1. Turn on appgate
+
+ 2. Generate an access token
+    a. Sign in to GitLab
+       -- Go to https://code.il5.dso.mil/
+    b. On the left sidebar, select your avatar (to go to User Settings)
+    c. Select Edit profile.
+    d. Select Access tokens
+    e. Press "Add new token"
+    f. In the "Add a personal access token" page
+       -- Token Name:              My silly access token
+       -- Expiration Date:         <Set it to 1 year from yesterday>
+       -- Check "read_repository"
+       -- Check "write_repository"
+       -- Press "Create personal access token"
+    g. Copy the access token to your clipboard / copy & paste this token it into a temporary text file
+
+
+ 3. Get your userid
+    a. On the left sidebar, select your avatar (to go to User Settings)
+    b. Select Edit profile.
+       -- Scroll Down
+       -- You should see your userid / copy & paste it into a temporary text file
+
+
+ 4. Get the clone url
+    a. Go to the project you wish to clone -- e.g., Get the clone url
+       Go to https://code.il5.dso.mil/platform-one/products/DCSA/ni2/bogus
+    b. Press "Code"
+    c. Copy the "Clone with HTTPS"
+    d. Paste this into a temporary text file
+
+
+ 5. Assemble the git clone command
+    -- Assemble the pieces so your git clone command
+
+                                Userid    Access Token
+                                  |         |
+                                  V         V
+              git clone https://USERID:ACCESS_TOKEN@CLONE_URL
+                                                       ^
+                                                       |
+                                                       |
+                                                     If the url is https://www.stuff.com/my-site/stuff/stuff.git
+                                                     then the CLONE_URL is www.stuff.com/my-site/stuff/stuff.git
+
+  6. Delete any existing bogus and bogus2 project
+     a. Open a terminal
+        terminal> cd c:\tools\ideaProjects
+        terminal> rd /s /q bogus
+        terminal> rd /s /q bogus2
+
+  6. Run the git clone command using your access token
+     terminal> git clone git clone https://123456:ABCDEFGHIJKLMNOPQRSTUV@code.il5.dso.mil/platform-one/products/DCSA/ni2/bogus.git
+
+		** DO NOT OPEN THIS PROJECT IN INTELLIJ YET **
+
+
+
+Part 3 / Configure Git to use your signing key/email address/full name
+----------------------------------------------------------------------
+ 1. Tell Git to use your certificate for this *ONE PROJECT ONLY*
+	unix> cd ~/intellijProjects/bogus
 	unix> signingkey=$( gpgsm --list-secret-keys | egrep '(key usage|ID)' | grep -B 1 digitalSignature | awk '/ID/ {print $2}')
-	unix> echo $signingkey
-	      -- You should see your signing key
+ 	unix> git config --local user.signingkey $signingkey
 
-	unix> git config --global user.email $signingEmail
-	unix> git config --global user.signingkey $signingkey
-	unix> git config --global gpg.format x509
-	unix> git config --global gpg.x509.program gpgsm
-	unix> git config --global commit.gpgsign true
-    unix> git config --global gpg.program /usr/bin/gpg
+ 2. Tell git what your email address should be
+    unix> signingEmail=$(gpgsm --list-secret-keys | grep aka | awk '{ print $2 }')
+    unix> git config --local user.email $signingEmail
 
-	unix> cd ~/intellijProjects/core-service
-	unix> git config  user.email $signingEmail
-	unix> git config  user.signingkey $signingkey
-	unix> git config  gpg.format x509
-	unix> git config  gpg.x509.program gpgsm
-	unix> git config  commit.gpgsign true
+ 3. Tell git what the full name should be
+    unix> git config --local user.name "John Smith"
+
+ 4. Add these other settings
+	unix> git config --local commit.gpgsign true
+	unix> git config --local gpg.format x509
+	unix> git config --local gpg.x509.program gpgsm
+    unix> git config --local gpg.program /usr/bin/gpg
+
+ 5. Verify that GIT settings are correctly set
+    terminal> git config --local --list | sort
+
+    You should see:
+      commit.gpgsign=true
+      ...
+	  gpg.format=x509
+	  gpg.program=/usr/bin/gpg
+	  gpg.x509.program=gpgsm
+      ....
+      user.email=john.smith@zztop.com
+      user.name=John Smith
+      user.signingkey=123456789123456789
 
 
-14. Attempt your first commit (from command line)
-    a. Change a file
-    b. Do the commit from command-line
-       unix> git commit -a -m "Made a change"
 
-    c. You will be prompted:
-       "Do you ultimately trust....."
+Part 4 / Try your first git commit signing w/cac from command-line
+------------------------------------------------------------------
+ 1. Create a new branch
+ 	unix> cd ~/intellijProjects/bogus
+ 	unix> git checkout -b YOUR_INITIALS/test1
+
+ 2. Make a change to the README.md
+    unix> echo "hi" >> README.md
+
+ 3. Attempt to commit the change
+ 	unix> git commit -a -m "Test Commit"
+
+    1) You will be prompted:
+       "Do you ultimately trust Dod Root CA....."
        -- Select "YES"
 
-	d. You will be prompted:
+    2) You will be prompted:
 	   Please verify that the certified identified has the finger print
 	   -- Select "Correct"
 
-	e. Verify that your trust list has been updated
+	3) Verify that your trust list has been updated
 	   unix> cat ~/.gnupg/trustlist.txt
 
 
-15. Configure intelliJ to prompt for pin using a GRAPHICAL pin program
+	-- At this point, you should be prompted for your CAC pin
+	-- Enter your pin
+	And, the commit should work
+
+
+
+ 4. Configure the gpg agent to prompt for pin using a GRAPHICAL pin program
     a. Tell gpg-agent to use a graphical pin program
        unix> vi ~/.gnupg/gpg-agent.conf
 
@@ -254,18 +365,177 @@ Procedure (Works on Rocky Linux 9)
        unix> gpgconf
 
 
-16. Try your first commit in IntelliJ
-    a. Close IntelliJ
-    a. Open the project in Intellij
-    b. Pull File -> Settings -> Version Control -> Git
-    c. Press "Configure GPG Key"
+ 5. Make another change to the README.md
+    unix> echo "hi there" >> README.md
+
+ 6. Attempt to commit the change
+ 	unix> git commit -a -m "Test Commit 2"
+	-- You should be prompted to enter your CAC pin from a graphical popup
+
+ 7. Push up your changes
+    unix> git push
+	-- Verify it works
+
+ 8. Verify that the log shows a good signature
+    unix> git log --show-signature
+
+	commit e2ef0694e70a68f786c8f3a49de37a965dca3c89 (HEAD -> alr/test1, origin/alr/test1)
+	gpgsm: Signature made 2024-11-17 21:36:16 UTC
+	gpgsm:                using rsa2048 key 16B29B06F3828681E7E895F09CEBE38B7BC333D5
+	gpgsm: Note: non-critical certificate policy not allowed
+	gpgsm: Note: non-critical certificate policy not allowed
+	gpgsm: Good signature from "/CN=SMITH.JOHN.1234567890/OU=CONTRACTOR/OU=PKI/OU=DoD/O=U.S. Government/C=US"
+	gpgsm:                 aka "john.smith.ctr@mail.mil"
+	Author: John Smith <john.smith.ctr@mail.mil>
+	Date:   Sun Nov 17 16:36:16 2024 -0500
+
+		Test Commit 2
+
+
+
+
+Part 5 / Try your first git commit signing w/cac from intelliJ
+--------------------------------------------------------------
+ 1. Startup IntelliJ
+
+ 2. Open the above project (bogus)
+
+ 3. Verify that the GPG key is configured for you in IntelliJ
+    a. Pull File -> Settings -> Version Control -> Git
+    b. Press "Configure GPG Key"
        -- It should be checked
-       -- It should show the same key as the variable above
+       -- You should see the same long number you used for the your user.signingkey
 
-    d. Make a change in IntelliJ
-    e. Do a commit and push
-		-- It will prompt you for your PIN
+       NOTE:  You may see the warning "Cannot find suitable private key"
 
+	c. Press "Cancel"
+
+ 4. Make a change in IntelliJ to the README.md
+    Make your message:   Test Commit 3
+
+ 5. Do a commit and push
+    -- It will prompt you for your PIN
+
+ 6. Enter your PIN
+    -- After entering your pin, the commit should be accepted
+
+
+
+
+
+Part 6 / Verify that your branch has "Verified" next to your commits in the Gitlab history
+------------------------------------------------------------------------------------------
+ 1. Open a browser
+    Go to https://code.il5.dso.mil/platform-one/products/DCSA/ni2/bogus
+
+ 2. On the left, Choose Code -> Branches
+
+ 3. Click on your branch
+
+ 4. Press History
+
+ 5. You should see "Verified" next to your commits
+
+ 6. Click on "Verified"
+    -- You should see your CAC information
+
+
+
+
+Part 7 / Create a batch script to setup Git CAC Signing on a SINGLE PROJECT  (setupProjectForIl5.sh)
+----------------------------------------------------------------------------------------------------
+ 1. Create a scripts directory
+    unix> mkdir ~/scripts
+
+ 2. Add scripts to the PATH
+    unix> vi ~/.bashrc
+
+    	# Add scripts to the path
+    	export PATH=~/scripts:${PATH}
+
+ 3. Create the script
+    unix> touch ~/scripts/setupProjectForIl5.sh
+    unix> chmod u+x ~/scripts/setupProjectForIl5.sh
+    unix> vi ~/scripts/setupProjectForIl5.sh
+
+		# Clear existing IL2 or IL5 settings
+		git config --local --unset commit.gpgsign
+		git config --local --unset gpg.program
+		git config --local --unset gpg.format
+		git config --local --unset gpg.x509.program
+		git config --local --unset user.email
+		git config --local --unset user.name
+		git config --local --unset user.signingkey
+
+		# Setup this git project for CAC signing of commits
+		git config --local commit.gpgsign true
+       	git config --local gpg.format x509
+       	git config --local gpg.x509.program gpgsm
+        git config --local gpg.program /usr/bin/gpg
+		git config --local user.email john.smith@zztop.com
+		git config --local user.name "John Smith"
+		git config --local user.signingkey <THE ID>
+
+ 		git config --list --local | sort
+		echo -e "\nFinished configuring git for IL5 / CAC signing of commits"
+
+
+
+ 4. Update this script with **YOUR** user.signingkey / email address / full name
+    a. Set the full name in the script
+
+    b. Set the email address should be
+       unix> signingEmail=$(gpgsm --list-secret-keys | grep aka | awk '{ print $2 }')
+       unix> $signingEmail
+       -- Store this in the script for user.email
+
+    c. Set the signing key
+       unix> signingkey=$( gpgsm --list-secret-keys | egrep '(key usage|ID)' | grep -B 1 digitalSignature | awk '/ID/ {print $2}')
+       unix> echo $signingkey
+       -- Store this in the script for the user.signingkey
+
+
+
+ 5. Clone the bogus2 project
+    terminal> cd ~/intellijProjects      # or the specific directory where you STORE all of your projects
+    terminal> git clone git clone https://123456:ABCDEFGHIJKLMNOPQRSTUV@code.il5.dso.mil/platform-one/products/DCSA/ni2/bogus2.git
+
+ 6. Apply the script to this project (to setup CAC-signing of commits)
+    terminal> cd bogus2
+    terminal> setupProjectForIl5.sh
+
+ 7. Verify that this project is configured for CAC signing
+    a. Create a new branch
+       terminal> git checkout -b YOUR_INITIALS/test
+
+	b. Make a change to the README.med
+       terminal> echo "hi" >> README.md
+
+	c. Attempt to commit the change
+       terminal> git commit -a -m "Test Commit"
+       -- You should be prompted to enter your CAC pin
+
+	d. Enter your PIN
+       -- After entering your pin, the commit should be accepted
+
+ 8. Attempt to push the commit up
+    terminal> git push --set-upstream origin YOUR_INITIALS/test
+    -- Verify that you see no errors!!!!
+
+ 9. Look at the signature in the log
+    terminal> git log --show-signature
+
+	commit a73ea8e3303d10fad29a27ae16e580de570fc1f0 (HEAD -> alr/test5, origin/alr/test5)
+	gpgsm: Signature made 2024-11-17 21:54:11 UTC
+	gpgsm:                using rsa2048 key 16B29B06F3828681E7E895F09CEBE38B7BC333D5
+	gpgsm: Note: non-critical certificate policy not allowed
+	gpgsm: Note: non-critical certificate policy not allowed
+	gpgsm: Good signature from "/CN=SMITH.JOHN.1234567890/OU=CONTRACTOR/OU=PKI/OU=DoD/O=U.S. Government/C=US"
+	gpgsm:                 aka "john.smith.ctr@mail.mil"
+	Author: John Smith <john.smith.ctr@mail.mil>
+	Date:   Sun Nov 17 16:54:11 2024 -0500
+
+		Test Commit
 
 
 
