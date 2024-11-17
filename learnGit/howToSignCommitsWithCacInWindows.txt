@@ -19,7 +19,6 @@ Part 1 / Make sure you have a Git 2.47 or later
 -----------------------------------------------
  1. Create this directory:  c:\temp
 
-
  2. Verify that git is not too old
     a. Open a terminal
        terminal> git --version
@@ -43,12 +42,12 @@ Part 1 / Make sure you have a Git 2.47 or later
 		   In the Adjusting Path environment,             Use defaults and press "Next"
 		   In the Choosing SSH executable,                Use defaults and press "Next"    (Use bundled OpenSSH)
 		   In the Choosing HTTPS transport backend,       Use defaults and press "Next"    (Use the OpenSSL library)
-		   In the Configuring the line ending conversion, Use Checkout as is, Commit as is and press "Next"
+		   In the Configuring the line ending conversion, Use defaults and press "Next"    (core.autocrlf is true)
 		   In the Configuring Terminal Emulator,          Use defaults and press "Next"    (Use MinTTY)
 		   In the Choose behavior of "Git Pull",          Use defaults and press "Next"    (fast-forward or merge)
 		   In the Choose a Credential Helper,             Use defaults and press "Next"    (Git Credential Manager)
 		   In the Configuring extra options,              Use defaults and press "Next"    (Enable file system caching)
-		   In the Configuring experimental options,       Uncheck all  and press "Install"
+		   In the Configuring experimental options,       Press "Install"
 		   In the Completing the Git Setup Wizard,        Uncheck all  and press "Finish"
 
 
@@ -197,11 +196,14 @@ Part 4 / Clone the IL5 Project
                                                      If the url is https://www.stuff.com/my-site/stuff/stuff.git
                                                      then the CLONE_URL is www.stuff.com/my-site/stuff/stuff.git
 
-  6. Run the git clone command using your access token
+  6. Delete any existing bogus and bogus2 project
      a. Open a terminal
-     b. In the terminal run these commands
-        terminal> cd ideaProjects      # or the specific directory where you STORE YOUR PROJECT
-        terminal> git clone git clone https://123456:ABCDEFGHIJKLMNOPQRSTUV@code.il5.dso.mil/platform-one/products/DCSA/ni2/bogus.git
+        terminal> cd c:\tools\ideaProjects
+        terminal> rd /s /q bogus
+        terminal> rd /s /q bogus2
+
+  6. Run the git clone command using your access token
+     terminal> git clone git clone https://123456:ABCDEFGHIJKLMNOPQRSTUV@code.il5.dso.mil/platform-one/products/DCSA/ni2/bogus.git
 
 		** DO NOT OPEN THIS PROJECT IN INTELLIJ YET **
 
@@ -265,23 +267,21 @@ Part 5 / Configure Git to use your signing key/email address/full name
 
 Part 6 / Try your first git commit signing w/cac from command-line
 ------------------------------------------------------------------
- 1. Open a terminal
-
- 2. Run these commands:
+ 1. Create a new branch
     terminal> cd ideaProjects\bogus
     terminal> git checkout -b YOUR_INITIALS/test
 
- 3. Make a change to the README.med
+ 2. Make a change to the README.med
     terminal> echo "hi" >> README.md
 
- 4. Attempt to commit the change
+ 3. Attempt to commit the change
     terminal> git commit -a -m "Test Commit"
     -- You should be prompted to enter your CAC pin
 
- 5. Enter your PIN
+ 4. Enter your PIN
     -- After entering your pin, the commit should be accepted
 
- 6. Attempt to push the commit up
+ 5. Attempt to push the commit up
     terminal> git push --set-upstream origin YOUR_INITIALS/test
     -- Verify that you see no errors!!!!
 
@@ -304,7 +304,7 @@ Part 7 / Try your first git commit signing w/cac from intelliJ
 --------------------------------------------------------------
  1. Startup IntelliJ
 
- 2. Open the above project
+ 2. Open the above project (bogus)
 
  3. Verify that the GPG key is configured for you in IntelliJ
     a. Pull File -> Settings -> Version Control -> Git
@@ -317,6 +317,7 @@ Part 7 / Try your first git commit signing w/cac from intelliJ
 	c. Press "Cancel"
 
  4. Make a change in IntelliJ to the README.md
+    Make your message:   Test Commit 2
 
  5. Do a commit and push
     -- It will prompt you for your PIN
@@ -327,8 +328,8 @@ Part 7 / Try your first git commit signing w/cac from intelliJ
 
 
 
-Part 8 / Verify that your branch has "Verified" next to your commits in the history
------------------------------------------------------------------------------------
+Part 8 / Verify that your branch has "Verified" next to your commits in the Gitlab history
+------------------------------------------------------------------------------------------
  1. Open a browser
     Go to https://code.il5.dso.mil/platform-one/products/DCSA/ni2/bogus
 
@@ -343,4 +344,102 @@ Part 8 / Verify that your branch has "Verified" next to your commits in the hist
  6. Click on "Verified"
     -- You should see your CAC information
 
+
+
+Part 9 / Create a batch script to setup Git CAC Signing on a SINGLE PROJECT  (setupProjectForIl5.bat)
+-----------------------------------------------------------------------------------------------------
+ 1. Open a terminal
+    terminal> c:\progra~1\notepad++\notepad++   C:\tools\GnuPG\bin\setupProjectForIl5.bat
+
+ 2. Copy this to your text editor
+		@echo off
+
+		REM ** Clear existing IL2 or IL5 settings
+		git config --local --unset commit.gpgsign
+		git config --local --unset gpg.program
+		git config --local --unset gpg.format
+		git config --local --unset gpg.x509.program
+		git config --local --unset user.email
+		git config --local --unset user.name
+		git config --local --unset user.signingkey
+
+		REM ** Setup this git project for CAC signing of commits
+		git config --local commit.gpgsign true
+		git config --local gpg.format x509
+		git config --local gpg.x509.program smimesign
+		git config --local user.email john.smith@zztop.com
+		git config --local user.name "John Smith"
+		git config --local user.signingkey <THE ID FROM THUMBPRINT>
+
+ 		git config --list --local | sort
+ 		echo.
+		echo Finished configuring git for IL5 / CAC signing of commits
+
+
+
+ 3. Update this script with **YOUR** user.signingkey / email address / full name
+    a. Set the full name in the script
+    b. Set the email address in the script
+    c. Set the signing key
+
+       1) Use the Windows "Manage User Certificates" to get the "thumbprint id" of your CAC certificate [that is used for document signing]
+       2) In Windows, search for "manage user certificates"
+       3) Run "Manage User Certificates"
+       4) Expand Personal -> Certificates
+       5) Make the window wider -- so you can see the columns
+       6) Sort by "Expiration Date"
+        -- You should see your 3 certificates (from your CAC)
+        -- Look for the CAC certificate that has the expiration date in the future -- probably April 2025
+        -- Look for the CAC certificate that has an "Intended Purpose" of "Secure Email, Document Signing"
+
+       7) Double-click on your CAC cert that has an "Intended Purpose" of "Secure Email, Document Signing"
+
+       8) Click on the "Details" of your CAC Certificate
+
+       9) Scroll Down in the list until you see Thumbprint
+
+       10) Copy the Thumbprint value from the **BOTTOM** of this popup
+           -- This is your user.signingkey
+
+
+    d. Save the batch script
+
+
+ 4. Clone the bogus2 project
+    terminal> cd c:\tools\ideaProjects      # or the specific directory where you STORE all of your projects
+    terminal> git clone git clone https://123456:ABCDEFGHIJKLMNOPQRSTUV@code.il5.dso.mil/platform-one/products/DCSA/ni2/bogus2.git
+
+ 5. Apply the script to this project (to setup CAC-signing of commits)
+    terminal> cd bogus2
+    terminal> setupProjectForIl5
+
+ 6. Verify that this project is configured for CAC signing
+    a. Create a new branch
+       terminal> git checkout -b YOUR_INITIALS/test
+
+	b. Make a change to the README.med
+       terminal> echo "hi" >> README.md
+
+	c. Attempt to commit the change
+       terminal> git commit -a -m "Test Commit"
+       -- You should be prompted to enter your CAC pin
+
+	d. Enter your PIN
+       -- After entering your pin, the commit should be accepted
+
+ 7. Attempt to push the commit up
+    terminal> git push --set-upstream origin YOUR_INITIALS/test
+    -- Verify that you see no errors!!!!
+
+ 8. Look at the signature in the log
+    terminal> git log --show-signature
+
+    You should "Good made using certificate ID...."
+    	commit dc9c259b72b8ceb4243c98b946d0d0b3965bd430 (HEAD -> js/my-branch-name, origin/js/my-branch-name)
+    	smimesign:  Signature made using certificate ID.....
+    	smimesign:  Good signature from "CN=......"
+    	Author		<Your full name> <Your email address>
+    	Date:		<Today's Date>
+
+    		Test Commit
 
