@@ -97,7 +97,7 @@ Part 2 / Download & Install Gpg4win
 		   Compression: Uncompressed, ZIP, ZLIB, BZIP2
 
 
- 4. Add the Openssl (included with gpg4win to your PATH
+ 4. Add Openssl to your PATH   (it's included with "Git for Windows")
     a. Add this to your path:  C:\Program Files\Git\usr\bin
 	b. Verify openssl is found
 	   1) Open a new terminal
@@ -108,7 +108,7 @@ Part 2 / Download & Install Gpg4win
 
 
 
-Part 4 / Clone the IL5 Project
+Part 3 / Clone the IL5 Project
 ------------------------------
  1. Turn on appgate
 
@@ -171,11 +171,14 @@ Part 4 / Clone the IL5 Project
 
 
 
-Part 5 / Configure Git to use your signing key/email address/full name
-----------------------------------------------------------------------
- 1. Insert your CAC into your card reader
 
- 2. Use the Windows "Manage User Certificates" to get the "thumbprint id" of your CAC certificate [that is used for document signing]
+Part 4 / Download certs to c:\temp
+----------------------------------
+ 1. Create this directory:  c:\temp
+
+ 2. Insert your CAC into your card reader
+
+ 3. Use the Windows "Manage User Certificates" to get the "thumbprint id" of your CAC certificate [that is used for document signing]
     a. In Windows, search for "manage user certificates"
     b. Run "Manage User Certificates"
     c. Expand Personal -> Certificates
@@ -187,26 +190,52 @@ Part 5 / Configure Git to use your signing key/email address/full name
 
     f. Double-click on your CAC cert that has an "Intended Purpose" of "Secure Email, Document Signing"
 
-    g. Click on the "Details" of your CAC Certificate
-
-    h. Scroll Down in the list until you see Thumbprint
-
-    i. Copy the Thumbprint value from the **BOTTOM** of this popup
-       -- This is your user.signingkey
-
-
-			16b29b06f3828681e7e895f09cebe38b7bc333d5
+ 4. Click on the "Certificate Path"
+ 	You should see something like this:
+ 				DoD Root CA 6
+ 					DOD Email CA-72
+ 						Signature - Smith.john.1234567890
 
 
+ 5. For your signature cert, Click on the "Details" tab
+    a. Press "Copy to File..."
+	   In the Welcome popup,        Use defaults and press "Next"
+	   In the Export Private Key,   Use defaults and press "Next"
+	   In the Export File Format,   Use defaults and press "Next"
+	   In the File to Export,       c:\temp\cac
+	   In the Completing wizard,    Use defaults and press "Finish"
 
- 3. Copy the CAC cert from Personal -> Certificates to c:\temp\cac.er
+ 6. Download the cer file for the parent of your signature -- e.g., DOD Email CA-72
+    a. Double-click on your CAC cert that has an "Intended Purpose" of "Secure Email, Document Signing"
+    b. Click on "Certification Path"
+    c. Double-Click on the DOD Email CA-72  (the cert directly *ABOVE* your signature)
+    d. Click on the "Details" tab
+    e. Press "Copy to File..."
+	   In the Welcome popup,        Use defaults and press "Next"
+	   In the Export Private Key,   Use defaults and press "Next"
+	   In the Export File Format,   Use defaults and press "Next"
+	   In the File to Export,       c:\temp\parent1
+	   In the Completing wizard,    Use defaults and press "Finish"
+
+ 7. Download the cer file for the 2nd parent of your signature -- e.g., DoD Root CA 6
+    a. Double-click on your CAC cert that has an "Intended Purpose" of "Secure Email, Document Signing"
+    b. Click on "Certification Path"
+    c. Double-Click on the DoD Root CA 6  (the cert directly 2 links above your signature)
+    d. Click on the "Details" tab
+    e. Press "Copy to File..."
+	   In the Welcome popup,        Use defaults and press "Next"
+	   In the Export Private Key,   Use defaults and press "Next"
+	   In the Export File Format,   Use defaults and press "Next"
+	   In the File to Export,       c:\temp\parent2
+	   In the Completing wizard,    Use defaults and press "Finish"
 
 
- 4. Get information about your CAC cert
+ 8. Get information about your CAC cert
     terminal> cd c:\temp
     terminal> openssl x509 -inform der -in cac.cer -text
 
- 5. Get the filepath of the CER file
+
+ 5. Download the CA issuer cer file for your cert
     terminal> openssl x509 -inform der -in cac.cer -text | findstr "CA Issuers"
 
         Issuer: C=US, O=U.S. Government, OU=DoD, OU=PKI, CN=DOD EMAIL CA-72
@@ -215,16 +244,120 @@ Part 5 / Configure Git to use your signing key/email address/full name
                                                 ^
                                                 |
                                                 |
+                                    Get the url after URI:
 
  6. Download the cer file
+    terminal> cd c:\temp
     terminal> curl -O http://crl.disa.mil/sign/DODEMAILCA_72.cer
 
- 6. Tell gpg to trust your cert
+
+
+
+Part 6 / Configure gpgsm
+------------------------
+At this point, this directory should already exist:
+     C:\Users\john.smith\AppData\Roaming\gnupg
+
+
+ 1. Create directories:
+    terminal> cd C:\Users\john.smith\AppData\Roaming\gnupg
+    terminal> mkdir trusted-certs
+    terminal> mkdir logs
+
+ 2. Created this directory:  C:\Users\john.smith\AppData\Roaming\gnupg\trusted-certs
+    terminal> mkdir C:\Users\john.smith\AppData\Roaming\gnupg\trusted-certs
+
+ 3. Create this file:       C:\Users\john.smith\AppData\Roaming\gnupg\dirmngr.conf
+		log-file C:\Users\john.smith\AppData\Roaming\gnupg\logs\dirmngr.log.txt
+		ignore-cert-extension 2.5.29.30
+		ignore-cert-extension 2.5.29.36
+		ignore-cert-extension 2.5.29.54
+
+
+ 4. Create this file:       C:\Users\john.smith\AppData\Roaming\gnupg\gpgsm.conf
+		 disable-crl-checks
+		 ignore-cert-extension 2.5.29.30
+		 ignore-cert-extension 2.5.29.36
+		 ignore-cert-extension 2.5.29.54
+
+
+ 5. Created this file:    C:\Users\john.smith\AppData\Roaming\gnupg\gpg-agent.conf
+		pinentry-program c:\tools\gpg4win\bin\pinentry.exe
+		allow-mark-trustedy
+
+
+ 6. Restart gpg
+    terminal> gpgconf --kill all
+    terminal> dirmngr
+
+
+
+
+			 -- Copied the cac.cer, parent1.cer, parent2.cer to this trusted-certs\ directory
+			 -- Rename .cer to .der
+
+
+			 Created this file:    C:\Users\john.smith\AppData\Roaming\gnupg\logs
+
+			 Created this file:    C:\Users\john.smith\AppData\Roaming\gnupg\dirmngr.conf
+				log-file C:\Users\john.smith\AppData\Roaming\gnupg\logs\dirmngr.log.txt
+				ignore-cert-extension 2.5.29.30
+				ignore-cert-extension 2.5.29.36
+				ignore-cert-extension 2.5.29.54
+
+
+			 Imported this file:  0-Boeing_PCA_G3.cer
+				terminal> gpgsm --import  0-Boeing_PCA_G3.cer
+
+
+			 Created this file:    C:\Users\john.smith\AppData\Roaming\gnupg\gpgsm.conf
+				 ignore-cert-extension 2.5.29.30
+				 ignore-cert-extension 2.5.29.36
+				 ignore-cert-extension 2.5.29.54
+
+			 Created this file:    C:\Users\john.smith\AppData\Roaming\gnupg\gpg-agent.conf
+			 Created this file:    C:\Users\john.smith\AppData\.gnupg\gpg-agent.conf
+				pinentry-program c:\tools\gpg4win\bin\pinentry.exe
+
+
+			terminal> gpgsm --list-chain --with-validation
+
+
+
+
+
+ 6. Import the certs
+    terminal> cd c:\temp
+	terminal> gpgsm --verbose --disable-crl-checks  --disable-trusted-cert-crl-check --auto-issuer-key-retrieve --import parent2.cer
+	terminal> gpgsm --verbose --disable-crl-checks  --disable-trusted-cert-crl-check --auto-issuer-key-retrieve --import parent1.cer
+	terminal> gpgsm --verbose --disable-crl-checks  --disable-trusted-cert-crl-check --auto-issuer-key-retrieve --import cac.cer
+
+
+ 5. Download the CA issuer cer file for your cert
+    terminal> openssl x509 -inform der -in cac.cer -text | findstr "CA Issuers"
+
+        Issuer: C=US, O=U.S. Government, OU=DoD, OU=PKI, CN=DOD EMAIL CA-72
+                  URI:http://crl.disa.mil/crl/DODEMAILCA_72.crl
+                CA Issuers - URI:http://crl.disa.mil/sign/DODEMAILCA_72.cer
+                                                ^
+                                                |
+                                                |
+                                    Get the url after URI:
+
+ 6. Download the cer file
+    terminal> cd c:\temp
+    terminal> curl -O http://crl.disa.mil/sign/DODEMAILCA_72.cer
+	terminal> gpgsm --verbose --disable-crl-checks  --disable-trusted-cert-crl-check  --import DODEMAILCA_72.cer
+
+
+
+
+ 7. Tell gpg to trust your cert
  	a. Get the crl url
        terminal> set CER_FILENAME=DODEMAILCA_72.cer
        terminal> openssl x509 -inform der -in %CER_FILENAME% -text | findstr crl
 
-							This is the crl url
+							Copy the url after "URI:" / We need this
 									|
 									V
                   URI:http://crl.disa.mil/crl/DODROOTCA6.crl
@@ -265,8 +398,16 @@ Part 5 / Configure Git to use your signing key/email address/full name
  8. Restart the GPG agent
     terminal> gpgconf --kill all
 
- 9. Verify that you can see the secret keys
+ 9. Verify that gpg can see your card reader
  	NOTE:  You might have to unplug the cac reader
+ 	terminal> gpg --card-status
+
+ 	Reader ...........: Alcor EMV Smartcard Reader 0
+    Application ID ...: B76E80AC68C2461CBA168914BE68E07A
+    Application type .: PIV
+
+
+10. Verify that you can see the secret keys
     terminal> gpgsm --list-secret-keys
 
            ID: 0x7BC333D5        <-- This is your git user.signingkey
@@ -327,6 +468,11 @@ ext key usage: emailProtection (suggested), ms-documentSigning (suggested)
 		terminal>  gpgsm --ignore-cert-extension 2.5.29.30 --ignore-cert-extension 2.5.29.36 --ignore-cert-extension 2.5.29.54 --disable-crl-check --import parent4.cer
 
 
+12.
+  1) Copy the cer file to C:\Users\john.smith\AppData\Roaming\gnupg\trusted-certs
+  2) gpgconf --kill all
+  3) dirmngr
+  4) gpgsm  --list-chain  --with-validation  --ignore-cert-extension 2.5.29.30 --ignore-cert-extension 2.5.29.36 --ignore-cert-extension 2.5.29.54
 
 
 
@@ -400,16 +546,27 @@ terminal> gpgsm --list-chain --with-validation
 
 
  I could manually sign with this command:
- terminal> cho hi  | "c:\tools\GnuPG\bin\gpgsm.exe" --status-fd=2 -bsau 0x7BC333D5 --ignore-cert-extension 2.5.29.30 --ignore-cert-extension 2.5.29.36 --ignore-cert-extension 2.5.29.54
+ terminal> gpg --ignore-cert-extension 2.5.29.30 --ignore-cert-extension 2.5.29.36 --ignore-cert-extension 2.5.29.54
 
 
 
 
-
+Part 5 / Configure Git to use your signing key/email address/full name
+----------------------------------------------------------------------
  3. Tell Git to use your certificate for this *ONE PROJECT ONLY*
     a. Set the signing key for YOUR project
+
+        terminal> gpgsm --list-secret-keys
+
+               ID: 0x7BC333D5        <-- This is your git user.signingkey
+              S/N: 087594
+            (dec): 554388
+           Issuer: /CN=DOD EMAIL CA-72/OU=PKI/OU=DoD/O=U.S. Government/C=US
+          Subject: /CN=SMITH.JOHN..123456789/OU=CONTRACTOR/OU=PKI/OU=DoD/O=U.S. Government/C=US
+              aka: john.smith.ctr@mail.mil
+
        terminal> cd ideaProjects\bogus
-   	   terminal> git config --local user.signingkey <THE ID FROM gpgsm --list-secret-keys>
+   	   terminal> git config --local user.signingkey <THE ID FROM ABOVE>
 
     b. Tell git what your email address should be
        terminal> git config --local user.email john.smith@zztop.com          # This email address must match your CAC
@@ -427,15 +584,15 @@ terminal> gpgsm --list-chain --with-validation
         terminal> git config --local --list | sort
 
     You should see:
-      commit.gpgsign=true
-      ...
-	  gpg.format=x509
-	  gpg.program=c:\tools\GnuPG\bin\gpg.exe
-	  gpg.x509.program=gpgsm
-      ....
-      user.email=john.smith@zztop.com
-      user.name=John Smith
-      user.signingkey=123456789123456789
+		commit.gpgsign=true
+		...
+		gpg.format=x509
+		gpg.program=c:\tools\GnuPG\bin\gpg.exe
+		gpg.x509.program=c:\tools\GnuPG\bin\gpgsm.exe
+		....
+		user.email=john.smith@zztop.com
+		user.name=John Smith
+		user.signingkey=123456789123456789
 
 
 
@@ -449,6 +606,7 @@ Part 6 / Try your first git commit signing w/cac from command-line
     terminal> echo "hi" >> README.md
 
  3. Attempt to commit the change
+    terminal> set GIT_TRACE=1
     terminal> git commit -a -m "Test Commit"
     -- You should be prompted to enter your CAC pin
 
