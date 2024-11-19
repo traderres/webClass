@@ -1,6 +1,12 @@
-How to Sign Commits with a CAC on Windows (Using gpgsm)
--------------------------------------------------------
+How to Sign Commits with a CAC on Windows (Using Smimesign)
+-----------------------------------------------------------
 Problem:  My Gitlab environment requires me to sign commits with a CAC
+
+
+!!! WARNING !!!
+!!! These procedures did not work reliably on all Windows boxes
+!!! -- On some Windows boxes, Smimesign would show an "Access Denied" error when signing the commits
+!!! -- So, these are *NOT* reliable procedures
 
 
 References
@@ -97,14 +103,48 @@ Part 2 / Download & Install Gpg4win
 		   Compression: Uncompressed, ZIP, ZLIB, BZIP2
 
 
- 4. Add the Openssl (included with gpg4win to your PATH
-    a. Add this to your path:  C:\Program Files\Git\usr\bin
-	b. Verify openssl is found
-	   1) Open a new terminal
-	      terminal> openssl version
 
-	      You should see the following:  (bundled with git 2.0.47)
-	         OpenSSL 3.2.3 3 Sep 2024 (Library: OpenSSL 3.2.3 3 Sep 2024)
+
+Part 3 / Download & Install smimesign
+-------------------------------------
+ 1. Go to https://github.com/github/smimesign/releases/download/v0.2.0-rc1/smimesign-windows-v0.2.0-rc1.exe
+    *OR*
+    Go to https://github.com/github/smimesign/releases/tag/v0.2.0-rc1
+    Click on smimesign-windows-v0.2.0-rc1.exe
+
+    Save smimesign-windows-v0.2.0-rc1.exe to your Downloads/ directory
+
+
+ 3. Run smimesign-windows-v0.2.0-rc1.exe
+    In the "License Agreement" page,       Choose "I accept" and press "Next"
+    In the "Destination Location" page,    Set the path to c:\tools\smimesign         ## THIS IS NOT THE DEFAULT SETTING!!!!!!
+    In the "Completing the setup" page,    Press "Finish"
+
+
+ 4. Create an environment variable called "smimesign" for your account
+    a. In windows, search for edit environment
+    b. Select "Edit environment variables for your account"
+    c. In the top, press "New..."
+       Variable name:      smimesign
+       Variable value:     c:\tools\smimesign
+    d. Press "OK" a few times
+
+
+ 5. Verify that it's in your path
+    a. Open a new terminal
+    b. Run these commands:
+       terminal> smimesign --version
+
+       You should see this:
+         v0.2.0-rc1
+
+
+ 6. Verify that you can use smimesign to list the keys on your CAC
+    a. Insert your CAC card into the CAC reader
+    b. Run this command:
+       terminal> smimesign --list-keys
+
+       -- You should see the certificates on your CAC
 
 
 
@@ -156,7 +196,6 @@ Part 4 / Clone the IL5 Project
                                                      If the url is https://www.stuff.com/my-site/stuff/stuff.git
                                                      then the CLONE_URL is www.stuff.com/my-site/stuff/stuff.git
 
-
   6. Delete any existing bogus and bogus2 project
      a. Open a terminal
         terminal> cd c:\tools\ideaProjects
@@ -194,244 +233,31 @@ Part 5 / Configure Git to use your signing key/email address/full name
     i. Copy the Thumbprint value from the **BOTTOM** of this popup
        -- This is your user.signingkey
 
-
-			16b29b06f3828681e7e895f09cebe38b7bc333d5
-
-
-
- 3. Copy the CAC cert from Personal -> Certificates to c:\temp\cac.er
-
-
- 4. Get information about your CAC cert
-    terminal> cd c:\temp
-    terminal> openssl x509 -inform der -in cac.cer -text
-
- 5. Get the filepath of the CER file
-    terminal> openssl x509 -inform der -in cac.cer -text | findstr "CA Issuers"
-
-        Issuer: C=US, O=U.S. Government, OU=DoD, OU=PKI, CN=DOD EMAIL CA-72
-                  URI:http://crl.disa.mil/crl/DODEMAILCA_72.crl
-                CA Issuers - URI:http://crl.disa.mil/sign/DODEMAILCA_72.cer
-                                                ^
-                                                |
-                                                |
-
- 6. Download the cer file
-    terminal> curl -O http://crl.disa.mil/sign/DODEMAILCA_72.cer
-
- 6. Tell gpg to trust your cert
- 	a. Get the crl url
-       terminal> set CER_FILENAME=DODEMAILCA_72.cer
-       terminal> openssl x509 -inform der -in %CER_FILENAME% -text | findstr crl
-
-							This is the crl url
-									|
-									V
-                  URI:http://crl.disa.mil/crl/DODROOTCA6.crl
-                CA Issuers - URI:http://crl.disa.mil/issuedto/DODROOTCA6_IT.p7c
-
-
-    b. Tell dirmngr to trust it
-       terminal> dirmngr --verbose --force --fetch-crl   http://crl.disa.mil/crl/DODROOTCA6.crl
-
-		dirmngr[7140]: error loading certificate 'ROOT': Certificate expired
-		dirmngr[7140]: error loading certificate 'ROOT': Certificate expired
-		dirmngr[7140]: error loading certificate 'ROOT': Certificate expired
-		dirmngr[7140]: error loading certificate 'ROOT': Certificate expired
-		dirmngr[7140]: error loading certificate 'ROOT': Certificate expired
-		dirmngr[7140]: error loading certificate 'ROOT': Certificate expired
-		dirmngr[7140]: error loading certificate 'ROOT': Certificate expired
-		dirmngr[7140]: error loading certificate 'ROOT': Certificate expired
-		dirmngr[7140]: error loading certificate 'CA': Certificate expired
-		dirmngr[7140]: error loading certificate 'CA': Certificate expired
-		dirmngr[7140]: permanently loaded certificates: 33
-		dirmngr[7140]:     runtime cached certificates: 0
-		dirmngr[7140]:            trusted certificates: 33 (33,0,0,0)
-		dirmngr[7140]: fetching CRL from 'http://crl.disa.mil/crl/DODROOTCA6.crl'
-		dirmngr[7140]: detected interfaces: IPv4
-		dirmngr[7140]: update times of this CRL: this=20241114T183042 next=20241215T183042
-		dirmngr[7140]: locating CRL issuer certificate by authorityKeyIdentifier
-		dirmngr[7140]: error fetching certificate by subject: Configuration error
-		dirmngr[7140]: CRL issuer certificate {134F3CBBDB5D4529A59470B6DAAC9E4CE22FC10B} not found
-		dirmngr[7140]: crl_parse_insert failed: Missing certificate
-		dirmngr[7140]: processing CRL from 'http://crl.disa.mil/crl/DODROOTCA6.crl' failed: Missing certificate
-
-
- 7. Import the CER file and Cac crt
-    terminal> gpgsm --verbose   --disable-policy-checks --auto-issuer-key-retrieve --disable-crl-checks --disable-ocsp --auto-issuer-key-retrieve --import %CER_FILENAME%
-    terminal> gpgsm --verbose   --disable-policy-checks --auto-issuer-key-retrieve --disable-crl-checks --disable-ocsp  --auto-issuer-key-retrieve --import cac.crt
-
-
- 8. Restart the GPG agent
-    terminal> gpgconf --kill all
-
- 9. Verify that you can see the secret keys
- 	NOTE:  You might have to unplug the cac reader
-    terminal> gpgsm --list-secret-keys
-
-           ID: 0x7BC333D5        <-- This is your git user.signingkey
-          S/N: 087594
-        (dec): 554388
-       Issuer: /CN=DOD EMAIL CA-72/OU=PKI/OU=DoD/O=U.S. Government/C=US
-      Subject: /CN=RESNICK.ADAM.LAWRENCE.1511651901/OU=CONTRACTOR/OU=PKI/OU=DoD/O=U.S. Government/C=US
-          aka: adam.l.resnick.ctr@mail.mil
-     validity: 2024-08-02 00:00:00 through 2025-04-17 23:59:59
-     key type: rsa2048
-    key usage: digitalSignature nonRepudiation
-ext key usage: emailProtection (suggested), ms-documentSigning (suggested)
-     policies: 2.16.840.1.101.2.1.11.42:N:
-     sha1 fpr: 16:B2:9B:06:F3:82:86:81:E7:E8:95:F0:9C:EB:E3:8B:7B:C3:33:D5
-     sha2 fpr: A1:F0:92:13:25:E0:BD:92:5E:38:91:3B:AE:C1:1B:C3:3B:19:3C:3F:13:AE:B3:41:59:63:6B:C5:11:4E:33:5A
-     card s/n: B76E80AC68C2461CBA168914BE68E07A
-
-
-
-10. Restart the gpg-aagent
-    terminal> gpg-agent
-
-	You should see:
-		gpg-agent[6568]: gpg-agent running and available
-
-
-11. Verify the certificate chain
-    terminal> gpgsm --list-chain --with-validation
-    terminal> gpgsm --list-chain --with-validation  --auto-issuer-key-retrieve --ignore-cert-extension 2.5.29.30 --ignore-cert-extension 2.5.29.36 --ignore-cert-extension 2.5.29.54
-
-	terminal> gpgsm  --auto-issuer-key-retrieve
-
-
-
-			A.  Download the certs from Manage User Certificates to c:\temp
-						-- Generate c:\temp\parent1
-						-- Generate c:\temp\parent2
-						-- Generate c:\temp\parent3
-						-- Generate c:\temp\parent4
-
-
-
-					terminal> gpgsm --verbose  --disable-crl-checks  --disable-trusted-cert-crl-check --auto-issuer-key-retrieve  --import parent4.cer
-					terminal> gpgsm --verbose --disable-crl-checks  --disable-trusted-cert-crl-check --auto-issuer-key-retrieve --import parent3.cer
-					terminal> gpgsm --verbose --disable-crl-checks  --disable-trusted-cert-crl-check --auto-issuer-key-retrieve --import parent2.cer
-					terminal> gpgsm --verbose --disable-crl-checks  --disable-trusted-cert-crl-check --auto-issuer-key-retrieve --import parent1.cer
-					terminal> gpgsm --verbose --disable-crl-checks  --disable-trusted-cert-crl-check --auto-issuer-key-retrieve --import cac.crt
-
-
-				terminal> gpgconf --kill all
-				terminal> gpgsm --list-secret-keys
-
-
-
-
-
-
-		terminal>  gpgsm --ignore-cert-extension 2.5.29.30 --ignore-cert-extension 2.5.29.36 --ignore-cert-extension 2.5.29.54 --disable-crl-check --import parent4.cer
-
-
-
-
-
-
-
- Get the fingerprint of your cac.crt
- terminal> openssl x509 -fingerprint -in cac.crt -noout
-
- SHA1 Fingerprint=16:B2:9B:06:F3:82:86:81:E7:E8:95:F0:9C:EB:E3:8B:7B:C3:33:D5
-
-
- Add this to the trustlist.txt
- terminal> notepad  C:\Users\john.smith\.gnupg\trustlist.txt
- terminal> notepad C:\Users\john.smith\AppData\Roaming\gnupg\trustlist.txt
-
-	# Trust out cert
-	16:B2:9B:06:F3:82:86:81:E7:E8:95:F0:9C:EB:E3:8B:7B:C3:33:D5 S relax
-
-
- terminal> gpgconfg --kill all
- terminal> dirmngr
-
-
-
- terminal> gpgsm --list-chain --with-validation --disable-crl-checks --ignore-cert-extension 2.5.29.30 --ignore-cert-extension 2.5.29.36 --ignore-cert-extension 2.5.29.54 --auto-issuer-key-retrieve -
-
-
-
- Created this folder:  C:\Users\john.smith\AppData\Roaming\gnupg\trusted-certs
- -- Copied the cac.cer, parent1.cer, parent2.cer to this trusted-certs\ directory
- -- Rename .cer to .der
-
-
- Created this file:    C:\Users\john.smith\AppData\Roaming\gnupg\logs
-
- Created this file:    C:\Users\john.smith\AppData\Roaming\gnupg\dirmngr.conf
-	log-file C:\Users\john.smith\AppData\Roaming\gnupg\logs\dirmngr.log.txt
-	ignore-cert-extension 2.5.29.30
-	ignore-cert-extension 2.5.29.36
-	ignore-cert-extension 2.5.29.54
-
-
- Imported this file:  0-Boeing_PCA_G3.cer
-    terminal> gpgsm --import  0-Boeing_PCA_G3.cer
-
-
- Created this file:    C:\Users\john.smith\AppData\Roaming\gnupg\gpgsm.conf
-	 ignore-cert-extension 2.5.29.30
-	 ignore-cert-extension 2.5.29.36
-	 ignore-cert-extension 2.5.29.54
-
- Created this file:    C:\Users\john.smith\AppData\Roaming\gnupg\gpg-agent.conf
- Created this file:    C:\Users\john.smith\AppData\.gnupg\gpg-agent.conf
-    pinentry-program c:\tools\gpg4win\bin\pinentry.exe
-
-
-terminal> gpgsm --list-chain --with-validation
-
-
-
-
-
-
- Trick that works
- -----------------
-  1) Copy the cer file to C:\Users\john.smith\AppData\Roaming\gnupg\trusted-certs
-  2) gpgconf --kill all
-  3) dirmngr
-  4) gpgsm  --list-chain  --with-validation  --ignore-cert-extension 2.5.29.30 --ignore-cert-extension 2.5.29.36 --ignore-cert-extension 2.5.29.54
-
-
-
- I could manually sign with this command:
- terminal> cho hi  | "c:\tools\GnuPG\bin\gpgsm.exe" --status-fd=2 -bsau 0x7BC333D5 --ignore-cert-extension 2.5.29.30 --ignore-cert-extension 2.5.29.36 --ignore-cert-extension 2.5.29.54
-
-
-
-
-
  3. Tell Git to use your certificate for this *ONE PROJECT ONLY*
     a. Set the signing key for YOUR project
        terminal> cd ideaProjects\bogus
-   	   terminal> git config --local user.signingkey <THE ID FROM gpgsm --list-secret-keys>
+   	   terminal> git config --local user.signingkey <THE ID FROM THUMBPRINT>
 
-    b. Tell git what your email address should be
-       terminal> git config --local user.email john.smith@zztop.com          # This email address must match your CAC
+    b. Add these remaining git settings
+  	   terminal> git config --local gpg.format x509
+       terminal> git config --local gpg.x509.program smimesign
+	   terminal> git config --local commit.gpgsign true
 
- 	c. Tell git what the full name should be
-       terminal> git config --local user.name "John Smith"
+ 4. Tell git what your email address should be
+    terminal> git config --local user.email john.smith@zztop.com          # This email address must match your CAC
 
-    d. Add these remaining git settings
-		terminal> git config --local commit.gpgsign true
-		terminal> git config --local gpg.format x509
-		terminal> git config --local gpg.x509.program c:\tools\GnuPG\bin\gpgsm.exe
-		terminal> git config --local gpg.program c:\tools\GnuPG\bin\gpg.exe
+ 5. Tell git what your full name should be
+    NOTE:  Use double quotes  (not apostrophes!!!)
+    terminal> git config --local user.name "John Smith"
 
-    e. Verify that GIT settings are correctly set
-        terminal> git config --local --list | sort
+ 6. Verify that GIT settings are correctly set
+    terminal> git config --local --list | sort
 
     You should see:
       commit.gpgsign=true
       ...
-	  gpg.format=x509
-	  gpg.program=c:\tools\GnuPG\bin\gpg.exe
-	  gpg.x509.program=gpgsm
+      gpg.format=x509
+      gpg.x509.program=smimesign
       ....
       user.email=john.smith@zztop.com
       user.name=John Smith
