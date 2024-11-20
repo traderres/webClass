@@ -89,7 +89,7 @@ Part 2 / Make sure you have a Git 2.47 or later
     	   Press the "Download" button
 
     	4) Run the "Git for Windows" installer (you just downloaded) / Git-2.47.0.2-64-bit.exe
-		   In the Select Destination Folder,              Use defaults and press "Next"
+		   In the Select Destination Folder,              c:\tools\git
 		   In the Select Components popup,                Use defaults and press "Next"
 		   In the Start Menu popup,                       Use defaults and press "Next"
 		   In the Choose Default Editor,                  Use defaults and press "Next"
@@ -106,83 +106,7 @@ Part 2 / Make sure you have a Git 2.47 or later
 		   In the Completing the Git Setup Wizard,        Uncheck all  and press "Finish"
 
 
-
-Part 3 / Download & Install Gpg4win
------------------------------------
- 1. Download gpg4win v4.3.1
-    Go to https://files.gpg4win.org/gpg4win-4.3.1.exe
-    *OR*
-    a. Go to https://www.gpg4win.org/download.html
-    b. Press the Download Icon
-    c. Press $0
-    d. Press "USD"
-    e. Press "Download"
-       *OR*
-
-     Save gpg4win-4.3.1.exe to your Downloads/ directory
-
-
- 2. Install gpg4win
-    a. Run gpg4win-4.3.1.exe
-	   In the "Installer Language",              Use defaults and press "OK"   (English)
-       In the "Welcome" page,                    Use defaults and press "Next"
-       In the "Choose Components" page,          Use defaults and press "Next"
-       In the "Choose Install Location" page,    Set the path to c:\tools\gpg4win           ## THIS IS NOT THE DEFAULT SETTING!!!!!!
-       In the "Installation Complete" page,      Use defaults and press "Next"
-       In the "Completing gpg4win Setup" page,   Use defaults and press "Finish"
-	   -- By default, it will start Kleopatra
-
-
-	b. Tell Kleopatra to trust your certs
-		1) Pull Settings -> Configure Kleopatra -> S/Mime Validation
-		   Uncheck "Fetch missing issuer certificates"
-		   Check "Do not check certificate policies"
-		   Check "Never consult a CRL"
-
-		2) Pull Settings -> Configure Kleopatra -> GnuPG System -> S/Mime
-           Check "Fetch missing issuer certificates"
-           Check 'Disable all access to the dirmngr'
-
-
-	c. Use Kleopatra to install your certs
-    		1) Import the cac.cer, parent1.cer, and parent2.cer
-
-
- 3. Verify gpg is installed
-    a. Open a new terminal
-
-    b. In the terminal
-       DOS> gpg --version
-
-	   You should see something like this:
-		   gpg (GnuPG) 2.4.5
-		   libgcrypt 1.10.3
-		   Copyright (C) 2024 g10 Code GmbH
-		   License GNU GPL-3.0-or-later <https://gnu.org/licenses/gpl.html>
-		   This is free software: you are free to change and redistribute it.
-		   There is NO WARRANTY, to the extent permitted by law.
-
-		   Home: C:\Users\johnsmith\AppData\Roaming\gnupg
-		   Supported algorithms:
-		   Pubkey: RSA, ELG, DSA, ECDH, ECDSA, EDDSA
-		   Cipher: IDEA, 3DES, CAST5, BLOWFISH, AES, AES192, AES256, TWOFISH,
-				   CAMELLIA128, CAMELLIA192, CAMELLIA256
-		   Hash: SHA1, RIPEMD160, SHA256, SHA384, SHA512, SHA224
-		   Compression: Uncompressed, ZIP, ZLIB, BZIP2
-
-
-
-	!!! WARNING !!!
-
-	You now have 2 different versions of gpg.exe and gpgsm.exe installed on your computer
-	 1) One version of gpg came with gpg4win
-	    -- It is in your path
-	    -- It is located here:   c:\tools\GnuPG\bin\gpg.exe
-		-- THIS IS THE VERSION OF GPG TO USE
-
-	 2) One version of gpg came with "Git for Windows"
-	 	-- It should *NOT* be in your path
-	 	-- It is located here:    C:\Program Files\Git\usr\bin\gpg.exe
+ 2. Add to your path:   C:\tools\git\usr\bin
 
 
 
@@ -335,7 +259,117 @@ Part 4 / Clone the IL5 Project
 Part 5 / Configure gpgsm
 ------------------------
 At this point, this directory should already exist:
-     C:\Users\%USERNAME%\AppData\Roaming\gnupg
+ 1. Create the root directory
+    terminal> mkdir  C:\Users\%USERNAME%\.gnupg
+
+ 2. Restart the agent
+    terminal> gpg-connect-agent killagent /bye
+    terminal> gpg-connect-agent /bye
+
+
+ 3. Verify gpg can read the cac reader
+    terminal> gpg --card-status
+
+    You should see this:
+		gpg: keybox '/c/Users/john.smith/.gnupg/pubring.kbx' created
+		Reader ...........: Alcorlink USB Smart Card Reader 0
+		Application ID ...: B76E80AC68C2461CBA168914BE68E07A
+		Application type .: PIV
+
+
+ 4. Verify that your keys list is empty
+    terminal> gpg --list-keys
+
+    You should see this:
+		gpg: /c/Users/john.smith/.gnupg/trustdb.gpg: trustdb created
+
+
+
+ 5. Create a gpg-agent.log file
+    a. Create gpg-agent.log
+       terminal> notepad C:\Users\%USERNAME%\.gnupg\gpg-agent.conf
+pinentry-program C:\tools\git\usr\bin\pinentry.exe
+allow-mark-trusted
+debug-level 9
+
+
+	b. Restart the agent
+	   terminal> gpg-connect-agent killagent /bye
+       terminal> gpg-connect-agent /bye
+
+
+6. Create this file:   gpgsm.conf
+   terminal> notepad C:\Users\%USERNAME%\.gnupg\gpgsm.conf
+disable-crl-checks
+ignore-cert-extension 2.5.29.30
+ignore-cert-extension 2.5.29.36
+ignore-cert-extension 2.5.29.54
+
+
+ 7. Import the CAC
+    terminal> gpgsm --verbose --disable-crl-checks  --disable-trusted-cert-crl-check --auto-issuer-key-retrieve  --import c:\temp\cac.cer
+
+
+ 8. Now, that you have imported the cac.cer, you should be able to see your private key
+    terminal> gpgsm --list-secret-keys
+
+		[keyboxd]
+		---------
+				   ID: 0x7BC333D5
+				  S/N: 087594
+				(dec): 554388
+			   Issuer: /CN=DOD EMAIL CA-72/OU=PKI/OU=DoD/O=U.S. Government/C=US
+			  Subject: /CN=RESNICK.ADAM.LAWRENCE.1511651901/OU=CONTRACTOR/OU=PKI/OU=DoD/O=U.S. Government/C=US
+				  aka: adam.l.resnick.ctr@mail.mil
+			 validity: 2024-08-02 00:00:00 through 2025-04-17 23:59:59
+			 key type: rsa2048
+			key usage: digitalSignature nonRepudiation
+		ext key usage: emailProtection (suggested), ms-documentSigning (suggested)
+			 policies: 2.16.840.1.101.2.1.11.42:N:
+			 sha1 fpr: 16:B2:9B:06:F3:82:86:81:E7:E8:95:F0:9C:EB:E3:8B:7B:C3:33:D5
+			 sha2 fpr: A1:F0:92:13:25:E0:BD:92:5E:38:91:3B:AE:C1:1B:C3:3B:19:3C:3F:13:AE:B3:41:59:63:6B:C5:11:4E:33:5A
+			 card s/n: B76E80AC68C2461CBA168914BE68E07A
+
+
+ 9. Validate the chain
+    terminal> gpgsm --debug 1 --list-chain --with-validation
+
+
+10. Create the trustlist.txt
+    terminal> notepad C:\Users\%USERNAME%\.gnupg\trustlist.txt
+
+11. Restart all
+    terminal> gpgconf --kill all
+
+
+ 7. Import the parent1 and parent2
+    terminal> gpgsm --debug 5  --import c:\temp\parent5.cer      <-- Causes chain too long
+    terminal> gpgsm --debug 5  --import c:\temp\parent4.cer
+    terminal> gpgsm --debug 5  --import c:\temp\parent3.cer
+    terminal> gpgsm --debug 5  --import c:\temp\parent2.cer
+    terminal> gpgsm --debug 1  --import c:\temp\parent1.cer
+
+12. Attempt to sign in the project
+    terminal> cd ideaProjects\bogus
+    terminal> git config --local gpg.x509.program C:\tools\git\usr\bin\gpgsm.exe
+    terminal> git config --local gpg.program C:\tools\git\usr\bin\gpg.exe
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
  1. Change gpg-agent settings
     a. Get the current gpg-agent configuration *BEFORE* the change
@@ -351,8 +385,7 @@ allow-mark-trusted
 debug-level 9
 
  	c. Restart the gpg-agent gpgconf --kill gpg-agent
-       terminal> gpg-connect-agent killagent /bye
-       terminal> gpg-connect-agent /bye
+       terminal> gpg-connect-agent reloadagent /bye
 
 
 	d. Get the current gpg-agent configuration *AFTER* the change
