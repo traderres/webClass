@@ -1,0 +1,162 @@
+How to Setup an AWS Account and Create an Elastic Container Registry (ECR)
+--------------------------------------------------------------------------
+
+
+Part 1 / Setup the AWS Account & Create the ECR
+-----------------------------------------------
+ 1. Setup AWS Account / Create Users / Grant CLI Access  (so we can push up builds to our AWS ECR Registry)
+    Goal:  Setup a user that can run the CLI to push-up builds
+    a. Go to https://aws.com/
+
+    b. Create the "administrators" group
+       1) In AWS, go to Services -> IAM
+       2) On the left, click on "User groups"
+       3) In the "Create user group"
+          User group name:  administrators
+
+          In the "Attach permissions policies"
+          Add these role:
+            AdministratorAccess
+       4) Press "Create user group"
+
+    b. Create the dev.user
+       1) In AWS, go to Services -> IAM
+       2) On the left, click on Users
+       3) Press "Create user"
+       4) In "User details"
+          User name:  dev.user
+          Check "Provide user access to the AWS Management Console"
+          Check "I want to create an IAM user"
+
+
+          Custom password
+             custom password:  enter it
+             Uncheck "User must create a new password at next sign-in)
+
+          Press "Next"
+
+       5) In "Set permissions"
+          Select "Attach policies directly"
+          Search for CNI
+          Check Off theses roles:  AmazonEKS_CNI_Policy
+          Press "Next"
+
+       6) Press "Create user"
+          NOTE:  Grab the console sign-in link:   https://524647912468.signin.aws.amazon.com/console
+
+       7) Add this user to the "administrators group"
+          Go to IAM -> Users
+          Click on the "dev.user" link
+          Click on "Groups"
+          Press "Add user to groups"
+          Check "administrators"
+          Press "Add user to group(s)"
+
+       8) Create access keys for the dev.user
+          1) Click on "Users"
+          2) Click on dev.user
+          3) Click on "Security Credentials"
+          4) Click on "Create access key"
+          5) Select Command Line interface
+             Select "I understand the above"
+             Press "Next"
+
+          6) Description tag value:  leave it blank
+             Press "Create access key"
+
+          7) Download the key by pressing "Download .csv file"
+            --> Save dev.user_accessKeys.csv to your ~/Downloads
+
+           -- Now, the user called "dev.user" should have the authority to push up to the AWS ECR Registry
+
+
+    c. Logout as root user
+
+
+ 2. Use the dev.user account to create an ECR repository
+    a. Login as the dev.user
+       Go to https://524647912468.signin.aws.amazon.com/console
+       -- The account ID should be provided
+
+       IAM username:  dev.user
+       Password:      <enter password>
+       Press "Sign in"
+
+	b. Create an ECR
+	   1) In AWS, go to Services -> ECR
+	   2) Press "Create"
+
+	   3) IN the "Create private repository" page
+
+	      Repository Name:  namespace is apps
+	                        repo-name is app16
+
+		  Image tag mutability:  Mutable
+		  Press "Create"
+
+ 3. Get the URI of your private repository
+    NOTE:  Your container registry is TIED to your region
+    a. In AWS, set your region to us-east-1
+    b. Go to Services -> ECR
+	c. On the left, under "Private registry", click on Repositories
+
+	d. You should see apps/app16
+	   -- Copy the URI
+       -- It should be something like this:		524647912468.dkr.ecr.us-east-1.amazonaws.com/apps/app16
+
+
+
+
+Part 2 / Setup AWS Credentials
+------------------------------
+  1. Install AWS CLI
+     See https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+     a. Install the AWS CLI for Linux
+		unix> curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+		unix> unzip awscliv2.zip
+		unix> sudo ./aws/install
+
+ 		*OR*
+
+ 		Install the AWS CLI for Windows
+ 		terminal> msiexec.exe /i https://awscli.amazonaws.com/AWSCLIV2.msi
+
+
+     b. Verify the AWS CLI is installed
+        unix> aws --version
+
+        You should see something like this:
+           aws-cli/2.22.10 Python/3.12.6 Linux/5.14.0-427.42.1.el9_4.x86_64 exe/x86_64.rocky.9
+
+
+  4. Setup AWS Credentials
+     a. Open the downloaded CSV file (dev.user_accessKeys.csv) in a text editor
+		-- You should see a 2 line file
+
+        	Access key ID,Secret access key
+        	ABCDEFGHIJKLMN,123456789123456789/123456789456123
+				^                        ^        ^
+				|                        |        |
+			Access Key Id          AWS Secret Access Key
+
+     b. Setup AWS credentials
+        unix> aws configure
+
+		AWS Access Key ID [None]:         <ENTER TEXT BEFORE THE COMMA (on line 2 of the CSV file)
+		AWS Secret Access Key [None]:     <ENTER TEXT AFTER  THE COMMA (on line 2 of the CSV file)
+		Default region name [None]:       If using aws-gov-cloud, then probably use your region   -- e.g., us-gov-west-1
+		                                  If using aws-residential, then probably use your region -- e.g., us-east-1
+		Default output format [None]:     json
+
+
+
+  5. Verify you can get your password and region and store it in a variable
+     unix> export AWS_REGION=$(aws ec2 describe-availability-zones --output text --query 'AvailabilityZones[0].[RegionName]')
+     unix> export PASSWORD=`aws ecr get-login-password --region $AWS_REGION`
+	 unix> echo $AWS_REGION
+	 unix> echo $PASSWORD
+
+
+
+
+
