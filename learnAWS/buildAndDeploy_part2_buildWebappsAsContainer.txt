@@ -7,7 +7,7 @@ NOTE:  These changes are applied to angularApp16 lesson9/deploy-to-aws
 
 
 
-Part 1 / Configure maven so that we can build using buildImage or buildImageAndPush
+Part 1 / Configure maven so that we can build using buildImage or buildAndPushImage
 ------------------------------------------------------------------------------------
  1. Edit the parent pom.xml
 
@@ -28,780 +28,830 @@ Part 1 / Configure maven so that we can build using buildImage or buildImageAndP
 		  </properties>
 
 
-    b. Tell maven which modules to use for the "buildImage" and "buildImageAndPush" profiles
-    	<profiles>
-			<profile>
-			  <!--    B U I L D     I M A G E      P R O F I L E      (for running this app in a container)  -->
-			  <id>buildImage</id>
+    b. Add a bunch of maven profiles to the parent pom.xml
+  <profiles>
 
-			  <modules>
-				<module>common-backend</module>
-				<module>backend</module>
-				<module>frontend</module>
-				<module>sync-service</module>
-			  </modules>
-			</profile>
+    <!--    B U I L D     I M A G E      P R O F I L E      (for running this app in a container)  -->
+    <profile>
+      <id>buildImage</id>
 
-			<profile>
-			  <!--    B U I L D     I M A G E    A N D    P U S H        P R O F I L E     (for running this app in a container)  -->
-			  <id>buildImageAndPush</id>
-
-			  <modules>
-				<module>common-backend</module>
-				<module>backend</module>
-				<module>frontend</module>
-				<module>sync-service</module>
-			  </modules>
-			</profile>
-    	</profiles>
+      <modules>
+        <module>common-backend</module>
+        <module>backend</module>
+        <module>frontend</module>
+      </modules>
+    </profile>
 
 
+    <!--    B U I L D     I M A G E    A N D    P U S H       W E B A P P    (for running this app in a container)  -->
+    <profile>
+     <id>buildAndPushImage</id>
 
- 2.  Add the "buildImage" and "buildImageAndPush" profiles to sync-service/pom.xml
-
-	<profiles>
-
-			<!--    B U I L D     I M A G E      P R O F I L E      (for running this app in a container)  -->
-			<profile>
-			  <id>buildImage</id>
-
-			  <!-- When running this profile, do *NOT* include the src/main/resources/application.yaml in the build -->
-			  <build>
-				<resources>
-				   <resource>
-					<filtering>false</filtering>
-					<directory>src/main/resources</directory>
-					<excludes>
-					  <exclude>application.yaml</exclude>
-					</excludes>
-				  </resource>
-				</resources>
-
-				<plugins>
-				  <plugin>
-					<!-- Use the jib-maven-plugin to build the container and push it up to a registry [without having to install Docker] -->
-					<groupId>com.google.cloud.tools</groupId>
-					<artifactId>jib-maven-plugin</artifactId>
-					<version>3.4.4</version>
-
-					<executions>
-					  <execution>
-						<phase>package</phase>
-						<goals>
-						  <!-- Possible goals are build and dockerBuild   -->
-						  <!--   The "build"       goal does not require docker / build the image and push it to a repo                 -->
-						  <!--   The "dockerBuild" goal requires docker         / build the image and push to the local daemon daemon   -->
-						  <goal>dockerBuild</goal>
-						</goals>
-					  </execution>
-					</executions>
-
-					<configuration>
-					  <from>
-						<!-- This source image runs linux with JDK 17.07 -->
-						<image>eclipse-temurin:17.0.7_7-jdk@sha256:9dd6a19e4819b066aa2bd8e54d5988a49cca29736fe5447cb0a57daa975f8935</image>
-					  </from>
-
-					  <to>
-						<!-- Specify the destination name in the AWS Container Registry -->
-						<image>${aws.ecr.uri}:${aws.env.name}-${project.artifactId}-${project.version}</image>
-					   </to>
+      <modules>
+        <module>common-backend</module>
+        <module>backend</module>
+        <module>frontend</module>
+      </modules>
+    </profile>
 
 
-					  <extraDirectories>
-						<paths>
-						  <path>
-							<!-- Copies everything from 'src/main/image_resources' into '/sync-service-/src/main/image_resources' on the container. -->
-							<from>src/main/image_resources</from>
-							<into>/sync-service/src/main/image_resources</into>
-						  </path>
-						</paths>
-					  </extraDirectories>
+    <!--    B U I L D     I M A G E    A N D    P U S H       S Y N C    S E R V I C E    (for running this app in a container)  -->
+    <profile>
+      <id>buildAndPushSyncService</id>
 
-					  <container>
-						<jvmFlags>
-						  <!-- When starting the container, tell Java where to find the application.yaml -->
-						  <jvmFlag> -Dspring.config.location=/sync-service/src/main/image_resources/application.yaml</jvmFlag>
-						</jvmFlags>
-					  </container>
+      <modules>
+        <module>db-migrations</module>
+        <module>common-backend</module>
+        <module>sync-service</module>
+      </modules>
+    </profile>
 
-					</configuration>
 
-				  </plugin>
-				</plugins>
-			  </build>
-			</profile>
+
+    <!--    D E F A U L T        P R O F I L E           (for developers)  -->
+    <profile>
+      <id>default</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+
+      <modules>
+        <module>frontend</module>
+        <module>backend</module>
+        <module>db-migrations</module>
+        <module>sync-service</module>
+        <module>common-backend</module>
+      </modules>
+
+    </profile>
+
+  </profiles>
 
 
 
 
-			<!--    B U I L D     I M A G E    A N D    P U S H        P R O F I L E      (for running this app in a container)  -->
-			<profile>
-			  <id>buildImageAndPush</id>
 
-			  <!-- When running this profile, do *NOT* include the src/main/resources/application.yaml in the build -->
-			  <build>
-				<resources>
-				  <resource>
-					<filtering>false</filtering>
-					<directory>src/main/resources</directory>
-					<excludes>
-					  <exclude>application.yaml</exclude>
-					</excludes>
-				  </resource>
-				</resources>
+ 2.  Add the "buildImage" and "buildAndPushSyncService" profiles to sync-service/pom.xml
 
-				<plugins>
-				  <plugin>
-					<!-- Use the jib-maven-plugin to build the container and push it up to a registry [without having to install Docker] -->
-					<groupId>com.google.cloud.tools</groupId>
-					<artifactId>jib-maven-plugin</artifactId>
-					<version>3.4.4</version>
+    <profiles>
 
-					<executions>
-					  <execution>
-						<phase>package</phase>
-						<goals>
-						  <!-- Possible goals are build and dockerBuild   -->
-						  <!--   The "build"       goal does not require docker / build the image and push it to a repo                 -->
-						  <!--   The "dockerBuild" goal requires docker         / build the image and push to the local daemon daemon   -->
-						  <goal>build</goal>
-						</goals>
-					  </execution>
-					</executions>
+        <!--    B U I L D     I M A G E      P R O F I L E      (for running this app in a container)  -->
+        <profile>
+            <id>buildImage</id>
 
-					<configuration>
-					  <from>
-						<!-- Define the source image that will be executed            -->
-						<!-- See https://hub.docker.com/_/eclipse-temurin/tags        -->
+            <!-- When running this profile, do *NOT* include the src/main/resources/application.yaml in the build -->
+            <build>
+                <resources>
+                    <resource>
+                        <filtering>false</filtering>
+                        <directory>src/main/resources</directory>
+                        <excludes>
+                            <exclude>application.yaml</exclude>
+                        </excludes>
+                    </resource>
+                </resources>
 
-						<!-- This source image runs linux with JDK 17.07 -->
-						<image>eclipse-temurin:17.0.7_7-jdk@sha256:9dd6a19e4819b066aa2bd8e54d5988a49cca29736fe5447cb0a57daa975f8935</image>
-					  </from>
+                <plugins>
+                    <plugin>
+                        <!-- Use the jib-maven-plugin to build the container and push it up to a registry [without having to install Docker] -->
+                        <groupId>com.google.cloud.tools</groupId>
+                        <artifactId>jib-maven-plugin</artifactId>
+                        <version>3.4.4</version>
 
-					  <to>
-						<!-- Specify the destination name in the AWS Container Registry -->
-						<image>${aws.ecr.uri}:${aws.env.name}-${project.artifactId}-${project.version}</image>
-					  </to>
+                        <executions>
+                            <execution>
+                                <phase>package</phase>
+                                <goals>
+                                    <!-- Possible goals are build and dockerBuild   -->
+                                    <!--   The "build"       goal does not require docker / build the image and push it to a repo                 -->
+                                    <!--   The "dockerBuild" goal requires docker         / build the image and push to the local daemon daemon   -->
+                                    <goal>dockerBuild</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+
+                        <configuration>
+                            <from>
+                                <!-- This source image runs linux with JDK 17.07 -->
+                                <image>eclipse-temurin:17.0.7_7-jdk@sha256:9dd6a19e4819b066aa2bd8e54d5988a49cca29736fe5447cb0a57daa975f8935</image>
+                            </from>
+
+                            <to>
+                                <!-- Specify the destination name in the AWS Container Registry -->
+                                <image>${aws.ecr.uri}:${aws.env.name}-${project.artifactId}-${project.version}</image>
+                            </to>
 
 
-					  <extraDirectories>
-						<paths>
-						  <path>
-							<!-- Copies everything from 'src/main/image_resources' into '/sync-service-/src/main/image_resources' on the container. -->
-							<from>src/main/image_resources</from>
-							<into>/sync-service/src/main/image_resources</into>
-						  </path>
-						</paths>
-					  </extraDirectories>
+                            <extraDirectories>
+                                <paths>
+                                    <path>
+                                        <!-- Copies everything from 'src/main/image_resources' into '/sync-service-/src/main/image_resources' on the container. -->
+                                        <from>src/main/image_resources</from>
+                                        <into>/sync-service/src/main/image_resources</into>
+                                    </path>
+                                </paths>
+                            </extraDirectories>
 
-					  <container>
-						<jvmFlags>
-						  <!-- When starting the container, tell Java where to find the application.yaml -->
-						  <jvmFlag> -Dspring.config.location=/sync-service/src/main/image_resources/application.yaml</jvmFlag>
-						</jvmFlags>
-					  </container>
+                            <container>
+                                <jvmFlags>
+                                    <!-- When starting the container, tell Java where to find the application.yaml -->
+                                    <jvmFlag> -Dspring.config.location=/sync-service/src/main/image_resources/application.yaml</jvmFlag>
+                                </jvmFlags>
+                            </container>
 
-					</configuration>
+                        </configuration>
 
-				  </plugin>
-				</plugins>
-			  </build>
-			</profile>
-		</profiles>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+
+        <!--    B U I L D     I M A G E    A N D    P U S H       S Y N C    S E R V I C E      (for running this app in a container)  -->
+        <profile>
+            <id>buildAndPushSyncService</id>
+
+            <!-- When running this profile, do *NOT* include the src/main/resources/application.yaml in the build -->
+            <build>
+                <resources>
+                    <resource>
+                        <filtering>false</filtering>
+                        <directory>src/main/resources</directory>
+                        <excludes>
+                            <exclude>application.yaml</exclude>
+                        </excludes>
+                    </resource>
+                </resources>
+
+                <plugins>
+                    <plugin>
+                        <!-- Use the jib-maven-plugin to build the container and push it up to a registry [without having to install Docker] -->
+                        <groupId>com.google.cloud.tools</groupId>
+                        <artifactId>jib-maven-plugin</artifactId>
+                        <version>3.4.4</version>
+
+                        <executions>
+                            <execution>
+                                <phase>package</phase>
+                                <goals>
+                                    <!-- Possible goals are build and dockerBuild   -->
+                                    <!--   The "build"       goal does not require docker / build the image and push it to a repo                 -->
+                                    <!--   The "dockerBuild" goal requires docker         / build the image and push to the local daemon daemon   -->
+                                    <goal>build</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+
+                        <configuration>
+                            <from>
+                                <!-- Define the source image that will be executed            -->
+                                <!-- See https://hub.docker.com/_/eclipse-temurin/tags        -->
+
+                                <!-- This source image runs linux with JDK 17.07 -->
+                                <image>eclipse-temurin:17.0.7_7-jdk@sha256:9dd6a19e4819b066aa2bd8e54d5988a49cca29736fe5447cb0a57daa975f8935</image>
+                            </from>
+
+                            <to>
+                                <!-- Specify the destination name in the AWS Container Registry -->
+                                <image>${aws.ecr.uri}:${aws.env.name}-${project.artifactId}-${project.version}</image>
+                            </to>
+
+
+                            <extraDirectories>
+                                <paths>
+                                    <path>
+                                        <!-- Copies everything from 'src/main/image_resources' into '/sync-service-/src/main/image_resources' on the container. -->
+                                        <from>src/main/image_resources</from>
+                                        <into>/sync-service/src/main/image_resources</into>
+                                    </path>
+                                </paths>
+                            </extraDirectories>
+
+                            <container>
+                                <jvmFlags>
+                                    <!-- When starting the container, tell Java where to find the application.yaml -->
+                                    <jvmFlag> -Dspring.config.location=/sync-service/src/main/image_resources/application.yaml</jvmFlag>
+                                </jvmFlags>
+                            </container>
+
+                        </configuration>
+
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+
+        <!-- D E F A U L T       M A V E N      P R O F I L E -->
+        <profile>
+             <id>defaultProfile</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+
+            <!-- When running any other build profile, include *ALL* files from the sync/src/main/resources into the JAR file -->
+            <build>
+                <resources>
+                    <resource>
+                        <directory>src/main/resources</directory>
+                        <filtering>false</filtering>
+                    </resource>
+                </resources>
+            </build>
+        </profile>
+
+    </profiles>
+
+
 
 
 	When finished, the sync-service/pom.xml looks something like this
     -----------------------------------------------------------------
 	<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-             xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-        <modelVersion>4.0.0</modelVersion>
-        <parent>
-            <groupId>com.lessons</groupId>
-            <artifactId>angularApp16</artifactId>
-            <version>1.0-SNAPSHOT</version>
-        </parent>
-
-        <artifactId>sync-service</artifactId>
-        <name>sync-service</name>
-        <packaging>jar</packaging>
-
-
-
-        <dependencyManagement>
-            <dependencies>
-
-                <dependency>
-                    <!-- Tell Spring Boot to use this **OLDER** version of flyway that works with Postgres 9.6 -->
-                    <groupId>org.flywaydb</groupId>
-                    <artifactId>flyway-core</artifactId>
-                    <version>6.5.7</version>
-                </dependency>
-
-                <dependency>
-                    <!-- Set the Spring Boot Version -->
-                    <groupId>org.springframework.boot</groupId>
-                    <artifactId>spring-boot-dependencies</artifactId>
-                    <version>3.2.0</version>
-                    <type>pom</type>
-                    <scope>import</scope>
-                </dependency>
-
-            </dependencies>
-        </dependencyManagement>
-
-
-
-        <dependencies>
-            <dependency>
-                <!-- Spring Boot Console Application -->
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-starter</artifactId>
-            </dependency>
-
-            <dependency>
-                <!-- Tell Spring Boot to use this **OLDER** version of flyway that works with Postgres 9.6 -->
-                <groupId>org.flywaydb</groupId>
-                <artifactId>flyway-core</artifactId>
-                <version>6.5.7</version>
-            </dependency>
-
-            <dependency>
-                <!-- Hikari Data Source / JDBC Connection Pool -->
-                <groupId>com.zaxxer</groupId>
-                <artifactId>HikariCP</artifactId>
-                <version>5.0.1</version>
-            </dependency>
-
-            <dependency>
-                <!-- Database Driver that is used to by Java to talk to the SQL database -->
-                <groupId>org.postgresql</groupId>
-                <artifactId>postgresql</artifactId>
-                <version>42.5.4</version>
-            </dependency>
-
-            <dependency>
-                <!-- Send logging from Java Common Logging to SLF4J -->
-                <groupId>org.slf4j</groupId>
-                <artifactId>jcl-over-slf4j</artifactId>
-                <version>2.0.5</version>
-            </dependency>
-
-            <dependency>
-                <!-- SLF4J will use Logback-classic as its logging implementation -->
-                <groupId>ch.qos.logback</groupId>
-                <artifactId>logback-classic</artifactId>
-                <version>1.4.11</version>
-            </dependency>
-
-            <dependency>
-                <!-- Add the dependency for the SSLContextFactory's use of DatatypeConverter -->
-                <!-- This ensures that SSLContextFactory will compile with Java 17           -->
-                <groupId>jakarta.xml.bind</groupId>
-                <artifactId>jakarta.xml.bind-api</artifactId>
-                <version>3.0.0</version>
-            </dependency>
-
-            <dependency>
-                <!-- StringUtils Dependency -->
-                <groupId>org.apache.commons</groupId>
-                <artifactId>commons-lang3</artifactId>
-                <version>3.14.0</version>
-            </dependency>
-
-            <dependency>
-                <groupId>org.apache.commons</groupId>
-                <artifactId>commons-collections4</artifactId>
-                <version>4.4</version>
-            </dependency>
-
-            <dependency>
-                <groupId>org.springframework</groupId>
-                <artifactId>spring-jdbc</artifactId>
-                <version>6.1.2</version>
-            </dependency>
-
-            <dependency>
-                <!-- AsyncHttpClient Client implementation (used to make outgoing REST calls out to ES) -->
-                <groupId>com.ning</groupId>
-                <artifactId>async-http-client</artifactId>
-                <version>1.9.40</version>
-            </dependency>
-
-            <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
-                <artifactId>jackson-core</artifactId>
-                <version>2.15.3</version>
-            </dependency>
-            <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
-                <artifactId>jackson-databind</artifactId>
-                <version>2.15.3</version>
-            </dependency>
-            <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
-                <artifactId>jackson-annotations</artifactId>
-                <version>2.15.3</version>
-            </dependency>
-
-            <dependency>
-                <!-- Add the javax.mail email library (so this webapp can send out emails by connecting to an SMTP server) -->
-                <groupId>com.sun.mail</groupId>
-                <artifactId>javax.mail</artifactId>
-                <version>1.6.2</version>
-            </dependency>
-
-            <dependency>
-                <!-- Add common backend as a dependency -->
-                <groupId>${project.groupId}</groupId>
-                <artifactId>common-backend</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-
-            <dependency>
-                <!-- Include the db-migrations as a dependency (so we can run flyway:migrate on application startup) -->
-                <groupId>${project.groupId}</groupId>
-                <artifactId>db-migrations</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>junit</groupId>
-                <artifactId>junit</artifactId>
-                <version>3.8.1</version>
-                <scope>test</scope>
-            </dependency>
-
-            <dependency>
-                <groupId>software.amazon.awssdk</groupId>
-                <artifactId>s3</artifactId>
-                <version>2.24.6</version>
-            </dependency>
-
-            <!-- This is required for the AWS SDK to be able to assume the service account permissions of the Kubernetes pod -->
-            <dependency>
-                <groupId>software.amazon.awssdk</groupId>
-                <artifactId>sts</artifactId>
-                <version>2.24.6</version>
-            </dependency>
-
-        </dependencies>
-
-        <build>
-
-            <plugins>
-                <plugin>
-                    <!-- This plugin provides the tools needed to repackage the Spring Boot JAR into a runnable JAR
-                         Run this command to generate the runnable Spring Boot Jar
-                            mvn clean package  *or*
-                            mvn clean package spring-boot:repackage
-                     -->
-                    <groupId>org.springframework.boot</groupId>
-                    <artifactId>spring-boot-maven-plugin</artifactId>
-                    <version>3.2.0</version>
-                    <configuration>
-                        <addResources>true</addResources>
-                    </configuration>
-
-                    <executions>
-                        <execution>
-                            <goals>
-                                <goal>repackage</goal>
-                            </goals>
-                            <configuration>
-                                <classifier>exec</classifier>
-                            </configuration>
-                        </execution>
-                    </executions>
-
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-compiler-plugin</artifactId>
-                    <configuration>
-                        <source>17</source>
-                        <target>17</target>
-                    </configuration>
-                </plugin>
-
-
-                <plugin>
-                    <!-- Use the git-commit-id plugin to generate the git.properties file that has info about who compiled the app  -->
-                    <!-- See https://github.com/git-commit-id/git-commit-id-maven-plugin                                            -->
-                    <groupId>io.github.git-commit-id</groupId>
-                    <artifactId>git-commit-id-maven-plugin</artifactId>
-                    <version>7.0.0</version>
-
-                    <executions>
-                        <execution>
-                            <id>get-the-git-infos</id>
-                            <goals>
-                                <goal>revision</goal>
-                            </goals>
-                        </execution>
-                        <execution>
-                            <id>validate-the-git-infos</id>
-                            <goals>
-                                <goal>validateRevision</goal>
-                            </goals>
-                        </execution>
-                    </executions>
-
-                    <configuration>
-                        <verbose>false</verbose>
-                        <generateGitPropertiesFile>true</generateGitPropertiesFile>
-                    </configuration>
-                </plugin>
-
-            </plugins>
-        </build>
-
-        <profiles>
-
-            <!--    B U I L D     I M A G E      P R O F I L E      (for running this app in a container)  -->
-            <profile>
-                <id>buildImage</id>
-
-                <!-- When running this profile, do *NOT* include the src/main/resources/application.yaml in the build -->
-                <build>
-                    <resources>
-                        <resource>
-                            <filtering>false</filtering>
-                            <directory>src/main/resources</directory>
-                            <excludes>
-                                <exclude>application.yaml</exclude>
-                            </excludes>
-                        </resource>
-                    </resources>
-
-                    <plugins>
-                        <plugin>
-                            <!-- Use the jib-maven-plugin to build the container and push it up to a registry [without having to install Docker] -->
-                            <groupId>com.google.cloud.tools</groupId>
-                            <artifactId>jib-maven-plugin</artifactId>
-                            <version>3.4.4</version>
-
-                            <executions>
-                                <execution>
-                                    <phase>package</phase>
-                                    <goals>
-                                        <!-- Possible goals are build and dockerBuild   -->
-                                        <!--   The "build"       goal does not require docker / build the image and push it to a repo                 -->
-                                        <!--   The "dockerBuild" goal requires docker         / build the image and push to the local daemon daemon   -->
-                                        <goal>dockerBuild</goal>
-                                    </goals>
-                                </execution>
-                            </executions>
-
-                            <configuration>
-                                <from>
-                                    <!-- This source image runs linux with JDK 17.07 -->
-                                    <image>eclipse-temurin:17.0.7_7-jdk@sha256:9dd6a19e4819b066aa2bd8e54d5988a49cca29736fe5447cb0a57daa975f8935</image>
-                                </from>
-
-                                <to>
-                                    <!-- Specify the destination name in the AWS Container Registry -->
-                                    <image>${aws.ecr.uri}:${aws.env.name}-${project.artifactId}-${project.version}</image>
-                                </to>
-
-
-                                <extraDirectories>
-                                    <paths>
-                                        <path>
-                                            <!-- Copies everything from 'src/main/image_resources' into '/sync-service-/src/main/image_resources' on the container. -->
-                                            <from>src/main/image_resources</from>
-                                            <into>/sync-service/src/main/image_resources</into>
-                                        </path>
-                                    </paths>
-                                </extraDirectories>
-
-                                <container>
-                                    <jvmFlags>
-                                        <!-- When starting the container, tell Java where to find the application.yaml -->
-                                        <jvmFlag> -Dspring.config.location=/sync-service/src/main/image_resources/application.yaml</jvmFlag>
-                                    </jvmFlags>
-                                </container>
-
-                            </configuration>
-
-                        </plugin>
-                    </plugins>
-                </build>
-            </profile>
-
-
-            <!--    B U I L D     I M A G E    A N D    P U S H        P R O F I L E      (for running this app in a container)  -->
-            <profile>
-                <id>buildImageAndPush</id>
-
-                <!-- When running this profile, do *NOT* include the src/main/resources/application.yaml in the build -->
-                <build>
-                    <resources>
-                        <resource>
-                            <filtering>false</filtering>
-                            <directory>src/main/resources</directory>
-                            <excludes>
-                                <exclude>application.yaml</exclude>
-                            </excludes>
-                        </resource>
-                    </resources>
-
-                    <plugins>
-                        <plugin>
-                            <!-- Use the jib-maven-plugin to build the container and push it up to a registry [without having to install Docker] -->
-                            <groupId>com.google.cloud.tools</groupId>
-                            <artifactId>jib-maven-plugin</artifactId>
-                            <version>3.4.4</version>
-
-                            <executions>
-                                <execution>
-                                    <phase>package</phase>
-                                    <goals>
-                                        <!-- Possible goals are build and dockerBuild   -->
-                                        <!--   The "build"       goal does not require docker / build the image and push it to a repo                 -->
-                                        <!--   The "dockerBuild" goal requires docker         / build the image and push to the local daemon daemon   -->
-                                        <goal>build</goal>
-                                    </goals>
-                                </execution>
-                            </executions>
-
-                            <configuration>
-                                <from>
-                                    <!-- Define the source image that will be executed            -->
-                                    <!-- See https://hub.docker.com/_/eclipse-temurin/tags        -->
-
-                                    <!-- This source image runs linux with JDK 17.07 -->
-                                    <image>eclipse-temurin:17.0.7_7-jdk@sha256:9dd6a19e4819b066aa2bd8e54d5988a49cca29736fe5447cb0a57daa975f8935</image>
-                                </from>
-
-                                <to>
-                                    <!-- Specify the destination name in the AWS Container Registry -->
-                                    <image>${aws.ecr.uri}:${user.name}-${project.artifactId}-${project.version}</image>
-                                </to>
-
-
-                                <extraDirectories>
-                                    <paths>
-                                        <path>
-                                            <!-- Copies everything from 'src/main/image_resources' into '/sync-service-/src/main/image_resources' on the container. -->
-                                            <from>src/main/image_resources</from>
-                                            <into>/sync-service/src/main/image_resources</into>
-                                        </path>
-                                    </paths>
-                                </extraDirectories>
-
-                                <container>
-                                    <jvmFlags>
-                                        <!-- When starting the container, tell Java where to find the application.yaml -->
-                                        <jvmFlag> -Dspring.config.location=/sync-service/src/main/image_resources/application.yaml</jvmFlag>
-                                    </jvmFlags>
-                                </container>
-
-                            </configuration>
-
-                        </plugin>
-                    </plugins>
-                </build>
-            </profile>
-
-
-            <profile>
-                <!-- D E F A U L T       M A V E N      P R O F I L E -->
-                <id>defaultProfile</id>
-                <activation>
-                    <activeByDefault>true</activeByDefault>
-                </activation>
-
-                <!-- When running any other build profile, include *ALL* files from the sync/src/main/resources into the JAR file -->
-                <build>
-                    <resources>
-                        <resource>
-                            <directory>src/main/resources</directory>
-                            <filtering>false</filtering>
-                        </resource>
-                    </resources>
-                </build>
-            </profile>
-
-        </profiles>
-
-
-    </project>
-
-
-
-
- 2.  Add the "buildImage" and "buildImageAndPush" profiles to backend/pom.xml
+			 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+		<modelVersion>4.0.0</modelVersion>
+		<parent>
+			<groupId>com.lessons</groupId>
+			<artifactId>angularApp16</artifactId>
+			<version>1.0-SNAPSHOT</version>
+		</parent>
+
+		<artifactId>sync-service</artifactId>
+		<name>sync-service</name>
+		<packaging>jar</packaging>
+
+
+
+		<dependencyManagement>
+			<dependencies>
+
+				<dependency>
+					<!-- Tell Spring Boot to use this **OLDER** version of flyway that works with Postgres 9.6 -->
+					<groupId>org.flywaydb</groupId>
+					<artifactId>flyway-core</artifactId>
+					<version>6.5.7</version>
+				</dependency>
+
+				<dependency>
+					<!-- Set the Spring Boot Version -->
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-dependencies</artifactId>
+					<version>3.2.0</version>
+					<type>pom</type>
+					<scope>import</scope>
+				</dependency>
+
+			</dependencies>
+		</dependencyManagement>
+
+
+
+		<dependencies>
+			<dependency>
+				<!-- Spring Boot Console Application -->
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-starter</artifactId>
+			</dependency>
+
+			<dependency>
+				<!-- Tell Spring Boot to use this **OLDER** version of flyway that works with Postgres 9.6 -->
+				<groupId>org.flywaydb</groupId>
+				<artifactId>flyway-core</artifactId>
+				<version>6.5.7</version>
+			</dependency>
+
+			<dependency>
+				<!-- Hikari Data Source / JDBC Connection Pool -->
+				<groupId>com.zaxxer</groupId>
+				<artifactId>HikariCP</artifactId>
+				<version>5.0.1</version>
+			</dependency>
+
+			<dependency>
+				<!-- Database Driver that is used to by Java to talk to the SQL database -->
+				<groupId>org.postgresql</groupId>
+				<artifactId>postgresql</artifactId>
+				<version>42.5.4</version>
+			</dependency>
+
+			<dependency>
+				<!-- Send logging from Java Common Logging to SLF4J -->
+				<groupId>org.slf4j</groupId>
+				<artifactId>jcl-over-slf4j</artifactId>
+				<version>2.0.5</version>
+			</dependency>
+
+			<dependency>
+				<!-- SLF4J will use Logback-classic as its logging implementation -->
+				<groupId>ch.qos.logback</groupId>
+				<artifactId>logback-classic</artifactId>
+				<version>1.4.11</version>
+			</dependency>
+
+			<dependency>
+				<!-- Add the dependency for the SSLContextFactory's use of DatatypeConverter -->
+				<!-- This ensures that SSLContextFactory will compile with Java 17           -->
+				<groupId>jakarta.xml.bind</groupId>
+				<artifactId>jakarta.xml.bind-api</artifactId>
+				<version>3.0.0</version>
+			</dependency>
+
+			<dependency>
+				<!-- StringUtils Dependency -->
+				<groupId>org.apache.commons</groupId>
+				<artifactId>commons-lang3</artifactId>
+				<version>3.14.0</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.commons</groupId>
+				<artifactId>commons-collections4</artifactId>
+				<version>4.4</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.springframework</groupId>
+				<artifactId>spring-jdbc</artifactId>
+				<version>6.1.2</version>
+			</dependency>
+
+			<dependency>
+				<!-- AsyncHttpClient Client implementation (used to make outgoing REST calls out to ES) -->
+				<groupId>com.ning</groupId>
+				<artifactId>async-http-client</artifactId>
+				<version>1.9.40</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-core</artifactId>
+				<version>2.15.3</version>
+			</dependency>
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-databind</artifactId>
+				<version>2.15.3</version>
+			</dependency>
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-annotations</artifactId>
+				<version>2.15.3</version>
+			</dependency>
+
+			<dependency>
+				<!-- Add the javax.mail email library (so this webapp can send out emails by connecting to an SMTP server) -->
+				<groupId>com.sun.mail</groupId>
+				<artifactId>javax.mail</artifactId>
+				<version>1.6.2</version>
+			</dependency>
+
+			<dependency>
+				<!-- Add common backend as a dependency -->
+				<groupId>${project.groupId}</groupId>
+				<artifactId>common-backend</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+
+			<dependency>
+				<!-- Include the db-migrations as a dependency (so we can run flyway:migrate on application startup) -->
+				<groupId>${project.groupId}</groupId>
+				<artifactId>db-migrations</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>junit</groupId>
+				<artifactId>junit</artifactId>
+				<version>3.8.1</version>
+				<scope>test</scope>
+			</dependency>
+
+			<dependency>
+				<groupId>software.amazon.awssdk</groupId>
+				<artifactId>s3</artifactId>
+				<version>2.24.6</version>
+			</dependency>
+
+			<!-- This is required for the AWS SDK to be able to assume the service account permissions of the Kubernetes pod -->
+			<dependency>
+				<groupId>software.amazon.awssdk</groupId>
+				<artifactId>sts</artifactId>
+				<version>2.24.6</version>
+			</dependency>
+
+		</dependencies>
+
+		<build>
+
+			<plugins>
+				<plugin>
+					<!-- This plugin provides the tools needed to repackage the Spring Boot JAR into a runnable JAR
+						 Run this command to generate the runnable Spring Boot Jar
+							mvn clean package  *or*
+							mvn clean package spring-boot:repackage
+					 -->
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-maven-plugin</artifactId>
+					<version>3.2.0</version>
+					<configuration>
+						<addResources>true</addResources>
+					</configuration>
+
+					<executions>
+						<execution>
+							<goals>
+								<goal>repackage</goal>
+							</goals>
+							<configuration>
+								<classifier>exec</classifier>
+							</configuration>
+						</execution>
+					</executions>
+
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-compiler-plugin</artifactId>
+					<configuration>
+						<source>17</source>
+						<target>17</target>
+					</configuration>
+				</plugin>
+
+
+				<plugin>
+					<!-- Use the git-commit-id plugin to generate the git.properties file that has info about who compiled the app  -->
+					<!-- See https://github.com/git-commit-id/git-commit-id-maven-plugin                                            -->
+					<groupId>io.github.git-commit-id</groupId>
+					<artifactId>git-commit-id-maven-plugin</artifactId>
+					<version>7.0.0</version>
+
+					<executions>
+						<execution>
+							<id>get-the-git-infos</id>
+							<goals>
+								<goal>revision</goal>
+							</goals>
+						</execution>
+						<execution>
+							<id>validate-the-git-infos</id>
+							<goals>
+								<goal>validateRevision</goal>
+							</goals>
+						</execution>
+					</executions>
+
+					<configuration>
+						<verbose>false</verbose>
+						<generateGitPropertiesFile>true</generateGitPropertiesFile>
+					</configuration>
+				</plugin>
+
+			</plugins>
+		</build>
 
 		<profiles>
 
 			<!--    B U I L D     I M A G E      P R O F I L E      (for running this app in a container)  -->
 			<profile>
-			  <id>buildImage</id>
+				<id>buildImage</id>
 
-			  <!-- When running this profile, do *NOT* include the src/main/resources/application.yaml in the build -->
-			  <build>
-				<resources>
-				  <resource>
-					<filtering>false</filtering>
-					<directory>src/main/resources</directory>
-					<excludes>
-					  <exclude>application.yaml</exclude>
-					</excludes>
-				  </resource>
-				</resources>
+				<!-- When running this profile, do *NOT* include the src/main/resources/application.yaml in the build -->
+				<build>
+					<resources>
+						<resource>
+							<filtering>false</filtering>
+							<directory>src/main/resources</directory>
+							<excludes>
+								<exclude>application.yaml</exclude>
+							</excludes>
+						</resource>
+					</resources>
 
-				<plugins>
-				  <plugin>
-					<!-- Use the jib-maven-plugin to build the container and push it up to a registry [without having to install Docker] -->
-					<groupId>com.google.cloud.tools</groupId>
-					<artifactId>jib-maven-plugin</artifactId>
-					<version>3.4.4</version>
+					<plugins>
+						<plugin>
+							<!-- Use the jib-maven-plugin to build the container and push it up to a registry [without having to install Docker] -->
+							<groupId>com.google.cloud.tools</groupId>
+							<artifactId>jib-maven-plugin</artifactId>
+							<version>3.4.4</version>
 
-					<executions>
-					  <execution>
-						<phase>package</phase>
-						<goals>
-						  <!-- Possible goals are build and dockerBuild   -->
-						  <!--   The "build"       goal does not require docker / build the image and push it to a repo                 -->
-						  <!--   The "dockerBuild" goal requires docker         / build the image and push to the local daemon daemon   -->
-						  <goal>dockerBuild</goal>
-						</goals>
-					  </execution>
-					</executions>
+							<executions>
+								<execution>
+									<phase>package</phase>
+									<goals>
+										<!-- Possible goals are build and dockerBuild   -->
+										<!--   The "build"       goal does not require docker / build the image and push it to a repo                 -->
+										<!--   The "dockerBuild" goal requires docker         / build the image and push to the local daemon daemon   -->
+										<goal>dockerBuild</goal>
+									</goals>
+								</execution>
+							</executions>
 
-					<configuration>
-					  <from>
-						<!-- Define the source image that will be executed            -->
-						<!-- See https://hub.docker.com/_/eclipse-temurin/tags        -->
+							<configuration>
+								<from>
+									<!-- This source image runs linux with JDK 17.07 -->
+									<image>eclipse-temurin:17.0.7_7-jdk@sha256:9dd6a19e4819b066aa2bd8e54d5988a49cca29736fe5447cb0a57daa975f8935</image>
+								</from>
 
-						<!-- This source image runs linux with JDK 17.07 -->
-						<image>eclipse-temurin:17.0.7_7-jdk@sha256:9dd6a19e4819b066aa2bd8e54d5988a49cca29736fe5447cb0a57daa975f8935</image>
-					  </from>
-
-					  <to>
-						<!-- Specify the destination name in the AWS Container Registry -->
-						<image>${aws.ecr.uri}:${aws.env.name}-${project.artifactId}-${project.version}</image>
-					  </to>
+								<to>
+									<!-- Specify the destination name in the AWS Container Registry -->
+									<image>${aws.ecr.uri}:${aws.env.name}-${project.artifactId}-${project.version}</image>
+								</to>
 
 
-					  <extraDirectories>
-						<paths>
-						  <path>
-							<!-- Copies everything from 'src/main/image_resources' into '/sync-service-/src/main/image_resources' on the container. -->
-							<from>src/main/image_resources</from>
-							<into>/backend/src/main/image_resources</into>
-						  </path>
-						</paths>
-					  </extraDirectories>
+								<extraDirectories>
+									<paths>
+										<path>
+											<!-- Copies everything from 'src/main/image_resources' into '/sync-service-/src/main/image_resources' on the container. -->
+											<from>src/main/image_resources</from>
+											<into>/sync-service/src/main/image_resources</into>
+										</path>
+									</paths>
+								</extraDirectories>
 
-					  <container>
-						<jvmFlags>
-						  <!-- When starting the container, tell Java where to find the application.yaml -->
-						  <jvmFlag> -Dspring.config.location=/backend/src/main/image_resources/application.yaml</jvmFlag>
-						</jvmFlags>
-					  </container>
+								<container>
+									<jvmFlags>
+										<!-- When starting the container, tell Java where to find the application.yaml -->
+										<jvmFlag> -Dspring.config.location=/sync-service/src/main/image_resources/application.yaml</jvmFlag>
+									</jvmFlags>
+								</container>
 
-					</configuration>
+							</configuration>
 
-				  </plugin>
-				</plugins>
-			  </build>
+						</plugin>
+					</plugins>
+				</build>
 			</profile>
 
 
-
-
-			<!--    B U I L D     I M A G E    A N D     P U S H       P R O F I L E      (for running this app in a container)  -->
+			<!--    B U I L D     I M A G E    A N D    P U S H       S Y N C    S E R V I C E      (for running this app in a container)  -->
 			<profile>
-			  <id>buildImageAndPush</id>
+				<id>buildAndPushSyncService</id>
 
-			  <!-- When running this profile, do *NOT* include the src/main/resources/application.yaml in the build -->
-			  <build>
-				<resources>
-				  <resource>
-					<filtering>false</filtering>
-					<directory>src/main/resources</directory>
-					<excludes>
-					  <exclude>application.yaml</exclude>
-					</excludes>
-				  </resource>
-				</resources>
+				<!-- When running this profile, do *NOT* include the src/main/resources/application.yaml in the build -->
+				<build>
+					<resources>
+						<resource>
+							<filtering>false</filtering>
+							<directory>src/main/resources</directory>
+							<excludes>
+								<exclude>application.yaml</exclude>
+							</excludes>
+						</resource>
+					</resources>
 
-				<plugins>
-				  <plugin>
-					<!-- Use the jib-maven-plugin to build the container and push it up to a registry [without having to install Docker] -->
-					<groupId>com.google.cloud.tools</groupId>
-					<artifactId>jib-maven-plugin</artifactId>
-					<version>3.4.4</version>
+					<plugins>
+						<plugin>
+							<!-- Use the jib-maven-plugin to build the container and push it up to a registry [without having to install Docker] -->
+							<groupId>com.google.cloud.tools</groupId>
+							<artifactId>jib-maven-plugin</artifactId>
+							<version>3.4.4</version>
 
-					<executions>
-					  <execution>
-						<phase>package</phase>
-						<goals>
-						  <!-- Possible goals are build and dockerBuild   -->
-						  <!--   The "build"       goal does not require docker / build the image and push it to a repo                 -->
-						  <!--   The "dockerBuild" goal requires docker         / build the image and push to the local daemon daemon   -->
-						  <goal>build</goal>
-						</goals>
-					  </execution>
-					</executions>
+							<executions>
+								<execution>
+									<phase>package</phase>
+									<goals>
+										<!-- Possible goals are build and dockerBuild   -->
+										<!--   The "build"       goal does not require docker / build the image and push it to a repo                 -->
+										<!--   The "dockerBuild" goal requires docker         / build the image and push to the local daemon daemon   -->
+										<goal>build</goal>
+									</goals>
+								</execution>
+							</executions>
 
-					<configuration>
-					  <from>
-						<!-- Define the source image that will be executed            -->
-						<!-- See https://hub.docker.com/_/eclipse-temurin/tags        -->
+							<configuration>
+								<from>
+									<!-- Define the source image that will be executed            -->
+									<!-- See https://hub.docker.com/_/eclipse-temurin/tags        -->
 
-						<!-- This source image runs linux with JDK 17.07 -->
-						<image>eclipse-temurin:17.0.7_7-jdk@sha256:9dd6a19e4819b066aa2bd8e54d5988a49cca29736fe5447cb0a57daa975f8935</image>
-					  </from>
+									<!-- This source image runs linux with JDK 17.07 -->
+									<image>eclipse-temurin:17.0.7_7-jdk@sha256:9dd6a19e4819b066aa2bd8e54d5988a49cca29736fe5447cb0a57daa975f8935</image>
+								</from>
 
-					  <to>
-						<!-- Specify the destination name in the AWS Container Registry -->
-						<image>${aws.ecr.uri}:${aws.env.name}-${project.artifactId}-${project.version}</image>
-					  </to>
+								<to>
+									<!-- Specify the destination name in the AWS Container Registry -->
+									<image>${aws.ecr.uri}:${aws.env.name}-${project.artifactId}-${project.version}</image>
+								</to>
 
 
-					  <extraDirectories>
-						<paths>
-						  <path>
-							<!-- Copies everything from 'src/main/image_resources' into '/sync-service-/src/main/image_resources' on the container. -->
-							<from>src/main/image_resources</from>
-							<into>/backend/src/main/image_resources</into>
-						  </path>
-						</paths>
-					  </extraDirectories>
+								<extraDirectories>
+									<paths>
+										<path>
+											<!-- Copies everything from 'src/main/image_resources' into '/sync-service-/src/main/image_resources' on the container. -->
+											<from>src/main/image_resources</from>
+											<into>/sync-service/src/main/image_resources</into>
+										</path>
+									</paths>
+								</extraDirectories>
 
-					  <container>
-						<jvmFlags>
-						  <!-- When starting the container, tell Java where to find the application.yaml -->
-						  <jvmFlag> -Dspring.config.location=/backend/src/main/image_resources/application.yaml</jvmFlag>
-						</jvmFlags>
-					  </container>
+								<container>
+									<jvmFlags>
+										<!-- When starting the container, tell Java where to find the application.yaml -->
+										<jvmFlag> -Dspring.config.location=/sync-service/src/main/image_resources/application.yaml</jvmFlag>
+									</jvmFlags>
+								</container>
 
-					</configuration>
+							</configuration>
 
-				  </plugin>
-				</plugins>
-			  </build>
+						</plugin>
+					</plugins>
+				</build>
 			</profile>
 
+
+			<!-- D E F A U L T       M A V E N      P R O F I L E -->
 			<profile>
-			  <!-- When running any other build profile, include *ALL* files from the backend/src/main/resources into the JAR file -->
-			  <id>defaultProfile</id>
-			  <activation>
-				<activeByDefault>true</activeByDefault>
-			  </activation>
-			  <build>
-				<resources>
-				  <resource>
-					<directory>src/main/resources</directory>
-					<filtering>true</filtering>
-				  </resource>
-				</resources>
-			  </build>
+				 <id>defaultProfile</id>
+				<activation>
+					<activeByDefault>true</activeByDefault>
+				</activation>
+
+				<!-- When running any other build profile, include *ALL* files from the sync/src/main/resources into the JAR file -->
+				<build>
+					<resources>
+						<resource>
+							<directory>src/main/resources</directory>
+							<filtering>false</filtering>
+						</resource>
+					</resources>
+				</build>
 			</profile>
+
 		</profiles>
+
+
+	</project>
+
+
+
+
+ 2.  Add the "buildImage" and "buildAndPushImage" profiles to backend/pom.xml
+
+		    <!--    B U I L D     I M A G E      P R O F I L E      (for running this app in a container)  -->
+            <profile>
+              <id>buildImage</id>
+
+              <!-- When running this profile, do *NOT* include the src/main/resources/application.yaml in the build -->
+              <build>
+                <resources>
+                  <resource>
+                    <filtering>false</filtering>
+                    <directory>src/main/resources</directory>
+                    <excludes>
+                      <exclude>application.yaml</exclude>
+                    </excludes>
+                  </resource>
+                </resources>
+
+                <plugins>
+                  <plugin>
+                    <!-- Use the jib-maven-plugin to build the container and push it up to a registry [without having to install Docker] -->
+                    <groupId>com.google.cloud.tools</groupId>
+                    <artifactId>jib-maven-plugin</artifactId>
+                    <version>3.4.4</version>
+
+                    <executions>
+                      <execution>
+                        <phase>package</phase>
+                        <goals>
+                          <!-- Possible goals are build and dockerBuild   -->
+                          <!--   The "build"       goal does not require docker / build the image and push it to a repo                 -->
+                          <!--   The "dockerBuild" goal requires docker         / build the image and push to the local daemon daemon   -->
+                          <goal>dockerBuild</goal>
+                        </goals>
+                      </execution>
+                    </executions>
+
+                    <configuration>
+                      <from>
+                        <!-- Define the source image that will be executed            -->
+                        <!-- See https://hub.docker.com/_/eclipse-temurin/tags        -->
+
+                        <!-- This source image runs linux with JDK 17.07 -->
+                        <image>eclipse-temurin:17.0.7_7-jdk@sha256:9dd6a19e4819b066aa2bd8e54d5988a49cca29736fe5447cb0a57daa975f8935</image>
+                      </from>
+
+                      <to>
+                        <!-- Specify the destination name in the AWS Container Registry -->
+                        <image>${aws.ecr.uri}:${aws.env.name}-${project.artifactId}-${project.version}</image>
+                      </to>
+
+
+                      <extraDirectories>
+                        <paths>
+                          <path>
+                            <!-- Copies everything from 'src/main/image_resources' into '/sync-service-/src/main/image_resources' on the container. -->
+                            <from>src/main/image_resources</from>
+                            <into>/backend/src/main/image_resources</into>
+                          </path>
+                        </paths>
+                      </extraDirectories>
+
+                      <container>
+                        <jvmFlags>
+                          <!-- When starting the container, tell Java where to find the application.yaml -->
+                          <jvmFlag> -Dspring.config.location=/backend/src/main/image_resources/application.yaml</jvmFlag>
+                        </jvmFlags>
+                      </container>
+
+                    </configuration>
+
+                  </plugin>
+                </plugins>
+              </build>
+            </profile>
+
+
+            <!--    B U I L D     I M A G E    A N D     P U S H       P R O F I L E      (for running this app in a container)  -->
+            <profile>
+              <id>buildAndPushImage</id>
+
+              <!-- When running this profile, do *NOT* include the src/main/resources/application.yaml in the build -->
+              <build>
+                <resources>
+                  <resource>
+                    <filtering>false</filtering>
+                    <directory>src/main/resources</directory>
+                    <excludes>
+                      <exclude>application.yaml</exclude>
+                    </excludes>
+                  </resource>
+                </resources>
+
+                <plugins>
+                  <plugin>
+                    <!-- Use the jib-maven-plugin to build the container and push it up to a registry [without having to install Docker] -->
+                    <groupId>com.google.cloud.tools</groupId>
+                    <artifactId>jib-maven-plugin</artifactId>
+                    <version>3.4.4</version>
+
+                    <executions>
+                      <execution>
+                        <phase>package</phase>
+                        <goals>
+                          <!-- Possible goals are build and dockerBuild   -->
+                          <!--   The "build"       goal does not require docker / build the image and push it to a repo                 -->
+                          <!--   The "dockerBuild" goal requires docker         / build the image and push to the local daemon daemon   -->
+                          <goal>build</goal>
+                        </goals>
+                      </execution>
+                    </executions>
+
+                    <configuration>
+                      <from>
+                        <!-- Define the source image that will be executed            -->
+                        <!-- See https://hub.docker.com/_/eclipse-temurin/tags        -->
+
+                        <!-- This source image runs linux with JDK 17.07 -->
+                        <image>eclipse-temurin:17.0.7_7-jdk@sha256:9dd6a19e4819b066aa2bd8e54d5988a49cca29736fe5447cb0a57daa975f8935</image>
+                      </from>
+
+                      <to>
+                        <!-- Specify the destination name in the AWS Container Registry -->
+                        <image>${aws.ecr.uri}:${aws.env.name}-${project.artifactId}-${project.version}</image>
+                      </to>
+
+
+                      <extraDirectories>
+                        <paths>
+                          <path>
+                            <!-- Copies everything from 'src/main/image_resources' into '/sync-service-/src/main/image_resources' on the container. -->
+                            <from>src/main/image_resources</from>
+                            <into>/backend/src/main/image_resources</into>
+                          </path>
+                        </paths>
+                      </extraDirectories>
+
+                      <container>
+                        <jvmFlags>
+                          <!-- When starting the container, tell Java where to find the application.yaml -->
+                          <jvmFlag> -Dspring.config.location=/backend/src/main/image_resources/application.yaml</jvmFlag>
+                        </jvmFlags>
+                      </container>
+
+                    </configuration>
+
+                  </plugin>
+                </plugins>
+              </build>
+            </profile>
+
+
+            <!--    D E F A U L T       P R O F I L E     (include all files from backend/src/main/resources into the JAR file -->
+            <profile>
+              <id>defaultProfile</id>
+              <activation>
+                <activeByDefault>true</activeByDefault>
+              </activation>
+              <build>
+                <resources>
+                  <resource>
+                    <directory>src/main/resources</directory>
+                    <filtering>true</filtering>
+                  </resource>
+                </resources>
+              </build>
+            </profile>
 
 
 
@@ -809,530 +859,527 @@ Part 1 / Configure maven so that we can build using buildImage or buildImageAndP
 	When finished, the backend/pom.xml looks something like this
 	------------------------------------------------------------
 	<?xml version="1.0" encoding="UTF-8"?>
-	<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-			 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-	  <modelVersion>4.0.0</modelVersion>
-
-	  <parent>
-		<artifactId>angularApp16</artifactId>
-		<groupId>com.lessons</groupId>
-		<version>1.0-SNAPSHOT</version>
-	  </parent>
-
-	  <artifactId>backend</artifactId>
-	  <version>1.0-SNAPSHOT</version>
-
-	  <name>backend</name>
-	  <packaging>jar</packaging>
-
-
-
-	  <dependencyManagement>
-		<dependencies>
-
-		  <dependency>
-			<!-- Set the Spring Boot Version -->
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-dependencies</artifactId>
-			<version>3.2.0</version>
-			<type>pom</type>
-			<scope>import</scope>
-		  </dependency>
-
-		</dependencies>
-	  </dependencyManagement>
-
-
-
-
-	  <dependencies>
-
-		<dependency>
-		  <!-- Include the front-end as a dependency so the front-end is compiled *BEFORE* the backend is compiled -->
-		  <groupId>${project.groupId}</groupId>
-		  <artifactId>frontend</artifactId>
-		  <version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-		  <!-- Spring Boot Web -->
-		  <groupId>org.springframework.boot</groupId>
-		  <artifactId>spring-boot-starter-web</artifactId>
-
-		  <exclusions>
-			<exclusion>
-			  <!-- Remove Tomcat from Spring Boot -->
-			  <groupId>org.springframework.boot</groupId>
-			  <artifactId>spring-boot-starter-tomcat</artifactId>
-			</exclusion>
-
-			<exclusion>
-			  <!-- Remove logging from spring as we will use logback -->
-			  <groupId>org.springframework.boot</groupId>
-			  <artifactId>spring-boot-starter-logging</artifactId>
-			</exclusion>
-		  </exclusions>
-		</dependency>
-
-		<dependency>
-		  <!-- Add Dependency for the Undertow App Server -->
-		  <groupId>org.springframework.boot</groupId>
-		  <artifactId>spring-boot-starter-undertow</artifactId>
-
-		  <exclusions>
-			<exclusion>
-			  <!-- Remove logging from undertow as we will use logback -->
-			  <groupId>org.springframework.boot</groupId>
-			  <artifactId>spring-boot-starter-logging</artifactId>
-			</exclusion>
-		  </exclusions>
-		</dependency>
-
-		<dependency>
-		  <!-- Hikari Data Source / JDBC Connection Pool -->
-		  <groupId>com.zaxxer</groupId>
-		  <artifactId>HikariCP</artifactId>
-		  <version>5.0.1</version>
-		</dependency>
-
-		<dependency>
-		  <!-- Database Driver that is used to by Java to talk to the SQL database -->
-		  <groupId>org.postgresql</groupId>
-		  <artifactId>postgresql</artifactId>
-		  <version>42.5.4</version>
-		</dependency>
-
-		<dependency>
-		  <!-- Send logging from Java Common Logging to SLF4J -->
-		  <groupId>org.slf4j</groupId>
-		  <artifactId>jcl-over-slf4j</artifactId>
-		  <version>2.0.5</version>
-		</dependency>
-
-		<dependency>
-		  <!-- SLF4J will use Logback-classic as its logging implementation -->
-		  <groupId>ch.qos.logback</groupId>
-		  <artifactId>logback-classic</artifactId>
-		  <version>1.4.11</version>
-		</dependency>
-
-		<dependency>
-		  <!-- Add the dependency for the SSLContextFactory's use of DatatypeConverter -->
-		  <!-- This ensures that SSLContextFactory will compile with Java 17           -->
-		  <groupId>jakarta.xml.bind</groupId>
-		  <artifactId>jakarta.xml.bind-api</artifactId>
-		  <version>3.0.0</version>
-		</dependency>
-
-		<dependency>
-		  <!-- StringUtils Dependency -->
-		  <groupId>org.apache.commons</groupId>
-		  <artifactId>commons-lang3</artifactId>
-		  <version>3.14.0</version>
-		</dependency>
-
-		<dependency>
-		  <!-- Apache POI dependency (used to generate xlsx files) -->
-		  <groupId>org.apache.poi</groupId>
-		  <artifactId>poi-ooxml</artifactId>
-		  <version>4.1.2</version>
-		  <scope>test</scope>
-		</dependency>
-
-		<dependency>
-		  <groupId>org.springframework</groupId>
-		  <artifactId>spring-jdbc</artifactId>
-		  <version>6.1.2</version>
-		</dependency>
-
-		<dependency>
-		  <groupId>org.springframework</groupId>
-		  <artifactId>spring-web</artifactId>
-		  <version>6.1.2</version>
-		</dependency>
-
-		<dependency>
-		  <groupId>org.springframework.security</groupId>
-		  <artifactId>spring-security-web</artifactId>
-		  <version>6.1.2</version>
-		</dependency>
-
-		<dependency>
-		  <groupId>org.springframework.security</groupId>
-		  <artifactId>spring-security-config</artifactId>
-		  <version>6.1.2</version>
-		</dependency>
-
-		<dependency>
-		  <groupId>commons-io</groupId>
-		  <artifactId>commons-io</artifactId>
-		  <version>2.11.0</version>
-		</dependency>
-
-		<dependency>
-		  <groupId>com.fasterxml.jackson.core</groupId>
-		  <artifactId>jackson-core</artifactId>
-		  <version>2.15.3</version>
-		</dependency>
-		<dependency>
-		  <groupId>com.fasterxml.jackson.core</groupId>
-		  <artifactId>jackson-databind</artifactId>
-		  <version>2.15.3</version>
-		</dependency>
-		<dependency>
-		  <groupId>com.fasterxml.jackson.core</groupId>
-		  <artifactId>jackson-annotations</artifactId>
-		  <version>2.15.3</version>
-		</dependency>
-
-		<dependency>
-		  <!-- Sprint Boot / Keycloak Integration / Add the OAuth2/OpenID client to talk to Keycloak and authenticate users -->
-		  <groupId>org.springframework.boot</groupId>
-		  <artifactId>spring-boot-starter-oauth2-client</artifactId>
-		</dependency>
-
-		<dependency>
-		  <groupId>org.apache.commons</groupId>
-		  <artifactId>commons-collections4</artifactId>
-		  <version>4.4</version>
-		</dependency>
-
-		<dependency>
-		  <!-- AsyncHttpClient Client implementation (used to make outgoing REST calls out to ES) -->
-		  <groupId>com.ning</groupId>
-		  <artifactId>async-http-client</artifactId>
-		  <version>1.9.40</version>
-		</dependency>
-
-		<dependency>
-		  <!-- Add common backend as a dependency -->
-		  <groupId>${project.groupId}</groupId>
-		  <artifactId>common-backend</artifactId>
-		  <version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-		  <!-- Add wrapper to invoke virus-scanning with clamAV -->
-		  <groupId>com.eurodyn.qlack.util</groupId>
-		  <artifactId>qlack-util-clam-av</artifactId>
-		  <version>3.5.3</version>
-
-		  <exclusions>
-			<!-- The qlack-util-clam-av dependency comes with lots of stuff we do not need -->
-			<exclusion>
-			  <groupId>org.springframework.boot</groupId>
-			  <artifactId>spring-boot-configuration-processor</artifactId>
-			</exclusion>
-
-			<exclusion>
-			  <groupId>org.springframework.boot</groupId>
-			  <artifactId>spring-boot-starter</artifactId>
-			</exclusion>
-
-			<exclusion>
-			  <groupId>org.springframework.boot</groupId>
-			  <artifactId>spring-boot-starter-data-jpa</artifactId>
-			</exclusion>
-
-			<exclusion>
-			  <groupId>org.hibernate</groupId>
-			  <artifactId>hibernate-core</artifactId>
-			</exclusion>
-
-			<exclusion>
-			  <groupId>org.jboss.logging</groupId>
-			  <artifactId>jboss-logging</artifactId>
-			</exclusion>
-
-			<exclusion>
-			  <groupId>com.zaxxer</groupId>
-			  <artifactId>HikariCP</artifactId>
-			</exclusion>
-
-			<exclusion>
-			  <groupId>org.springframework</groupId>
-			  <artifactId>spring-jdbc</artifactId>
-			</exclusion>
-
-			<exclusion>
-			  <groupId>org.springframework</groupId>
-			  <artifactId>spring-aop</artifactId>
-			</exclusion>
-
-			<exclusion>
-			  <groupId>commons-codec</groupId>
-			  <artifactId>commons-codec</artifactId>
-			</exclusion>
-
-			<exclusion>
-			  <groupId>com.querydsl</groupId>
-			  <artifactId>querydsl-core</artifactId>
-			</exclusion>
-
-		  </exclusions>
-		</dependency>
-
-		<dependency>
-		  <!-- Send logging from Java Util Logging to SLF4J -->
-		  <groupId>org.slf4j</groupId>
-		  <artifactId>jul-to-slf4j</artifactId>
-		  <version>1.7.30</version>
-		</dependency>
-
-		<dependency>
-		  <groupId>junit</groupId>
-		  <artifactId>junit</artifactId>
-		  <version>4.13.2</version>
-		  <scope>test</scope>
-		</dependency>
-
-	  </dependencies>
-
-	  <build>
-
-		<plugins>
-		  <plugin>
-			<!-- This plugin provides the tools needed to repackage the Spring Boot JAR into a runnable JAR
-				 Run this command to generate the runnable Spring Boot Jar
-					mvn clean package  *or*
-					mvn clean package spring-boot:repackage
-			 -->
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-maven-plugin</artifactId>
-			<version>3.2.0</version>
-			<configuration>
-			  <addResources>true</addResources>
-			</configuration>
-
-			<executions>
-			  <execution>
-				<goals>
-				  <goal>repackage</goal>
-				</goals>
-				<configuration>
-				  <classifier>exec</classifier>
-				</configuration>
-			  </execution>
-			</executions>
-
-		  </plugin>
-		  <plugin>
-			<groupId>org.apache.maven.plugins</groupId>
-			<artifactId>maven-compiler-plugin</artifactId>
-			<configuration>
-			  <source>17</source>
-			  <target>17</target>
-			</configuration>
-		  </plugin>
-
-
-		  <plugin>
-			<!-- Use the git-commit-id plugin to generate the git.properties file that has info about who compiled the app  -->
-			<!-- See https://github.com/git-commit-id/git-commit-id-maven-plugin                                            -->
-			<groupId>io.github.git-commit-id</groupId>
-			<artifactId>git-commit-id-maven-plugin</artifactId>
-			<version>7.0.0</version>
-
-			<executions>
-			  <execution>
-				<id>get-the-git-infos</id>
-				<goals>
-				  <goal>revision</goal>
-				</goals>
-			  </execution>
-			  <execution>
-				<id>validate-the-git-infos</id>
-				<goals>
-				  <goal>validateRevision</goal>
-				</goals>
-			  </execution>
-			</executions>
-
-			<configuration>
-			  <verbose>false</verbose>
-			  <generateGitPropertiesFile>true</generateGitPropertiesFile>
-			</configuration>
-		  </plugin>
-
-		</plugins>
-	  </build>
-
-
-	  <profiles>
-
-
-		<!--    B U I L D     I M A G E      P R O F I L E      (for running this app in a container)  -->
-		<profile>
-		  <id>buildImage</id>
-
-		  <!-- When running this profile, do *NOT* include the src/main/resources/application.yaml in the build -->
-		  <build>
-			<resources>
-			  <resource>
-				<filtering>false</filtering>
-				<directory>src/main/resources</directory>
-				<excludes>
-				  <exclude>application.yaml</exclude>
-				</excludes>
-			  </resource>
-			</resources>
-
-			<plugins>
-			  <plugin>
-				<!-- Use the jib-maven-plugin to build the container and push it up to a registry [without having to install Docker] -->
-				<groupId>com.google.cloud.tools</groupId>
-				<artifactId>jib-maven-plugin</artifactId>
-				<version>3.4.4</version>
-
-				<executions>
-				  <execution>
-					<phase>package</phase>
-					<goals>
-					  <!-- Possible goals are build and dockerBuild   -->
-					  <!--   The "build"       goal does not require docker / build the image and push it to a repo                 -->
-					  <!--   The "dockerBuild" goal requires docker         / build the image and push to the local daemon daemon   -->
-					  <goal>dockerBuild</goal>
-					</goals>
-				  </execution>
-				</executions>
-
-				<configuration>
-				  <from>
-					<!-- Define the source image that will be executed            -->
-					<!-- See https://hub.docker.com/_/eclipse-temurin/tags        -->
-
-					<!-- This source image runs linux with JDK 17.07 -->
-					<image>eclipse-temurin:17.0.7_7-jdk@sha256:9dd6a19e4819b066aa2bd8e54d5988a49cca29736fe5447cb0a57daa975f8935</image>
-				  </from>
-
-				  <to>
-					<!-- Specify the destination name in the AWS Container Registry -->
-					<image>${aws.ecr.uri}:${aws.env.name}-${project.artifactId}-${project.version}</image>
-				  </to>
-
-
-				  <extraDirectories>
-					<paths>
-					  <path>
-						<!-- Copies everything from 'src/main/image_resources' into '/sync-service-/src/main/image_resources' on the container. -->
-						<from>src/main/image_resources</from>
-						<into>/backend/src/main/image_resources</into>
-					  </path>
-					</paths>
-				  </extraDirectories>
-
-				  <container>
-					<jvmFlags>
-					  <!-- When starting the container, tell Java where to find the application.yaml -->
-					  <jvmFlag> -Dspring.config.location=/backend/src/main/image_resources/application.yaml</jvmFlag>
-					</jvmFlags>
-				  </container>
-
-				</configuration>
-
-			  </plugin>
-			</plugins>
-		  </build>
-		</profile>
-
-
-
-
-		<!--    B U I L D     I M A G E    A N D     P U S H       P R O F I L E      (for running this app in a container)  -->
-		<profile>
-		  <id>buildImageAndPush</id>
-
-		  <!-- When running this profile, do *NOT* include the src/main/resources/application.yaml in the build -->
-		  <build>
-			<resources>
-			  <resource>
-				<filtering>false</filtering>
-				<directory>src/main/resources</directory>
-				<excludes>
-				  <exclude>application.yaml</exclude>
-				</excludes>
-			  </resource>
-			</resources>
-
-			<plugins>
-			  <plugin>
-				<!-- Use the jib-maven-plugin to build the container and push it up to a registry [without having to install Docker] -->
-				<groupId>com.google.cloud.tools</groupId>
-				<artifactId>jib-maven-plugin</artifactId>
-				<version>3.4.4</version>
-
-				<executions>
-				  <execution>
-					<phase>package</phase>
-					<goals>
-					  <!-- Possible goals are build and dockerBuild   -->
-					  <!--   The "build"       goal does not require docker / build the image and push it to a repo                 -->
-					  <!--   The "dockerBuild" goal requires docker         / build the image and push to the local daemon daemon   -->
-					  <goal>build</goal>
-					</goals>
-				  </execution>
-				</executions>
-
-				<configuration>
-				  <from>
-					<!-- Define the source image that will be executed            -->
-					<!-- See https://hub.docker.com/_/eclipse-temurin/tags        -->
-
-					<!-- This source image runs linux with JDK 17.07 -->
-					<image>eclipse-temurin:17.0.7_7-jdk@sha256:9dd6a19e4819b066aa2bd8e54d5988a49cca29736fe5447cb0a57daa975f8935</image>
-				  </from>
-
-				  <to>
-					<!-- Specify the destination name in the AWS Container Registry -->
-					<image>${aws.ecr.uri}:${aws.env.name}-${project.artifactId}-${project.version}</image>
-				  </to>
-
-
-				  <extraDirectories>
-					<paths>
-					  <path>
-						<!-- Copies everything from 'src/main/image_resources' into '/sync-service-/src/main/image_resources' on the container. -->
-						<from>src/main/image_resources</from>
-						<into>/backend/src/main/image_resources</into>
-					  </path>
-					</paths>
-				  </extraDirectories>
-
-				  <container>
-					<jvmFlags>
-					  <!-- When starting the container, tell Java where to find the application.yaml -->
-					  <jvmFlag> -Dspring.config.location=/backend/src/main/image_resources/application.yaml</jvmFlag>
-					</jvmFlags>
-				  </container>
-
-				</configuration>
-
-			  </plugin>
-			</plugins>
-		  </build>
-		</profile>
-
-
-
-		<profile>
-		  <!-- When running any other build profile, include *ALL* files from the backend/src/main/resources into the JAR file -->
-		  <id>defaultProfile</id>
-		  <activation>
-			<activeByDefault>true</activeByDefault>
-		  </activation>
-		  <build>
-			<resources>
-			  <resource>
-				<directory>src/main/resources</directory>
-				<filtering>true</filtering>
-			  </resource>
-			</resources>
-		  </build>
-		</profile>
-
-	  </profiles>
-
-	</project>
+    <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+      <modelVersion>4.0.0</modelVersion>
+
+      <parent>
+        <artifactId>angularApp16</artifactId>
+        <groupId>com.lessons</groupId>
+        <version>1.0-SNAPSHOT</version>
+      </parent>
+
+      <artifactId>backend</artifactId>
+      <version>1.0-SNAPSHOT</version>
+
+      <name>backend</name>
+      <packaging>jar</packaging>
+
+
+
+      <dependencyManagement>
+        <dependencies>
+
+          <dependency>
+            <!-- Set the Spring Boot Version -->
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-dependencies</artifactId>
+            <version>3.2.0</version>
+            <type>pom</type>
+            <scope>import</scope>
+          </dependency>
+
+        </dependencies>
+      </dependencyManagement>
+
+
+
+
+      <dependencies>
+
+        <dependency>
+          <!-- Include the front-end as a dependency so the front-end is compiled *BEFORE* the backend is compiled -->
+          <groupId>${project.groupId}</groupId>
+          <artifactId>frontend</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+          <!-- Spring Boot Web -->
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-web</artifactId>
+
+          <exclusions>
+            <exclusion>
+              <!-- Remove Tomcat from Spring Boot -->
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-starter-tomcat</artifactId>
+            </exclusion>
+
+            <exclusion>
+              <!-- Remove logging from spring as we will use logback -->
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-starter-logging</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+
+        <dependency>
+          <!-- Add Dependency for the Undertow App Server -->
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-undertow</artifactId>
+
+          <exclusions>
+            <exclusion>
+              <!-- Remove logging from undertow as we will use logback -->
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-starter-logging</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+
+        <dependency>
+          <!-- Hikari Data Source / JDBC Connection Pool -->
+          <groupId>com.zaxxer</groupId>
+          <artifactId>HikariCP</artifactId>
+          <version>5.0.1</version>
+        </dependency>
+
+        <dependency>
+          <!-- Database Driver that is used to by Java to talk to the SQL database -->
+          <groupId>org.postgresql</groupId>
+          <artifactId>postgresql</artifactId>
+          <version>42.5.4</version>
+        </dependency>
+
+        <dependency>
+          <!-- Send logging from Java Common Logging to SLF4J -->
+          <groupId>org.slf4j</groupId>
+          <artifactId>jcl-over-slf4j</artifactId>
+          <version>2.0.5</version>
+        </dependency>
+
+        <dependency>
+          <!-- SLF4J will use Logback-classic as its logging implementation -->
+          <groupId>ch.qos.logback</groupId>
+          <artifactId>logback-classic</artifactId>
+          <version>1.4.11</version>
+        </dependency>
+
+        <dependency>
+          <!-- Add the dependency for the SSLContextFactory's use of DatatypeConverter -->
+          <!-- This ensures that SSLContextFactory will compile with Java 17           -->
+          <groupId>jakarta.xml.bind</groupId>
+          <artifactId>jakarta.xml.bind-api</artifactId>
+          <version>3.0.0</version>
+        </dependency>
+
+        <dependency>
+          <!-- StringUtils Dependency -->
+          <groupId>org.apache.commons</groupId>
+          <artifactId>commons-lang3</artifactId>
+          <version>3.14.0</version>
+        </dependency>
+
+        <dependency>
+          <!-- Apache POI dependency (used to generate xlsx files) -->
+          <groupId>org.apache.poi</groupId>
+          <artifactId>poi-ooxml</artifactId>
+          <version>4.1.2</version>
+          <scope>test</scope>
+        </dependency>
+
+        <dependency>
+          <groupId>org.springframework</groupId>
+          <artifactId>spring-jdbc</artifactId>
+          <version>6.1.2</version>
+        </dependency>
+
+        <dependency>
+          <groupId>org.springframework</groupId>
+          <artifactId>spring-web</artifactId>
+          <version>6.1.2</version>
+        </dependency>
+
+        <dependency>
+          <groupId>org.springframework.security</groupId>
+          <artifactId>spring-security-web</artifactId>
+          <version>6.1.2</version>
+        </dependency>
+
+        <dependency>
+          <groupId>org.springframework.security</groupId>
+          <artifactId>spring-security-config</artifactId>
+          <version>6.1.2</version>
+        </dependency>
+
+        <dependency>
+          <groupId>commons-io</groupId>
+          <artifactId>commons-io</artifactId>
+          <version>2.11.0</version>
+        </dependency>
+
+        <dependency>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-core</artifactId>
+          <version>2.15.3</version>
+        </dependency>
+        <dependency>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-databind</artifactId>
+          <version>2.15.3</version>
+        </dependency>
+        <dependency>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-annotations</artifactId>
+          <version>2.15.3</version>
+        </dependency>
+
+        <dependency>
+          <!-- Sprint Boot / Keycloak Integration / Add the OAuth2/OpenID client to talk to Keycloak and authenticate users -->
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-oauth2-client</artifactId>
+        </dependency>
+
+        <dependency>
+          <groupId>org.apache.commons</groupId>
+          <artifactId>commons-collections4</artifactId>
+          <version>4.4</version>
+        </dependency>
+
+        <dependency>
+          <!-- AsyncHttpClient Client implementation (used to make outgoing REST calls out to ES) -->
+          <groupId>com.ning</groupId>
+          <artifactId>async-http-client</artifactId>
+          <version>1.9.40</version>
+        </dependency>
+
+        <dependency>
+          <!-- Add common backend as a dependency -->
+          <groupId>${project.groupId}</groupId>
+          <artifactId>common-backend</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+          <!-- Add wrapper to invoke virus-scanning with clamAV -->
+          <groupId>com.eurodyn.qlack.util</groupId>
+          <artifactId>qlack-util-clam-av</artifactId>
+          <version>3.5.3</version>
+
+          <exclusions>
+            <!-- The qlack-util-clam-av dependency comes with lots of stuff we do not need -->
+            <exclusion>
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-configuration-processor</artifactId>
+            </exclusion>
+
+            <exclusion>
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-starter</artifactId>
+            </exclusion>
+
+            <exclusion>
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-starter-data-jpa</artifactId>
+            </exclusion>
+
+            <exclusion>
+              <groupId>org.hibernate</groupId>
+              <artifactId>hibernate-core</artifactId>
+            </exclusion>
+
+            <exclusion>
+              <groupId>org.jboss.logging</groupId>
+              <artifactId>jboss-logging</artifactId>
+            </exclusion>
+
+            <exclusion>
+              <groupId>com.zaxxer</groupId>
+              <artifactId>HikariCP</artifactId>
+            </exclusion>
+
+            <exclusion>
+              <groupId>org.springframework</groupId>
+              <artifactId>spring-jdbc</artifactId>
+            </exclusion>
+
+            <exclusion>
+              <groupId>org.springframework</groupId>
+              <artifactId>spring-aop</artifactId>
+            </exclusion>
+
+            <exclusion>
+              <groupId>commons-codec</groupId>
+              <artifactId>commons-codec</artifactId>
+            </exclusion>
+
+            <exclusion>
+              <groupId>com.querydsl</groupId>
+              <artifactId>querydsl-core</artifactId>
+            </exclusion>
+
+          </exclusions>
+        </dependency>
+
+        <dependency>
+          <!-- Send logging from Java Util Logging to SLF4J -->
+          <groupId>org.slf4j</groupId>
+          <artifactId>jul-to-slf4j</artifactId>
+          <version>1.7.30</version>
+        </dependency>
+
+        <dependency>
+          <groupId>junit</groupId>
+          <artifactId>junit</artifactId>
+          <version>4.13.2</version>
+          <scope>test</scope>
+        </dependency>
+
+      </dependencies>
+
+      <build>
+
+        <plugins>
+          <plugin>
+            <!-- This plugin provides the tools needed to repackage the Spring Boot JAR into a runnable JAR
+                 Run this command to generate the runnable Spring Boot Jar
+                    mvn clean package  *or*
+                    mvn clean package spring-boot:repackage
+             -->
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-maven-plugin</artifactId>
+            <version>3.2.0</version>
+            <configuration>
+              <addResources>true</addResources>
+            </configuration>
+
+            <executions>
+              <execution>
+                <goals>
+                  <goal>repackage</goal>
+                </goals>
+                <configuration>
+                  <classifier>exec</classifier>
+                </configuration>
+              </execution>
+            </executions>
+
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <source>17</source>
+              <target>17</target>
+            </configuration>
+          </plugin>
+
+
+          <plugin>
+            <!-- Use the git-commit-id plugin to generate the git.properties file that has info about who compiled the app  -->
+            <!-- See https://github.com/git-commit-id/git-commit-id-maven-plugin                                            -->
+            <groupId>io.github.git-commit-id</groupId>
+            <artifactId>git-commit-id-maven-plugin</artifactId>
+            <version>7.0.0</version>
+
+            <executions>
+              <execution>
+                <id>get-the-git-infos</id>
+                <goals>
+                  <goal>revision</goal>
+                </goals>
+              </execution>
+              <execution>
+                <id>validate-the-git-infos</id>
+                <goals>
+                  <goal>validateRevision</goal>
+                </goals>
+              </execution>
+            </executions>
+
+            <configuration>
+              <verbose>false</verbose>
+              <generateGitPropertiesFile>true</generateGitPropertiesFile>
+            </configuration>
+          </plugin>
+
+        </plugins>
+      </build>
+
+
+      <profiles>
+
+
+        <!--    B U I L D     I M A G E      P R O F I L E      (for running this app in a container)  -->
+        <profile>
+          <id>buildImage</id>
+
+          <!-- When running this profile, do *NOT* include the src/main/resources/application.yaml in the build -->
+          <build>
+            <resources>
+              <resource>
+                <filtering>false</filtering>
+                <directory>src/main/resources</directory>
+                <excludes>
+                  <exclude>application.yaml</exclude>
+                </excludes>
+              </resource>
+            </resources>
+
+            <plugins>
+              <plugin>
+                <!-- Use the jib-maven-plugin to build the container and push it up to a registry [without having to install Docker] -->
+                <groupId>com.google.cloud.tools</groupId>
+                <artifactId>jib-maven-plugin</artifactId>
+                <version>3.4.4</version>
+
+                <executions>
+                  <execution>
+                    <phase>package</phase>
+                    <goals>
+                      <!-- Possible goals are build and dockerBuild   -->
+                      <!--   The "build"       goal does not require docker / build the image and push it to a repo                 -->
+                      <!--   The "dockerBuild" goal requires docker         / build the image and push to the local daemon daemon   -->
+                      <goal>dockerBuild</goal>
+                    </goals>
+                  </execution>
+                </executions>
+
+                <configuration>
+                  <from>
+                    <!-- Define the source image that will be executed            -->
+                    <!-- See https://hub.docker.com/_/eclipse-temurin/tags        -->
+
+                    <!-- This source image runs linux with JDK 17.07 -->
+                    <image>eclipse-temurin:17.0.7_7-jdk@sha256:9dd6a19e4819b066aa2bd8e54d5988a49cca29736fe5447cb0a57daa975f8935</image>
+                  </from>
+
+                  <to>
+                    <!-- Specify the destination name in the AWS Container Registry -->
+                    <image>${aws.ecr.uri}:${aws.env.name}-${project.artifactId}-${project.version}</image>
+                  </to>
+
+
+                  <extraDirectories>
+                    <paths>
+                      <path>
+                        <!-- Copies everything from 'src/main/image_resources' into '/sync-service-/src/main/image_resources' on the container. -->
+                        <from>src/main/image_resources</from>
+                        <into>/backend/src/main/image_resources</into>
+                      </path>
+                    </paths>
+                  </extraDirectories>
+
+                  <container>
+                    <jvmFlags>
+                      <!-- When starting the container, tell Java where to find the application.yaml -->
+                      <jvmFlag> -Dspring.config.location=/backend/src/main/image_resources/application.yaml</jvmFlag>
+                    </jvmFlags>
+                  </container>
+
+                </configuration>
+
+              </plugin>
+            </plugins>
+          </build>
+        </profile>
+
+
+        <!--    B U I L D     I M A G E    A N D     P U S H       P R O F I L E      (for running this app in a container)  -->
+        <profile>
+          <id>buildAndPushImage</id>
+
+          <!-- When running this profile, do *NOT* include the src/main/resources/application.yaml in the build -->
+          <build>
+            <resources>
+              <resource>
+                <filtering>false</filtering>
+                <directory>src/main/resources</directory>
+                <excludes>
+                  <exclude>application.yaml</exclude>
+                </excludes>
+              </resource>
+            </resources>
+
+            <plugins>
+              <plugin>
+                <!-- Use the jib-maven-plugin to build the container and push it up to a registry [without having to install Docker] -->
+                <groupId>com.google.cloud.tools</groupId>
+                <artifactId>jib-maven-plugin</artifactId>
+                <version>3.4.4</version>
+
+                <executions>
+                  <execution>
+                    <phase>package</phase>
+                    <goals>
+                      <!-- Possible goals are build and dockerBuild   -->
+                      <!--   The "build"       goal does not require docker / build the image and push it to a repo                 -->
+                      <!--   The "dockerBuild" goal requires docker         / build the image and push to the local daemon daemon   -->
+                      <goal>build</goal>
+                    </goals>
+                  </execution>
+                </executions>
+
+                <configuration>
+                  <from>
+                    <!-- Define the source image that will be executed            -->
+                    <!-- See https://hub.docker.com/_/eclipse-temurin/tags        -->
+
+                    <!-- This source image runs linux with JDK 17.07 -->
+                    <image>eclipse-temurin:17.0.7_7-jdk@sha256:9dd6a19e4819b066aa2bd8e54d5988a49cca29736fe5447cb0a57daa975f8935</image>
+                  </from>
+
+                  <to>
+                    <!-- Specify the destination name in the AWS Container Registry -->
+                    <image>${aws.ecr.uri}:${aws.env.name}-${project.artifactId}-${project.version}</image>
+                  </to>
+
+
+                  <extraDirectories>
+                    <paths>
+                      <path>
+                        <!-- Copies everything from 'src/main/image_resources' into '/sync-service-/src/main/image_resources' on the container. -->
+                        <from>src/main/image_resources</from>
+                        <into>/backend/src/main/image_resources</into>
+                      </path>
+                    </paths>
+                  </extraDirectories>
+
+                  <container>
+                    <jvmFlags>
+                      <!-- When starting the container, tell Java where to find the application.yaml -->
+                      <jvmFlag> -Dspring.config.location=/backend/src/main/image_resources/application.yaml</jvmFlag>
+                    </jvmFlags>
+                  </container>
+
+                </configuration>
+
+              </plugin>
+            </plugins>
+          </build>
+        </profile>
+
+
+        <!--    D E F A U L T       P R O F I L E     (include all files from backend/src/main/resources into the JAR file -->
+        <profile>
+          <id>defaultProfile</id>
+          <activation>
+            <activeByDefault>true</activeByDefault>
+          </activation>
+          <build>
+            <resources>
+              <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+              </resource>
+            </resources>
+          </build>
+        </profile>
+
+      </profiles>
+
+    </project>
 
 
 
@@ -1571,7 +1618,7 @@ Part 1 / Configure maven so that we can build using buildImage or buildImageAndP
  8. Build and push the containers to a container repo
 
 
-		Build & Push Approach 1 / Use -PbuildImageAndPush and provide username/password on the command-line
+		Build & Push Approach 1 / Use -PbuildAndPushImage and provide username/password on the command-line
         ---------------------------------------------------------------------------------------------------
 		a. Configure AWS credentials
 		   unix> aws configure
@@ -1588,12 +1635,12 @@ Part 1 / Configure maven so that we can build using buildImage or buildImageAndP
         c. Build and push (using the password)
            WARNING:  You must pass-in the BOTH username *AND* password on the command-line for this to work
                      If you pass-in ONLY the password on the command-line, the jib maven plugin does not pass-in the info correctly
-           unix> mvn -Djib.to.auth.username=AWS -Djib.to.auth.password=$PASSWORD -Daws.env.name=dev  clean package -Pprod -PbuildImageAndPush
+           unix> mvn -Djib.to.auth.username=AWS -Djib.to.auth.password=$PASSWORD -Daws.env.name=dev  clean package -Pprod -PbuildAndPushImage
 
 
 
 
-		Build & Push Approach 2 / Use -PbuildImageAndPush and use the "docker login" command to set credentials to push to AWS ECR
+		Build & Push Approach 2 / Use -PbuildAndPushImage and use the "docker login" command to set credentials to push to AWS ECR
         --------------------------------------------------------------------------------------------------------------------------
 		a. On Rocky Linux 9, install docker
            unix> sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
@@ -1626,7 +1673,7 @@ Part 1 / Configure maven so that we can build using buildImage or buildImageAndP
 
 		d. Build and push to your AWS ECR repository
 		   unix> cd ~/intellijProjects/angularApp16
-		   unix> mvn clean package -Pprod -PbuildImageAndPush
+		   unix> mvn clean package -Pprod -PbuildAndPushImage
 
 		e. Go to your AWS -> ECR -> Private Repositories -> apps/app16
 		   -- Verify that you see these containers:
@@ -1636,15 +1683,15 @@ Part 1 / Configure maven so that we can build using buildImage or buildImageAndP
 
 
 
-		Build & Push Approach 3 / Use -PbuildImageAndPush and provide username/password on the command-line
+		Build & Push Approach 3 / Use -PbuildAndPushImage and provide username/password on the command-line
         ---------------------------------------------------------------------------------------------------
 		unix> export USERNAME=traderres
 		unix> export PASSWORD='secret'
-		unix> mvn -Djib.to.auth.username=$USERNAME -Djib.to.auth.password=$PASSWORD clean package -Pprod -PbuildImageAndPush
+		unix> mvn -Djib.to.auth.username=$USERNAME -Djib.to.auth.password=$PASSWORD clean package -Pprod -PbuildAndPushImage
 
 
 
-		Build & Push Approach 4 / Use -PbuildImageAndPush and use the "docker login" command to set credentials
+		Build & Push Approach 4 / Use -PbuildAndPushImage and use the "docker login" command to set credentials
         -------------------------------------------------------------------------------------------------------
 		a. Login to docker
 		   unix> docker login
@@ -1652,7 +1699,7 @@ Part 1 / Configure maven so that we can build using buildImage or buildImageAndP
 		   password
 
 		b. Build and push to your docker repo
-		   unix> mvn clean package -Pprod -PbuildImageAndPush
+		   unix> mvn clean package -Pprod -PbuildAndPushImage
 
 
 
@@ -1681,4 +1728,282 @@ Part 1 / Configure maven so that we can build using buildImage or buildImageAndP
 
 Part 2 / Create a unix or Windows batch script to build and push the web app
 ----------------------------------------------------------------------------
+ 1. Create this batch script:  angularApp16/scripts/m.bat
+
+		@Echo off
+		REM ##########################################################################################
+		REM # Filename:  m.bat
+		REM #
+		REM # Purpose:   Build and Deploy the webapp to the Amazon ECR
+		REM #
+		REM # Design
+		REM #  1) Generate an AWS ECR token
+		REM #  2) Split the token into 2 parts (because it's larger than the 1024 char limit for the "for" and "set" windows commands
+		REM #  3) Combine the tokens and pass them into maven
+		REM #
+		REM # Assumptions
+		REM #  1) The user has run aws configure and has an access key and secret key
+		REM #  2) The user has tee commands here:  C:\Program Files\Git\usr\bin\tee.exe
+		REM #      NOTE:  Git comes with them but does not include it in the PATH by default
+		REM #      Usually, Git for Windows would have these installed here:  C:\Program Files\Git\usr\bin
+		REM ##########################################################################################
+
+		IF "%1"=="dev1" (
+		  SET buildProfile=-PbuildAndPushSyncService
+		  SET envName=dev1
+		  GOTO Compile
+		)
+		IF "%1"=="dev2" (
+		  SET buildProfile=-PbuildAndPushSyncService
+		  SET envName=dev2
+		  GOTO Compile
+		)
+		IF "%1"=="demo" (
+		  SET buildProfile=-PbuildAndPushSyncService
+		  SET envName=demo
+		  GOTO Compile
+		)
+		GOTO Invalid
+
+
+
+		:Compile
+		  REM This command grabs the login token and writes it to a temporary file
+		  ECHO Refreshing AWS ECR token...
+		  aws ecr get-login-password --region us-east-1 > %TEMP%\ecr_pass.txt
+
+		  REM This for loop splits the output from the file into two variables, pass1 and pass2
+		  REM The token exceeded 1800 characters at the time of creating this script
+		  setlocal enabledelayedexpansion
+		  for /F "tokens=* delims=" %%a in (C:\tmp\ecr_pass.txt) do (
+			SET str=%%a
+			SET pass1=!str:~0,1000!
+			SET pass2=!str:~1000,1000!
+		  )
+
+		  del /q %TEMP%\ecr_pass.txt
+		  del /q %TEMP%\maven-output.txt
+
+
+		  REM This command builds and pushes the image to the appropriate repository
+		  REM The two password variables from the previous step are combined into the one long password string
+		  REM Both the username and password for the from and to authorizations must be provided in the following command
+		  CALL mvn -Djib.to.auth.username=AWS -Djib.to.auth.password=%pass1%%pass2% -Djib.from.auth.username=AWS -Djib.from.auth.password=%pass1%%pass2% -Daws.env.name=%envName% clean package %buildProfile% | "C:\Program Files\Git\usr\bin\tee" %TEMP%\maven-output.txt
+
+		  REM Look for the "BUILD SUCCESS" string in the output file
+		  findstr /n /c:"BUILD SUCCESS"  %TEMP%\maven-output.txt
+
+		  IF %ERRORLEVEL% == 0 goto End1
+		  GOTO Compile_failed
+
+
+		:Compile_failed
+		  echo.
+		  echo.
+		  echo Your branch failed to compile. It has not been pushed to the %1 AWS environment.
+		GOTO End1
+
+		:Invalid
+		  ECHO Invalid argument provided. Options are 'dev1', 'dev2', or 'demo'.
+		GOTO End1
+
+		:End1
+
+
+ 2. Create this batch script:  angularApp16/scripts/mclean.bat
+
+		@Echo off
+		REM ##########################################################################################
+		REM # Filename:  mclean.bat
+		REM #
+		REM # Purpose:   Build and Deploy the Sync Service to the Amazon ECR
+		REM #
+		REM # Design
+		REM #  1) Generate an AWS ECR token
+		REM #  2) Split the token into 2 parts (because it's larger than the 1024 char limit for the "for" and "set" windows commands
+		REM #  3) Combine the tokens and pass them into maven
+		REM #
+		REM # Assumptions
+		REM #  1) The user has run aws configure and has an access key and secret key
+		REM #  2) The user has tee commands here:  C:\Program Files\Git\usr\bin\tee.exe
+		REM #      NOTE:  Git comes with them but does not include it in the PATH by default
+		REM #      Usually, Git for Windows would have these installed here:  C:\Program Files\Git\usr\bin
+		REM ##########################################################################################
+
+		IF "%1"=="dev1" (
+		  SET buildProfile=-PbuildAndPushSyncService
+		  SET envName=dev1
+		  GOTO Compile
+		)
+		IF "%1"=="dev2" (
+		  SET buildProfile=-PbuildAndPushSyncService
+		  SET envName=dev2
+		  GOTO Compile
+		)
+		IF "%1"=="demo" (
+		  SET buildProfile=-PbuildAndPushSyncService
+		  SET envName=demo
+		  GOTO Compile
+		)
+		GOTO Invalid
+
+
+
+		:Compile
+		  REM This command grabs the login token and writes it to a temporary file
+		  ECHO Refreshing AWS ECR token...
+		  aws ecr get-login-password --region us-east-1 > %TEMP%\ecr_pass.txt
+
+		  REM This for loop splits the output from the file into two variables, pass1 and pass2
+		  REM The token exceeded 1800 characters at the time of creating this script
+		  setlocal enabledelayedexpansion
+		  for /F "tokens=* delims=" %%a in (%TEMP%\ecr_pass.txt) do (
+			SET str=%%a
+			SET pass1=!str:~0,1000!
+			SET pass2=!str:~1000,1000!
+		  )
+
+
+		  del /q %TEMP%\ecr_pass.txt
+		  del /q %TEMP%\maven-output.txt
+
+		  REM This command builds and pushes the image to the appropriate repository
+		  REM The two password variables from the previous step are combined into the one long password string
+		  REM Both the username and password for the from and to authorizations must be provided in the following command
+		  CALL mvn -Djib.to.auth.username=AWS -Djib.to.auth.password=%pass1%%pass2% -Djib.from.auth.username=AWS -Djib.from.auth.password=%pass1%%pass2% -Daws.env.name=%envName% clean package %buildProfile% | "C:\Program Files\Git\usr\bin\tee"  %TEMP%\maven-output.txt
+
+		  REM Look for the "BUILD SUCCESS" string in the output file
+		  findstr /n /c:"BUILD SUCCESS"   %TEMP%\maven-output.txt
+
+		  IF %ERRORLEVEL% == 0 goto End1
+		  GOTO Compile_failed
+
+
+		:Compile_failed
+		  echo.
+		  echo.
+		  echo Your branch failed to compile. It has not been pushed to the %1 AWS environment.
+		GOTO End1
+
+		:Invalid
+		  ECHO Invalid argument provided. Options are 'dev1', 'dev2', or 'demo'.
+		GOTO End1
+
+		:End1
+
+
+ 3. Create this batch script:  angularApp16/scripts/m.sh
+
+		#!/bin/bash
+		##########################################################################################################
+		# Filename:  mclean.sh
+		##########################################################################################################
+		# Purpose:
+		#   Build and push the Web App image to the Amazon ECR
+		#
+		# Design
+		#   1. Get the user's AWS token in a variable
+		#   2. Pass-in the AWS token into the mvn command (so that the jib maven plugin uses it to push up images to our Amazon ECR)
+		#   3. Run the mvn command with these profiles:  "prod" and "buildAndPushImage"
+		#      unix> mvn -Djib.to.auth.username=AWS -Djib.to.auth.password=$PASSWORD -Djib.from.auth.username=AWS -Djib.from.auth.password=$PASSWORD -Daws.env.name=dev clean package -Pprod -PbuildAndPushImage
+		#
+		# Usage:
+		#    unix> chmod u+x scripts/m.sh               # Make the script executable
+		#    unix> scripts/m.sh dev1
+		##########################################################################################################
+
+		if [ "$1" != "dev1" ] && [ "$1" != "dev2" ] && [ "$1" != "demo" ]; then
+		  echo -e "USAGE: m.sh <env name>    Possible values are 'dev1', 'dev2', or 'demo'."
+		  exit 1
+		fi
+
+
+		# Refresh the user's AWS token and store it in a variable
+		echo -e "\nRefreshing your AWS token with this command"
+		echo -e "\taws ecr get-login-password --region us-east-1\n"
+		export PASSWORD=`aws ecr get-login-password --region us-east-1`
+
+		# Run the maven profile to build and deploy the image to Amazon's ECR
+		echo -e "Running Maven with these profiles:  prod and buildAndPushSyncService  env is $1"
+		echo -e "\tmvn -Djib.to.auth.username=AWS -Djib.to.auth.password=\$PASSWORD -Djib.from.auth.username=AWS -Djib.from.auth.password=\$PASSWORD -Daws.env.name=$1  clean package -PbuildAndPushImage\n"
+		mvn -Djib.to.auth.username=AWS -Djib.to.auth.password=$PASSWORD -Djib.from.auth.username=AWS -Djib.from.auth.password=$PASSWORD -Daws.env.name=$1  clean package -PbuildAndPushImage | tee /tmp/output.txt
+
+		# Check if the build worked successfully
+		grep "BUILD SUCCESS" /tmp/output.txt
+
+		if [ $? -ne 0 ]; then
+			# The last command had a problem.
+			echo -e "\nCritical Error -- the code did not compile"
+			exit 1
+		fi
+
+		echo "Successfully built and pushed the image up to the ECR"
+		exit 0
+
+
+ 4. Create this batch script:  angularApp16/scripts/mclean.sh
+
+		#!/bin/bash
+		##########################################################################################################
+		# Filename:  mclean.sh
+		##########################################################################################################
+		# Purpose:
+		#   Build and push the Sync Service image to the Amazon ECR
+		#
+		# Design
+		#   1. Get the user's AWS token in a variable
+		#   2. Pass-in the AWS token into the mvn command (so that the jib maven plugin uses it to push up images to our Amazon ECR)
+		#   3. Run the mvn command with these profiles:  "prod" and "buildAndPushSyncService"
+		#      unix> mvn -Djib.to.auth.username=AWS -Djib.to.auth.password=$PASSWORD -Djib.from.auth.username=AWS -Djib.from.auth.password=$PASSWORD -Daws.env.name=dev clean package -Pprod -PbuildAndPushSyncService
+		#
+		# Usage:
+		#    unix> chmod u+x scripts/mclean.sh               # Make the script executable
+		#    unix> scripts/mclean.sh dev1
+		##########################################################################################################
+
+		if [ "$1" != "dev1" ] && [ "$1" != "dev2" ] && [ "$1" != "demo" ]; then
+		  echo -e "USAGE: m.sh <env name>    Possible values are 'dev1', 'dev2', or 'demo'."
+		  exit 1
+		fi
+
+
+		# Refresh the user's AWS token and store it in a variable
+		echo -e "\nRefreshing your AWS token with this command"
+		echo -e "\taws ecr get-login-password --region us-east-1\n"
+		export PASSWORD=`aws ecr get-login-password --region us-east-1`
+
+		echo -e "Running Maven with these profiles:  prod and buildAndPushSyncService  env is $1"
+		echo -e "\tmvn -Djib.to.auth.username=AWS -Djib.to.auth.password=\$PASSWORD -Djib.from.auth.username=AWS -Djib.from.auth.password=\$PASSWORD clean package -PbuildAndPushSyncService\n"
+		mvn -Djib.to.auth.username=AWS -Djib.to.auth.password=$PASSWORD -Djib.from.auth.username=AWS -Djib.from.auth.password=$PASSWORD -Daws.env.name=$1  clean package -PbuildAndPushSyncService | tee /tmp/output.txt
+
+		grep "BUILD SUCCESS" /tmp/output.txt
+
+		if [ $? -ne 0 ]; then
+			# The last command had a problem.
+			echo -e "\nCritical Error -- the code did not compile"
+			exit 1
+		fi
+
+		echo "Successfully built and pushed the image up to the ECR"
+		exit 0
+
+
+ 5. Try it out in Windows:
+    terminal> cd intelliJProjects/angularApp16
+    terminal> scripts/m dev1
+    -- This should build and push the webapp image up to the amazon ECR
+
+	terminal> scripts/mclean dev1
+	-- This should build and push the sync-service image up to the amazon ECR
+
+
+ 6. Try it out in Unix:
+    terminal> cd intelliJProjects/angularApp16
+    terminal> chmod u+x ./scripts/m.sh
+    terminal> ./scripts/m.sh dev1
+    -- This should build and push the webapp image up to the amazon ECR
+
+    terminal> chmod u+x ./scripts/mclean.sh
+	terminal> ./scripts/mclean.sh dev1
+	-- This should build and push the sync-service image up to the amazon ECR
 
