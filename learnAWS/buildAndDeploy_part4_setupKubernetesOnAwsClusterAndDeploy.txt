@@ -1,5 +1,9 @@
 How to Setup Kubernetes on AWS Cluster and Deploy using Keycloak Server for PKI Authentication
 ----------------------------------------------------------------------------------------------
+Goal: Deploy this webapp so anyone can get to it using https://www.traderres.com/app16
+        AWS Region:            us-east-1
+        AWS EKS Cluster Name:  app16-cluster
+
 
 
 General Approach
@@ -25,75 +29,54 @@ General Approach
 ASSUMPTIONS:
  A) You can build your spring boot webapp as a container
     See learnKeycloak / howToConfigureKeycloakToUsePkiAuthenticationOnLocalhost.txt
-    See learnAWS / buildAndDeploy_part1_buildWebappsAsRdaOrContainer.txt
+    See learnAWS / buildAndDeploy_part1_setupAwsAccountAndECR.txt
+    See learnAWS / buildAndDeploy_part2_buildWebappsAsContainer.txt
  B) You have an AWS account
  C) You have installed the AWS CLI tool
  D) You have a registered domain called "traderres.com"
 
 
 
-Goal: Deploy this webapp so anyone can get to it using https://www.traderres.com/sf
 
 
 Setup local kubectl that is *NOT* part of minikube
 ---------------------------------------------------
- 1. Remove the existing mini kube setup
-    unix> rm -rf ~/.kube-localhost/
-    unix> mv ~/.kube ~/.kube-localhost
+ 1. If you have installed mini-kube, then
+ 	a. remove the existing mini kube setup
+       unix> rm -rf ~/.kube-localhost/
+       unix> mv ~/.kube ~/.kube-localhost
 
- 2. Comment out this alias
-    unix> vi ~/.bashrc
-    ##   alias kubectl="minikube kubectl --"
+    b. Comment out this alias
+       unix> vi ~/.bashrc
+             ##   alias kubectl="minikube kubectl --"
 
- 3. Download & install the latest kubectl
+
+ 2. Download & install the latest kubectl
     unix> cd /tmp
     unix> curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+    	  -- This downloads kubectl to your current directory
+
     unix> sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 
     unix> which kubectl
     /usr/local/bin/kubectl
 
- 4. Set my kubectl configuration (so running kubectl connects to the AWS cluster)
+
+ 3. **IF YOU HAVE ALREADY CREATED YOUR EKS CLUSTER**
+    Set my kubectl configuration (so running kubectl connects to the AWS EKS cluster)
     a. Get your current region by going to aws.com, logging-in as the dve.user and looking at the region (next to your name in the upper right corner)
+
     b. Get your EKS cluster name by going to EKS -> Clusters and look at the name
-    unix> aws eks update-kubeconfig --region us-east-1 --name sf
 
-    You should see this:
-        Added new context arn:aws:eks:us-east-1:524647912468:cluster/sf to /home/adam/.kube/config
+    c. Setup kubectl to talk to your cluster
+       unix> aws eks update-kubeconfig --region us-east-1 --name app-cluster
 
- 5. Connect as the dev.user
+       You should see this:
+        	Added new context arn:aws:eks:us-east-1:524647912468:cluster/app-cluster to /home/adam/.kube/config
 
- 6. Login to the server
-    unix> kubectl get services
-    -- Now, your kubectl is setup to your cluster
-
-
-
-
-Make the build and push to AWS ECR
-----------------------------------
- 1. Run aws configure
-    unix> aws configure
-
-    AWS Access Key ID [None]:    SECRET_KEY_ID
-    AWS Secret Access Key:       SECRET_ACCESS_KEY
-    Region:                      us-gov-west-1
-    Default Output format:       json
-
- 2. Get the authentication token
-    unix> aws ecr get-login-password --region us-gov-west-1 | docker login --username AWS --password-stdin 527362555097.dkr.ecr.us-gov-west-1.amazonaws.com
-
- 3. Adjust the pom.xml
-    Change the buildImage profile
-        <image>527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/frms:${project.artifactId}-${project.version}</image>
-
-
- 4. Build the image
-    unix> mvn clean package -Pprod -PbuildImage
-
- 5. Use Docker to push the image up
-    unix> docker push  527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/frms:sync-service-1.0.9-SNAPSHOT
-    unix> docker push  527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/frms:backend-1.0.9-SNAPSHOT
+    d. Verify that kubectl can talk to your AWS EKS cluster
+       unix> kubectl get services
+       -- Now, your kubectl is setup to your cluster
 
 
 
@@ -122,7 +105,7 @@ General Approach
 17. Install Java 17 JDK on the keycloak server
 18. Create & install the keycloak certificates on the running instance
 19. Initialize Keycloak as a service on the running instance
-20. Configure keycloak's admin account
+20. Configure Keycloak's admin account
 21. Configure certificates for the load-balancer (external hostname used to access the webapp)
 22. Get the environment values for the kubernetes deployment yaml files
 23. Setup PersistentVolumes so you can share certs among the pods
@@ -206,6 +189,10 @@ Procedure
  2. Setup AWS CNI Policy (as the dev.user)
     a. Login as dev.user
        https://524647912468.signin.aws.amazon.com/console
+                    ^
+                    |
+                This is your 12-digit account id
+
 
     b. Create this role: eksClusterRole
        1) Go to AWS IAM page
