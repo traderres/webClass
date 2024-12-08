@@ -6,7 +6,8 @@ Goal: Deploy this webapp so anyone can get to it using https://www.traderres.com
 
 
 
-General Approach
+Web Browser Order of Operations
+-------------------------------
  1. User uses a browser to hit Java Web App
     -- User presents PKI certificate to Java Web App
 
@@ -37,6 +38,39 @@ ASSUMPTIONS:
  	-- You have a Hosted zone name called "traderres.com"
 
 
+
+
+General Approach
+----------------
+ 1. Setup AWS Account / Create Users / Grant CLI Access  (so we can push up builds to our AWS ECR Registry)
+ 2. Setup AWS CNI Policy / so dev.user can make changes to kubernetes
+ 3. Create the Amazon VPC (created by default for the dev.user)
+ 4. Create the "bastion host" key-pair and instance
+ 5. Create the EKS Cluster (as dev.user)
+ 6. Finish configuring CNI Policy
+ 7. Create Kubernetes Node Group
+ 8. Finish configuring the "bastion host"
+ 9. Update the yum packages of the running instance
+10. Initialize AWS-hosted resources (exist outside of the kubernetes cluster)
+    NOTE:  postgres and OpenSearch do not run inside kubernetes
+    a. Setup 2 RDS / postgres instances (one for the webapp and one for keycloak)
+    b. Setup OpenSearch
+11. Create a persistent volume and mount to /opt/shared-storage on the keycloak server
+12. Create our own certificate authority (for pki client certs)
+13. Configure your local kubectl command to talk to our new Kubernetes cluster
+14. Get the aws external hostnames for keycloak and the app's loadbalancer
+15. Register the domain name that correspond to the external AWS keycloak and external AWS load balancer names
+16. Create server certs with Let's Encrypt for the load-balancer (app.traderres.com) and keycloak (keycloak.traderres.com)
+17. Install Java 17 JDK on the keycloak server
+18. Create & install the keycloak certificates on the running instance
+19. Initialize Keycloak as a service on the running instance
+20. Configure Keycloak's admin account
+21. Configure certificates for the load-balancer (external hostname used to access the webapp)
+22. Get the environment values for the kubernetes deployment yaml files
+23. Setup PersistentVolumes so you can share certs among the pods
+24. Upload the shared certs into the /shared/certs persistent volume
+25. Use Kubernetes to deploy the sync service
+26. Use Kubernetes to deploy the webapp
 
 
 
@@ -80,39 +114,6 @@ Setup local kubectl that is *NOT* part of minikube
        -- Now, your kubectl is setup to your cluster
 
 
-
-
-General Approach
-----------------
- 1. Setup AWS Account / Create Users / Grant CLI Access  (so we can push up builds to our AWS ECR Registry)
- 2. Setup AWS CNI Policy / so dev.user can make changes to kubernetes
- 3. Setup AWS ECR Registry (as dev.user)   which will hold our builds to be deployed)
- 4. Configure the Amazon VPC (created by default for the dev.user)
- 5. Create the EKS Cluster (as dev.user)
- 6. Finish configuring CNI Policy
- 7. Create the keypair and inbound rule
- 8. Create Kubernetes Node Group
- 9. SSH to the node instance to update the yum packages of the running instance
-10. Initialize AWS-hosted resources (exist outside of the kubernetes cluster)
-    NOTE:  postgres and OpenSearch do not run inside kubernetes
-    a. Setup 2 RDS / postgres instances (one for the webapp and one for keycloak)
-    b. Setup OpenSearch
-11. Create a persistent volume and mount to /opt/shared-storage on the keycloak server
-12. Create our own certificate authority (for pki client certs)
-13. Configure your local kubectl command to talk to our new Kubernetes cluster
-14. Get the aws external hostnames for keycloak and the app's loadbalancer
-15. Register the domain name that correspond to the external AWS keycloak and external AWS load balancer names
-16. Create server certs with Let's Encrypt for the load-balancer (app.traderres.com) and keycloak (keycloak.traderres.com)
-17. Install Java 17 JDK on the keycloak server
-18. Create & install the keycloak certificates on the running instance
-19. Initialize Keycloak as a service on the running instance
-20. Configure Keycloak's admin account
-21. Configure certificates for the load-balancer (external hostname used to access the webapp)
-22. Get the environment values for the kubernetes deployment yaml files
-23. Setup PersistentVolumes so you can share certs among the pods
-24. Upload the shared certs into the /shared/certs persistent volume
-25. Use Kubernetes to deploy the sync service
-26. Use Kubernetes to deploy the webapp
 
 
 
@@ -199,9 +200,10 @@ Procedure
        1) Go to AWS IAM page
        2) Click on Roles
        3) Press "Create Role"
-       4) In Select trusted entity, choose "AWS service"
-          In Use Cases for other AWS services, select EKS
-          Select EKS - Cluster
+       4) In Select trusted entity,
+          Trusted entity type:  "AWS service"
+          Service:              "EKS"
+          Use case:             "EKS - Cluster"
           Press "Next"
 
        5) In "Add permissions", go with defaults and press "Next"
@@ -211,12 +213,12 @@ Procedure
           Press "Create Role"
 
        7) In Roles, Check on eksClusterRole
-          Select "Add permissions" -> Attach Policies
-          Search for AmazonEKS and press Enter
-          Check AmazonEKS_CNI_Policy
+          Select "Add permissions" -> "Attach Policies"
+          Search for AmazonEKS_CNI_Policy and press Enter
+          -- Check AmazonEKS_CNI_Policy
           Press "Add Permission"
 
-       8) In the "Roles/ eksClusterRole page, select "Trust relationships" tab
+       8) Click on the "Trust relationships" tab
           Verify that you see this:
 			  {
 				  "Version": "2012-10-17",
@@ -235,9 +237,10 @@ Procedure
        1) Go to AWS IAM page
        2) Click on Roles
        3) Press "Create Role"
-       4) In Select trusted entity, choose "AWS service"
-          In Use Cases for other AWS services, select EKS
-          Select EKS - Cluster
+       4) In Select trusted entity,
+          Trusted entity type:  "AWS service"
+          Service:              "EKS"
+          Use case:             "EKS - Cluster"
           Press "Next"
        5) In "Add permissions", go with defaults and press "Next"
        6) In Name, review, and create
@@ -245,10 +248,10 @@ Procedure
           Press "Create Role"
 
        7) In Roles, Click on eksNodeRole
-       8) Select "Add permissions" -> Attach Policies
+       8) Select "Add permissions" -> "Attach Policies"
           Search for AmazonEKS and press Enter
-          Check AmazonEKS_CNI_Policy
-          Check AmazonEKSWorkerNodePolicy
+          -- Check AmazonEKS_CNI_Policy
+          -- Check AmazonEKSWorkerNodePolicy
           Press "Add Permission"
 
        9) In the Roles / eksNodeRole, remove the AmazonEKSClusterPolicy
@@ -256,15 +259,16 @@ Procedure
           -- Press "Remove"
 
       10) In the Roles / eksNodeRole, Add the AmazonEC2ContainerRegistryReadOnly
-          -- In Permissions policies, select Add permissions -> Attach policies
-          -- Search for AmazonEC2container
-          -- Check AmazonEC2ContainerRegistryReadOnly
-          -- Press "Add permissions"
+          In Permissions policies, select "Add permissions" -> "Attach Policies"
+          Search for AmazonEC2ContainerRegistryReadOnly
+             -- Check AmazonEC2ContainerRegistryReadOnly
+          Press "Add permissions"
 
           At this point eksNodeRole, should have 3 policies:
-          		AmazonEKSWorkerNodePolicy
-           		AmazonEC2ContainerRegistryReadOnly
+                AmazonEC2ContainerRegistryReadOnly
            		AmazonEKS_CNI_Policy,
+          		AmazonEKSWorkerNodePolicy
+
 
      11) Click on "Trust relationships" (all of the worker nodes are running on ec2 hosted servers / this granting rights to the ec2 hosted instsances)
          Press "Edit trust policy"
@@ -284,8 +288,9 @@ Procedure
        2) Click on Roles
        3) Press "Create Role"
        4) In Select trusted entity, choose "AWS service"
-          In Use Cases for other AWS services, select EKS
-          Select EKS - Cluster
+          Trusted entity type:  "AWS service"
+          Service:              "EKS"
+          Use case:             "EKS - Cluster"
           Press "Next"
        5) In "Add permissions", go with defaults and press "Next"
        6) In Name, review, and create
@@ -293,33 +298,18 @@ Procedure
           Press "Create Role"
 
        7) In Roles, Click on AmazonEKS_VPC_CNI_Role
-       8) Select "Add permissions" -> Attach Policies
-          Search for cni and press Enter
-          Check AmazonEKS_CNI_Policy
+       8) Select "Add permissions" -> "Attach Policies"
+          Search for AmazonEKS_CNI_Policy and press Enter
+          -- Check AmazonEKS_CNI_Policy
           Press "Add Permission"
        9) In Permissions policies, remove AmazonEKSClusterPolicy policy
           -- Check AmazonEKSClusterPolicy and press "Remove"
 
 
- 3. Setup AWS ECR Registry (as dev.user)   which will hold our builds to be deployed
-    a. Connect to AWS as dev.user and go to your console
-    b. Search Services for ECR -> Select Elastic Container Registry
-    c. Press "Get Started"
-    d. In "Create repository"
-       Visibility settings:  Private
-       Repository name:      traderres
-       In DOD:               Turn on KMS encryption
-       Press "Create repository"
 
-    e. Copy the URI:  524647912468.dkr.ecr.us-east-2.amazonaws.com/traderres
-
-    f. Check your repository and press "View push commands"
-       -- This has the procedures for using the AWS CLI to connect
-
-
- 4. Configure the Amazon VPC (created by default for the dev.user)
+ 3. Create the Amazon VPC (created by default for the dev.user)
      a. Verify that you have a VPC (created for you)
-       1) Go to VPCs
+       1) Go to VPCs -> Your VPCs
        2) If you see no VPCs, then create a VPC
           a) Press "Create VPC"
 
@@ -328,18 +318,21 @@ Procedure
 
              Name tag auto-generate:  project    (so that the vpc is called project-vpc)
 
-             IPv4 CIDE blocK:               Default of 10.0.0.0/16
+             IPv4 CIDR blocK:               Default of 10.0.0.0/16
              Tenancy:                       Default
-             Number of Availability Zones:        3
 
-             Number of public subnets:            3
-             Number of private subnets:           0     # Do not create any private subnets
+			 IPv6 CIDR block:               No IPv6 CIDR block
 
-             NAT Gateways:                     None
-             VPC endpoints:                    None
+             Number of Availability Zones:  2     # In production, this would probably be 3
 
-             Enable DNS Hostnames:             Checked
-             Enable DNS resolution:            Checked
+             Number of public subnets:      2     # We need 1 public subnet for our bastion host
+             Number of private subnets:     2     # We need private subnets for the running kubernetes nodes
+
+             NAT Gateways:                  None
+             VPC endpoints:                 None
+
+             Enable DNS Hostnames:          Checked
+             Enable DNS resolution:         Checked
 
              Press "Create VPC"
 
@@ -357,51 +350,124 @@ Procedure
         NOTE:  We can change the subnets are this point
 
 
-    b. Make sure your subnets enable IP/hostname resolution
-       1) Click on VPC -> Subnets
-       2) Edit your 1st public subnet -> Action -> Edit Subnet settings
-          Check "Enable auto-assign public IPv4 address"
-          Press "Save"
-
-       3) Edit your 2nd public subnet -> Action -> Edit Subnet settings
-          Check "Enable auto-assign public IPv4 address"
-          Press "Save"
-
-       4) Edit your 1st public subnet -> Action -> Edit Subnet settings
-          Check "Enable auto-assign public IPv4 address"
-          Press "Save"
-
-    c. Make sure the subnets have the correct TAGS using these rules
-       NOTE:  This is needed so that auto-discovery works and the load balancer can get a public IP
-       1) Click on VPC -> Subnets
-       2) Click on the 1st public subnet
-       3) Press on the "Tags" tab
-       4) Press "Manage tags"
-       5) Press "Add new tag"
-
-          key:    kubernetes.io/role/elb
-          value:  1
-
-       6) Press "Add new tag"
-
-          key:    kubernetes.io/cluster/${your-cluster-name}
-          value:  shared
-
-          Press "Save"
-
-       Repeat this for all public subnets
 
 
-       Rules for the tags
-       ------------------
-       Public Subnets should be resource tagged with:
-          kubernetes.io/role/elb   1
+ 4. Create the "bastion host" key-pair and instance
+ 	a. Create a keypair:
+    	1) Click on EC2 -> Network & Security -> Key Pairs
+    	2) Press "Create key pair"
+		   Name:   app16-bastion-host-keypair
+		   Type:   RSA
+		   Format: PEM
+		   Press "Create key pair"
+				  -- You will be prompted to download the app16-bastion-host-keypair.pem
 
-       Private Subnets should be tagged with:
-          kubernetes.io/role/internal-elb 1
+	b. Create the bastion host
+    	1) Go to EC2 -> Press "Launch Instance"
 
-       Public subnets should have:  if they are also used by non-EKS resources
-          kubernetes.io/cluster/${your-cluster-name}: shared
+    	2) In the "Launch an instance" page
+    		Name:  bastion-host
+    		Amazon Machine Image:  Amazon Linux 2023 AMI
+    		Architecture:  64-bit (x86)
+    		Instance Type: t2.micro
+
+    	3) Key Pair:      app16-bastion-host
+
+		4) Next to "Network Settings" press "Edit"
+			VPC:   					project-vpc
+			Subnet:  				Choose a public subnet
+			Auto-assign public IP:  Enable
+
+			Firewall
+				Create a security group
+				security group name:  bastion-host-security-group
+
+				Allow SSH traffic from Anywhere
+
+			Configure storage:
+				1 x 20 GiB of Gp3 root volume
+
+			Press "Launch instance"
+
+
+			W A I T     5    M I N     F O R      B A S T I O N     H O S T     T O     I N I T I A L I Z E
+
+
+
+
+	c. Test connectivity to the bastion host
+	   1) Go to EC2 -> Instances
+       2) Click on the bastion-host -> Connect -> Click "SSH Client"
+          -- Copy the example command *OR* get the public hostname/IP
+
+       3) Reduce the privileges on the key-pair file so it is only accessible to me
+          unix> chmod go-rwx ~/Downloads/app16-bastion-host-keypair.pem
+
+	   4) Use the bastion host keypair to connect to it
+	      unix> ssh -i ~/Downloads/app16-bastion-host-keypair.pem ec2-user@ec2-44-197-169-72.compute-1.amazonaws.com
+
+		  You should see the following:
+			SUSE Linux Enterprise Server 15 SP6 x86_64 (64-bit)
+
+			As "root" (sudo or sudo -i) use the:
+			  - zypper command for package management
+			  - yast command for configuration management
+
+			Management and Config: https://www.suse.com/suse-in-the-cloud-basics
+			Documentation: https://www.suse.com/documentation/sles-15/
+			Community: https://community.suse.com/
+
+			Have a lot of fun...
+
+
+	d. Create a security group:  ssh-from-bastion-host-security-group
+         1) Get the private IP address of the bastion host
+            -- Go to EC2 Instances
+            -- Click on bastion-host
+            -- NOTE the private IPv4:   10.0.14.50
+
+         2) Go to VPC -> Security groups
+         3) Press "Create security group"
+			Security group name:    ssh-from-bastion-host-security-group
+			Description:            ssh-from-bastion-host-security-group
+			VPC:					Project-VPC
+
+			Under "Inbound rules", press "Add rule"
+				Type    is SSH
+				Source  is Custom    10.0.14.50/32
+
+         4) Press "Create security group"
+
+
+											b. Click on Network & Security -> Key Pairs
+											c. Press "Create key pair"
+											   Name:   app16-kubernetes-nodes-keypair
+											   Type:   RSA
+											   Format: PEM
+											   Press "Create key pair"
+													  -- You will be prompted to download the app16-kubernetes-nodes-keypair.pem
+
+											d. Add an inbound rule for this node so that you can ssh from anywhere
+											   1) Go to EC2
+											   2) Click on Network & Security -> Security groups
+											   3) Check the default security group
+											   4) Press Action -> Edit Inbound Rules
+											   5) Press "Add Rule"
+												  Type:   SSH
+												  Source: Anywhere-IPv4
+												  Press "Save rule"
+
+											e. Add another inbound rule for our default security group  (to let all traffic in and out)
+											   1) Go to EC2 Dashboard
+											   2) Click on Resources -> Security groups
+											   3) Check the default security group and press Action -> Edit Inbound Rules
+											   4) Press "Add Rule"
+													  Type:   All Traffic
+													  Source: Anywhere-IPv4
+															  0.0.0.0/0
+													  Press "Save rule"
+
+
 
 
  5. Create the EKS Cluster (as dev.user)
@@ -409,32 +475,42 @@ Procedure
 
     b. Search Services for EKS -> Select Elastic Kubernetes Service  (as dev.user)
 
-    c. Select "Add Cluster" -> Create
+    c. Press "Create Cluster" -> "Create"
 
     d. In "Configure Cluster"
-       Name:                  nccs
-       Kubernetes version:    1.27  (or the latest)
-       Cluster service role:  eksClusterRole
-       Press "Next"
+       Configuration Options:  		"Custom configuration"
 
-       Configure Kubernetes service IP address range:  Unchecked
+       EKS Auto Mode:
+       		"EKS AUto Mode":     	Uncheck
+
+       Cluster configuration
+       		Name:           		app16-cluster
+       		Cluster IAM role:   	eksClusterRole
+
+       Kubernetes version:     1.31  (or the latest)
+
+       Press "Next"
 
 
     e. In Networking
        VPC:                               Choose default vpc  (project-vpc)
-       Subnets:                           auto-selected both subnets for you
+       Subnets:                           auto-selected both subnets for you / Select public and private subnets
        Security groups:                   Choose the default security group
        Choose cluster IP address family:  IPv4
-       Cluster endpoint access:           Public
+       Cluster endpoint access:           Public and private
        Press "Next"
 
-    f. In Configure Logging
+    f. In Configure observability
        Leave it all off for now
        Press "Next"
 
-    g. In "Select add-ons"
-       By default, it select Amazon VPC CNI, kube-proxy, CoreDNS
-       Press "Next"
+    g. In "Select add-ons",
+       By default, it select the following:
+       	-- CoreDNS
+       	-- kube-proxy
+       	-- Amazon VPC CNI
+       	-- Amazon EKS Pod Identity Agent
+       Go with the defaults and press "Next"
 
     h. In "Configure selected add-ons settings"
        Go with default and press "Next"
@@ -459,21 +535,20 @@ Procedure
        		Default output format  json
 
        2) Get the cluster info:
-          unix> aws eks describe-cluster --name nccs --query "cluster.identity.oidc.issuer" --output text
-          https://oidc.eks.us-east-1.amazonaws.com/id/ID_FROM_DESCRIBE_CLUSTER
-
-
-
-
+          unix> aws eks describe-cluster --name app16-cluster --query "cluster.identity.oidc.issuer" --output text
+          https://oidc.eks.us-east-1.amazonaws.com/id/B97A5C56362F17113EA8F423213123DD0331B3A7
+                                                                    ^
+                                                                    |
+                                                               ID FROM DESCRIBE CLUSTER
     b. Grant anyone in our account to EKS/VPC/CNI
-       1) Click on Roles
+       1) Go to IAM -> Roles
        2) Click on AmazonEKS_VPC_CNI_Role
        3) Click on "Trust relationships"
        4) Edit trust policy
 
           Replace the trust policy with this  (no tabs):
-          Replace ID_FROM_DESCRIBE_CLUSTER with the value from the step above -- e.g., C9FCF1D27921DE152F548C25397C3E95
-          REPLACE MY_REGION with us-east-2 (if needed)
+          Replace ID_FROM_DESCRIBE_CLUSTER with the value from the step above -- e.g., B97A5C56362F17113EA8F423213123DD0331B3A7
+          REPLACE MY_REGION with us-east-1 (if needed)
 
 {
     "Version": "2012-10-17",
@@ -493,6 +568,11 @@ Procedure
         }
    ]
 }
+
+
+
+     	5) Press "Update policy"
+
 
 
 NOTE:  If you have multiple clusters, then you would have multiple statements:
@@ -533,56 +613,67 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 }
 
 
-     8) Press "Update policy"
+
+			#       b. Make sure your subnets enable IP/hostname resolution
+			#          1) Click on VPC -> Subnets
+			#          2) Edit your 1st public subnet -> Action -> Edit Subnet settings
+			#             Check "Enable auto-assign public IPv4 address"
+			#             Press "Save"
+			#
+			#          3) Edit your 2nd public subnet -> Action -> Edit Subnet settings
+			#             Check "Enable auto-assign public IPv4 address"
+			#             Press "Save"
+			#
+			#          4) Edit your 1st public subnet -> Action -> Edit Subnet settings
+			#             Check "Enable auto-assign public IPv4 address"
+			#             Press "Save"
+
+
+
+
+    c. Make sure the subnets have the correct TAGS using these rules
+       NOTE:  This is needed so that auto-discovery works and the load balancer can get a public IP
+       1) Click on VPC -> Subnets
+       2) Click on the 1st private subnet
+       3) Press on the "Tags" tab
+       4) Press "Manage tags"
+       5) Press "Add new tag"
+
+		  key:   kubernetes.io/role/internal-elb
+		  value: 1;
+
+       Repeat this for all private subnets
+
+
+       Rules for the tags
+       ------------------
+       Public Subnets should be resource tagged with:
+          kubernetes.io/role/elb   1
+
+       Private Subnets should be tagged with:
+          kubernetes.io/role/internal-elb 1
+
+       Public subnets should have:  if they are also used by non-EKS resources
+          kubernetes.io/cluster/${your-cluster-name}: shared
 
 
 
 
 
- 7. Create the keypair and inbound rule
-    a. Go to EC2
-    b. Look for Network & Security -> Key Pairs
-    c. Press "Create key pair"
-       Name:   node-for-kubunetes-instance
-       Type:   RSA
-       Format: PEM
-       Press "Create key pair"
-              -- You will be prompted to download the node-for-kubernetes-instance.pem
-
-    d. Add an inbound rule for this node so that you can ssh from anywhere
-       1) Go to EC2
-       2) Click on Resources -> Security groups
-       3) Check the default security group and press Action -> Edit Inbound Rules
-       4) Press "Add Rule"
-          Type:   SSH
-          Source: Anywhere-IPv4
-          Press "Save rule"
-
-    e. Add another inbound rule for our default security group  (to let all traffic in and out)
-       1) Go to EC2 Dashboard
-       2) Click on Resources -> Security groups
-       3) Check the default security group and press Action -> Edit Inbound Rules
-       4) Press "Add Rule"
-              Type:   All Traffic
-              Source: Anywhere-IPv4
-                      0.0.0.0/0
-              Press "Save rule"
-
-
- 8. Create Kubernetes Node Group  (as dev.user)
+ 7. Create Kubernetes Node Group  (as dev.user)
 	a. Go to AWS.com -> Elastic Kubernetes Services
-	b. Click on your cluster (nccs)
+	b. Click on app16-cluster
 	c. Click on "Compute" tab
 	d. Press "Add node group"
 	e. In "Configure node group"
-		   Name:           nccs-node-group
+		   Name:           app16-node-group
 		   Node IAM Role:  eksNodeRole
 		   Press "Next"
 
 	f. In "Node group compute configuration"
 	   AMI Type:       Amazon Linux 2 (AL2_x86_64)
 	   Capacity Type:  On-Demand                        (in DOD, we would have reserved instances)
-	   Instance types  t3.medium
+	   Instance types  t2.medium
 	   Disk size:      20 GiB
 
 	   In Node group scaling configuration         (at a minimum, you want 2 nodes as one of the nodes is running keycloak)
@@ -597,73 +688,104 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
 	g. In "Specify Networking"
-		1) Select the both subnets
-		2) Select "Configure remote access to nodes"
-		   -- In the warning, press "Enable"
-           -- Subnets:                       <Use the down arrow to ONLY select your 3 public subnets / do not select private subnets)
-		   -- SSH Key pair:                  Select node-for-kubernetes-instance
-		   -- Allow SSH remote access from:  Selected security groups
-		   -- For security groups:           Select default VPC security group
+	   1) Select the private subnets **ONLY**
+	   2) Select "Configure remote access to nodes"
+		  -- In the warning, press "Enable"
+		  -- EC2 Key pair:                  Select app16-kubernetes-nodes-keypair
+		  -- Allow remote access from:
+		  		-- Selected Security groups
+		  		-- Select ssh-from-bastion-host-security-group
+		  		-- select default vpc security group
 
-		Press "Next"
 
 	h. In "Review and Create"
-		Press "Create"
+	   Press "Create"
 
-		NOTE:  At this point, I'm being charged for the t3.medium (which costs $2/day)
+		NOTE:  At this point, I'm being charged for the t2.medium nodes   (which costs $2/day)
+
 
 	i. W A I T      U P    T O       2      M I N       F O R     A W S    (to create the node group)
 
-    j. While waiting, set the name of one of the instances to be keycloak-instance
+
+	j. While waiting, set the name of one of the instances to be keycloak-instance
 	   a. Go to the EC2 Dashboard -> instances
 	   b. In the name row, press the "Edit" icon and enter keycloak-instance for one of them
 
-	k. While waiting, get the public IP of your keycloak instance
-	   a. Go to the EC2 Dashboard -> instances
-	   b. Chceck keycloak-instance
-	   c. Look at the bottom details
-		  -- You should see your public IP address
 
-    k. Add the default security group to ALL of our running instance
-       a. Go to EC2 -> Instances
-       b. Check the checkbox next to our running instance
-       c. Selection Actions -> Security -> Change security groups
-       d. In "Associated security groups"
-          Search for default
-          Add it to the list
-          NOTE:  Press "Add Security Group"
-          press "Save"
+	k. Add the default security group to ALL of our running instance
+	   a. Go to EC2 -> Instances
+	   b. Check the checkbox next to our running instance
+	   c. Selection Actions -> Security -> Change security groups
+	   d. In "Associated security groups"
+		  Search for default
+		  Add it to the list
+		  NOTE:  Press "Add Security Group"
+		  press "Save"
 
-
- 9. SSH to the node instance to update the yum packages of the running instance
-    a. Get the public hostname or IP
-       1) Go to EC2 -> Instances -> Check our running instance
-       2) Get the public IPv4 address or Public IPv4 DNS hostname from the details
-
-    b. Attempt to ssh to it
-       1) Copy your node-for-kubunetes-instance.pem to your ~/.ssh directory
-          unix> cp ~/Downloads/node-for-kubunetes-instance.pem  ~/.ssh
-
-       2) Adjust the permissions so only you can read it:
-          unix> chmod go-rwx ~/.ssh/node-for-kubunetes-instance.pem
-
-       3) Attempt to ssh
-          unix> ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.218.246.201
-
-          WARNING:  If you cannot ssh to the IP address of the instance, then make sure that instance has the default security group applied
+    l. Grant the allow-ssh-from-public-bastion security group to the other kubernetes nodes
+         2) Click on the keycloak-instance
+         3) Click on Actions -> Security -> Change Security
+         4) In the Associated security groups:
+         	  -- Search for default
+         	  -- Press "Add security group"
+         5) Press "Save"
 
 
-       4) Once connected, then do a yum update
-          unix> sudo yum update
 
-          NOTE:  If there is a linux kernel update, then you should reboot the instance
-                 with sudo reboot
 
-       5) Install telnet command
-          unix> sudo yum install telnet
+ 8. Finish configuring the "bastion host"
+	a. Grant the public bastion ssh access to the other kubernetes nodes
+	   1) Go to EC2 -> Instances
+       2) Click on the bastion-host
+       3) Click on Actions -> Security -> Change Security
+       4) In the Associated security groups:
+       	  -- Search for default
+       	  -- Press "Add security group"
+       5) Press "Save"
 
-       6) Install nslookup command
-          unix> sudo yum install bind-utils
+	b. Get the internal IP address of the keycloak-instance
+	   1) Go to EC2 -> Instances
+       2) Click on the keycloak-instance
+          -- Get the private IPv4 of this keycloak instance -- e.g., 10.0.139.167
+
+	c. Get the public IP address of the bastion-host
+	   1) Go to EC2 -> Instances
+       2) Click on the bastion-host
+          -- Get the public IPv4 of this keycloak instance -- e.g., 44.97.169.72
+
+	d. Upload the app16-bastion-host-keypair.pem to the "bastion host"
+	   unix> scp -i ~/Downloads/app16-bastion-host-keypair.pem ~/Downloads/app16-bastion-host-keypair.pem   ec2-user@ec2-44-197-169-72.compute-1.amazonaws.com:/tmp
+
+    e. Move the pem file from /tmp to the home directory and reduce privileges on it
+	   1) ssh to the bastion host
+	      unix> ssh -i ~/Downloads/app16-bastion-host-keypair.pem ec2-user@ec2-44-197-169-72.compute-1.amazonaws.com
+
+       2) On the bastion host run these commands:
+          bastion-host> mv /tmp/app16-bastion-host-keypair.pem .
+          bastion-host> chmod go-rwx app16-bastion-host-keypair.pem
+
+	f. Attempt to ssh from the "bastion host" to the "keycloak instance"
+	   bastion-host> ssh -i app16-bastion-host-keypair.pem 10.0.139.167
+	   -- This should work successfully!!
+
+
+
+
+ 9. Update the yum packages of the running instance
+    a. SSH to the bastion host
+       unix> ssh -i ~/Downloads/app16-bastion-host-keypair.pem ec2-user@ec2-44-197-169-72.compute-1.amazonaws.com
+
+    b. From the bastion host, ssh to the keycloak-instance
+       bastion-host> ssh -i app16-bastion-host-keypair.pem 10.0.139.167
+
+    c. On the keycloak instance, update the files
+       keycloak-instance>  sudo yum update
+
+    d. Install the telnet client (it's handy)
+       keycloak-instance-host> sudo yum install telnet
+
+    e. Install the nslookup command
+       keycloak-instance-host> sudo yum install bind-utils
 
 
 
@@ -896,7 +1018,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
     b. Mount the volume on the keycloak instance
        1) ssh to the keycloak instance
-          unix>  ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.216.9.38
+          unix>  ssh -i ~/.ssh/app16-kubernetes-nodes-keypair.pem ec2-user@18.216.9.38
 
           unix> sudo -s
 
@@ -986,10 +1108,10 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
     d. Setup kubectl to be configured with your AWS cluster
        unix> export AWS_REGION=$(aws ec2 describe-availability-zones --output text --query 'AvailabilityZones[0].[RegionName]')
-       unix> export MY_CLUSTER=nccs
+       unix> export MY_CLUSTER=app16-cluster
        unix> aws eks update-kubeconfig --region $AWS_REGION --name $MY_CLUSTER
        *OR*
-       unix> aws eks update-kubeconfig --region us-east-2  --name nccs
+       unix> aws eks update-kubeconfig --region us-east-1  --name app16-cluster
 
        AT THIS POINT, the kubectl command works!!!!!
 
@@ -1259,7 +1381,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
     b. Set the "key" and "secret" values in the authenticate.sh script
        1) SSH to the kubernetes instance that will hold keycloak, certbot, and our root CA
-          unix> ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.218.246.201
+          unix> ssh -i ~/.ssh/app16-kubernetes-nodes-keypair.pem ec2-user@18.218.246.201
 
        2) Download the authenticate.sh script:
           unix> sudo -s
@@ -1422,12 +1544,12 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
                         Upload the files from my box to this keycloak server box
                         unix> cd ~/certbot
-       					unix> scp  -i ~/.ssh/node-for-kubunetes-instance.pem  -r /opt/shared-storage/certbot/archive ec2-user@18.218.246.201:/tmp
+       					unix> scp  -i ~/.ssh/app16-kubernetes-nodes-keypair.pem  -r /opt/shared-storage/certbot/archive ec2-user@18.218.246.201:/tmp
 
 
     a. Create the keycloak keystore (keycloak.keystore.jks)
        1) SSH to the kubernetes instance that will hold keycloak, certbot, and our root CA
-          unix> ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.218.246.201
+          unix> ssh -i ~/.ssh/app16-kubernetes-nodes-keypair.pem ec2-user@18.218.246.201
 
         2) Examine the 3 files that makeup the full chain / Split the full-chain into 3 files / Find the server cert
            NOTE:  The server cert has this:
@@ -1486,7 +1608,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 19. Initialize Keycloak as a service on the running instance
     NOTE:  Keycloak is a container running on the kubernetes instance
     a. SSH to the kubernetes instance that will hold keycloak, certbot, and our root CA
-       unix> ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.218.246.201
+       unix> ssh -i ~/.ssh/app16-kubernetes-nodes-keypair.pem ec2-user@18.218.246.201
 
     b. Download keycloak 21.0.1 to the /opt/keycloak directory
        unix> sudo -s
@@ -1639,7 +1761,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
     a. Setup the admin account
        1) Stop keycloak
           SSH to the kubernetes instance that will hold keycloak, certbot, and our root CA
-          unix> ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.218.246.201
+          unix> ssh -i ~/.ssh/app16-kubernetes-nodes-keypair.pem ec2-user@18.218.246.201
           unix> sudo -s
           unix> systemctl stop keycloak
 
@@ -1768,22 +1890,22 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
 
-		 4) Create the client: nccs-webapp
+		 4) Create the client: app16-webapp
 			a. Click on Clients
 			b. Press "Create client"
 
 			General Settings
 			  Client type:           OpenID Connect
-			  Client ID:             nccs-webapp
-			  Name:                  nccs web app
+			  Client ID:             app16-webapp
+			  Name:                  app16 web app
 			  Always display in UI:  Off
 			  Press "Next"
 			  Press "Next"
 			  Press "Save"
 
 			Access Settings:
-			Root URL:              https://app.traderres.com/nccs
-			Home URL:              https://app.traderres.com/nccs
+			Root URL:              https://app.traderres.com/app16
+			Home URL:              https://app.traderres.com/app16
 
 			Capability Config:
 			  Client authentication  On
@@ -1798,7 +1920,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 			Press "Save"
 
 
-		 5) Click on nccs-webapp / Credentials Tab
+		 5) Click on app16-webapp / Credentials Tab
 			Client Authenticator:  Client ID and Secret
             -- We will need this secret key in the deployment yaml file
 
@@ -1811,7 +1933,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 		 7) Create the realm role
 		    a. Press Realm roles
 		    b. Press "Create role"
-			a. Create a role called NCCS_SUPERUSER
+			a. Create a role called APP16_SUPERUSER
 
 
 		 8) Assign that role to your test user
@@ -1822,7 +1944,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 			d. Click on "role Mappings"
 			e. Press Assign Role
-			f. Assign the NCCS_SUPERUSER role to this user
+			f. Assign the APP16_SUPERUSER role to this user
 
 
 		 9) Tell keycloak to provide the roles to spring boot
@@ -1861,14 +1983,14 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
                         Upload the files from my box to this keycloak server box
                         unix> cd ~/certbot
-       					unix> scp  -i ~/.ssh/node-for-kubunetes-instance.pem  -r /opt/shared-storage/certbot/archive ec2-user@18.218.246.201:/tmp
+       					unix> scp  -i ~/.ssh/app16-kubernetes-nodes-keypair.pem  -r /opt/shared-storage/certbot/archive ec2-user@18.218.246.201:/tmp
 
 
     a. Generate this file:  webapp.keystore.jks
        NOTE:  This file should should have the server cert for app.traderres.com in it
 
        1) SSH to the kubernetes instance that will hold keycloak, certbot, and our root CA
-          unix> ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@18.218.246.201
+          unix> ssh -i ~/.ssh/app16-kubernetes-nodes-keypair.pem ec2-user@18.218.246.201
           unix> sudo -s
 
        2) Examine the 3 files that makeup the full chain of the fullchain1.pem / Split it up into 3 files / Find the server cert
@@ -1938,8 +2060,8 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
      A) Fill-in the POSTGRES_HOSTNAME       with the name from aws.com -> RDA -> Databases -> app-database -> Endpoint & port
      B) Fill-in the ES_URL                  with the name from aws.com -> OpenSearch -> Domains -> app-opensearch -> domain endpoint (VPC)
      D) Fill-in the KEYCLOAK_ISSUER_URI     with https://<PUBLIC_HOSTNAME-OF_KEYCLOAK_SERVER>:8444/realms/MyRealm
-     E) Fill-in the KEYCLOAK_CLIENT_SECRET  with the name from keycloak webapp -> MyRealm -> Clients -> nccs-webapp -> Credentials tab
-     F) Fill-in the KEYCLOAK_CLIENT_ID      with the name of the keycloak client  (it might be nccs-webapp or nccs-admin-webapp)
+     E) Fill-in the KEYCLOAK_CLIENT_SECRET  with the name from keycloak webapp -> MyRealm -> Clients -> app16-webapp -> Credentials tab
+     F) Fill-in the KEYCLOAK_CLIENT_ID      with the name of the keycloak client  (it might be app16-webapp or app16-admin-webapp)
         -- Did you create a separate client for the other webapps
         -- Did you build the keycloak JARs and deploy them?
 
@@ -1963,9 +2085,9 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 		   - name: ES_PASSWORD
 			 value: "Secret1@"
 		   - name: KEYCLOAK_CLIENT_ID
-			 value: "nccs-webapp"
+			 value: "app16-webapp"
 		   - name: KEYCLOAK_CLIENT_SECRET
-			 value: "0kps0Tn29TWhQhoEy7SwhvWEYNfYb7cU"                                                                  # Get this from keycloak -> MyRealm -> Clients -> nccs-webapp -> Credentials tab
+			 value: "0kps0Tn29TWhQhoEy7SwhvWEYNfYb7cU"                                                                  # Get this from keycloak -> MyRealm -> Clients -> app16-webapp -> Credentials tab
 		   - name: KEYCLOAK_ISSUER_URI
         	 value: https://keycloak.traderres.com:8444/realms/MyRealm"
 		   - name: INCOMING_KEYSTORE_FILEPATH
@@ -1984,8 +2106,8 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 23. Setup PersistentVolumes so you can share certs among the pods
     Goal is to make these files available to all pods:
        /shared/certs/custom.cacerts                           #  Used by spring-boot so it trusts keycloak server's cert
-       /shared/certs/nccs.webapp.keystore.jks                 #  INCOMING_KEYSTORE_FILEPATH
-       /shared/certs/nccs.webapp.truststore.jks               #  INCOMING_TRUSTSTORE_FILEPATH
+       /shared/certs/app16.webapp.keystore.jks                #  INCOMING_KEYSTORE_FILEPATH
+       /shared/certs/app16.webapp.truststore.jks              #  INCOMING_TRUSTSTORE_FILEPATH
 
     See https://repost.aws/knowledge-center/eks-persistent-storage     # BE WARNED:  This is set for commercial (not aws-gov) and there are typos
 
@@ -2017,8 +2139,8 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
       unix> eksctl utils associate-iam-oidc-provider --cluster <MY-CLUSTER-NAME> --approve
 
       You should see the following:
-         2023-06-24 15:23:26 [ℹ]  will create IAM Open ID Connect provider for cluster "nccs" in "us-east-2"
-         2023-06-24 15:23:26 [✔]  created IAM Open ID Connect provider for cluster "nccs" in "us-east-2"
+         2023-06-24 15:23:26 [ℹ]  will create IAM Open ID Connect provider for cluster "app16-cluster" in "us-east-2"
+         2023-06-24 15:23:26 [✔]  created IAM Open ID Connect provider for cluster "app16-cluster" in "us-east-2"
 
    e. Verify that you can see your identity provider
       unix> aws iam list-open-id-connect-providers
@@ -2090,7 +2212,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
   h. Deploy the driver (for aws-gov-cloud)
      unix> export AWS_REGISTRY_ID=$(aws ecr describe-registry --query registryId --output text)
-     unix> export YOUR_CLUSTER_NAME=nccs
+     unix> export YOUR_CLUSTER_NAME=app16-cluster
 
      For Gov-Cloud:
      unix> aws eks create-addon --cluster-name ${YOUR_CLUSTER_NAME} --addon-name aws-ebs-csi-driver  --service-account-role-arn arn:aws-us-gov:iam::${AWS_REGISTRY_ID}:role/AmazonEKS_EBS_CSI_DriverRole
@@ -2303,7 +2425,7 @@ spec:
 
 
 
- s. Add this section to the deployment.yaml   (should already be in the nccs-deployment.yaml)
+ s. Add this section to the deployment.yaml   (should already be in the app16-deployment.yaml)
 
     volumeMounts:
     - name: persistent-storage
@@ -2316,7 +2438,7 @@ spec:
 
 
 
-24. Upload the shared certs into the /shared/certs persistent volume
+23. Upload the shared certs into the /shared/certs persistent volume
     a. Create a temporary pod (called app2) that has this PVC mounted
        unix> vi app2-pod.yaml
 
@@ -2360,7 +2482,7 @@ spec:
 
     d. Use the kubectl cp command to copy the file from your local filesystem to the pod's /shared/certs directory
        1) Move the files to /tmp so we can download them to our local box
-          ssh -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@52.15.227.18
+          ssh -i ~/.ssh/app16-kubernetes-nodes-keypair.pem ec2-user@52.15.227.18
           unix> sudo -s
           unix> cp /opt/shared-storage/certbot/archive/app.traderres.com/*.jks /tmp
           unix> cp /opt/shared-storage/certbot/archive/app.traderres.com/custom.cacerts /tmp
@@ -2368,8 +2490,8 @@ spec:
           unix> chmod ugo+r /tmp/custom.cacerts
 
        2) Download the custom.cacerts, webapp.keystore.jks, webapp.truststore.jks from the keycloak/root-ca/certbot instance to your box
-          unix> scp -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@52.15.227.187:/tmp/*.jks .
-          unix> scp -i ~/.ssh/node-for-kubunetes-instance.pem ec2-user@52.15.227.187:/tmp/custom.cacerts .
+          unix> scp -i ~/.ssh/app16-kubernetes-nodes-keypair.pem ec2-user@52.15.227.187:/tmp/*.jks .
+          unix> scp -i ~/.ssh/app16-kubernetes-nodes-keypair.pem ec2-user@52.15.227.187:/tmp/custom.cacerts .
 
        3) Upload the 3 files into the /shared/certs directory
           unix> kubectl cp custom.cacerts         app2:/shared/certs/custom.cacerts
@@ -2389,15 +2511,15 @@ spec:
 
 25. Use Kubernetes to deploy the sync-service
     a. Delete existing deployment
-       unix> kubectl delete deployment nccs-sync-service-deployment
+       unix> kubectl delete deployment app16-sync-service-deployment
 
     b. Create the deployment script by adding the "env" section with Java settings
-       unix> vi nccs-sync-service-deployment-v2.3.0.yaml
+       unix> vi app16-sync-service-deployment-v2.3.0.yaml
 
 ######################################################################################
-# Filename:  nccs-sync-service-deployment-v2.3.0.yaml
+# Filename:  app16-sync-service-deployment-v2.3.0.yaml
 #
-# Purpose:   Tell kubernetes how to deploy the NCCS Sync Service
+# Purpose:   Tell kubernetes how to deploy the App16 Sync Service
 #
 # Usage
 #  1. Follow the steps to setup AWS credentials (so you can build & deploy)
@@ -2410,17 +2532,17 @@ spec:
 #     a. Also edit the image name (in this yaml file) to make sure it matches what was pushed to the Amazon ECR
 #
 #  4. Tell kubernetes to deploy the sync service
-#     unix> kubectl delete deployment nccs-sync-service-deployment
-#     unix> kubectl apply -f nccs-sync-service-deployment-v2.2.3.yaml
+#     unix> kubectl delete deployment app16-sync-service-deployment
+#     unix> kubectl apply -f app16-sync-service-deployment-v2.2.3.yaml
 #
 #  5. Get the name of the running pod  (it changes every time)
 #     unix> kubectl get pods
 #
 #     NAME                                            READY   STATUS         RESTARTS   AGE
-#     nccs-sync-service-deployment-69c9fd9db6-6wkcf   1/1     Running        0          19s
+#     app16-sync-service-deployment-69c9fd9db6-6wkcf   1/1     Running        0          19s
 #
 #  6. Look at the pod log to verify that the sync-service is running
-#     uniX> kubectl logs -f nccs-sync-service-deployment-69c9fd9db6-6wkcf
+#     uniX> kubectl logs -f app16-sync-service-deployment-69c9fd9db6-6wkcf
 #
 # Notes:
 #  A) If you want to erase the database, then add this to JAVA_TOOL_OPTIONS:
@@ -2429,20 +2551,20 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nccs-sync-service-deployment
+  name: app16-sync-service-deployment
 
 spec:
   selector:
     matchLabels:
-      app: nccs-sync-service
+      app: app16-sync-service
   replicas: 1
   strategy:
     type:  Recreate
   template:
     metadata:
-      name: nccs-sync-service
+      name: app16-sync-service
       labels:
-         app: nccs-sync-service
+         app: app16-sync-service
     spec:
 
       volumes:
@@ -2451,13 +2573,13 @@ spec:
           claimName: app-certs-pvc
 
       containers:
-      - image: 524647912468.dkr.ecr.us-east-2.amazonaws.com/nccs:sync-service-2.3.0-SNAPSHOT
+      - image: 524647912468.dkr.ecr.us-east-2.amazonaws.com/app16:sync-service-2.3.0-SNAPSHOT
         imagePullPolicy: Always
         volumeMounts:
         - name: app-certs-pv
           mountPath: /shared/certs
 
-        name: nccs-sync-service
+        name: app16-sync-service
 
         env:
            - name: POSTGRES_HOSTNAME
@@ -2492,21 +2614,21 @@ spec:
 
 
 	 c. Verify that there are no special chars in the file by looking for them
-		unix> cat -v -e nccs-sync-service-deployment-v2.3.0.yaml
+		unix> cat -v -e app16-sync-service-deployment-v2.3.0.yaml
 
      d. Update the image path so that it matches the image name in the Amazon ECR
 
 	 e. We create the deployment
-		unix> kubectl apply -f nccs-sync-service-deployment-v2.3.0.yaml
+		unix> kubectl apply -f app16-sync-service-deployment-v2.3.0.yaml
 
 	 f. Get a listing of the pods
 		unix> kubectl get pods
 
 		NAME                                           READY   STATUS    RESTARTS   AGE
-		nccs-sync-service-deployment-f4555b587-rclll   1/1     Running   0          2m50s
+		app16-sync-service-deployment-f4555b587-rclll   1/1     Running   0          2m50s
 
      g. Look at the log
-        unix> kubectl logs -f nccs-sync-service-deployment-f4555b587-rclll
+        unix> kubectl logs -f app16-sync-service-deployment-f4555b587-rclll
 
 
 
@@ -2514,15 +2636,15 @@ spec:
 26. Use Kubernetes to deploy the webapp
 
     a. Delete existing deployment
-       unix> kubectl delete deployment nccs-deployment
+       unix> kubectl delete deployment app16-deployment
 
     b. Create the deployment script by adding the "env" section with Java settings
-       unix> vi nccs-deployment-v2.3.0.yaml
+       unix> vi app16-deployment-v2.3.0.yaml
 
 #############################################################################
-#  nccs-deployment-v2.3.0.yaml
+#  app16-deployment-v2.3.0.yaml
 #
-# Purpose:   Tell kubernetes how to deploy the NCCS web app(s)
+# Purpose:   Tell kubernetes how to deploy the app16 web app(s)
 #
 # Usage
 #  1. Follow the steps to setup AWS credentials (so you can build & deploy)
@@ -2535,17 +2657,17 @@ spec:
 #     a. Also edit the image name (in this yaml file) to make sure it matches what was pushed to the Amazon ECR
 #
 #  4. Tell kubernetes to deploy the sync service
-#     unix> kubectl delete deployment nccs-deployment
-#     unix> kubectl apply -f nccs-deployment-v2.2.3.yaml
+#     unix> kubectl delete deployment app16-deployment
+#     unix> kubectl apply -f app16-deployment-v2.2.3.yaml
 #
 #  5. Get the name of the running pod  (it changes every time)
 #     unix> kubectl get pods
 #
 #     NAME                                            READY   STATUS         RESTARTS   AGE
-#     nccs-deployment-69c9fd9db6-6wkcf                1/1     Running        0          19s
+#     app16-deployment-69c9fd9db6-6wkcf                1/1     Running        0          19s
 #
-#  6. Look at the pod log to verify that the NCCS webapp is up
-#     uniX> kubectl logs -f nccs-deployment-69c9fd9db6-6wkcf
+#  6. Look at the pod log to verify that the app16 webapp is up
+#     uniX> kubectl logs -f app16-deployment-69c9fd9db6-6wkcf
 #
 # Notes:
 #  A) The running pods do not have DNS so we need hostAliases to create an entry in /etc/hosts
@@ -2556,22 +2678,22 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nccs-deployment
+  name: app16-deployment
   labels:
-    app: nccs-deployment
+    app: app16-deployment
 
 spec:
   selector:
     matchLabels:
-      app: nccs-deployment
+      app: app16-deployment
   replicas: 1
   strategy:
     type:  Recreate
   template:
     metadata:
-      name: nccs-deployment
+      name: app16-deployment
       labels:
-         app: nccs-deployment
+         app: app16-deployment
     spec:
       hostAliases:
       - ip: "18.216.9.38"
@@ -2584,13 +2706,13 @@ spec:
           claimName: app-certs-pvc
 
       containers:
-      - image: 524647912468.dkr.ecr.us-east-2.amazonaws.com/nccs:backend-2.3.0-SNAPSHOT
+      - image: 524647912468.dkr.ecr.us-east-2.amazonaws.com/app16:backend-2.3.0-SNAPSHOT
         imagePullPolicy: Always
         volumeMounts:
         - name: app-certs-pv
           mountPath: /shared/certs
 
-        name: nccs-deployment
+        name: app16-deployment
 
         ports:
             - containerPort: 80
@@ -2618,7 +2740,7 @@ spec:
            - name: ES_PASSWORD
              value: "Secret1@"
            - name: KEYCLOAK_CLIENT_ID
-             value: "nccs-webapp"
+             value: "app16-webapp"
            - name: KEYCLOAK_CLIENT_SECRET
              value: "0kps0Tn29TWhQhoEy7SwhvWEYNfYb7cU"
            - name: KEYCLOAK_ISSUER_URI
@@ -2638,21 +2760,21 @@ spec:
 
 
 	 c. Verify that there are no special chars in the file by looking for them
-		unix> cat -v -e nccs-deployment-v2.3.0.yaml
+		unix> cat -v -e app16-deployment-v2.3.0.yaml
 
      d. Update the image path so that it matches the image name in the Amazon ECR
 
 	 e. We create the deployment
-		unix> kubectl apply -f nccs-deployment-v2.3.0.yaml
+		unix> kubectl apply -f app16-deployment-v2.3.0.yaml
 
 	 f. Get a listing of the pods
 		unix> kubectl get pods
 
 		NAME                               READY   STATUS    RESTARTS   AGE
-		nccs-deployment-c469974cb-tj4kk   1/1     Running   0          10s
+		app16-deployment-c469974cb-tj4kk   1/1     Running   0          10s
 
     g. Look at the logs
-       unix> kubectl logs -f nccs-deployment-c469974cb-tj4kk
+       unix> kubectl logs -f app16-deployment-c469974cb-tj4kk
 
 
 
@@ -2670,7 +2792,7 @@ Troubleshooting
  A. Ssh to the running pod
     unix> kubectl get pods
 
-    unix> kubectl exec -it nccs-deployment-5c944dc79f-sb8lc /bin/bash
+    unix> kubectl exec -it app16-deployment-5c944dc79f-sb8lc /bin/bash
     unix> curl https://keycloak.traderres.com:8444/realms/MyRealm
     -- Verify that you get info cleanly (without error)
 
@@ -2682,8 +2804,8 @@ How to Shutdown the entire AWS cluster (so you're not being billed for anything)
  1. Go into ECR, and delete the repository images
 
  2. Delete the node group
-    Go into EKS -> Clusters -> sf -> Compute
-    Highlight the node group -> Delete
+    Go into EKS -> Clusters -> app16-cluster -> Compute
+    Check app16-node-group -> Delete
 
  3. Delete the OpenSearch domain
     Go into OpenSearch -> Click on sf328 domain ->
@@ -2699,8 +2821,8 @@ How to Shutdown the entire AWS cluster (so you're not being billed for anything)
     Uncheck "Create final snapshot"
     Delete
 
- 5. Delete the EKS Cluster (lsat)
-    Go into EKS -> Clusters -> sf -> delete
+ 5. Delete the EKS Cluster
+    Go into EKS -> Clusters -> app16-cluster -> delete
 
  6. Delete the EC2 Load balancer
     Go into EC2 -> Load balancers -> Action -> Delete
@@ -2710,17 +2832,15 @@ How to Shutdown the entire AWS cluster (so you're not being billed for anything)
 
 
 
-
-
-
 When deploying on AWS, remember that you need 2 signed server-certs
+-------------------------------------------------------------------
  1) Server Cert #1 will be used by keycloak
     Create it with subject alternative name = hostname, external IP, and internal IP
-    NOTE:  Make sure the hostname is *FIRST* in the subect alternative name
+    NOTE:  Make sure the hostname is *FIRST* in the subject alternative name
 
- 2) Server Cert #2 will be used by the sprint boot web app
+ 2) Server Cert #2 will be used by the spring boot web app
     Create it with subject alternative name = external hostname, external IP
-    NOTE:  Make sure the hostname is *FIRST* in the subect alternative name
+    NOTE:  Make sure the hostname is *FIRST* in the subject alternative name
 
 
 
@@ -2736,7 +2856,7 @@ Sample YAML Files
 -----------------
 
 #############################################################################
-#  nccs-sync-service-deployment-v1.yaml
+#  app16-sync-service-deployment-v1.yaml
 #
 # Purpose:   Tell kubernetes how to deploy the Sync Service
 #
@@ -2751,17 +2871,17 @@ Sample YAML Files
 #     a. Also edit the image name (in this yaml file) to make sure it matches what was pushed to the Amazon ECR
 #
 #  4. Tell kubernetes to deploy the sync service
-#     unix> kubectl delete deployment nccs-sync-service-deployment
-#     unix> kubectl apply -f nccs-sync-service-deployment-v2.2.3.yaml
+#     unix> kubectl delete deployment app16-sync-service-deployment
+#     unix> kubectl apply -f app16-sync-service-deployment-v2.2.3.yaml
 #
 #  5. Get the name of the running pod  (it changes every time)
 #     unix> kubectl get pods
 #
-#     NAME                                            READY   STATUS         RESTARTS   AGE
-#     nccs-sync-service-deployment-69c9fd9db6-6wkcf   1/1     Running        0          19s
+#     NAME                                             READY   STATUS         RESTARTS   AGE
+#     app16-sync-service-deployment-69c9fd9db6-6wkcf   1/1     Running        0          19s
 #
 #  6. Look at the pod log to verify that the sync-service is running
-#     uniX> kubectl logs -f nccs-sync-service-deployment-69c9fd9db6-6wkcf
+#     uniX> kubectl logs -f app16-sync-service-deployment-69c9fd9db6-6wkcf
 #
 # Notes:
 #  A) If you want to erase the database, then add this to JAVA_TOOL_OPTIONS:
@@ -2770,20 +2890,20 @@ Sample YAML Files
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nccs-sync-service-deployment
+  name: app16-sync-service-deployment
 
 spec:
   selector:
     matchLabels:
-      app: nccs-sync-service
+      app: app16-sync-service
   replicas: 1
   strategy:
     type:  Recreate
   template:
     metadata:
-      name: nccs-sync-service
+      name: app16-sync-service
       labels:
-         app: nccs-sync-service
+         app: app16-sync-service
     spec:
 
       volumes:
@@ -2792,39 +2912,39 @@ spec:
           claimName: app-certs-pvc
 
       containers:
-      - image: 527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/nccs:sync-service-2.2.3-SNAPSHOT
+      - image: 527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/app16:sync-service-2.2.3-SNAPSHOT
         imagePullPolicy: Always
         volumeMounts:
         - name: app-certs-pv
           mountPath: /shared/certs
 
-        name: nccs-sync-service
+        name: app16-sync-service
 
         env:
            - name: POSTGRES_HOSTNAME
-             value: "nccs.cgl3wyvjvqtu.us-gov-west-1.rds.amazonaws.com"
+             value: "app16.cgl3wyvjvqtu.us-gov-west-1.rds.amazonaws.com"
            - name: POSTGRES_DB_USERNAME
-             value: "nccs_user"
+             value: "app16_user"
            - name: POSTGRES_DB_PASSWORD
              value: "secret12"
            - name: POSTGRES_DB_NAME
-             value: "nccs_db"
+             value: "app16_db"
            - name: POSTGRES_SCHEMA_NAME
-             value: "nccs_db"
+             value: "app16_db"
            - name: POSTGRES_POOL_SIZE
              value: "50"
            - name: ES_URL
-             value: "https://vpc-nccs-wxin7j6ech5f4i6bvhptdwldcu.us-gov-west-1.es.amazonaws.com:443"
+             value: "https://vpc-app16-wxin7j6ech5f4i6bvhptdwldcu.us-gov-west-1.es.amazonaws.com:443"
            - name: ES_USERNAME
-             value: "nccs_user"
+             value: "es_user"
            - name: ES_PASSWORD
              value: "Secret1@"
            - name: INCOMING_KEYSTORE_FILEPATH
-             value: "/shared/certs/nccs.webapp.keystore.jks"
+             value: "/shared/certs/app16.webapp.keystore.jks"
            - name: INCOMING_KEYSTORE_PASSWORD
              value: "changeit"
            - name: INCOMING_TRUSTSTORE_FILEPATH
-             value: "/shared/certs/nccs.webapp.truststore.jks"
+             value: "/shared/certs/app16.webapp.truststore.jks"
            - name: INCOMING_TRUSTSTORE_PASSWORD
              value: "changeit"
            - name: JAVA_TOOL_OPTIONS
@@ -2834,9 +2954,9 @@ spec:
 
 
 #############################################################################
-#  nccs-deployment-v2.2.3.yaml
+#  app16-deployment-v2.2.3.yaml
 #
-# Purpose:   Tell kubernetes how to deploy the NCCS web app(s)
+# Purpose:   Tell kubernetes how to deploy the app16 web app(s)
 #
 # Usage
 #  1. Follow the steps to setup AWS credentials (so you can build & deploy)
@@ -2849,17 +2969,17 @@ spec:
 #     a. Also edit the image name (in this yaml file) to make sure it matches what was pushed to the Amazon ECR
 #
 #  4. Tell kubernetes to deploy the sync service
-#     unix> kubectl delete deployment nccs-deployment
-#     unix> kubectl apply -f nccs-deployment-v2.2.3.yaml
+#     unix> kubectl delete deployment app16-deployment
+#     unix> kubectl apply -f app16-deployment-v2.2.3.yaml
 #
 #  5. Get the name of the running pod  (it changes every time)
 #     unix> kubectl get pods
 #
 #     NAME                                            READY   STATUS         RESTARTS   AGE
-#     nccs-deployment-69c9fd9db6-6wkcf                1/1     Running        0          19s
+#     app16-deployment-69c9fd9db6-6wkcf                1/1     Running        0          19s
 #
-#  6. Look at the pod log to verify that the NCCS webapp is up
-#     uniX> kubectl logs -f nccs-deployment-69c9fd9db6-6wkcf
+#  6. Look at the pod log to verify that the app16 webapp is up
+#     uniX> kubectl logs -f app16-deployment-69c9fd9db6-6wkcf
 #
 # Notes:
 #  A) The running pods do not have DNS so we need hostAliases to create an entry in /etc/hosts
@@ -2870,21 +2990,21 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nccs-deployment
+  name: app16-deployment
 
 spec:
   selector:
     matchLabels:
-      app: nccs-backend
+      app: app16-backend
 
   replicas: 1
   strategy:
     type:  Recreate
   template:
     metadata:
-      name: nccs-backend
+      name: app16-backend
       labels:
-         app: nccs-backend
+         app: app16-backend
 
     spec:
       hostAliases:
@@ -2898,45 +3018,45 @@ spec:
           claimName: app-certs-pvc
 
       containers:
-      - image: 527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/nccs:backend-2.2.3-SNAPSHOT
+      - image: 527362555097.dkr.ecr.us-gov-west-1.amazonaws.com/app16:backend-2.2.3-SNAPSHOT
         imagePullPolicy: Always
         volumeMounts:
         - name: app-certs-pv
           mountPath: /shared/certs
 
-        name: nccs-backend
+        name: app16-backend
 
         env:
            - name: POSTGRES_HOSTNAME
-             value: "nccs.cgl3wyvjvqtu.us-gov-west-1.rds.amazonaws.com"
+             value: "app16.cgl3wyvjvqtu.us-gov-west-1.rds.amazonaws.com"
            - name: POSTGRES_DB_USERNAME
-             value: "nccs_user"
+             value: "app16_user"
            - name: POSTGRES_DB_PASSWORD
              value: "secret12"
            - name: POSTGRES_DB_NAME
-             value: "nccs_db"
+             value: "app16_db"
            - name: POSTGRES_SCHEMA_NAME
-             value: "nccs_db"
+             value: "app16_db"
            - name: POSTGRES_POOL_SIZE
              value: "5"
            - name: ES_URL
-             value: "https://vpc-nccs-wxin7j6ech5f4i6bvhptdwldcu.us-gov-west-1.es.amazonaws.com:443"
+             value: "https://vpc-app16-wxin7j6ech5f4i6bvhptdwldcu.us-gov-west-1.es.amazonaws.com:443"
            - name: ES_USERNAME
-             value: "nccs_user"
+             value: "app16_user"
            - name: ES_PASSWORD
              value: "Secret1@"
            - name: KEYCLOAK_CLIENT_ID
-             value: "nccs-webapp"
+             value: "app16-webapp"
            - name: KEYCLOAK_CLIENT_SECRET
              value: "gyG7oTbHbenKecReYOJIg4F2fTaUtGDp"
            - name: KEYCLOAK_ISSUER_URI
              value: "https://keycloak.rbr-tech.com:8444/realms/MyRealm"
            - name: INCOMING_KEYSTORE_FILEPATH
-             value: "/shared/certs/nccs.webapp.keystore.jks"
+             value: "/shared/certs/napp16.webapp.keystore.jks"
            - name: INCOMING_KEYSTORE_PASSWORD
              value: "changeit"
            - name: INCOMING_TRUSTSTORE_FILEPATH
-             value: "/shared/certs/nccs.webapp.truststore.jks"
+             value: "/shared/certs/app16.webapp.truststore.jks"
            - name: INCOMING_TRUSTSTORE_PASSWORD
              value: "changeit"
            - name: JAVA_TOOL_OPTIONS
