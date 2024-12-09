@@ -48,9 +48,9 @@ General Approach
  4. Create the "bastion host" key-pair and instance
  5. Create the EKS Cluster (as dev.user)
  6. Finish configuring CNI Policy
- 7. Create Kubernetes Node Group
+ 7. Create Kubernetes Node Group  (as dev.user)
  8. Finish configuring the "bastion host"
- 9. Update the yum packages of the running instance
+ 9. Update the yum packages on the your instance
 10. Initialize AWS-hosted resources (exist outside of the kubernetes cluster)
     NOTE:  postgres and OpenSearch do not run inside kubernetes
     a. Setup 2 RDS / postgres instances (one for the webapp and one for keycloak)
@@ -270,7 +270,7 @@ Procedure
           		AmazonEKSWorkerNodePolicy
 
 
-     11) Click on "Trust relationships" (all of the worker nodes are running on ec2 hosted servers / this granting rights to the ec2 hosted instsances)
+     11) Click on "Trust relationships" (all of the worker nodes are running on ec2 hosted servers / this granting rights to the ec2 hosted instances)
          Press "Edit trust policy"
 
          Find this line:
@@ -404,68 +404,56 @@ Procedure
           unix> chmod go-rwx ~/Downloads/app16-bastion-host-keypair.pem
 
 	   4) Use the bastion host keypair to connect to it
-	      unix> ssh -i ~/Downloads/app16-bastion-host-keypair.pem ec2-user@ec2-44-197-169-72.compute-1.amazonaws.com
+	      unix> ssh -i ~/Downloads/app16-bastion-host-keypair.pem ec2-user@ec2-public-hostname-of-bastion.amazonaws.com
 
 		  You should see the following:
-			SUSE Linux Enterprise Server 15 SP6 x86_64 (64-bit)
-
-			As "root" (sudo or sudo -i) use the:
-			  - zypper command for package management
-			  - yast command for configuration management
-
-			Management and Config: https://www.suse.com/suse-in-the-cloud-basics
-			Documentation: https://www.suse.com/documentation/sles-15/
-			Community: https://community.suse.com/
-
-			Have a lot of fun...
-
-
-	d. Create a security group:  ssh-from-bastion-host-security-group
-         1) Get the private IP address of the bastion host
-            -- Go to EC2 Instances
-            -- Click on bastion-host
-            -- NOTE the private IPv4:   10.0.14.50
-
-         2) Go to VPC -> Security groups
-         3) Press "Create security group"
-			Security group name:    ssh-from-bastion-host-security-group
-			Description:            ssh-from-bastion-host-security-group
-			VPC:					Project-VPC
-
-			Under "Inbound rules", press "Add rule"
-				Type    is SSH
-				Source  is Custom    10.0.14.50/32
-
-         4) Press "Create security group"
+				   ,     #_
+				   ~\_  ####_        Amazon Linux 2023
+				  ~~  \_#####\
+				  ~~     \###|
+				  ~~       \#/ ___   https://aws.amazon.com/linux/amazon-linux-2023
+				   ~~       V~' '->
+					~~~         /
+					  ~~._.   _/
+						 _/ _/
+					   _/m/'
+				Last login: Sun Dec  8 22:45:31 2024 from 108.45.91.37
 
 
-											b. Click on Network & Security -> Key Pairs
-											c. Press "Create key pair"
-											   Name:   app16-kubernetes-nodes-keypair
-											   Type:   RSA
-											   Format: PEM
-											   Press "Create key pair"
-													  -- You will be prompted to download the app16-kubernetes-nodes-keypair.pem
 
-											d. Add an inbound rule for this node so that you can ssh from anywhere
-											   1) Go to EC2
-											   2) Click on Network & Security -> Security groups
-											   3) Check the default security group
-											   4) Press Action -> Edit Inbound Rules
-											   5) Press "Add Rule"
-												  Type:   SSH
-												  Source: Anywhere-IPv4
-												  Press "Save rule"
+	d. Create a security group:  allow-ssh-from-bastion-host-security-group
+	   1) Get the private IP address of the bastion host
+	  	  -- Go to EC2 Instances
+		  -- Click on bastion-host
+		  -- NOTE the private IPv4:   10.0.1.57
 
-											e. Add another inbound rule for our default security group  (to let all traffic in and out)
-											   1) Go to EC2 Dashboard
-											   2) Click on Resources -> Security groups
-											   3) Check the default security group and press Action -> Edit Inbound Rules
-											   4) Press "Add Rule"
-													  Type:   All Traffic
-													  Source: Anywhere-IPv4
-															  0.0.0.0/0
-													  Press "Save rule"
+	   2) Go to VPC -> Security groups
+	   3) Press "Create security group"
+	  	  Security group name:    allow-ssh-from-bastion-host-security-group
+		  Description:            allow-ssh-from-bastion-host-security-group
+		  VPC:					  Project-VPC
+
+		  Under "Inbound rules", press "Add rule"
+			Type    is SSH
+			Source  is Custom    10.0.1.57/32
+
+	   4) Press "Create security group"
+
+
+     e. Make sure the public subnets enable IP/hostname resolution
+	    1) Click on VPC -> Subnets
+	    2) Edit your 1st public subnet -> Action -> Edit Subnet settings
+		   Check "Enable auto-assign public IPv4 address"
+		   Press "Save"
+
+	    3) Edit your 2nd public subnet -> Action -> Edit Subnet settings
+	  	   Check "Enable auto-assign public IPv4 address"
+  		   Press "Save"
+
+	    4) Edit your 1st public subnet -> Action -> Edit Subnet settings
+		   Check "Enable auto-assign public IPv4 address"
+		   Press "Save"
+
 
 
 
@@ -614,23 +602,6 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
 
-			#       b. Make sure your subnets enable IP/hostname resolution
-			#          1) Click on VPC -> Subnets
-			#          2) Edit your 1st public subnet -> Action -> Edit Subnet settings
-			#             Check "Enable auto-assign public IPv4 address"
-			#             Press "Save"
-			#
-			#          3) Edit your 2nd public subnet -> Action -> Edit Subnet settings
-			#             Check "Enable auto-assign public IPv4 address"
-			#             Press "Save"
-			#
-			#          4) Edit your 1st public subnet -> Action -> Edit Subnet settings
-			#             Check "Enable auto-assign public IPv4 address"
-			#             Press "Save"
-
-
-
-
     c. Make sure the subnets have the correct TAGS using these rules
        NOTE:  This is needed so that auto-discovery works and the load balancer can get a public IP
        1) Click on VPC -> Subnets
@@ -647,14 +618,27 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
        Rules for the tags
        ------------------
-       Public Subnets should be resource tagged with:
-          kubernetes.io/role/elb   1
-
        Private Subnets should be tagged with:
-          kubernetes.io/role/internal-elb 1
+          kubernetes.io/role/internal-elb:                1
+          kubernetes.io/cluster/${your-cluster-name}:     owned
 
        Public subnets should have:  if they are also used by non-EKS resources
-          kubernetes.io/cluster/${your-cluster-name}: shared
+          kubernetes.io/role/elb                          1
+          kubernetes.io/cluster/${your-cluster-name}:     shared
+
+
+    d. Make sure the public subnet has "enable auto-assign public IP4 address"
+       Click on VPC -> Subnets
+       Click on public subnet -> Actions -> Edit Subnet settings
+           Check "Enable auto-assign public IPv4 address"
+
+
+
+
+
+   WE ARE MISSING a STEP FOR CONFIGURING VPC ENDPOINTS (so the node group can be entirely on private subnets)
+    -- Use the VPC Endpoints to provide communication to AWS services over AWS backbone network (so traffic stays off of the public Internet)
+      https://stackoverflow.com/questions/64515585/aws-eks-nodegroup-create-failed-instances-failed-to-join-the-kubernetes-clust
 
 
 
@@ -673,7 +657,7 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 	f. In "Node group compute configuration"
 	   AMI Type:       Amazon Linux 2 (AL2_x86_64)
 	   Capacity Type:  On-Demand                        (in DOD, we would have reserved instances)
-	   Instance types  t2.medium
+	   Instance types  t3.medium
 	   Disk size:      20 GiB
 
 	   In Node group scaling configuration         (at a minimum, you want 2 nodes as one of the nodes is running keycloak)
@@ -688,14 +672,16 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
 	g. In "Specify Networking"
-	   1) Select the private subnets **ONLY**
+	   1) ** HACK ** Select the public and private subnets
+	      ONCE WE GET VPC ENDPOINTS working, only select the private subnets
+
 	   2) Select "Configure remote access to nodes"
 		  -- In the warning, press "Enable"
-		  -- EC2 Key pair:                  Select app16-kubernetes-nodes-keypair
+		  -- EC2 Key pair:                  app16-kubernetes-nodes-keypair
 		  -- Allow remote access from:
 		  		-- Selected Security groups
-		  		-- Select ssh-from-bastion-host-security-group
-		  		-- select default vpc security group
+		  		-- Select "default vpc security group"
+		 Press "Next"
 
 
 	h. In "Review and Create"
@@ -722,16 +708,6 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 		  NOTE:  Press "Add Security Group"
 		  press "Save"
 
-    l. Grant the allow-ssh-from-public-bastion security group to the other kubernetes nodes
-         2) Click on the keycloak-instance
-         3) Click on Actions -> Security -> Change Security
-         4) In the Associated security groups:
-         	  -- Search for default
-         	  -- Press "Add security group"
-         5) Press "Save"
-
-
-
 
  8. Finish configuring the "bastion host"
 	a. Grant the public bastion ssh access to the other kubernetes nodes
@@ -754,11 +730,11 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
           -- Get the public IPv4 of this keycloak instance -- e.g., 44.97.169.72
 
 	d. Upload the app16-bastion-host-keypair.pem to the "bastion host"
-	   unix> scp -i ~/Downloads/app16-bastion-host-keypair.pem ~/Downloads/app16-bastion-host-keypair.pem   ec2-user@ec2-44-197-169-72.compute-1.amazonaws.com:/tmp
+	   unix> scp -i ~/Downloads/app16-bastion-host-keypair.pem ~/Downloads/app16-bastion-host-keypair.pem   ec2-user@ec2-public-hostname-of-bastion.amazonaws.com:/tmp
 
     e. Move the pem file from /tmp to the home directory and reduce privileges on it
 	   1) ssh to the bastion host
-	      unix> ssh -i ~/Downloads/app16-bastion-host-keypair.pem ec2-user@ec2-44-197-169-72.compute-1.amazonaws.com
+	      unix> ssh -i ~/Downloads/app16-bastion-host-keypair.pem ec2-user@ec2-public-hostname-of-bastion.amazonaws.com
 
        2) On the bastion host run these commands:
           bastion-host> mv /tmp/app16-bastion-host-keypair.pem .
@@ -771,9 +747,9 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
 
 
- 9. Update the yum packages of the running instance
+ 9. Update the yum packages on the your instance
     a. SSH to the bastion host
-       unix> ssh -i ~/Downloads/app16-bastion-host-keypair.pem ec2-user@ec2-44-197-169-72.compute-1.amazonaws.com
+       unix> ssh -i ~/Downloads/app16-bastion-host-keypair.pem ec2-user@ec2-public-hostname-of-bastion.amazonaws.com
 
     b. From the bastion host, ssh to the keycloak-instance
        bastion-host> ssh -i app16-bastion-host-keypair.pem 10.0.139.167
@@ -786,6 +762,8 @@ NOTE:  If you have multiple clusters, then you would have multiple statements:
 
     e. Install the nslookup command
        keycloak-instance-host> sudo yum install bind-utils
+
+		-- Repeat for the other instances
 
 
 
