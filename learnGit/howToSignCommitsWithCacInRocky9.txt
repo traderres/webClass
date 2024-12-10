@@ -84,8 +84,11 @@ Part 1 / Configure gpgsm and gpg
     unix> cd ~/Downloads
     unix> wget https://dl.dod.cyber.mil/wp-content/uploads/pki-pke/zip/unclass-dod_approved_external_pkis_trust_chains.zip
     unix> unzip unclass-dod_approved_external_pkis_trust_chains.zip
-    unix> sudo cp DoD_Approved_External_PKIs_Trust_Chains_v11.1_20240716/_DoD/Trust_Anchors_Self-Signed/0-DoD_Root_CA_3.cer  /etc/pki/ca-trust/source/anchors
-    unix> sudo cp DoD_Approved_External_PKIs_Trust_Chains_v11.1_20240716/_DoD/Trust_Anchors_Self-Signed/0-DoD_Root_CA_6.cer  /etc/pki/ca-trust/source/anchors
+    unix> cd DoD_Approved_External_PKIs_Trust_Chains_v11.2_20241018
+    unix> sudo cp _DoD//Trust_Anchors_Self-Signed/0-DoD_Root_CA_3.cer                /etc/pki/ca-trust/source/anchors
+    unix> sudo cp _DoD/Trust_Anchors_Self-Signed/0-DoD_Root_CA_6.cer                 /etc/pki/ca-trust/source/anchors
+    unix> sudo cp _DoD/Intermediate_and_Issuing_CA_Certs/1-DOD_EMAIL_CA-72.cer       /etc/pki/ca-trust/source/anchors
+    unix> sudo cp _DoD/Intermediate_and_Issuing_CA_Certs/1-DOD_ID_CA-72.cer          /etc/pki/ca-trust/source/anchors
     unix> sudo update-ca-trust
 
 
@@ -540,14 +543,73 @@ Part 7 / Create a batch script to setup Git CAC Signing on a SINGLE PROJECT  (se
 
 
 
+Troubleshooting:  I got a strange error:
+-----------------------------------------
+error: gpg failed to sign the data:
+gpgsm: Note: non-critical certificate policy not allowed
+gpgsm: Note: non-critical certificate policy not allowed
+gpgsm: critical certificate extension 2.5.29.36 is not supported
+gpgsm: can't sign using '0x7BC333D5': Unsupported certificate
+[GNUPG:] INV_SGNR 0 0x7BC333D5
+[GNUPG:] INV_RECP 0 0x7BC333D5
+fatal: failed to write commit object
 
 
 
+  Solution #1: Tell gpgsm to ignore certificate extensions
+  --------------------------------------------------------
+  unix> vi ~/.gnupg/gpgsm.conf
+
+	ignore-cert-extension 2.5.29.30
+	ignore-cert-extension 2.5.29.36
+	ignore-cert-extension 2.5.29.
+	disable-crl-checks
+	disable-policy-check
+
+  unix> gpgconf --kill all
 
 
 
+  Solution #2:  Rebuild the trustfile.txt
+  ---------------------------------------
+  unix> rm -f ~/.gnupg/trustlist.txt
+  unix> touch ~/.gnupg/trustlist.txt
+  unix> gpgsm  --list-chain  --with-validation  --ignore-cert-extension 2.5.29.30 --ignore-cert-extension 2.5.29.36 --ignore-cert-extension 2.5.29.54
+	-- Press "Yes" lots of times
+
+  unix> gpgsm --list-secret-keys --with-validation  --ignore-cert-extension 2.5.29.30 --ignore-cert-extension 2.5.29.36 --ignore-cert-extension 2.5.29.54
 
 
 
+  Solution #3:  Download the missing issuer certificate and trust it on your unix box
+  -----------------------------------------------------------------------------------
+  unix> export GIT_TRACE=1
+  unix> git commit -a -m "test commit""
+        error: gpg failed to sign the data:
+        [GNUPG:] PROGRESS starting_agent ? 0 0
+        [GNUPG:] PROGRESS starting_dirmngr ? 0 0
+        gpgsm: issuer certificate {79F00049EB7F77C25D410265348A90239B1E076F} not found using authorityKeyIdentifier
+        gpgsm: issuer certificate not found
+        gpgsm: issuer certificate: #/CN=Federal Bridge CA G4,OU=FPKI,O=U.S. Government,C=US
+        gpgsm: can't sign using '0x7BC333D5': Missing issuer certificate
+        [GNUPG:] INV_SGNR 12 0x7BC333D5
+        [GNUPG:] INV_RECP 12 0x7BC333D5
 
+
+
+	1. Download the Federal Bridge G4
+	   a. Go to https://www.identrust.com/support/downloads
+	      Click on "Federal Bridge CA G4 Certificate"
+          -- This downloads the 'Federal Bridge CA G4.cer'
+
+	   b. Tell linux to trust it
+	      unix> sudo cp 'Federal Bridge CA G4.cer'       /etc/pki/ca-trust/source/anchors
+          unix> sudo update-ca-trust
+
+       c. Verify that it is trusted
+          unix> trust list | grep 'Federal Bridge'
+ 	      label: Federal Bridge CA G4
+
+       d. Restart gpg
+          unix> gpgconf --kill all
 
