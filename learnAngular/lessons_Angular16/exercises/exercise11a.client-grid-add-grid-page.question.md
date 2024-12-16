@@ -42,7 +42,7 @@ Exercise
  
  
  
- 4. Add a public class variable:   gridOpptions
+ 4. Add a public class variable:   gridOptions
     -- The type is GridOptions
     
     -- Set these properties

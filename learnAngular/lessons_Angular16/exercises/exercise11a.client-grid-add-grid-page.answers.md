@@ -89,7 +89,7 @@ Exercise
 
  
  
- 4. Add a public class variable:   gridOpptions
+ 4. Add a public class variable:   gridOptions
     -- The type is GridOptions
     
     -- Set these properties
@@ -139,13 +139,11 @@ Exercise
                 
  6. Add a public class variable:  defaultColumnDef
     -- The type is ColDef
-    -- Initialize it so that flex = 1, sortable = true, filter = true, floatingFilter = true
+    -- Initialize it so that flex = 1, sortable = true
 
         public defaultColumnDef: ColDef = {
           flex: 1,
-          sortable: true,
-          filter: true,
-          floatingFilter: true
+          sortable: true
         }
         
         
