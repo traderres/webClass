@@ -47,7 +47,7 @@ Exercise
     
 Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
 -------------------------------------------------------------------------------
- 1. Add a public class variable:   gridOpptions
+ 1. Add a public class variable:   gridOptions
     -- The type is GridOptions
     
     -- Set these properties
@@ -134,7 +134,8 @@ Part 4 / Configure the grid to load it's rowData with the fake service
   
  
  2. In the Grid Page TypeScript / Add these 2 public class variables:
-    
+        gridApi / type is GridApi
+        gridColumnApi / type is ColumnApi
     
     
  3.  In the Grid Page TypeScript / Add a method:  onGridReady
