@@ -391,7 +391,8 @@ Part 4 / Configure the grid to load it's rowData with the fake service
       public defaultColumnDef: ColDef = {
         flex: 1,
         sortable: true,
-        filter: 'agTextColumnFilter',           // Turn on the filters for this column
+        floatingFilter: true,                   // Turn on the floating filters
+        filter: 'agTextColumnFilter',           // Set the filter type as a text filter
         filterParams: this.textFilterParams,    // Customize the filter
       }
     
