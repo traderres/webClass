@@ -1,3 +1,4 @@
+```
 Evolution of Labels over Time
 -----------------------------
 
@@ -24,7 +25,7 @@ Evolution of Labels over Time
 
 			<mat-form-field>
 
-				<mat-label>Enter full name</mat-label>
+				<mat-label>Enter Full Nme</mat-label>
 
 				<input type="text" matInput title="Full Name" aria-label="Full Name"/>
 
@@ -51,6 +52,10 @@ Evolution of Labels over Time
 			+ The label is always visible
 			+ Less Poofy
 
+
+```
+![](../images/boring.lecture.labels.png)
+```
 
 
  How to create a max-reduced-density class that can be applied to any page
@@ -142,3 +147,4 @@ Evolution of Labels over Time
            </div>
          </div>
 
+```

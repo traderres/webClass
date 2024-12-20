@@ -23,7 +23,7 @@ Angular 16 Lesson Plan
     m. <a href="./lectures/boring.lecture.angular.tricks.and.techniques.txt"    title="Angular Material Tricks & Techniques">Angular Material Tricks & Techniques</a>
     n. <a href="./lectures/boring.lecture.ag-grid.tricks.and.techniques.txt"    title="Ag-grid Tricks & Techniques">ag-grid Tricks & Techniques</a>
     o. <a href="./lectures/boring.lecture.observable-linked-to-rest-call.txt"   title="Use httpClient to create observable">Use httpClient to link an observable to a REST call</a>
-    p. <a href="./lectures/boring.lecture.evolution.of.the.label.txt"           title="Evolution of the label">Evolution of the Label</a>
+    p. <a href="lectures/boring.lecture.evolution.of.the.label.md"              title="Evolution of the label">Evolution of the Label</a>
     
  3. Add Frontend Dependencies
     <a href="./lesson03_installTailwind.txt"    title="Install Tailwind">Install Tailwind</a>
