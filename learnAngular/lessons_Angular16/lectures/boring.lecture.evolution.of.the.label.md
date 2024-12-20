@@ -4,53 +4,53 @@ Evolution of Labels over Time
 
 	1. The 2000 styles / create a label on the page
 
-			+------------------------------------------------------+
-			| Full Name      <wasted space>	    Full-Name-Textbox  |
+            +------------------------------------------------------+
+            | Full Name      <wasted space>	    Full-Name-Textbox  |
             | Priority       <wasted space>     Priority Dropdown  |
-			+------------------------------------------------------+
-
-			+------------------------------------------------------+
-			| Full Name   Full-Name-Textbox       <wasted space>   |
+            +------------------------------------------------------+
+            
+            +------------------------------------------------------+
+            | Full Name   Full-Name-Textbox       <wasted space>   |
             | Priority    Priority Dropdown       <wasted space>   |
-			+------------------------------------------------------+
-
-			- Labels use a LOT of space on the page
-			- If browser stretches, the label is far away from the control
-			+ Easy to implement
+            +------------------------------------------------------+
+            
+            - Labels use a LOT of space on the page
+            - If browser stretches, the label is far away from the control
+            + Easy to implement
 
 
 
 
 	2. The 2010 style / use mat-label
 
-			<mat-form-field>
-
-				<mat-label>Enter Full Nme</mat-label>
-
-				<input type="text" matInput title="Full Name" aria-label="Full Name"/>
-
-			</mat-form-field>
-
-			+ Lots of developers know it / it's been around a long time
-			+ Label is NEAR the control (no wasted space)
-			+ The label is always visible
-			- The entire mat-form-field has a lot of height / it looks poofy!!!!
+            <mat-form-field>
+            
+                <mat-label>Enter Full Nme</mat-label>
+            
+                <input type="text" matInput title="Full Name" aria-label="Full Name"/>
+            
+            </mat-form-field>
+            
+            + Lots of developers know it / it's been around a long time
+            + Label is NEAR the control (no wasted space)
+            + The label is always visible
+            - The entire mat-form-field has a lot of height / it looks poofy!!!!
 
 
 
 
 	3. The 2020s style / no mat-label / make the mat-form-field slimmer / add a label above it
 
-			<span class="app-form-label">Full Name</span>
-			<mat-form-field class="max-reduced-density">
-
-				<input type="text" matInput title="Full Name" aria-label="Full Name"/>
-
-			</mat-form-field>
-
-			+ Label is NEAR the control
-			+ The label is always visible
-			+ Less Poofy
+            <span class="app-form-label">Full Name</span>
+            <mat-form-field class="max-reduced-density">
+            
+                <input type="text" matInput title="Full Name" aria-label="Full Name"/>
+            
+            </mat-form-field>
+            
+            + Label is NEAR the control
+            + The label is always visible
+            + Less Poofy
 
 
 ```
