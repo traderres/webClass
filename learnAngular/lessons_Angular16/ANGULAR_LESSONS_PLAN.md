@@ -91,9 +91,11 @@ Angular 16 Lesson Plan
     <a href="./exercises/exercise11d.client-grid-sorting.question.md"            title="Exercise 11d">Exercise 11d</a> / Client Grid / Sorting                             (<a href="./exercises/exercise11d.client-grid-sorting.answers.md"             title="Exercise 11d">Answers</a>)
     <a href="./exercises/exercise11e.client-grid-cell-renderers.question.md"     title="Exercise 11e">Exercise 11e</a> / Client Grid / Format cells w/cell renderers       (<a href="./exercises/exercise11e.client-grid-cell-renderers.question.md"     title="Exercise 11e">Answers</a>)
     Exercise 11f / Client Grid / Add HTML controls w/cell renderers
-    Exercise 11g / Client Grid / Row Selection & checkboxes
-    Exercise 11h / Client Grid / Open a dialog
-    Exercise 11i / Client Grid / Remember grid columns & sorting
+    Exercise 11g / Client Grid / Add search box that applies filters
+    Exercise 11h / Client Grid / Row Selection & checkboxes
+    Exercise 11i / Client Grid / Open a dialog
+    Exercise 11j / Client Grid / Remember grid columns & sorting
+
 
  9. Tabs Groups
     <a href="./exercises/exercise12a.setup-tab-group.question.txt" title="Exercise 12a">Exercise 12a</a> / Tab Group / Setup page w/tabs                     (<a href="./exercises/exercise12a.setup-tab-group.answers.txt"   title="Exercise 12a">Answers</a>)
