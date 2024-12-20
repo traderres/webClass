@@ -5,7 +5,7 @@ Evolution of Labels over Time
 	1. The 2000 styles / create a label on the page
 
             +------------------------------------------------------+
-            | Full Name      <wasted space>	    Full-Name-Textbox  |
+            | Full Name      <wasted space>     Full-Name-Textbox  |
             | Priority       <wasted space>     Priority Dropdown  |
             +------------------------------------------------------+
             
