@@ -2,6 +2,11 @@
 Evolution of Labels over Time
 -----------------------------
 
+```
+![](../images/boring.lecture.labels.png)
+```
+
+
 	1. The 2000 styles / create a label on the page
 
             +------------------------------------------------------+
@@ -53,9 +58,7 @@ Evolution of Labels over Time
             + Less Poofy
 
 
-```
-![](../images/boring.lecture.labels.png)
-```
+
 
 
  How to create a max-reduced-density class that can be applied to any page
