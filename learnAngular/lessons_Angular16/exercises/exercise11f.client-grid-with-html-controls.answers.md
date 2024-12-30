@@ -410,8 +410,8 @@ Problem:  By default client side date fields do not sort -- because the grid tre
  3. Tell your grid "date" columns to use your Date Service comparator method 
 
       {
-    	field: 'start_date',
-  		comparator: (a: string, b: string) => this.dateService.dateComparator(a,b)
+        field: 'start_date',
+        comparator: (a: string, b: string) => this.dateService.dateComparator(a,b)
 	  }
 
 
