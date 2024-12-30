@@ -93,7 +93,7 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
       
     b. Add a class variable:  defaultColumnDefs
        -- The type is ColDef
-       -- Initialize it so that flex = 1, sortable = true, filter = true, floatingFilter = true, filterParams is set to your textFilterParams
+       -- Initialize it so that flex = 1, sortable = true, filter = 'agTextColumnFilter', floatingFilter = true, filterParams is set to your textFilterParams
 
                 
  
