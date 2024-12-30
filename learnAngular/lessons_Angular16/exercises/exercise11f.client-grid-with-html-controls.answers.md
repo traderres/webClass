@@ -412,7 +412,7 @@ Problem:  By default client side date fields do not sort -- because the grid tre
       {
         field: 'start_date',
         comparator: (a: string, b: string) => this.dateService.dateComparator(a,b)
-	  }
+      }
 
 
 
