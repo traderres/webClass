@@ -79,7 +79,7 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
                 
                 
  3. Turn on sorting on *ALL* columns
-    -- Define a class variable called defaultColumnDef
+    -- Define a class variable called defaultColumnDefs
     -- The type is ColDef
     -- Initialize it so that flex = 1, sortable = true
 
@@ -91,9 +91,8 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
         -- Set the filter options, set caseSensitivitiy, set supressAndOrCondition, set debounceMS to 200 milliseconds
       
       
-    b. Add a class variable:  defaultColumnDefs
-       -- The type is ColDef
-       -- Initialize it so that flex = 1, sortable = true, filter = 'agTextColumnFilter', floatingFilter = true, filterParams is set to your textFilterParams
+    b. Update the defaultColumnDefs
+       -- Add filter = 'agTextColumnFilter', floatingFilter = true, filterParams is set to your textFilterParams
 
                 
  
