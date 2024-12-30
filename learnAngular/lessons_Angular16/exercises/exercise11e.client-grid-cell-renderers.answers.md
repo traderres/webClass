@@ -347,7 +347,6 @@ Problem:  By default client side date fields do not sort -- because the grid tre
 
 Part 6 / Get the "Status" column to show different values based on the status id
 --------------------------------------------------------------------------------
-
  1. Create a component:  registration-status-custom-renderer
  
  2. Edit your cell renderer's typescript 
