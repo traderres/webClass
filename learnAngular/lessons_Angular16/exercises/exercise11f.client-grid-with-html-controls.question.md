@@ -5,8 +5,8 @@ Problem 1:  I want to add a button (or two) in a cell that runs some TypeScript 
 Problem 2:  I want to add a control (or two) in a cell that opens a popup
 
 
-Solution: 	Make a custom cell renderer that has a button inside of it
-            NOTE:  We can have the custom-cell-renderer run code back in the grid page 
+Solution:  Make a custom cell renderer that has a button inside of it
+           NOTE:  We can have the custom-cell-renderer run code back in the grid page 
 
 ```
 ![](../images/exercise11f_image6.png)
