@@ -181,8 +181,8 @@ Part 4 / Configure the grid to load it's rowData with the fake service
 ```
 
 
-Part 5 / Get the Start_Date and EndDate fields to sort correctly
-----------------------------------------------------------------
+Part 5 / Get the start_Date and end_date fields to sort correctly
+-----------------------------------------------------------------
 Problem:  By default client side date fields do not sort -- because the grid treats them as string
  
  1. Implement your Date Service (if you haven't already created it)
