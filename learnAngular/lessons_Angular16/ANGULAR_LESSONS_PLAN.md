@@ -91,7 +91,6 @@ Angular 16 Lesson Plan
     <a href="./exercises/exercise11d.client-grid-sorting.question.md"            title="Exercise 11d">Exercise 11d</a> / Client Grid / Sorting                             (<a href="./exercises/exercise11d.client-grid-sorting.answers.md"             title="Exercise 11d">Answers</a>)
     <a href="./exercises/exercise11e.client-grid-cell-renderers.question.md"     title="Exercise 11e">Exercise 11e</a> / Client Grid / Format cells w/cell renderers       (<a href="./exercises/exercise11e.client-grid-cell-renderers.answers.md"      title="Exercise 11e">Answers</a>)
     <a href="./exercises/exercise11f.client-grid-with-html-controls.question.md" title="Exercise 11f">Exercise 11f</a> / Client Grid / Add HTML controls w/cell renderers  (<a href="./exercises/exercise11f.client-grid-with-html-controls.answers.md"  title="Exercise 11f">Answers</a>)
-    Exercise 11f / Client Grid / Add HTML controls w/cell renderers
     Exercise 11g / Client Grid / Add search box that applies filters
     Exercise 11h / Client Grid / Row Selection & checkboxes
     Exercise 11i / Client Grid / Open a dialog
