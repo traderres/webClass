@@ -232,6 +232,8 @@ Part 6 / Create the "Action" Cell Renderer (that will have "Edit" and "Delete" i
  9. Edit report-grid-action-cell-renderer.component.html
     a. Remove the existing HTML
     b. Add a wrapper div and 2 buttons and use the mat-icon-button
+       NOTE:  Use the mat-icon-button as it makes icon buttons look slick with padding and animation
+    
     c. The 1st button should have a font-awesome edit icon -- e.g., pencil icon?
     d. Clicking on this edit icon should run the editClick() method
     e. The 2nd button should have a font-awesome delete icon -- e.g., trash can?
