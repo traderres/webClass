@@ -148,7 +148,7 @@ Exercise
         
         
  
- 7. Create a DTO:  rowDataDTO
+ 7. Create a DTO:  RowDataDTO
         id          // This is numeric
         name        // Every will hold text
         priority    // Every will hold text -- e.g., 'Low', 'Medium', or 'high'
@@ -167,7 +167,7 @@ Exercise
 
                  
  8. Add a public class variable:  rowData
-    -- The type is an array of rowDataDTO objects
+    -- The type is an array of RowDataDTO objects
     -- Initialize this to be an array of 3 objects
     -- Put in some fake data
                
