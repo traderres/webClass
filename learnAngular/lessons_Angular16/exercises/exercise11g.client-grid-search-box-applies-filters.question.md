@@ -246,8 +246,10 @@ Change the layout by adding some stuff *between* the page title and the grid
             
                 <!-- Tab -->
                 <div class="flex flex-row items-center absolute bg-white rounded-t px-3 py-2 border-x border-t border-borderColor h-full w-[150px] top-[1px]">
+                  
+                  <!-- Vertical Bar -->
                   <div class="w-[5px] h-full float-left bg-[#1E3059] rounded mr-2.5 flex-shrink-0"></div>
-                  <!-- Note: Negative margin here because of line height on the numbers -->
+
                   <div class="flex flex-col pt-2">
                     <div class="h-[30px] w-[125px] flex place-content-start">
                       <!-- Title (count) -->
@@ -258,7 +260,7 @@ Change the layout by adding some stuff *between* the page title and the grid
                     </div>
             
                     <div class="h-[30px] flex place-content-start">
-                      <!-- Sub Title (context) -->
+                      <!-- Total Records on Page Load -->
                       <span>Total Records</span>
                     </div>
                   </div>
