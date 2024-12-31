@@ -82,19 +82,19 @@ Exercise
    
 
                  
- 7. Add a public class variable:  rowData
+ 8. Add a public class variable:  rowData
     -- The type is an array of rowDataDTO objects
     -- Initialize this to be an array of 3 objects
     -- Put in some fake data
   
       
  
- 8. Add the <ag-grid-angular> tag to your page 
+ 9. Add the <ag-grid-angular> tag to your page 
     -- Place it where you want your grid to appear
  
  
  
- 9. Tell the ag-grid-angular to use your class variables
+10. Tell the ag-grid-angular to use your class variables
     -- Set gridOptions property     to your public class variable
     -- Set columnDefs property      to use your public class variable
     -- Set defaultColDef property   to use your public class variable
@@ -105,7 +105,7 @@ Exercise
     
  
 
-10. Change the column headers so it shows "Start Date" instead of "Start_date"
+11. Change the column headers so it shows "Start Date" instead of "Start_date"
     Change the column headers so it shows "End Date" instead of "End_date"
 
   
