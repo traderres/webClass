@@ -642,8 +642,8 @@ Part 7 / Entering text in the search box should apply filters in real-time
     
  
 
-Part 8  Replace the hard-coded 25 with a class variable
--------------------------------------------------------
+Part 8 / Cleanup / Update the tab to show the total records on page load / Implement the clear search button
+------------------------------------------------------------------------------------------------------------
  1. Create a class variable:  totalRecordsOnPageLoad
     -- It holds the total records loaded on page load
 
@@ -674,6 +674,34 @@ Part 8  Replace the hard-coded 25 with a class variable
               this.gridApi.setRowData(aData);
             })
           }
+
+
+ 3. Get the clear search icon button to clear the search
+    a. Add a public method:  clearSearch()
+       -- It should clear the search box text
+       -- It should clear the filter
+       -- It should refresh the matches label
+       
+       
+        public clearSearch(): void {
+            // Clear the search query
+            this.rawSearchQuery = "";
+            
+            // Clear the filter and refresh the totals
+            this.runClientGridSearch('');
+         }
+  
+    
+    
+    b. Clicking on the clear search should call clearSearch()
+    
+    
+    c. Try it out!!
+    
+ 
+ 4. Replace the deprecated textFiltersParams
+      suppressAndOrCondition: true  -->  filterParams.maxNumConditions: 1
+
 
 
 
@@ -732,7 +760,7 @@ Completed HTML
                aria-label="Search Box"/>
 
         <!-- Clear Icon -->
-        <span class="flex clickable items-center justify-center" title="Clear Search" aria-label="Clear Search">
+        <span class="flex clickable items-center justify-center" title="Clear Search" aria-label="Clear Search" (click)="this.clearSearch()">
                     <i class="fa-solid fa-xmark-large"></i>
             </span>
 
@@ -844,7 +872,7 @@ export class GridPageWithFilterSearchBoxComponent {
     filterOptions: ['contains', 'notContains'],         // Customize the filter to only show "Contains" and "Not Contains"
     caseSensitive: false,                               // Filter is case-insensitive
     debounceMs: 200,
-    suppressAndOrCondition: true,
+    maxNumConditions: 1,                                // Suppress and/or conditions
   };
 
   public defaultColumnDef: ColDef = {
@@ -902,6 +930,14 @@ export class GridPageWithFilterSearchBoxComponent {
 
     // Refresh the total matches label
     this.refreshTotalFilteredMatchAndLabels();
+  }
+
+  public clearSearch(): void {
+    // Clear the search query
+    this.rawSearchQuery = "";
+
+    // Clear the filter and refresh the totals
+    this.runClientGridSearch('');
   }
 
 }

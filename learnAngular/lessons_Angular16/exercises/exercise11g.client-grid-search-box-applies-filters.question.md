@@ -232,7 +232,7 @@ Change the layout by adding some stuff *between* the page title and the grid
   
   
   4. Fill-in the Tab and Search Box Row
-     NOTE:  I'm giving it to you as I am not 100% sure ohw it works at thi stime
+     NOTE:  Yes, you can copy & paste it as I'm still figuring out how it works
         
              +--------------------------------------------------------------------------+
              | +--+  +---------------+    +------------------------------------------+  |
@@ -355,8 +355,8 @@ Part 7 / Entering text in the search box should apply filters in real-time
      
  
 
-Part 8  Replace the hard-coded 25 with a class variable
--------------------------------------------------------
+Part 8 / Cleanup / Update the tab to show the total records on page load / Implement the clear search button
+------------------------------------------------------------------------------------------------------------
  1. Create a class variable:  totalRecordsOnPageLoad
     -- It holds the total records loaded on page load
 
@@ -365,7 +365,19 @@ Part 8  Replace the hard-coded 25 with a class variable
     -- set the totalRecordsOnPageLoad to hold the total number of records returned from the backend
         
 
-
+ 3. Get the clear search icon button to clear the search
+    a. Add a public method:  clearSearch()
+       -- It should clear the search box text
+       -- It should clear the filter
+       -- It should refresh the matches label
+       
+    b. Clicking on the clear search should call clearSearch()
+    
+    c. Try it out!!
+    
+ 
+ 4. Replace the deprecated textFiltersParams
+      suppressAndOrCondition: true  -->  filterParams.maxNumConditions: 1
 
 
 
