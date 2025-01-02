@@ -158,21 +158,27 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
             ];                
                 
                 
- 3. Add class variables to TURN ON FILTERS on all columns
+ 3. Turn on sorting on *ALL* columns
+    -- Define a class variable called defaultColumnDefs
+    -- The type is ColDef
+    -- Initialize it so that flex = 1, sortable = true
+
+            public defaultColumnDefs: ColDef = {
+              flex: 1,
+              sortable: true,           // All columns are sortable
+            }
+        
+  
+             
+ 4. Turn on filters on *ALL* columns
     a. Add a class variable:  textFilterParams     
         
-             // Customize the filters (when turned on)
-             private textFilterParams: ITextFilterParams = {
-                filterOptions: ['contains', 'notContains'],         // Customize the filter to only show "Contains" and "Not Contains"
-                caseSensitive: false,                               // Filter is case-insensitive
-                debounceMs: 200,
-                filterParams.maxNumConditions: 1                    // This causes the and/or condition to be suppressed
-              };
-      
-    b. Add a class variable:  defaultColumnDefs
-       -- The type is ColDef
-       -- Initialize it so that flex = 1, sortable = true, filter = true, floatingFilter = true
 
+      
+    b. Update the defaultColumnDefs
+        -- Add filter = 'agTextColumnFilter', floatingFilter = true, filterParams is set to your textFilterParams
+                
+ 
             public defaultColumnDef: ColDef = {
                 flex: 1,
                 sortable: true,
