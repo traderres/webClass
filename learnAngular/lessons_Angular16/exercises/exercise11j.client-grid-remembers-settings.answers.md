@@ -291,7 +291,7 @@ Part 4 / Configure the grid to load it's rowData with the fake service
             public gridColumnApi: ColumnApi;
     
     
- 3.  In the Grid Page TypeScript / Add a method:  onGridReady
+ 3. In the Grid Page TypeScript / Add a method:  onGridReady
     -- Pass-in aParams / type is GridReadyEvent
     -- initialize this.gridAPi
     -- initialize this.gridColumnApi
