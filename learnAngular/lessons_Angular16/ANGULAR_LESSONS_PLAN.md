@@ -94,8 +94,7 @@ Angular 16 Lesson Plan
     <a href="./exercises/exercise11g.client-grid-search-box-applies-filters.question.md" title="Exercise 11g">Exercise 11g</a> / Client Grid / Add search box that applies filters (<a href="./exercises/exercise11g.client-grid-search-box-applies-filters.answers.md"  title="Exercise 11g">Answers</a>)
     Exercise 11h / Client Grid / Row Selection & checkboxes
     Exercise 11i / Client Grid / Open a dialog
-    Exercise 11j / Client Grid / Remember grid columns & sorting
-
+    <a href="./exercises/exercise11j.client-grid-remembers-settings.question.md" title="Exercise 11j">Exercise 11j</a> / Client Grid / Remember grid columns settings      (<a href="./exercises/exercise11j.client-grid-remembers-settings.answers.md"  title="Exercise 11j">Answers</a>)
 
  9. Tabs Groups
     <a href="./exercises/exercise12a.setup-tab-group.question.txt" title="Exercise 12a">Exercise 12a</a> / Tab Group / Setup page w/tabs                     (<a href="./exercises/exercise12a.setup-tab-group.answers.txt"   title="Exercise 12a">Answers</a>)
