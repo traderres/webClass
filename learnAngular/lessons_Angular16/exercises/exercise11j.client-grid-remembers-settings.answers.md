@@ -212,7 +212,7 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
 
 Part 3 / Create the Frontend Service that will simulate a REST call (fake service)
 ----------------------------------------------------------------------------------
- 1. Create a frontend DTO:  GridCellDataForSearchingFiltersDTO
+ 1. Create a frontend DTO:  GridCellDataForRememberingSettingsDTO
         id                          // This is numeric
         report_name                 // This is text
         priority_label              // This is text
@@ -220,7 +220,7 @@ Part 3 / Create the Frontend Service that will simulate a REST call (fake servic
         end_date                    // This is text -- e.g., '05/01/2024' 
    
    
-        export class GridCellDataForSearchingFiltersDTO {
+        export class GridCellDataForRememberingSettingsDTO {
           public id:              number;
           public report_name:     string;
           public priority_label:  string;
@@ -234,18 +234,18 @@ Part 3 / Create the Frontend Service that will simulate a REST call (fake servic
  2. Create a frontend service:  MyReportService   (if you have not already!)
      a. Create this front-end service:  MyReportService 
      
-     b. Add a public method:  getAllReports2() 
-        NOTE:  This method returns an observable that holds an array of GridCellDataForSearchingFiltersDTO
+     b. Add a public method:  getAllReports3() 
+        NOTE:  This method returns an observable that holds an array of GridCellDataForRememberingSettingsDTO
 
      c. Fill-in this public method
-        1) Create a local variable that holds an array of GridCellDataForSearchingFiltersDTO objects 
+        1) Create a local variable that holds an array of GridCellDataForRememberingSettingsDTO objects 
         2) Fill-in the array with 3 fake objects
         3) Convert the array into an observable
         4) Return the observable
 
 
-          public getAllReports2(): Observable<GridCellDataForSearchingFiltersDTO[]> {
-            let data: GridCellDataForSearchingFiltersDTO[] = [
+          public getAllReports3(): Observable<GridCellDataForRememberingSettingsDTO[]> {
+            let data: GridCellDataForRememberingSettingsDTO[] = [
               {
                 id: 101,
                 report_name: 'Report #1',
@@ -309,7 +309,7 @@ Part 4 / Configure the grid to load it's rowData with the fake service
             this.gridApi.showLoadingOverlay();
         
             // Invoke the REST call to get the grid data
-            this.myReportService.getAllReports2().subscribe( (aData: GridCellDataForSearchingFiltersDTO[]) => {
+            this.myReportService.getAllReports3().subscribe( (aData: GridCellDataForRememberingSettingsDTO[]) => {
               // REST call came back with data
         
               // Load the grid with data from the REST call
@@ -697,7 +697,7 @@ Part 8 / Cleanup / Update the tab to show the total records on page load / Imple
             this.gridApi.showLoadingOverlay();
         
             // Invoke the REST call to get the grid data
-            this.myReportService.getAllReports2().subscribe( (aData: GridCellDataForSearchingFiltersDTO[]) => {
+            this.myReportService.getAllReports3().subscribe( (aData: GridCellDataForRememberingSettingsDTO[]) => {
               // REST call came back with data
         
               if (!aData) {

@@ -119,7 +119,7 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
 
 Part 3 / Create the Frontend Service that will simulate a REST call (fake service)
 ----------------------------------------------------------------------------------
- 1. Create a frontend DTO:  GridCellDataForSearchingFiltersDTO
+ 1. Create a frontend DTO:  GridCellDataForRememberingSettingsDTO
         id                          // This is numeric
         report_name                 // This is text
         priority_label              // This is text
@@ -132,11 +132,11 @@ Part 3 / Create the Frontend Service that will simulate a REST call (fake servic
  2. Create a frontend service:  MyReportService   (if you have not already!)
      a. Create this front-end service:  MyReportService 
      
-     b. Add a public method:  getAllReports2() 
-        NOTE:  This method returns an observable that holds an array of GridCellDataForSearchingFiltersDTO
+     b. Add a public method:  getAllReports3() 
+        NOTE:  This method returns an observable that holds an array of GridCellDataForRememberingSettingsDTO
 
      c. Fill-in this public method
-        1) Create a local variable that holds an array of GridCellDataForSearchingFiltersDTO objects 
+        1) Create a local variable that holds an array of GridCellDataForRememberingSettingsDTO objects 
         2) Fill-in the array with 3 fake objects
         3) Convert the array into an observable
         4) Return the observable
