@@ -85,7 +85,10 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
              
  4. Turn on filters on *ALL* columns
     a. Add a class variable:  textFilterParams     
-        
+       -- The type is ITextFilterParams
+       -- Tell it to only show the "Contains" and "Not Contains" options
+       -- Tell it to make the filters case-insensitive
+       -- Tell it to add a debounce time of 200 msec
 
       
     b. Update the defaultColumnDefs
@@ -94,13 +97,12 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
                 
  
  
- 
- 4. Add the <ag-grid-angular> tag to your HTML 
+ 5. Add the <ag-grid-angular> tag to your HTML 
     -- Place it where you want your grid to appear
     
     
  
- 5. Tell the ag-grid-angular to use your class variables
+ 6. Tell the ag-grid-angular to use your class variables
     -- Set gridOptions property     to your public class variable
     -- Set columnDefs property      to use your public class variable
     -- Set defaultColDef property   to use your public class variable

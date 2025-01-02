@@ -168,9 +168,8 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
                 suppressAndOrCondition: true,
               };
       
-    b. Add a class variable:  defaultColumnDefs
-       -- The type is ColDef
-       -- Initialize it so that flex = 1, sortable = true, filter = 'agTextColumnFilter', floatingFilter = true
+    b. Update the defaultColumnDefs
+        -- Add filter = 'agTextColumnFilter', floatingFilter = true, filterParams is set to your textFilterParams
 
             public defaultColumnDef: ColDef = {
                 flex: 1,
@@ -179,8 +178,7 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
                 filter: 'agTextColumnFilter',           // Specify the type of filter
                 filterParams: this.textFilterParams,    // Customize the filter
             }
-                        
-                
+                    
  
  
  5. Add the <ag-grid-angular> tag to your HTML 

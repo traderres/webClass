@@ -177,7 +177,7 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
                 filter: 'agTextColumnFilter',           // Specify the type of filter
                 filterParams: this.textFilterParams,    // Customize the filter
             }
-                              
+                                
                 
  
  

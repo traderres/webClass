@@ -173,28 +173,33 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
  4. Turn on filters on *ALL* columns
     a. Add a class variable:  textFilterParams     
         
-
+             // Customize the filters (when turned on)
+             private textFilterParams: ITextFilterParams = {
+                filterOptions: ['contains', 'notContains'],         // Customize the filter to only show "Contains" and "Not Contains"
+                caseSensitive: false,                               // Filter is case-insensitive
+                debounceMs: 200,
+                suppressAndOrCondition: true,
+              };
+      
       
     b. Update the defaultColumnDefs
         -- Add filter = 'agTextColumnFilter', floatingFilter = true, filterParams is set to your textFilterParams
-                
- 
+
             public defaultColumnDef: ColDef = {
                 flex: 1,
-                sortable: true,
+                sortable: true,                         // All columns are sortable
                 floatingFilter: true,                   // Show the floating filter (beneath the column label)
                 filter: 'agTextColumnFilter',           // Specify the type of filter
                 filterParams: this.textFilterParams,    // Customize the filter
             }
-                
+                 
  
- 
- 4. Add the <ag-grid-angular> tag to your HTML 
+ 5. Add the <ag-grid-angular> tag to your HTML 
     -- Place it where you want your grid to appear
     
     
  
- 5. Tell the ag-grid-angular to use your class variables
+ 6. Tell the ag-grid-angular to use your class variables
     -- Set gridOptions property     to your public class variable
     -- Set columnDefs property      to use your public class variable
     -- Set defaultColDef property   to use your public class variable
