@@ -705,6 +705,25 @@ Part 8 / Cleanup / Update the tab to show the total records on page load / Imple
       suppressAndOrCondition: true  -->  filterParams.maxNumConditions: 1
 
 
+ 5. Have the "Reset Grid" button actually resset the grid
+    a. Create a public method:  resetGrid()
+       -- Your method should reset the column state
+       -- Your method should size the columns to fit
+       
+         public resetGrid(): void {
+            // Reset the columns back to default  *BEFORE*  auto-sizing them sizing them
+            this.gridColumnApi.resetColumnState();
+            
+            // Size the columns to fit
+            this.gridApi.sizeColumnsToFit();
+        }
+    
+    b. Add a click handler so that the "Reset Grid" button invoke your method
+    
+           
+          <button (click)="this.resetGrid()" mat-menu-item type="button" title="Reset Grid" aria-label="Reset Grid">
+            Reset Grid
+          </button
 
 
 Completed HTML
@@ -724,26 +743,27 @@ Completed HTML
 
     <!--  S E A R C H       B O X       L I N E   -->
     <div class="mt-2.5 flex flex-row w-full h-[64px] relative flex-shrink-0">
-        <!-- Tab -->
-        <div class="flex flex-row items-center absolute bg-white rounded-t px-3 py-2 border-x border-t border-borderColor h-full w-[150px] top-[1px]">
-        
-           <!-- Vertical Bar -->
-          <div class="w-[5px] h-full float-left bg-[#1E3059] rounded mr-2.5 flex-shrink-0"></div>
-          
-          <div class="flex flex-col pt-2">
-            <div class="h-[30px] w-[125px] flex place-content-start">
-              <!-- Title (count) -->
-              <ng-container>
-                <!-- Display Total -->
-                <span class="text-2xl font-extrabold">{{ this.totalRecordsOnPageLoad }}</span>
-              </ng-container>
-            </div>
-    
-            <div class="h-[30px] flex place-content-start">
-              <!-- Sub Title (context) -->
-              <span>Total Records</span>
-            </div>
-         </div>
+
+    <!-- Tab -->
+    <div class="flex flex-row items-center absolute bg-white rounded-t px-3 py-2 border-x border-t border-borderColor h-full w-[150px] top-[1px]">
+
+      <!-- Vertical Line -->
+      <div class="w-[5px] h-full float-left bg-[#1E3059] rounded mr-2.5 flex-shrink-0"></div>
+
+      <div class="flex flex-col pt-2">
+        <div class="h-[30px] w-[125px] flex place-content-start">
+          <!-- Title (count) -->
+          <ng-container>
+            <!-- Display Total -->
+            <span class="text-2xl font-extrabold">{{ this.totalRecordsOnPageLoad }}</span>
+          </ng-container>
+        </div>
+
+        <div class="h-[30px] flex place-content-start">
+          <!-- Sub Title (context) -->
+          <span>Total Records</span>
+        </div>
+      </div>
     </div>
 
     <!-- Searchbar Container -->
@@ -792,7 +812,7 @@ Completed HTML
 
         <!-- Pop-up menu for the 'Settings' button -->
         <mat-menu #gridMenu="matMenu">
-          <button mat-menu-item type="button" title="Reset Grid" aria-label="Reset Grid">
+          <button (click)="this.resetGrid()" mat-menu-item type="button" title="Reset Grid" aria-label="Reset Grid">
             Reset Grid
           </button>
         </mat-menu>
@@ -817,6 +837,8 @@ Completed HTML
 
 
 </div>
+
+
 
 
 
@@ -942,6 +964,14 @@ export class GridPageWithFilterSearchBoxComponent {
 
     // Clear the filter and refresh the totals
     this.runClientGridSearch('');
+  }
+
+  public resetGrid(): void {
+    // Reset the columns back to default  *BEFORE*  auto-sizing them sizing them
+    this.gridColumnApi.resetColumnState();
+
+    // Size the columns to fit
+    this.gridApi.sizeColumnsToFit();
   }
 
 }

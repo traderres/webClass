@@ -382,5 +382,11 @@ Part 8 / Cleanup / Update the tab to show the total records on page load / Imple
       suppressAndOrCondition: true  -->  filterParams.maxNumConditions: 1
 
 
-
+ 5. Have the "Reset Grid" button actually resset the grid
+    a. Create a public method:  resetGrid()
+       -- Your method should reset the column state
+       -- Your method should size the columns to fit
+       
+    b. Add a click handler so that the "Reset Grid" button invoke your method
+    
 ```
