@@ -424,7 +424,7 @@ Part 9 / Have the Grid Remember Page Settings
  2. Edit the main grid page / Add 5 private class variables:
         private readonly PAGE_NAME:               string = "reports-grid-view";
         private userHasPastColumnState:           boolean = false;
-        private listenForGridChanges: boolean =   false;
+        private listenForGridChanges:             boolean = false;
         private saveGridColumnStateEventsSubject: Subject<any> = new Subject();
         private saveGridEventsSubscription:       Subscription;
  
