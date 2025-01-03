@@ -158,7 +158,11 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
              
  4. Turn on filters on *ALL* columns
     a. Add a class variable:  textFilterParams     
-        
+       -- The type is ITextFilterParams
+       -- Tell it to only show the "Contains" and "Not Contains" options
+       -- Tell it to make the filters case-insensitive
+       -- Tell it to add a debounce time of 200 msec
+       
              // Customize the filters (when turned on)
              private textFilterParams: ITextFilterParams = {
                 filterOptions: ['contains', 'notContains'],         // Customize the filter to only show "Contains" and "Not Contains"
@@ -764,7 +768,6 @@ Part 8 / Cleanup / Update the tab to show the total records on page load / Imple
 
 Part 9 / Have the Grid Remember Page Settings
 ---------------------------------------------
- 
  1. Add this contsant to constants.ts
             COLUMN_STATE_PREFERENCE_NAME = "grid_column_state"    
             
@@ -780,53 +783,69 @@ Part 9 / Have the Grid Remember Page Settings
  3. Add these 2 methods to your grid page:
  
        private saveColumnState(): void {
-        if (this.listenForGridChanges) {
-        // The grid has rendered data.  So, save the sort/column changes
-    
-        // Get the current column state
-        let currentColumnState = this.gridColumnApi.getColumnState();
-    
-        // Send a message to save the current column state
-        this.saveGridColumnStateEventsSubject.next(currentColumnState)
-        }
+            if (this.listenForGridChanges) {
+            // The grid has rendered data.  So, save the sort/column changes
+        
+            // Get the current column state
+            let currentColumnState = this.gridColumnApi.getColumnState();
+        
+            // Send a message to save the current column state
+            this.saveGridColumnStateEventsSubject.next(currentColumnState)
+            }
       }
     
     
       public firstDataRendered(): void {
-        // The grid is fully rendered.  So, set the flag to start saving sort/column changes
-        this.listenForGridChanges = true;
+            // The grid is fully rendered.  So, set the flag to start saving sort/column changes
+            this.listenForGridChanges = true;
       }
 
         
  4. Modify the gridOptions and add these items to it:
- 
-  
-	onSortChanged: () => {
-  	this.saveColumnState();
-	},
-
-	onDragStopped: () => {
-  	// User finished resizing or moving column
-  	this.saveColumnState();
-	},
-
-	onDisplayedColumnsChanged: () => {
-  	this.saveColumnState();
-	},
-
-	onColumnVisible: () => {
-  	this.saveColumnState();
-	},
-
-	onColumnPinned: () => {
-  	this.saveColumnState();
-	}
+    -- When any sorting has changed,       call saveColumnState()
+    -- When any drag and drop has stopped, call saveColumnState()
+    -- When any displayed columns changed, call saveColumnState()
+    -- When any columns become visible,    call saveColumnState()
+    -- When any columns are pinned,        call saveColumnState()
+    
+        onSortChanged: () => {
+            this.saveColumnState();
+        },
+    
+        onDragStopped: () => {
+            // User finished resizing or moving column
+            this.saveColumnState();
+        },
+    
+        onDisplayedColumnsChanged: () => {
+            this.saveColumnState();
+        },
+    
+        onColumnVisible: () => {
+            this.saveColumnState();
+        },
+    
+        onColumnPinned: () => {
+            this.saveColumnState();
+        }
 
 
  5. Inject the preference service
  
+        public constructor( private myReportService: MyReportService,
+                            private dateService: DateService,
+                            private preferenceService: PreferenceService) { }
+                            
+                            
  
- 6. Create/Edit ngOnInit() to listen for grid events. 
+ 6. Create/Edit ngOnInit() 
+    a. listen on the saveGridColumnStateEventsSubject 
+    b. use the pipe operator to 
+       1) debounce for 250 msecs
+       2) invoke switchMap  // causes previous messages to be cancelled
+           -- In the switch map, return the observable to set the preference value
+    c. subscribe to this observable
+      
 
           public ngOnInit(): void {
         
@@ -851,63 +870,454 @@ Part 9 / Have the Grid Remember Page Settings
             ).subscribe();
         
           }
+          
   
-  7. In ngOnDestroy(), stop listening on this subscription:
+  7. In ngOnDestroy(), stop listening on the saveGridEventsSubscription subscription:
   
             public ngOnDestroy(): void {
                  if (this.saveGridEventsSubscription) {
                     this.saveGridEventsSubscription.unsubscribe();
                   }
-        
              }
 
 
- 8. Change the html to call your firstDataRendered() method
+
+ 8. Have the grid call your "firstDataRendered()" method when the first data is rendered
+    NOTE:  We do not want to save column preferences until *AFTER* the data is rendered
+    
         <ag-grid-angular>....
             (firstDataRendered)="this.firstDataRendered()"
         </ag-grid-angular>
 
 
- 9. Modify onGridReady to invoke the REST call to get the column state preferences
+
+ 9. Create a method:  reloadGrid()
+    -- It should invoke the REST call to get the data, load the dat ainto the grid and set totalRecordsOnPageLoad
+    
+     private reloadGrid(): void {
+        // Invoke the REST call to get the grid data
+        this.myReportService.getAllReports2().subscribe( (aData: GridCellDataForSearchingFiltersDTO[]) => {
+          // REST call came back with data
+    
+          if (!aData) {
+            this.totalRecordsOnPageLoad = 0;
+          }
+          else {
+            this.totalRecordsOnPageLoad = aData.length;
+          }
+    
+          // Load the grid with data from the REST call
+          this.gridApi.setRowData(aData);
+        })
+    
+      }
+  
+
+10. Modify onGridReady
+    a. Invoke a *FIRST* REST call to get the user's preference *FIRST*
+       -- If there is passed-data, then set the column state
+    b. After the *FIRST* REST call has returned, then reload the grid by calling your reloadGrid() method
          
-           /*
-           * The grid is ready.  So, perform grid initialization here:
-           *  1) Invoke the REST call to get the grid column state preferences
-           *  2) When the REST endpoint returns
-           * 	a) Set the grid column state preferences
-           * 	b) Load the data into the grid
-           */
-          public onGridReady(params: any): void {
+        
+          public onGridReady(aParams: GridReadyEvent) {
             // Get a reference to the gridApi and gridColumnApi (which we will need later to get selected rows)
-            this.gridApi = params.api;
-            this.gridColumnApi = params.columnApi;
+            this.gridApi = aParams.api;
+            this.gridColumnApi = aParams.columnApi;
         
+            // Show the loading overlay
+            this.gridApi.showLoadingOverlay();
         
-             this.preferenceService.getPreferenceValueForPage(Constants.COLUMN_STATE_PREFERENCE_NAME, this.PAGE_NAME).subscribe( (aPreference: GetOnePreferenceDTO) => {
-                // REST call came back.  I have the grid preferences
-            
-                if (! aPreference.value) {
-                    // There is no past column state
-                    this.userHasPastColumnState = false;
-                }
-                else {
-                    // There is past column state
-                    let storedColumnStateObject = JSON.parse(aPreference.value);
-            
-                    // Set the grid to use past column state
-                    // NOTE:  In ag-grid v30, use this.gridColumnApi.applyColumnState({ state: storedColumnStateObject} )
-                    this.gridColumnApi.setColumnState(storedColumnStateObject);
-            
-                    this.userHasPastColumnState = true;
-                }
-            
-                // Load the grid with data
-                this.reloadPage();
-                });
+            // Invoke the REST call to get past column state preference info for THIS PAGE
+            this.preferenceService.getPreferenceValueForPage(Constants.COLUMN_STATE_PREFERENCE_NAME, this.PAGE_NAME).subscribe( (aPreference: GetOnePreferenceDTO) => {
+              // REST call came back.  I have the grid preferences
+        
+              if (! aPreference.value) {
+                // There is no past column state
+                this.userHasPastColumnState = false;
+              }
+              else {
+                // There is past column state
+                let storedColumnStateObject = JSON.parse(aPreference.value);
+        
+                // Set the grid to use past column state
+                this.gridColumnApi.applyColumnState({
+                                                              state: storedColumnStateObject
+                                                    });
+        
+                this.userHasPastColumnState = true;
+              }
+        
+              // Load the grid with data
+              this.reloadGrid();
+            });
+        
           }
 
-10. Create a reloadPage() method that reloads the grid
-    NOTE:  Make sure that if there are is no past column state, then it calls gridApi.sizeColumnsToFit()
-    
+
+Completed HTML
+--------------
+<div class="bg-backDropColor m-2.5">
+
+  <div class="grid grid-cols-2">
+    <div>
+      <span class="text-xl">Grid Page Remembers Settings</span>
+    </div>
+
+    <div class="flex place-content-end">
+      Help
+    </div>
+  </div>
+
+
+  <!--  S E A R C H       B O X       L I N E   -->
+  <div class="mt-2.5 flex flex-row w-full h-[64px] relative flex-shrink-0">
+
+    <!-- Tab -->
+    <div class="flex flex-row items-center absolute bg-white rounded-t px-3 py-2 border-x border-t border-borderColor h-full w-[150px] top-[1px]">
+
+      <!-- Vertical Bar -->
+      <div class="w-[5px] h-full float-left bg-[#1E3059] rounded mr-2.5 flex-shrink-0"></div>
+
+      <div class="flex flex-col pt-2">
+        <div class="h-[30px] w-[125px] flex place-content-start">
+          <!-- Title (count) -->
+          <ng-container>
+            <!-- Display Total -->
+            <span class="text-2xl font-extrabold">25</span>
+          </ng-container>
+        </div>
+
+        <div class="h-[30px] flex place-content-start">
+          <!-- Total Records on Page Load -->
+          <span>Total Records</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Searchbar Container -->
+    <div class="h-full w-full py-2 flex flex-row pl-[158px]">
+
+      <!-- Searchbar -->
+      <div class="w-full bg-white rounded border-borderColor border justify-center flex flex-row gap-2.5 pl-3.5 overflow-hidden">
+
+        <!-- Searchbar Input -->
+        <input matInput type="text" [(ngModel)]="this.rawSearchQuery"
+               class="w-full outline-none"
+               placeholder="Search..."
+               autocomplete="off"
+               title="Search Box"
+               (input)="this.runClientGridSearch(this.rawSearchQuery)"
+               style="background: white"
+               aria-label="Search Box"/>
+
+        <!-- Clear Icon -->
+        <span (click)="this.clearSearch()" class="flex clickable items-center justify-center" title="Clear Search" aria-label="Clear Search">
+                                <i class="fa-solid fa-xmark-large"></i>
+                        </span>
+
+        <!-- Search Icon -->
+        <div class="bg-blue-950 rounded-r w-[42px] items-center justify-center clickable text-white flex h-full" aria-label="Search" title="Search">
+          <i class="fa-regular fa-search"></i>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!--  G R I D      B U T T O N S         -->
+  <div class="flex flex-row w-full bg-white rounded-tr h-10 flex-shrink-0 items-center border-x border-t border-borderColor px-3">
+
+    <!-- Settings button -->
+    <button [matMenuTriggerFor]="gridMenu" class="-ml-1"
+            type="button" title="Settings" aria-label="Settings">
+      <div class="flex flex-row gap-2 items-center">
+        <i class="fa-xl fa-solid fa-sliders"></i>
+        <span class="font-extrabold">Settings</span>
+      </div>
+    </button>
+
+    <!-- Pop-up menu for the 'Settings' button -->
+    <mat-menu #gridMenu="matMenu">
+      <button mat-menu-item (click)="this.resetGrid()" type="button" title="Reset Grid" aria-label="Reset Grid">
+        Reset Grid
+      </button>
+    </mat-menu>
+
+    <div class="flex flex-grow place-content-end">
+      <!-- Show the Total Number of Matches -->
+      <span class="italic text-primary font-extrabold">{{ this.totalFilteredMatchesAndLabel }}</span>
+    </div>
+  </div>
+
+
+
+  <!--  G R I D      I S    H E R E     -->
+  <div class="overflow-y-auto" style="height: calc(100vh - 250px)">
+    <ag-grid-angular
+      class="ag-theme-balham w-full h-full"
+      [gridOptions]="this.gridOptions"
+      [columnDefs]="this.columnDefs"
+      [defaultColDef]="this.defaultColumnDef"
+      (gridReady)="this.onGridReady($event)"
+      (firstDataRendered)="this.firstDataRendered()"
+    ></ag-grid-angular>
+  </div>
+
+
+</div>
+
+
+
+Completed TypeScript
+--------------------
+import {Component, OnDestroy, OnInit} from '@angular/core';
+import {ColDef, ColumnApi, GridApi, GridOptions, GridReadyEvent, ITextFilterParams} from "ag-grid-community";
+import {MyReportService} from "../../services/my-report.service";
+import {GridCellDataForSearchingFiltersDTO} from "../../models/grid-cell-data-for-searching-filters-dto";
+import {DateService} from "../../services/date.service";
+import {debounceTime, Subject, Subscription, switchMap} from "rxjs";
+import {PreferenceService} from "../../services/preference.service";
+import {GetOnePreferenceDTO} from "../../models/preferences/get-one-preference-dto";
+import {Constants} from "../../utilities/constants";
+
+@Component({
+  selector: 'app-grid-page-remembers-settings',
+  templateUrl: './grid-page-remembers-settings.component.html',
+  styleUrls: ['./grid-page-remembers-settings.component.scss']
+})
+export class GridPageRemembersSettingsComponent implements OnInit, OnDestroy {
+
+  public constructor(private myReportService: MyReportService,
+                     private dateService: DateService,
+                     private preferenceService: PreferenceService) {
+  }
+
+  private readonly PAGE_NAME:               string = "reports-grid-view";
+  private userHasPastColumnState:           boolean = false;
+  private listenForGridChanges: boolean =   false;
+  private saveGridColumnStateEventsSubject: Subject<any> = new Subject();
+  private saveGridEventsSubscription:       Subscription;
+
+  public totalFilteredMatchesAndLabel: string;
+  public rawSearchQuery: string;
+  public totalRecordsOnPageLoad: number;
+
+  public gridApi: GridApi;
+  public gridColumnApi: ColumnApi;
+
+
+  public gridOptions: GridOptions = {
+    domLayout: 'normal',
+    debug: true,
+    rowModelType: 'clientSide',
+
+
+    onSortChanged: () => {
+      this.saveColumnState();
+    },
+
+    onDragStopped: () => {
+      // User finished resizing or moving column
+      this.saveColumnState();
+    },
+
+    onDisplayedColumnsChanged: () => {
+      this.saveColumnState();
+    },
+
+    onColumnVisible: () => {
+      this.saveColumnState();
+    },
+
+    onColumnPinned: () => {
+      this.saveColumnState();
+    }
+  };
+
+  public columnDefs: ColDef[] = [
+    {
+      field: 'id'
+    },
+    {
+      field: 'report_name'
+    },
+    {
+      field: 'priority_label'
+    },
+    {
+      field: 'start_date',
+      headerName: 'Start Date',
+      comparator: (a: string, b: string) => this.dateService.dateComparator(a,b)
+    },
+    {
+      field: 'end_date',
+      headerName: 'End Date',
+      comparator: (a: string, b: string) => this.dateService.dateComparator(a,b)
+    }
+  ];
+
+  // Customize the filters (when turned on)
+  private textFilterParams: ITextFilterParams = {
+    filterOptions: ['contains', 'notContains'],         // Customize the filter to only show "Contains" and "Not Contains"
+    caseSensitive: false,                               // Filter is case-insensitive
+    debounceMs: 200,
+    suppressAndOrCondition: true,
+  };
+
+  public defaultColumnDef: ColDef = {
+    flex: 1,
+    sortable: true,                         // All columns are sortable
+    floatingFilter: true,                   // Show the floating filter (beneath the column label)
+    filter: 'agTextColumnFilter',           // Specify the type of filter
+    filterParams: this.textFilterParams,    // Customize the filter
+  }
+
+
+  public onGridReady(aParams: GridReadyEvent) {
+    // Get a reference to the gridApi and gridColumnApi (which we will need later to get selected rows)
+    this.gridApi = aParams.api;
+    this.gridColumnApi = aParams.columnApi;
+
+    // Show the loading overlay
+    this.gridApi.showLoadingOverlay();
+
+    // Invoke the REST call to get past column state preference info for THIS PAGE
+    this.preferenceService.getPreferenceValueForPage(Constants.COLUMN_STATE_PREFERENCE_NAME, this.PAGE_NAME).subscribe( (aPreference: GetOnePreferenceDTO) => {
+      // REST call came back.  I have the grid preferences
+
+      if (! aPreference.value) {
+        // There is no past column state
+        this.userHasPastColumnState = false;
+      }
+      else {
+        // There is past column state
+        let storedColumnStateObject = JSON.parse(aPreference.value);
+
+        // Set the grid to use past column state
+        this.gridColumnApi.applyColumnState({
+                                                      state: storedColumnStateObject
+                                            });
+
+        this.userHasPastColumnState = true;
+      }
+
+      // Load the grid with data
+      this.reloadGrid();
+    });
+
+  }
+
+  private reloadGrid(): void {
+    // Invoke the REST call to get the grid data
+    this.myReportService.getAllReports2().subscribe( (aData: GridCellDataForSearchingFiltersDTO[]) => {
+      // REST call came back with data
+
+      if (!aData) {
+        this.totalRecordsOnPageLoad = 0;
+      }
+      else {
+        this.totalRecordsOnPageLoad = aData.length;
+      }
+
+      // Load the grid with data from the REST call
+      this.gridApi.setRowData(aData);
+    })
+
+  }
+
+  public clearSearch(): void {
+    // Clear the search query
+    this.rawSearchQuery = "";
+
+    // Clear the filter and refresh the totals
+    this.runClientGridSearch('');
+  }
+
+
+  private refreshTotalFilteredMatchAndLabels(): void {
+    let totalRecordsVisible: number =  this.gridApi.getDisplayedRowCount();
+    if (totalRecordsVisible == 0) {
+      this.totalFilteredMatchesAndLabel = "No Matches";
+    }
+    else if (totalRecordsVisible == 1) {
+      this.totalFilteredMatchesAndLabel = "1 Match"
+    }
+    else {
+      this.totalFilteredMatchesAndLabel = String(totalRecordsVisible) + " Matches";
+    }
+  }
+
+
+  public runClientGridSearch(aRawQuery: string): void {
+    // Run the search on this client side grid
+    this.gridApi.setQuickFilter(aRawQuery);
+
+    // Refresh the total matches label
+    this.refreshTotalFilteredMatchAndLabels();
+  }
+
+  public resetGrid(): void {
+    // Reset the columns back to default  *BEFORE*  auto-sizing them sizing them
+    this.gridColumnApi.resetColumnState();
+
+    // Size the columns to fit
+    this.gridApi.sizeColumnsToFit();
+  }
+
+  private saveColumnState(): void {
+    if (this.listenForGridChanges) {
+      // The grid has rendered data.  So, save the sort/column changes
+
+      // Get the current column state
+      let currentColumnState = this.gridColumnApi.getColumnState();
+
+      // Send a message to save the current column state
+      this.saveGridColumnStateEventsSubject.next(currentColumnState)
+    }
+  }
+
+
+  public firstDataRendered(): void {
+    // The grid is fully rendered.  So, set the flag to start saving sort/column changes
+    this.listenForGridChanges = true;
+  }
+
+
+  public ngOnInit(): void {
+
+    // Listen for save-grid-column-state events
+    // NOTE:  If a user manipulates the grid, then we could be sending LOTS of save-column-state REST calls
+    //    	The debounceTime slows down the REST calls
+    //    	The switchMap cancels previous calls
+    //    	Thus, if there are lots of changes to the grid, we invoke a single REST call using the *LAST* event (over a span of 250 msecs)
+    this.saveGridEventsSubscription = this.saveGridColumnStateEventsSubject.asObservable().pipe(
+
+      debounceTime(250),     	// Wait 250 msecs before invoking REST call
+
+      switchMap( (aNewColumnState: any) => {
+        // Use the switchMap for its canceling effect:
+        // On each observable, the previous observable is canceled
+
+        // Return an observable
+        // Invoke the REST call to save it to the back end
+        return this.preferenceService.setPreferenceValueForPageUsingJson(Constants.COLUMN_STATE_PREFERENCE_NAME, aNewColumnState, this.PAGE_NAME)
+
+      })
+    ).subscribe();
+
+  }
+
+
+  public ngOnDestroy(): void {
+    if (this.saveGridEventsSubscription) {
+      this.saveGridEventsSubscription.unsubscribe();
+    }
+  }
+
+
+}
+
+
     
 ```

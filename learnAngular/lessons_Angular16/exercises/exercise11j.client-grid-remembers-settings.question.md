@@ -34,6 +34,7 @@ Exercise
 
 
 
+
  3. Change the bottom of the page so use the VISIBLE height of the browser
      +-------------------------------------------------------------------+
      | Grid Page Remembers Settings                                 Help |
@@ -57,6 +58,7 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
         
 
         
+        
  2. Add a public class variable:  columnDefs
     -- The type is array of ColDef objects
     
@@ -70,8 +72,7 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
                 start_date
                 end_date
                 
-
-          
+            
                 
                 
  3. Turn on sorting on *ALL* columns
@@ -79,7 +80,7 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
     -- The type is ColDef
     -- Initialize it so that flex = 1, sortable = true
 
-
+        
   
              
  4. Turn on filters on *ALL* columns
@@ -88,12 +89,15 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
        -- Tell it to only show the "Contains" and "Not Contains" options
        -- Tell it to make the filters case-insensitive
        -- Tell it to add a debounce time of 200 msec
-
+       
       
     b. Update the defaultColumnDefs
         -- Add filter = 'agTextColumnFilter', floatingFilter = true, filterParams is set to your textFilterParams
-            
+
+
+                                
                 
+ 
  
  5. Add the <ag-grid-angular> tag to your HTML 
     -- Place it where you want your grid to appear
@@ -109,7 +113,8 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
     -- Apply the ag-theme-alpine class to the grid (to set the grid's theme to "alpine"
     
 
-        -- At this point, the grid is shows "Loading..." because there is no row data
+
+    -- At this point, the grid is shows "Loading..." because there is no row data
 ```
 ![](../images/exercise11j_image1.png)
 ```
@@ -126,7 +131,8 @@ Part 3 / Create the Frontend Service that will simulate a REST call (fake servic
         start_date                  // This is text -- e.g., '05/01/2024' 
         end_date                    // This is text -- e.g., '05/01/2024' 
    
-   
+
+
 
 
  2. Create a frontend service:  MyReportService   (if you have not already!)
@@ -142,13 +148,14 @@ Part 3 / Create the Frontend Service that will simulate a REST call (fake servic
         4) Return the observable
 
 
-                
+               
                 
 
 
 Part 4 / Configure the grid to load it's rowData with the fake service
 ----------------------------------------------------------------------
  1, In the Grid Page TypeScript / Inject your MyReportService
+ 
  
  
  
@@ -167,10 +174,9 @@ Part 4 / Configure the grid to load it's rowData with the fake service
     -- When the REST call comes in, set the grid row data
     
     
-    
+   
  
  4. In the HTML, tell the grid to call your onGridReady() when the grid is fully initialized
- 
  
 
 
@@ -192,7 +198,7 @@ Problem:  By default client side date fields do not sort -- because the grid tre
   
  3. Tell your grid "date" columns to use your Date Service comparator method 
 
- 
+
 
 
 
@@ -230,6 +236,7 @@ Change the layout by adding some stuff *between the page title and the grid
   3. Add 10px of margin between the page title row and the rest of the page
       
  
+
   
   
   4. Fill-in the Tab and Search Box Row
@@ -312,6 +319,8 @@ Change the layout by adding some stuff *between the page title and the grid
         -- The button that holds the <Settings Icon> and Settings
         -- Pressing the button should open a popup menu that holds an option to "Reset Grid"
      
+     
+  
        
 ```
 ![](../images/exercise11j_image3.png)
@@ -322,7 +331,6 @@ Part 7 / Entering text in the search box should apply filters in real-time
  1. Add a public class variable:  totalFilteredMatchesAndLabel
     -- It will hold "No Matches" or "1 Match" or "5 Matches"
 
-       
        
  
  2. Add a private method:  refreshTotalFilteredMatchAndLabels()
@@ -339,7 +347,7 @@ Part 7 / Entering text in the search box should apply filters in real-time
 
     -- You get the idea!!!
     
-   
+     
 
 
  3. Add a public method:   runClientGridSearch()
@@ -347,7 +355,7 @@ Part 7 / Entering text in the search box should apply filters in real-time
     -- It runs the search
     -- It refreshes totalFilteredMatchesAndLabel
     
-  
+    
     
  4. Change your HTML / Replace the hard-coded "3 Matches" with totalFilteredMatchesAndLabel 
  
@@ -356,15 +364,17 @@ Part 7 / Entering text in the search box should apply filters in real-time
     a. Create this class variable:  rawSearchQuery
        -- It holds whatever text the users enters
        -- Initialize it to an empty string
-           
+       
+        public rawSearchQuery: string;
+        
+       
     b. Bind the search box to this class variable
        
        
  6. Change the search box so that as the user types-in input,
     -- The page calls this.runClientGridSearch()
     -- The page passes-in the entered text into this method
-     
- 
+    
  
 
 Part 8 / Cleanup / Update the tab to show the total records on page load / Implement the clear search button
@@ -372,11 +382,12 @@ Part 8 / Cleanup / Update the tab to show the total records on page load / Imple
  1. Create a class variable:  totalRecordsOnPageLoad
     -- It holds the total records loaded on page load
             
-             
+            
         
  2. In the onGridReady(), 
     -- set the totalRecordsOnPageLoad to hold the total number of records returned from the backend
         
+  
 
  3. Get the clear search icon button to clear the search
     a. Add a public method:  clearSearch()
@@ -384,9 +395,7 @@ Part 8 / Cleanup / Update the tab to show the total records on page load / Imple
        -- It should clear the filter
        -- It should refresh the matches label
        
-  
     b. Clicking on the clear search should call clearSearch()
-    
     
     c. Try it out!!
     
@@ -399,15 +408,15 @@ Part 8 / Cleanup / Update the tab to show the total records on page load / Imple
     a. Create a public method:  resetGrid()
        -- Your method should reset the column state
        -- Your method should size the columns to fit
-    
+  
     
     b. Add a click handler so that the "Reset Grid" button invoke your method
     
           
+          
 
 Part 9 / Have the Grid Remember Page Settings
 ---------------------------------------------
- 
  1. Add this contsant to constants.ts
             COLUMN_STATE_PREFERENCE_NAME = "grid_column_state"    
             
@@ -436,40 +445,33 @@ Part 9 / Have the Grid Remember Page Settings
     
     
       public firstDataRendered(): void {
-           // The grid is fully rendered.  So, set the flag to start saving sort/column changes
-           this.listenForGridChanges = true;
+            // The grid is fully rendered.  So, set the flag to start saving sort/column changes
+            this.listenForGridChanges = true;
       }
 
         
  4. Modify the gridOptions and add these items to it:
- 
-  
-	onSortChanged: () => {
-  	    this.saveColumnState();
-	},
+    -- When any sorting has changed,       call saveColumnState()
+    -- When any drag and drop has stopped, call saveColumnState()
+    -- When any displayed columns changed, call saveColumnState()
+    -- When any columns become visible,    call saveColumnState()
+    -- When any columns are pinned,        call saveColumnState()
+    
 
-	onDragStopped: () => {
-  	    // User finished resizing or moving column
-  	    this.saveColumnState();
-	},
-
-	onDisplayedColumnsChanged: () => {
-  	    this.saveColumnState();
-	},
-
-	onColumnVisible: () => {
-  	    this.saveColumnState();
-	},
-
-	onColumnPinned: () => {
-  	    this.saveColumnState();
-	}
 
 
  5. Inject the preference service
+                            
+                            
  
- 
- 6. Create/Edit ngOnInit() to listen for grid events. 
+ 6. Create/Edit ngOnInit() 
+    a. listen on the saveGridColumnStateEventsSubject 
+    b. use the pipe operator to 
+       1) debounce for 250 msecs
+       2) invoke switchMap  // causes previous messages to be cancelled
+           -- In the switch map, return the observable to set the preference value
+    c. subscribe to this observable
+      
 
           public ngOnInit(): void {
         
@@ -494,63 +496,37 @@ Part 9 / Have the Grid Remember Page Settings
             ).subscribe();
         
           }
+          
   
-  7. In ngOnDestroy(), stop listening on this subscription:
+  7. In ngOnDestroy(), stop listening on the saveGridEventsSubscription subscription:
   
             public ngOnDestroy(): void {
                  if (this.saveGridEventsSubscription) {
                     this.saveGridEventsSubscription.unsubscribe();
                   }
-        
              }
 
 
- 8. Change the html to call your firstDataRendered() method
-        <ag-grid-angular>....
-            (firstDataRendered)="this.firstDataRendered()"
-        </ag-grid-angular>
+
+ 8. Have the grid call your "firstDataRendered()" method when the first data is rendered
+    NOTE:  We do not want to save column preferences until *AFTER* the data is rendered
+    
 
 
- 9. Modify onGridReady to invoke the REST call to get the column state preferences
+
+ 9. Create a method:  reloadGrid()
+    -- It should invoke the REST call to get the data, load the dat ainto the grid and set totalRecordsOnPageLoad
+    
+ 
+  
+
+10. Modify onGridReady
+    a. Invoke a *FIRST* REST call to get the user's preference *FIRST*
+       -- If there is passed-data, then set the column state
+    b. After the *FIRST* REST call has returned, then reload the grid by calling your reloadGrid() method
          
-           /*
-           * The grid is ready.  So, perform grid initialization here:
-           *  1) Invoke the REST call to get the grid column state preferences
-           *  2) When the REST endpoint returns
-           * 	a) Set the grid column state preferences
-           * 	b) Load the data into the grid
-           */
-          public onGridReady(params: any): void {
-            // Get a reference to the gridApi and gridColumnApi (which we will need later to get selected rows)
-            this.gridApi = params.api;
-            this.gridColumnApi = params.columnApi;
         
-        
-             this.preferenceService.getPreferenceValueForPage(Constants.COLUMN_STATE_PREFERENCE_NAME, this.PAGE_NAME).subscribe( (aPreference: GetOnePreferenceDTO) => {
-                // REST call came back.  I have the grid preferences
-            
-                if (! aPreference.value) {
-                    // There is no past column state
-                    this.userHasPastColumnState = false;
-                }
-                else {
-                    // There is past column state
-                    let storedColumnStateObject = JSON.parse(aPreference.value);
-            
-                    // Set the grid to use past column state
-                    // NOTE:  In ag-grid v30, use this.gridColumnApi.applyColumnState({ state: storedColumnStateObject} )
-                    this.gridColumnApi.setColumnState(storedColumnStateObject);
-            
-                    this.userHasPastColumnState = true;
-                }
-            
-                // Load the grid with data
-                this.reloadPage();
-                });
-          }
+     
 
-10. Create a reloadPage() method that reloads the grid
-    NOTE:  Make sure that if there are is no past column state, then it calls gridApi.sizeColumnsToFit()
-    
-    
+
 ```
