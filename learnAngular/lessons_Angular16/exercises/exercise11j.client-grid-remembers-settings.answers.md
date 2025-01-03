@@ -941,6 +941,7 @@ Part 9 / Have the Grid Remember Page Settings
         
                 // Set the grid to use past column state
                 this.gridColumnApi.applyColumnState({
+                                                              applyOrder: true,
                                                               state: storedColumnStateObject
                                                     });
         
@@ -1196,6 +1197,7 @@ export class GridPageRemembersSettingsComponent implements OnInit, OnDestroy {
 
         // Set the grid to use past column state
         this.gridColumnApi.applyColumnState({
+                                                      applyOrder: true,
                                                       state: storedColumnStateObject
                                             });
 
