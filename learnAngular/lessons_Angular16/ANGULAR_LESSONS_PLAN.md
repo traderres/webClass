@@ -92,7 +92,7 @@ Angular 16 Lesson Plan
     <a href="./exercises/exercise11e.client-grid-cell-renderers.question.md"     title="Exercise 11e">Exercise 11e</a> / Client Grid / Format cells w/cell renderers       (<a href="./exercises/exercise11e.client-grid-cell-renderers.answers.md"      title="Exercise 11e">Answers</a>)
     <a href="./exercises/exercise11f.client-grid-with-html-controls.question.md" title="Exercise 11f">Exercise 11f</a> / Client Grid / Add HTML controls w/cell renderers  (<a href="./exercises/exercise11f.client-grid-with-html-controls.answers.md"  title="Exercise 11f">Answers</a>)
     <a href="./exercises/exercise11g.client-grid-search-box-applies-filters.question.md" title="Exercise 11g">Exercise 11g</a> / Client Grid / Add search box that applies filters (<a href="./exercises/exercise11g.client-grid-search-box-applies-filters.answers.md"  title="Exercise 11g">Answers</a>)
-    Exercise 11h / Client Grid / Row Selection & checkboxes
+    <a href="./exercises/exercise11h.client-grid-row-selection.question.md"       title="Exercise 11h">Exercise 11h</a> / Client Grid / Row Selection & Checkboxes          (<a href="./exercises/exercise11h.client-grid-row-selection.answers.md"  title="Exercise 11h">Answers</a>)
     Exercise 11i / Client Grid / Open a dialog
     <a href="./exercises/exercise11j.client-grid-remembers-settings.question.md" title="Exercise 11j">Exercise 11j</a> / Client Grid / Remember grid columns settings      (<a href="./exercises/exercise11j.client-grid-remembers-settings.answers.md"  title="Exercise 11j">Answers</a>)
 
