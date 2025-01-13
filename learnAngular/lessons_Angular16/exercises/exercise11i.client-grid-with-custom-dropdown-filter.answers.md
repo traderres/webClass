@@ -742,6 +742,9 @@ Part 8 / Cleanup / Update the tab to show the total records on page load / Imple
             // Clear the search query
             this.rawSearchQuery = "";
             
+            // Clear the filters
+            this.gridApi.setFilterModel(null);
+            
             // Clear the filter and refresh the totals
             this.runClientGridSearch('');
          }

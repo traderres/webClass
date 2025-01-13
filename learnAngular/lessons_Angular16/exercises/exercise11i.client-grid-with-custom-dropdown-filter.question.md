@@ -406,7 +406,7 @@ Part 8 / Cleanup / Update the tab to show the total records on page load / Imple
  3. Get the clear search icon button to clear the search
     a. Add a public method:  clearSearch()
        -- It should clear the search box text
-       -- It should clear the filter
+       -- It should clear the filters
        -- It should refresh the matches label
        
     b. Clicking on the clear search should call clearSearch()

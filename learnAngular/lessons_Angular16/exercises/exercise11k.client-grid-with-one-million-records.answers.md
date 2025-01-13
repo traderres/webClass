@@ -1097,7 +1097,7 @@ Part 4h / Cleanup / Update the tab to show the total records on page load / Impl
  3. Get the clear search icon button to clear the search
     a. Add a public method:  clearSearch()
        -- It should clear the search box text
-       -- It should clear the filter
+       -- It should clear the filters
        -- It should refresh the matches label
        
        
@@ -1105,9 +1105,12 @@ Part 4h / Cleanup / Update the tab to show the total records on page load / Impl
             // Clear the search query
             this.rawSearchQuery = "";
             
+            // Clear the filters
+            this.gridApi.setFilterModel(null);
+            
             // Clear the filter and refresh the totals
             this.runClientGridSearch('');
-         }
+        }
   
     
     
@@ -1429,7 +1432,10 @@ export class GridPageWithTooManyRowsComponent {
   public clearSearch(): void {
     // Clear the search query
     this.rawSearchQuery = "";
-
+    
+    // Clear the filters
+    this.gridApi.setFilterModel(null);
+    
     // Clear the filter and refresh the totals
     this.runClientGridSearch('');
   }

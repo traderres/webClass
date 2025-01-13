@@ -720,13 +720,16 @@ Part 8 / Cleanup / Update the tab to show the total records on page load / Imple
  3. Get the clear search icon button to clear the search
     a. Add a public method:  clearSearch()
        -- It should clear the search box text
-       -- It should clear the filter
+       -- It should clear the filters
        -- It should refresh the matches label
        
        
         public clearSearch(): void {
             // Clear the search query
             this.rawSearchQuery = "";
+            
+            // Clear the filters
+            this.gridApi.setFilterModel(null);
             
             // Clear the filter and refresh the totals
             this.runClientGridSearch('');
@@ -1232,6 +1235,9 @@ export class GridPageRemembersSettingsComponent implements OnInit, OnDestroy {
     // Clear the search query
     this.rawSearchQuery = "";
 
+    // Clear the filters
+    this.gridApi.setFilterModel(null);
+            
     // Clear the filter and refresh the totals
     this.runClientGridSearch('');
   }
