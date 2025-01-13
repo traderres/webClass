@@ -6,7 +6,7 @@ Solution: Create a special filter
 
 
 ```
-![](../images/exercise11i_image3.png)
+![](../images/exercise11i_image4.png)
 ```
 
 
@@ -160,7 +160,12 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
   
              
  4. Turn on filters on *ALL* columns
-    a. Add a class variable:  textFilterParams     
+     a. Add a class variable:  textFilterParams     
+       -- The type is ITextFilterParams
+       -- Tell it to only show the "Contains" and "Not Contains" options
+       -- Tell it to make the filters case-insensitive
+       -- Tell it to add a debounce time of 200 msec
+       
         
              // Customize the filters (when turned on)
              private textFilterParams: ITextFilterParams = {
@@ -782,8 +787,163 @@ Part 9 / Setup a custom filter
  2. Edit the typescript of this new component
     a. Have it implement IFloatingFilter *AND* AgFrameworkComponent<any>
     
-    b. Have intellij Implement all *required* members
+    b. Have intellij Implement all *REQUIRED* members
+        -- This will create 2 methods:  agInit() and onParentModelChanged()
     
+    c. Add a public class variable for params / type is IFloatingFilterParams
+    
+    d. Add a public class variable called currentValue / type is null or string / initialize it to null 
  
+    e. Fill-in this method:  agInit()
+        -- Set the params class variable to what is passed-in
+        
+    f. Fill-in this method:  onParentModelChanged()
     
+           public onParentModelChanged(parentModel: any, filterChangedEvent?: FilterChangedEvent | null): void {
+                // When the filter is empty we will receive a null value here
+                if (!parentModel) {
+                  this.currentValue = null;
+                }
+                else {
+                  this.currentValue = parentModel.filter;
+                }
+          }
+       
+    g. Add a method:  onSelectionChanged()
+    
+          /*
+           * User selected a dropdown value in the filter
+           *   If the user cleared the filter, set an empty filter in the parent grid
+           *   If the user selected an option, set the filter in the parent grid
+           */
+          public onSelectionChanged() {
+            if (this.currentValue == null) {
+              // User cleared the filter
+        
+              this.params?.parentFilterInstance((instance: any) => {
+                // The user selected a null value.  So, *REMOVE* the filter
+                instance.onFloatingFilterChanged('equals', null);
+              });
+            }
+            else {
+              // Filter has a value
+              this.params?.parentFilterInstance((instance: any) => {
+                // The user selected a non-null value.  So, *APPLY* the filter
+                instance.onFloatingFilterChanged('equals', this.currentValue);
+              });
+            }
+        
+          }  // end of onSelectionChanged()
+                
+        
+           
+        When finished, it should look like this:
+        ----------------------------------------
+        import { Component } from '@angular/core';
+        import {AgFrameworkComponent} from "ag-grid-angular";
+        import {FilterChangedEvent, IFloatingFilter, IFloatingFilterParams, TextFilter} from "ag-grid-community";
+        
+        @Component({
+          selector: 'app-drop-down-floating-filter',
+          templateUrl: './drop-down-floating-filter.component.html',
+          styleUrls: ['./drop-down-floating-filter.component.scss']
+        })
+        export class DropDownFloatingFilterComponent implements IFloatingFilter, AgFrameworkComponent<any>{
+          public params: IFloatingFilterParams;
+          public currentValue: null | string = null;
+        
+        
+          public agInit(aParams: any): void {
+            this.params = aParams;
+          }
+        
+          
+          public onParentModelChanged(parentModel: any, filterChangedEvent?: FilterChangedEvent | null): void {
+            // When the filter is empty we will receive a null value here
+            if (!parentModel) {
+              this.currentValue = null;
+            }
+            else {
+              this.currentValue = parentModel.filter;
+            }
+          }
+        
+        
+          /*
+           * User selected a dropdown value in the filter
+           *   If the user cleared the filter, set an empty filter in the parent grid
+           *   If the user selected an option, set the filter in the parent grid
+           */
+          public onSelectionChanged() {
+             if (this.currentValue == null) {
+              // User cleared the filter
+        
+              this.params?.parentFilterInstance((instance: any) => {
+                // The user selected a null value.  So, *REMOVE* the filter
+                instance.onFloatingFilterChanged('equals', null);
+              });
+            }
+            else {
+              // Filter has a value
+              this.params?.parentFilterInstance((instance: any) => {
+                // The user selected a non-null value.  So, *APPLY* the filter
+                instance.onFloatingFilterChanged('equals', this.currentValue);
+              });
+            }
+        
+          }  // end of onSelectionChanged()
+        
+        
+        }
+ 
+ 3. Edit the HTML for this floating filter to be a dropdown
+    a. Create a dropdown 
+       NOTE:  Do **NOT** use the <mat-form-field> wrapper as we want the dropdown to be small
+    
+    b. Bind the dropdown to the class variable:  this.currentValue
+    
+    c. When the selection of the dropdown changes, call this.onSelectionChanged()
+    
+    d. Your dropdown will have 3 values:
+            -- All Users --        [null value]
+            Locked Users           'true'
+            Unlocked Users         'false'
+            
+     
+        The completed HTML should look like this
+        ----------------------------------------
+        <mat-select panelWidth="" style="width: 100%" [disableRipple]=true placeholder="Is Locked? "
+                    [(ngModel)]="this.currentValue"
+                    (selectionChange)="this.onSelectionChanged()">
+          <mat-option [value]=null>All Users</mat-option>
+          <mat-option [value]="'true'">Locked Users</mat-option>
+          <mat-option [value]="'false'">Unlocked Users</mat-option>
+        </mat-select>
+
+   
+ 4. Apply the custom filter to your grid page
+    a. Edit the main grid page typescript
+    b. Change the column defs for your "is_locked" true/false column
+       -- Set floatingFilterComponent to the name of your dropdownComponent
+       -- Set floatingFilterComponentParams to hold a map of info
+            -- Inside this map, set suppressFilterButton to true
+    
+    
+            {
+              headerName: 'Is Locked?',
+              field: 'is_locked',
+              floatingFilter: true,
+              filter: 'agTextColumnFilter',
+              floatingFilterComponent: DropDownFloatingFilterComponent,
+              floatingFilterComponentParams: {
+                suppressFilterButton: true,
+              },
+            },
+    
+  5. Try it out
+  
+  ```
+![](../images/exercise11i_image4.png)
+```
+
 ```
