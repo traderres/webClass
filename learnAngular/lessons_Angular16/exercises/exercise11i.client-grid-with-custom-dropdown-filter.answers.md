@@ -949,4 +949,340 @@ Part 9 / Setup a custom filter
 ![](../images/exercise11i_image4.png)
 ```
 
+
+The completed grid page HTML
+----------------------------
+<div class="bg-backDropColor m-2.5">
+
+  <div class="grid grid-cols-2">
+    <div>
+      <span class="text-xl">Grid Page with Custom Filter</span>
+    </div>
+
+    <div class="flex place-content-end">
+      Help
+    </div>
+  </div>
+
+
+  <!--  S E A R C H       B O X       L I N E   -->
+  <div class="mt-2.5 flex flex-row w-full h-[64px] relative flex-shrink-0">
+
+    <!-- Tab -->
+    <div class="flex flex-row items-center absolute bg-white rounded-t px-3 py-2 border-x border-t border-borderColor h-full w-[150px] top-[1px]">
+
+      <!-- Vertical Bar -->
+      <div class="w-[5px] h-full float-left bg-[#1E3059] rounded mr-2.5 flex-shrink-0"></div>
+
+      <div class="flex flex-col pt-2">
+        <div class="h-[30px] w-[125px] flex place-content-start">
+          <!-- Title (count) -->
+          <ng-container>
+            <!-- Display Total -->
+            <span class="text-2xl font-extrabold">{{ this.totalRecordsOnPageLoad  }}</span>
+          </ng-container>
+        </div>
+
+        <div class="h-[30px] flex place-content-start">
+          <!-- Total Records on Page Load -->
+          <span>Total Records</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Searchbar Container -->
+    <div class="h-full w-full py-2 flex flex-row pl-[158px]">
+
+      <!-- Searchbar -->
+      <div class="w-full bg-white rounded border-borderColor border justify-center flex flex-row gap-2.5 pl-3.5 overflow-hidden">
+
+        <!-- Searchbar Input -->
+        <input matInput type="text"
+               [(ngModel)]="this.rawSearchQuery"
+               (input)="this.runClientGridSearch(this.rawSearchQuery)"
+               class="w-full outline-none"
+               placeholder="Search..."
+               autocomplete="off"
+               title="Search Box"
+               style="background: white"
+               aria-label="Search Box"/>
+
+        <!-- Clear Icon -->
+        <span (click)="this.clearSearch()" class="flex clickable items-center justify-center" title="Clear Search" aria-label="Clear Search">
+                                <i class="fa-solid fa-xmark-large"></i>
+                        </span>
+
+        <!-- Search Icon -->
+        <div class="bg-blue-950 rounded-r w-[42px] items-center justify-center clickable text-white flex h-full" aria-label="Search" title="Search">
+          <i class="fa-regular fa-search"></i>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!--  G R I D      B U T T O N S         -->
+  <div class="flex flex-row w-full bg-white rounded-tr h-10 flex-shrink-0 items-center border-x border-t border-borderColor px-3">
+
+    <!-- Settings button -->
+    <button [matMenuTriggerFor]="gridMenu" class="-ml-1"
+            type="button" title="Settings" aria-label="Settings">
+      <div class="flex flex-row gap-2 items-center">
+        <i class="fa-xl fa-solid fa-sliders"></i>
+        <span class="font-extrabold">Settings</span>
+      </div>
+    </button>
+
+    <!-- Pop-up menu for the 'Settings' button -->
+    <mat-menu #gridMenu="matMenu">
+      <button mat-menu-item (click)="this.resetGrid()" type="button" title="Reset Grid" aria-label="Reset Grid">
+        Reset Grid
+      </button>
+    </mat-menu>
+
+    <div class="flex flex-grow place-content-end">
+      <!-- Show the Total Number of Matches -->
+      <span class="italic text-primary font-extrabold">{{ this.totalFilteredMatchesAndLabel  }}</span>
+    </div>
+  </div>
+
+
+  <!--  G R I D      I S    H E R E     -->
+  <div class="overflow-y-auto" style="height: calc(100vh - 250px)">
+    <ag-grid-angular
+      class="ag-theme-balham w-full h-full"
+      [gridOptions]="this.gridOptions"
+      [columnDefs]="this.columnDefs"
+      [defaultColDef]="this.defaultColumnDef"
+      (gridReady)="this.onGridReady($event)"
+    ></ag-grid-angular>
+  </div>
+
+
+</div>
+
+
+
+The completed grid page TypeScript
+----------------------------------
+import { Component } from '@angular/core';
+import {ColDef, ColumnApi, GridApi, GridOptions, GridReadyEvent, ITextFilterParams} from "ag-grid-community";
+import {MyUserService} from "../../services/my-user.service";
+import {GridCellDataForCustomFilterDTO} from "../../models/grid-cell-data-for-custom-filter-dto";
+import {DateService} from "../../services/date.service";
+import {DropDownFloatingFilterComponent} from "../drop-down-floating-filter/drop-down-floating-filter.component";
+
+@Component({
+  selector: 'app-grid-page-with-custom-filter',
+  templateUrl: './grid-page-with-custom-filter.component.html',
+  styleUrls: ['./grid-page-with-custom-filter.component.scss']
+})
+export class GridPageWithCustomFilterComponent {
+
+  public constructor(private MyUserService: MyUserService,
+                     private dateService: DateService) {
+  }
+
+  public gridApi: GridApi;
+  public gridColumnApi: ColumnApi;
+
+  public totalFilteredMatchesAndLabel: string;
+  public rawSearchQuery: string;
+  public totalRecordsOnPageLoad: number;
+
+
+  public gridOptions: GridOptions = {
+    domLayout: 'normal',
+    debug: true,
+    rowModelType: 'clientSide'
+  };
+
+  public columnDefs: ColDef[] = [
+    {
+      field: 'id'
+    },
+    {
+      field: 'full_name'
+    },
+    {
+      headerName: 'Is Locked?',
+      field: 'is_locked',
+      floatingFilter: true,
+      filter: 'agTextColumnFilter',
+      floatingFilterComponent: DropDownFloatingFilterComponent,
+      floatingFilterComponentParams: {
+        suppressFilterButton: true,
+      },
+    },
+    {
+      field: 'registration_date',
+      comparator: (a: string, b: string) => this.dateService.dateComparator(a,b)
+    },
+    {
+      field: 'last_login_date',
+      comparator: (a: string, b: string) => this.dateService.dateComparator(a,b)
+    }
+  ];
+
+
+  // Customize the filters (when turned on)
+  private textFilterParams: ITextFilterParams = {
+    filterOptions: ['contains', 'notContains'],         // Customize the filter to only show "Contains" and "Not Contains"
+    caseSensitive: false,                               // Filter is case-insensitive
+    debounceMs: 200,
+    maxNumConditions: 1,
+  };
+
+
+  public defaultColumnDef: ColDef = {
+    flex: 1,
+    sortable: true,                         // All columns are sortable
+    floatingFilter: true,                   // Show the floating filter (beneath the column label)
+    filter: 'agTextColumnFilter',           // Specify the type of filter
+    filterParams: this.textFilterParams,    // Customize the filter
+  }
+
+
+  public onGridReady(aParams: GridReadyEvent) {
+    // Get a reference to the gridApi and gridColumnApi (which we will need later to get selected rows)
+    this.gridApi = aParams.api;
+    this.gridColumnApi = aParams.columnApi;
+
+    // Show the loading overlay
+    this.gridApi.showLoadingOverlay();
+
+    // Invoke the REST call to get the grid data
+    this.MyUserService.getAllUsers2().subscribe( (aData: GridCellDataForCustomFilterDTO[]) => {
+      // REST call came back with data
+
+      if (!aData) {
+        this.totalRecordsOnPageLoad = 0;
+      }
+      else {
+        this.totalRecordsOnPageLoad = aData.length;
+      }
+
+      // Load the grid with data from the REST call
+      this.gridApi.setRowData(aData);
+    })
+  }
+
+
+
+  private refreshTotalFilteredMatchAndLabels(): void {
+    let totalRecordsVisible: number =  this.gridApi.getDisplayedRowCount();
+    if (totalRecordsVisible == 0) {
+      this.totalFilteredMatchesAndLabel = "No Matches";
+    }
+    else if (totalRecordsVisible == 1) {
+      this.totalFilteredMatchesAndLabel = "1 Match"
+    }
+    else {
+      this.totalFilteredMatchesAndLabel = String(totalRecordsVisible) + " Matches";
+    }
+  }
+
+
+  public runClientGridSearch(aRawQuery: string): void {
+    // Run the search on this client side grid
+    this.gridApi.setQuickFilter(aRawQuery);
+
+    // Refresh the total matches label
+    this.refreshTotalFilteredMatchAndLabels();
+  }
+
+  public clearSearch(): void {
+    // Clear the search query
+    this.rawSearchQuery = "";
+
+    // Clear the filters
+    this.gridApi.setFilterModel(null);
+
+    // Clear the filter and refresh the totals
+    this.runClientGridSearch('');
+  }
+
+  public resetGrid(): void {
+    // Reset the columns back to default  *BEFORE*  auto-sizing them sizing them
+    this.gridColumnApi.resetColumnState();
+
+    // Size the columns to fit
+    this.gridApi.sizeColumnsToFit();
+  }
+}
+
+
+
+The Completed Floating Filter HTML
+----------------------------------
+<mat-select panelWidth="" style="width: 100%" [disableRipple]=true placeholder="Is Locked? "
+            [(ngModel)]="this.currentValue"
+            (selectionChange)="this.onSelectionChanged()">
+  <mat-option [value]=null>All Users</mat-option>
+  <mat-option [value]="'true'">Locked Users</mat-option>
+  <mat-option [value]="'false'">Unlocked Users</mat-option>
+</mat-select>
+
+
+
+The Completed Floating Filter TypeScript
+----------------------------------------
+import { Component } from '@angular/core';
+import {AgFrameworkComponent} from "ag-grid-angular";
+import {FilterChangedEvent, IFloatingFilter, IFloatingFilterParams, TextFilter} from "ag-grid-community";
+
+@Component({
+  selector: 'app-drop-down-floating-filter',
+  templateUrl: './drop-down-floating-filter.component.html',
+  styleUrls: ['./drop-down-floating-filter.component.scss']
+})
+export class DropDownFloatingFilterComponent implements IFloatingFilter, AgFrameworkComponent<any>{
+  public params: IFloatingFilterParams;
+  public currentValue: null | string = null;
+
+
+  public agInit(aParams: any): void {
+    this.params = aParams;
+  }
+
+
+  public onParentModelChanged(parentModel: any, filterChangedEvent?: FilterChangedEvent | null): void {
+    // When the filter is empty we will receive a null value here
+    if (!parentModel) {
+      this.currentValue = null;
+    }
+    else {
+      this.currentValue = parentModel.filter;
+    }
+  }
+
+
+  /*
+   * User selected a dropdown value in the filter
+   *   If the user cleared the filter, set an empty filter in the parent grid
+   *   If the user selected an option, set the filter in the parent grid
+   */
+  public onSelectionChanged() {
+    if (this.currentValue == null) {
+      // User cleared the filter
+
+      this.params?.parentFilterInstance((instance: any) => {
+        // The user selected a null value.  So, *REMOVE* the filter
+        instance.onFloatingFilterChanged('equals', null);
+      });
+    }
+    else {
+      // Filter has a value
+      this.params?.parentFilterInstance((instance: any) => {
+        // The user selected a non-null value.  So, *APPLY* the filter
+        instance.onFloatingFilterChanged('equals', this.currentValue);
+      });
+    }
+
+  }  // end of onSelectionChanged()
+
+}
+
+
 ```
