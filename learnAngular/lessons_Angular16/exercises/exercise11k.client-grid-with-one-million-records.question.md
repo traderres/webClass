@@ -2,8 +2,10 @@
 Exercise 11j / Client Grid / What happens when you load 1,000,000 records into the grid?
 ----------------------------------------------------------------------------------------
 Problem:  What actually happens when you put a million records into the grid?
-          Let's find out
-
+          -- Let's find out
+          -- But, serously, if you do this, your users will hate you!!!
+          
+          
 Trick:  Use the generate_series() postgres function to quickly generate 1 million records in a database table
 
 
