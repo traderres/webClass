@@ -10,7 +10,7 @@ Solution: Make sure you have floatingFilter=TRUE, filter set to the filter type,
         filterOptions: ['contains', 'notContains'],         // Customize the filter to only show "Contains" and "Not Contains"
         caseSensitive: false,                               // Filter is case-insensitive
         debounceMs: 200,
-        filterParams.maxNumConditions: 1                    // This causes the and/or condition to be suppressed                       
+        maxNumConditions: 1                    // This causes the and/or condition to be suppressed                       
       };
     
       // By default, turn on the floating filters on all columns

@@ -401,7 +401,7 @@ Part 8 / Cleanup / Update the tab to show the total records on page load / Imple
     
  
  4. Replace the deprecated textFiltersParams
-      suppressAndOrCondition: true  -->  filterParams.maxNumConditions: 1
+      suppressAndOrCondition: true  -->  maxNumConditions: 1
 
 
  5. Have the "Reset Grid" button actually resset the grid

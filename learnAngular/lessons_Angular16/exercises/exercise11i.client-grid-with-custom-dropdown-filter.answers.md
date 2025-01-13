@@ -1,20 +1,20 @@
 ```
-Exercise 11g / Client Grid / Add Search Box that Applies Filters  (Answers)
----------------------------------------------------------------------------
-Problem:  I want to add a search box above the grid that applies filters
-Solution: Create the search box and apply filters as the user types-in text
+Exercise 11i / Client Grid / Build a Custom Dropdown Filter  (Answers)
+----------------------------------------------------------------------
+Problem:  I want my filter to be a dropdown (instead of text)
+Solution: Create a special filter
 
 
 ```
-![](../images/exercise11g_image3.png)
+![](../images/exercise11i_image3.png)
 ```
 
 
 Exercise
 --------
  1. Setup the Page
-    a. Generate the component:                Call it GridPageWithFilterSearchBox
-    b. Add the route to constants.ts:         the route will be this:   page/grid-page-with-filter-search-box
+    a. Generate the component:                Call it GridPageWithCustomFilter
+    b. Add the route to constants.ts:         the route will be this:   page/grid-page-with-custom-filter
     c. Register the route
     d. Add the route to the database table:  ui_controls        (if using real security)
     e. Add a link to the navbar (using that route)
@@ -24,7 +24,7 @@ Exercise
 
  2. Setup this page layout
      +-------------------------------------------------------------------+
-     | Grid Page with Filter Search Box                             Help |
+     | Grid Page with Custom Filter                                 Help |
      +-------------------------------------------------------------------+
      |                                                                   |
      |                                                                   |
@@ -38,7 +38,7 @@ Exercise
          <!-- Top of Page -->
           <div class="grid grid-cols-2">
               <div>
-                <span class="text-xl">Grid Page with Filter Search Box</span>
+                <span class="text-xl">Grid Page with Custom Filter</span>
               </div>
         
               <div class="flex place-content-end">
@@ -58,7 +58,7 @@ Exercise
 
  3. Change the bottom of the page so use the VISIBLE height of the browser
      +-------------------------------------------------------------------+
-     | Grid Page with Filter Search Box                             Help |
+     | Grid Page with Custom Filter                                 Help |
      +-------------------------------------------------------------------+
      | Grid is here                                                      |   Height of the bottom of page *STRETCHES*
      |                                                                   |
@@ -68,7 +68,7 @@ Exercise
         
           <div class="grid grid-cols-2">
               <div>
-                <span class="text-xl">Grid Page with Filter Search Box</span>
+                <span class="text-xl">Grid Page with Custom Filter</span>
               </div>
         
               <div class="flex place-content-end">
@@ -117,10 +117,11 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
     a. Define columnDefs to hold an array of 5 objects
         the field names will be
                 id
-                report_name
-                priority_label
-                start_date
-                end_date
+                full_name
+                is_locked
+                is_locked_label
+                registration_date
+                last_login_date
                 
 
 
@@ -129,16 +130,19 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
               field: 'id'
             },
             {
-              field: 'report_name'
+              field: 'full_name'
             },           
             {
-              field: 'priority_label'
+              field: 'is_locked'
             },
             {
-              field: 'start_date'
+              field: 'is_locked_label'
             },
             {
-              field: 'end_date',
+              field: 'registration_date'
+            },
+            {
+              field: 'last_login_date',
             }
           ];               
                 
@@ -202,7 +206,7 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
 
         -- At this point, the grid is shows "Loading..." because there is no row data
 ```
-![](../images/exercise11g_image1.png)
+![](../images/exercise11i_image1.png)
 ```
 
 
@@ -210,81 +214,90 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
 
 Part 3 / Create the Frontend Service that will simulate a REST call (fake service)
 ----------------------------------------------------------------------------------
- 1. Create a frontend DTO:  GridCellDataForSearchingFiltersDTO
-        id                          // This is numeric
-        report_name                 // This is text
-        priority_label              // This is text
-        start_date                  // This is text -- e.g., '05/01/2024' 
-        end_date                    // This is text -- e.g., '05/01/2024' 
-   
-   
-        export class GridCellDataForSearchingFiltersDTO {
-          public id:              number;
-          public report_name:     string;
-          public priority_label:  string;
-          public start_date:      string;
-          public end_date:        string;
-        }
+ 1. Create a frontend DTO:  GridCellDataForCustomFilterDTO
+        id                  // holds a numeric value
+        full_name           // holds text
+        is_locked           // holds a boolean
+        is_locked_label     // holds "Locked" or "Unlocked"
+        registration_date   // Holds text -- e.g., "05/01/2024"
+        last_login_date     // holds text -- e.g., "05/02/2025"
+           
+               
+            export class GridCellDataForCustomFilterDTO {
+              public id:                 number;
+              public full_name:          string;
+              public is_locked:          boolean;
+              public is_locked_label:    string;
+              public registration_date:  string;
+              public last_login_date:    string;
+            }
 
 
 
 
- 2. Create a frontend service:  MyReportService   (if you have not already!)
-     a. Create this front-end service:  MyReportService 
+
+ 2. Create a frontend service:  MyUserService   (if you have not already!)
+     a. Create this front-end service:  MyUserService 
      
-     b. Add a public method:  getAllReports2() 
-        NOTE:  This method returns an observable that holds an array of GridCellDataForSearchingFiltersDTO
+     b. Add a public method:  getAllUsers2() 
+        NOTE:  This method returns an observable that holds an array of GridCellDataForCustomFilterDTO
 
      c. Fill-in this public method
-        1) Create a local variable that holds an array of GridCellDataForSearchingFiltersDTO objects 
+        1) Create a local variable that holds an array of GridCellDataForCustomFilterDTO objects 
         2) Fill-in the array with 3 fake objects
         3) Convert the array into an observable
         4) Return the observable
 
-
-          public getAllReports2(): Observable<GridCellDataForSearchingFiltersDTO[]> {
-            let data: GridCellDataForSearchingFiltersDTO[] = [
+        
+        
+          public getAllUsers2(): Observable<GridCellDataForCustomFilterDTO[]> {
+            let data: GridCellDataForCustomFilterDTO[] = [
               {
-                id: 101,
-                report_name: 'Report #1',
-                priority_label: 'Critical',
-                start_date: '11/09/2023',
-                end_date:   '09/05/2024'
+                id: 1001,
+                full_name: 'John Smith',
+                is_locked: false,
+                is_locked_label: 'Unlocked',
+                registration_date: '09/05/2024',
+                last_login_date:   '09/15/2024'
               },
               {
-                id: 102,
-                report_name: 'Report #2',
-                priority_label: 'Critical',
-                start_date: '04/01/2022',
-                end_date:   '05/02/2023'
+                id: 1002,
+                full_name: 'Ben Smith',
+                is_locked: true,
+                is_locked_label: 'Locked',
+                registration_date: '11/05/2024',
+                last_login_date:   '11/15/2024'
               },
               {
-                id: 103,
-                report_name: 'Report #3',
-                priority_label: 'Get it done now!!!',
-                start_date: '02/02/2023',
-                end_date:   '01/05/2024'
+                id: 1003,
+                full_name: 'Ben Smith',
+                is_locked: false,
+                is_locked_label: 'Unlocked',
+                registration_date: '12/05/2023',
+                last_login_date:   '12/15/2023'
               },
             ];
         
             return of(data);
           }
-                
-                
+             
 
 
 Part 4 / Configure the grid to load it's rowData with the fake service
 ----------------------------------------------------------------------
- 1, In the Grid Page TypeScript / Inject your MyReportService
+ 1, In the Grid Page TypeScript / Inject your MyUserService
  
-        public constructor(private myReportService: MyReportService) { }
- 
+          public constructor(private MyUserService: MyUserService) { }
+         
  
  
  2. In the Grid Page TypeScript / Add these 2 public class variables:
         gridApi / type is GridApi
         gridColumnApi / type is ColumnApi
-    
+          
+          
+            public gridApi: GridApi;
+            public gridColumnApi: ColumnApi;  
     
     
  3.  In the Grid Page TypeScript / Add a method:  onGridReady
@@ -295,7 +308,7 @@ Part 4 / Configure the grid to load it's rowData with the fake service
     -- Invoke the fake REST call (you made in the previous step)
     -- When the REST call comes in, set the grid row data
     
-    
+            
           public onGridReady(aParams: GridReadyEvent) {
             // Get a reference to the gridApi and gridColumnApi (which we will need later to get selected rows)
             this.gridApi = aParams.api;
@@ -305,7 +318,7 @@ Part 4 / Configure the grid to load it's rowData with the fake service
             this.gridApi.showLoadingOverlay();
         
             // Invoke the REST call to get the grid data
-            this.myReportService.getAllReports2().subscribe( (aData: GridCellDataForSearchingFiltersDTO[]) => {
+            this.MyUserService.getAllUsers2().subscribe( (aData: GridCellDataForCustomFilterDTO[]) => {
               // REST call came back with data
         
               // Load the grid with data from the REST call
@@ -313,7 +326,9 @@ Part 4 / Configure the grid to load it's rowData with the fake service
             })
         
           }
- 
+          
+          
+         
  4. In the HTML, tell the grid to call your onGridReady() when the grid is fully initialized
  
        (gridReady)="this.onGridReady($event)"
@@ -321,12 +336,12 @@ Part 4 / Configure the grid to load it's rowData with the fake service
 
 
 ```
-![](../images/exercise11g_image2.png)
+![](../images/exercise11i_image2.png)
 ```
 
 
-Part 5 / Get the start_date and end_date fields to sort correctly
------------------------------------------------------------------
+Part 5 / Get the date fields to sort correctly
+----------------------------------------------
 Problem:  By default client side date fields do not sort -- because the grid treats them as string
  
  1. Implement your Date Service (if you haven't already created it)
@@ -397,7 +412,7 @@ Problem:  By default client side date fields do not sort -- because the grid tre
  
  2. Inject your Date Service into your main grid page
   
-      public constructor(private myReportService: MyReportService,
+      public constructor(private MyUserService: MyUserService,
                          private dateService: DateService) {
       }
   
@@ -405,7 +420,7 @@ Problem:  By default client side date fields do not sort -- because the grid tre
  3. Tell your grid "date" columns to use your Date Service comparator method 
 
       {
-    	field: 'start_date',
+    	field: 'registration_date',
   		comparator: (a: string, b: string) => this.dateService.dateComparator(a,b)
 	  }
 
@@ -428,7 +443,7 @@ Change the layout by adding some stuff *between the page title and the grid
  2. Add a row called "search box line" and a row called "Grid buttons"  between the page title and the grid
  
      +-------------------------------------------------------------------+
-     | Grid Page with Filter Search Box                             Help |
+     | Grid Page with Custom Filter                                 Help |
      +-------------------------------------------------------------------+
      | Search box line                                                   |   Filter Search Box is
      +-------------------------------------------------------------------|
@@ -451,7 +466,7 @@ Change the layout by adding some stuff *between the page title and the grid
         
             <div class="grid grid-cols-2">
               <div>
-                <span class="text-xl">Grid Page with Filter Search Box</span>
+                <span class="text-xl">Grid Page with Custom Filter</span>
               </div>
           
               <div class="flex place-content-end">
@@ -594,13 +609,16 @@ Change the layout by adding some stuff *between the page title and the grid
       </div>   
        
 ```
-![](../images/exercise11g_image3.png)
+![](../images/exercise11i_image3.png)
 ```
 
 Part 7 / Entering text in the search box should apply filters in real-time
 --------------------------------------------------------------------------
  1. Add a public class variable:  totalFilteredMatchesAndLabel
     -- It will hold "No Matches" or "1 Match" or "5 Matches"
+ 
+            public totalFilteredMatchesAndLabel: string;
+            
  
  2. Add a private method:  refreshTotalFilteredMatchAndLabels()
     -- Nothing is passed-in
@@ -616,6 +634,22 @@ Part 7 / Entering text in the search box should apply filters in real-time
 
     -- You get the idea!!!
     
+         
+       private refreshTotalFilteredMatchAndLabels(): void {
+            let totalRecordsVisible: number =  this.gridApi.getDisplayedRowCount();
+            if (totalRecordsVisible == 0) {
+              this.totalFilteredMatchesAndLabel = "No Matches";
+            }
+            else if (totalRecordsVisible == 1) {
+              this.totalFilteredMatchesAndLabel = "1 Match"
+            }
+            else {
+              this.totalFilteredMatchesAndLabel = String(totalRecordsVisible) + " Matches";
+            }
+       }
+
+
+
     
 
  3. Add a public method:   runClientGridSearch()
@@ -623,7 +657,17 @@ Part 7 / Entering text in the search box should apply filters in real-time
     -- It runs the search
     -- It refreshes totalFilteredMatchesAndLabel
     
-    
+        
+          public runClientGridSearch(aRawQuery: string): void {
+            // Run the search on this client side grid
+            this.gridApi.setQuickFilter(aRawQuery);
+        
+            // Refresh the total matches label
+            this.refreshTotalFilteredMatchAndLabels();
+          }
+          
+          
+          
  4. Change your HTML / Replace the hard-coded "3 Matches" with totalFilteredMatchesAndLabel 
  
  
@@ -631,6 +675,9 @@ Part 7 / Entering text in the search box should apply filters in real-time
     a. Create this class variable:  rawSearchQuery
        -- It holds whatever text the users enters
        -- Initialize it to an empty string
+ 
+            public rawSearchQuery: string;
+   
        
     b. Bind the search box to this class variable
        <input matInput type="text".... [(ngModel)]="this.rawSearchQuery"
@@ -648,7 +695,9 @@ Part 8 / Cleanup / Update the tab to show the total records on page load / Imple
  1. Create a class variable:  totalRecordsOnPageLoad
     -- It holds the total records loaded on page load
 
-
+            public totalRecordsOnPageLoad: number;
+            
+ 
  2. In the onGridReady(), 
     -- set the totalRecordsOnPageLoad to hold the total number of records returned from the backend
         
@@ -661,7 +710,7 @@ Part 8 / Cleanup / Update the tab to show the total records on page load / Imple
             this.gridApi.showLoadingOverlay();
         
             // Invoke the REST call to get the grid data
-            this.myReportService.getAllReports2().subscribe( (aData: GridCellDataForSearchingFiltersDTO[]) => {
+            this.MyUserService.getAllUsers2().subscribe( (aData: GridCellDataForCustomFilterDTO[]) => {
               // REST call came back with data
         
               if (!aData) {
@@ -725,255 +774,16 @@ Part 8 / Cleanup / Update the tab to show the total records on page load / Imple
           </button
 
 
-Completed HTML
---------------
-<div class="bg-backDropColor m-2.5">
 
-    <div class="grid grid-cols-2">
-      <div>
-        <span class="text-xl">Grid Page with Filter Search Box</span>
-      </div>
-
-      <div class="flex place-content-end">
-        Help
-      </div>
-    </div>
-
-
-    <!--  S E A R C H       B O X       L I N E   -->
-    <div class="mt-2.5 flex flex-row w-full h-[64px] relative flex-shrink-0">
-
-    <!-- Tab -->
-    <div class="flex flex-row items-center absolute bg-white rounded-t px-3 py-2 border-x border-t border-borderColor h-full w-[150px] top-[1px]">
-
-      <!-- Vertical Line -->
-      <div class="w-[5px] h-full float-left bg-[#1E3059] rounded mr-2.5 flex-shrink-0"></div>
-
-      <div class="flex flex-col pt-2">
-        <div class="h-[30px] w-[125px] flex place-content-start">
-          <!-- Title (count) -->
-          <ng-container>
-            <!-- Display Total -->
-            <span class="text-2xl font-extrabold">{{ this.totalRecordsOnPageLoad }}</span>
-          </ng-container>
-        </div>
-
-        <div class="h-[30px] flex place-content-start">
-          <!-- Sub Title (context) -->
-          <span>Total Records</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Searchbar Container -->
-    <div class="h-full w-full py-2 flex flex-row pl-[158px]">
-
-      <!-- Searchbar -->
-      <div class="w-full bg-white rounded border-borderColor border justify-center flex flex-row gap-2.5 pl-3.5 overflow-hidden">
-
-        <!-- Searchbar Input -->
-        <input matInput type="text"
-               [(ngModel)]="this.rawSearchQuery"
-               (input)="this.runClientGridSearch(this.rawSearchQuery)"
-               class="w-full outline-none"
-               placeholder="Search..."
-               autocomplete="off"
-               title="Search Box"
-               style="background: white"
-               aria-label="Search Box"/>
-
-        <!-- Clear Icon -->
-        <span class="flex clickable items-center justify-center" title="Clear Search" aria-label="Clear Search" (click)="this.clearSearch()">
-                    <i class="fa-solid fa-xmark-large"></i>
-            </span>
-
-        <!-- Search Icon -->
-        <div class="bg-blue-950 rounded-r w-[42px] items-center justify-center clickable text-white flex h-full" aria-label="Search" title="Search">
-          <i class="fa-regular fa-search"></i>
-        </div>
-      </div>
-
-    </div>
-  </div>
-
-
-    <!--  G R I D      B U T T O N S         -->
-    <div class="flex flex-row w-full bg-white rounded-tr h-10 flex-shrink-0 items-center border-x border-t border-borderColor px-3">
-
-        <!-- Settings button -->
-        <button [matMenuTriggerFor]="gridMenu" class="-ml-1"
-                type="button" title="Settings" aria-label="Settings">
-          <div class="flex flex-row gap-2 items-center">
-            <i class="fa-xl fa-solid fa-sliders"></i>
-            <span class="font-extrabold">Settings</span>
-          </div>
-        </button>
-
-        <!-- Pop-up menu for the 'Settings' button -->
-        <mat-menu #gridMenu="matMenu">
-          <button (click)="this.resetGrid()" mat-menu-item type="button" title="Reset Grid" aria-label="Reset Grid">
-            Reset Grid
-          </button>
-        </mat-menu>
-
-        <div class="flex flex-grow place-content-end">
-          <!-- Show the Total Number of Matches -->
-          <span class="italic text-primary font-extrabold">{{ this.totalFilteredMatchesAndLabel }}</span>
-        </div>
-  </div>
-
-
-    <!--  G R I D      I S    H E R E     -->
-    <div class="overflow-y-auto" style="height: calc(100vh - 247px)">
-      <ag-grid-angular
-        class="ag-theme-balham w-full h-full"
-        [gridOptions]="this.gridOptions"
-        [columnDefs]="this.columnDefs"
-        [defaultColDef]="this.defaultColumnDef"
-        (gridReady)="this.onGridReady($event)"
-      ></ag-grid-angular>
-    </div>
-
-
-</div>
-
-
-
-
-
-Completed TypeScript
---------------------
-import { Component } from '@angular/core';
-import {ColDef, ColumnApi, GridApi, GridOptions, GridReadyEvent, ITextFilterParams} from "ag-grid-community";
-import {MyReportService} from "../../services/my-report.service";
-import {GridCellDataForSearchingFiltersDTO} from "../../models/grid-cell-data-for-searching-filters-dto";
-import {DateService} from "../../services/date.service";
-
-@Component({
-  selector: 'app-grid-page-with-filter-search-box',
-  templateUrl: './grid-page-with-filter-search-box.component.html',
-  styleUrls: ['./grid-page-with-filter-search-box.component.scss']
-})
-export class GridPageWithFilterSearchBoxComponent {
-
-  public constructor(private myReportService: MyReportService,
-                     private dateService: DateService)  {}
-
-  public gridApi: GridApi;
-  public gridColumnApi: ColumnApi;
-
-  public totalFilteredMatchesAndLabel: string;
-  public rawSearchQuery: string = "";
-  public totalRecordsOnPageLoad: number;
-
-  public gridOptions: GridOptions = {
-    domLayout: 'normal',
-    debug: true,
-    rowModelType: 'clientSide'
-  };
-
-  public columnDefs: ColDef[] = [
-    {
-      field: 'id'
-    },
-    {
-      field: 'report_name'
-    },
-    {
-      field: 'priority_label'
-    },
-    {
-      field: 'start_date',
-      comparator: (a: string, b: string) => this.dateService.dateComparator(a,b)
-    },
-    {
-      field: 'end_date',
-      comparator: (a: string, b: string) => this.dateService.dateComparator(a,b)
-    }
-  ];
-
-  // Customize the filters (when turned on)
-  private textFilterParams: ITextFilterParams = {
-    filterOptions: ['contains', 'notContains'],         // Customize the filter to only show "Contains" and "Not Contains"
-    caseSensitive: false,                               // Filter is case-insensitive
-    debounceMs: 200,
-    maxNumConditions: 1,                                // Suppress and/or conditions
-  };
-
-  public defaultColumnDef: ColDef = {
-    flex: 1,
-    sortable: true,                         // All columns are sortable
-    floatingFilter: true,                   // Show the floating filter (beneath the column label)
-    filter: 'agTextColumnFilter',           // Specify the type of filter
-    filterParams: this.textFilterParams,    // Customize the filter
-  }
-
-
-  public onGridReady(aParams: GridReadyEvent) {
-    // Get a reference to the gridApi and gridColumnApi (which we will need later to get selected rows)
-    this.gridApi = aParams.api;
-    this.gridColumnApi = aParams.columnApi;
-
-    // Show the loading overlay
-    this.gridApi.showLoadingOverlay();
-
-    // Invoke the REST call to get the grid data
-    this.myReportService.getAllReports2().subscribe( (aData: GridCellDataForSearchingFiltersDTO[]) => {
-      // REST call came back with data
-
-      if (!aData) {
-        this.totalRecordsOnPageLoad = 0;
-      }
-      else {
-        this.totalRecordsOnPageLoad = aData.length;
-      }
-
-
-      // Load the grid with data from the REST call
-      this.gridApi.setRowData(aData);
-    })
-  }
-
-
-  private refreshTotalFilteredMatchAndLabels(): void {
-    let totalRecordsVisible: number =  this.gridApi.getDisplayedRowCount();
-    if (totalRecordsVisible == 0) {
-      this.totalFilteredMatchesAndLabel = "No Matches";
-    }
-    else if (totalRecordsVisible == 1) {
-      this.totalFilteredMatchesAndLabel = "1 Match"
-    }
-    else {
-      this.totalFilteredMatchesAndLabel = String(totalRecordsVisible) + " Matches";
-    }
-  }
-
-
-  public runClientGridSearch(aRawQuery: string): void {
-    // Run the search on this client side grid
-    this.gridApi.setQuickFilter(aRawQuery);
-
-    // Refresh the total matches label
-    this.refreshTotalFilteredMatchAndLabels();
-  }
-
-  public clearSearch(): void {
-    // Clear the search query
-    this.rawSearchQuery = "";
-
-    // Clear the filter and refresh the totals
-    this.runClientGridSearch('');
-  }
-
-  public resetGrid(): void {
-    // Reset the columns back to default  *BEFORE*  auto-sizing them sizing them
-    this.gridColumnApi.resetColumnState();
-
-    // Size the columns to fit
-    this.gridApi.sizeColumnsToFit();
-  }
-
-}
-
-
+Part 9 / Setup a custom filter 
+------------------------------
+ 1. Create a new component:  dropDownFloatingFilter
+ 
+ 2. Edit the typescript of this new component
+    a. Have it implement IFloatingFilter *AND* AgFrameworkComponent<any>
+    
+    b. Have intellij Implement all *required* members
+    
+ 
+    
 ```
