@@ -95,6 +95,7 @@ Angular 16 Lesson Plan
     <a href="./exercises/exercise11h.client-grid-row-selection.question.md"       title="Exercise 11h">Exercise 11h</a> / Client Grid / Row Selection & Checkboxes          (<a href="./exercises/exercise11h.client-grid-row-selection.answers.md"  title="Exercise 11h">Answers</a>)
     Exercise 11i / Client Grid / Open a dialog
     <a href="./exercises/exercise11j.client-grid-remembers-settings.question.md" title="Exercise 11j">Exercise 11j</a> / Client Grid / Remember grid columns settings      (<a href="./exercises/exercise11j.client-grid-remembers-settings.answers.md"  title="Exercise 11j">Answers</a>)
+    <a href="./exercises/exercise11k.client-grid-with-one-million-records.question.md" title="Exercise 11k">Exercise 11k</a> / Client Grid / Load 1 million records into it      (<a href="./exercises/exercise11k.client-grid-with-one-million-records.answers.md"  title="Exercise 11k">Answers</a>)
 
  9. Tabs Groups
     <a href="./exercises/exercise12a.setup-tab-group.question.txt" title="Exercise 12a">Exercise 12a</a> / Tab Group / Setup page w/tabs                     (<a href="./exercises/exercise12a.setup-tab-group.answers.txt"   title="Exercise 12a">Answers</a>)
