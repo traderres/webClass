@@ -1,0 +1,250 @@
+How to export users out in keycloak 26 and import them on startup
+-----------------------------------------------------------------
+Problem:  I want to run keycloak in a container but have it setup with a realm and users
+Solution: Startup keycloak, configure the realm, add users, ssh to the post, export the realm and users
+          In your kubernetes script, import the realm on startup
+
+
+Procedure
+---------
+ 1. Startup keycloak
+
+ 2. Add as many users as you need to
+
+ 3. ssh into the pod to create a json file with the realm and users
+    unix> cp -rp /opt/keycloak/data/h2 /tmp
+    unix> /opt/keycloak/bin/kc.sh export --dir /tmp  --realm MyRealm --db dev-file --db-url 'jdbc:h2:file:/tmp/h2/keycloakdb;NON_KEYWORDS=VALUE'
+
+
+    -- Now, you have these files in /tmp/
+				MyRealm-realm.json
+				MyRealm-users-0.json
+
+
+    Exit out of the bash shell
+    unix> exit
+
+
+ 4. Download the realm and user json files from the pod
+    WARNING:  You cannot use the regular kubectl cp because there is no *TAR* command in this pod
+    unix> kubectl get pods
+    -- Get the name of the keycloak pod:  ni2-keycloak-959c687cf-fxkld
+
+    unix> cd /tmp
+    unix> kubectl exec -n default ni2-keycloak-7fb49594fc-pwwjr -- cat /tmp/MyRealm-realm.json   > /tmp/MyRealm-realm.json
+    unix> kubectl exec -n default ni2-keycloak-7fb49594fc-pwwjr  -- cat /tmp/MyRealm-users-0.json > /tmp/MyRealm-users-0.json
+
+
+ 5. Create config maps from the 2 files
+    unix> kubectl delete configmap realm-export user-export
+    unix> kubectl create configmap realm-export   --from-file=MyRealm-realm.json
+    unix> kubectl create configmap user-export    --from-file=MyRealm-users-0.json
+
+
+ 6. Add volumeMounts to the deploy-keycloak.yaml so that these files are mounted here:
+         /opt/keycloak/data/import/MyRealm-realm.json
+         /opt/keycloak/data/import/MyRealm-users-0.json
+
+
+          volumeMounts:
+          - name: vol-keystore-jks
+            mountPath: /etc/config/keystore
+          - name: vol-truststore-jks
+            mountPath: /etc/config/truststore
+          - name: vol-custom-cacerts
+            mountPath: /etc/config/custom
+          - name: vol-realm-export
+            mountPath: /opt/keycloak/data/import/MyRealm-realm.json
+            subPath:   MyRealm-realm.json
+          - name: vol-user-export
+            mountPath: /opt/keycloak/data/import/MyRealm-users-0.json
+            subPath:   MyRealm-users-0.json
+
+
+ 7. Add volumes to the deploy-keycloak.yaml
+      volumes:
+      - name: vol-keystore-jks
+        configMap:
+          name: keycloak-keystore-jks
+      - name: vol-truststore-jks
+        configMap:
+          name: keycloak-trust-jks
+      - name: vol-custom-cacerts
+        configMap:
+          name: custom-cacerts
+      - name: vol-realm-export
+        configMap:
+          name: realm-export
+      - name: vol-user-export
+        configMap:
+          name: user-export
+
+
+
+ 8. Make sure your keycloak has the
+             - "--import-realm"
+
+
+
+The completed deploy-keycloak.yaml looks something like this:
+-------------------------------------------------------------
+#############################################################################
+# Filename:  deploy-keycloak.yaml
+# Contains the Deployment and Service for the NI2 Keycloak
+# kubectl apply -f deploy-keycloak.yaml
+#
+# Assumptions:
+#  1.  Create the configmaps to hold the keycloak-trust-jks and keycloak-keystore-jks
+#      terminal> cd ~/intellijProjects/core-library/docs/root-ca/server-certs/
+#      terminal> kubectl delete configmap keycloak-trust-jks keycloak-keystore-jks custom-cacerts realm-export
+#      terminal> kubectl create configmap keycloak-trust-jks    --from-file=keycloak.docker.internal.truststore.jks
+#      terminal> kubectl create configmap keycloak-keystore-jks --from-file=keycloak.docker.internal.keystore.jks
+#      terminal> kubectl create configmap custom-cacerts        --from-file=custom.cacerts
+#      terminal> kubectl create configmap realm-export          --from-file=../../kubernetes/realm-export.json
+#      terminal> kubectl create configmap user-export           --from-file=../../kubernetes/realm-export.json
+#
+# To import a realm on startup, keycloak needs 2 things:
+#   a) You must locate your realm file here:  /opt/keycloak/data/import/realm-export.json        (the filename does not matter)
+#   b) YOu must add the --import realm
+#############################################################################
+
+
+#############################################################################
+# Deployment for Keycloak
+#############################################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ni2-keycloak
+  namespace: default
+  labels:
+    app: ni2-keycloak
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ni2-keycloak
+  template:
+    metadata:
+      name: ni2-keycloak
+      namespace: default
+      labels:
+        app: ni2-keycloak
+    spec:
+      containers:
+        - args:
+            - "start"
+            - "--https-port=7080"
+            - "--https-key-store-file=/etc/config/keycloak.docker.internal.keystore.jks"
+            - "--https-key-store-type=JKS"
+            - "--https-key-store-password=changeit"
+            - "--https-trust-store-file=/etc/config/keycloak.docker.internal.truststore.jks"
+            - "--https-trust-store-type=JKS"
+            - "--https-trust-store-password=changeit"
+            - "--https-client-auth=request"
+            - "--hostname-strict=false"
+            - "--hostname=keycloak.docker.internal"
+            - "--import-realm"
+
+          env:
+            - name: JAVA_OPTS_APPEND
+              value: "  -Djavax.net.ssl.trustStore=/etc/config/custom.cacerts  -Djavax.net.ssl.trustStorePassword=changeit  "
+            - name: KC_LOG_LEVEL
+              value: info
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
+              value: admin
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+              value: admin
+            - name: KEYCLOAK_FRONTEND_URL
+              value: "http://keycloak.docker.internal/keycloak/auth/"
+            - name: KEYCLOAK_ADMIN_URL
+              value: "http://keycloak.docker.internal/keycloak/auth/realms/master/admin/"
+          image: registry1.dso.mil/ironbank/opensource/keycloak/keycloak:26.0.6
+          name: kc
+          volumeMounts:
+          - name: vol-keystore-jks
+            mountPath: /etc/config/keycloak.docker.internal.keystore.jks
+            subPath:   keycloak.docker.internal.keystore.jks
+          - name: vol-truststore-jks
+            mountPath: /etc/config/keycloak.docker.internal.truststore.jks
+            subPath:   keycloak.docker.internal.truststore.jks
+          - name: vol-custom-cacerts
+            mountPath: /etc/config/custom.cacerts
+            subPath:   custom.cacerts
+          - name: vol-realm-export
+            mountPath: /opt/keycloak/data/import/MyRealm-realm.json
+            subPath:   MyRealm-realm.json
+          - name: vol-user-export
+            mountPath: /opt/keycloak/data/import/MyRealm-users-0.json
+            subPath:   MyRealm-users-0.json
+
+          ports:
+            - containerPort: 7080
+              protocol: TCP
+      restartPolicy: Always
+      volumes:
+      - name: vol-keystore-jks
+        configMap:
+          name: keycloak-keystore-jks
+      - name: vol-truststore-jks
+        configMap:
+          name: keycloak-trust-jks
+      - name: vol-custom-cacerts
+        configMap:
+          name: custom-cacerts
+      - name: vol-realm-export
+        configMap:
+          name: realm-export
+      - name: vol-user-export
+        configMap:
+          name: user-export
+---
+
+
+#############################################################################
+# Service for Keycloak
+#############################################################################
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: ni2-keycloak-service
+spec:
+  ports:
+    - name: "7080"
+      port: 7080
+      targetPort: 7080
+  selector:
+    app: ni2-keycloak
+---
+
+
+#############################################################################
+# Ingress for Keycloak
+#
+# https://keycloak.docker.internal/    --> takes you to keycloak using SSL-PASS-THROUGH
+#############################################################################
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: keycloak-ingress
+  namespace: default
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: keycloak.docker.internal
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ni2-keycloak-service
+                port:
+                  number: 7080
+
