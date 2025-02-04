@@ -511,18 +511,16 @@ Part 5:  Build Tab Group v6  (have square tabs blend in with the tab contents)
 ------------------------------------------------------------------------------
  1. Set the regular tabs to have a background color of #201735
          
-         :host ::ng-deep  .mat-mdc-tab-group, .mat-mdc-tab-nav-bar {
-          /* Change the text color of the tabs -- there are many states */
-          --mat-tab-header-active-focus-label-text-color: #201735;
-          --mat-tab-header-active-label-text-color : #201735;
-          --mat-tab-header-inactive-label-text-color: white;
-          --mat-tab-header-inactive-focus-label-text-color: white;
-          --mat-tab-header-inactive-hover-label-text-color : white;
-          --mdc-tab-indicator-active-indicator-color: white;
-          --mat-tab-header-active-hover-label-text-color: white;
-          --mat-tab-header-active-ripple-color: white;
-          --mat-tab-header-inactive-ripple-color: white;
+        :host ::ng-deep .mdc-tab {
+          /* Set the style for INACTIVE tabs */
+        
+          /* Set the background color of regular tabs */
+          background-color: #201735;
+        
+          opacity: 1;
         }
+        
+        
 
  2. Set the regular tabs to have a border of 2px/solid/#201735
  
@@ -577,6 +575,7 @@ Part 5:  Build Tab Group v6  (have square tabs blend in with the tab contents)
           --mat-tab-header-active-ripple-color: white;
           --mat-tab-header-inactive-ripple-color: white;
         }
+        
         
         
  6. Remove the bar underneath the active tab
