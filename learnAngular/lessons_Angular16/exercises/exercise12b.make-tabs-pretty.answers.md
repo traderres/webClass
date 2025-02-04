@@ -504,3 +504,147 @@ Part 5:  Build Tab Group v5  (Apply the gradient on the *Active* tab only)
         </div>
       </div>
     </div>
+
+
+
+Part 5:  Build Tab Group v6  (have square tabs blend in with the tab contents)
+------------------------------------------------------------------------------
+ 1. Set the regular tabs to have a background color of #201735
+         
+         :host ::ng-deep  .mat-mdc-tab-group, .mat-mdc-tab-nav-bar {
+          /* Change the text color of the tabs -- there are many states */
+          --mat-tab-header-active-focus-label-text-color: #201735;
+          --mat-tab-header-active-label-text-color : #201735;
+          --mat-tab-header-inactive-label-text-color: white;
+          --mat-tab-header-inactive-focus-label-text-color: white;
+          --mat-tab-header-inactive-hover-label-text-color : white;
+          --mdc-tab-indicator-active-indicator-color: white;
+          --mat-tab-header-active-hover-label-text-color: white;
+          --mat-tab-header-active-ripple-color: white;
+          --mat-tab-header-inactive-ripple-color: white;
+        }
+
+ 2. Set the regular tabs to have a border of 2px/solid/#201735
+ 
+        :host ::ng-deep .mdc-tab {
+          /* Set the style for INACTIVE tabs */
+          min-width: 225px !important;           /* Set every tab to be 175px wide */
+          max-width: 225px !important;           /* Set every tab to be 175px wide */
+          color: white;
+          font-style: normal;
+          font-weight: 700;
+          font-size: 15px;
+          margin-top: 3px;
+          margin-bottom: 3px;
+        
+          /* Set the background color of regular tabs */
+          background-color: #201735;
+        
+          /* Put a blue border around the tab */
+          border: 2px solid #201735;
+        
+          opacity: 1;
+        }
+
+ 
+ 3. Set the active tab to have a background color of white
+ 4. Set the active tab to have a border-bottom of 2px/solid/white
+ 
+        :host ::ng-deep .mdc-tab--active {
+          /* Set the styles for the *ACTIVE* label */
+        
+          /* Set background color of the active tab */
+          background: white;
+        
+          /* Change the *BOTTOM* of the border to be white so the tab "blends" in with the tab contents */
+          border-bottom: 2px solid white;
+        }
+
+
+ 
+ 
+ 5. Change the active text color to be #201735 
+ 
+         :host ::ng-deep  .mat-mdc-tab-group, .mat-mdc-tab-nav-bar {
+          /* Change the text color of the tabs -- there are many states */
+          --mat-tab-header-active-focus-label-text-color: #201735;
+          --mat-tab-header-active-label-text-color : #201735;
+          --mat-tab-header-inactive-label-text-color: white;
+          --mat-tab-header-inactive-focus-label-text-color: white;
+          --mat-tab-header-inactive-hover-label-text-color : white;
+          --mdc-tab-indicator-active-indicator-color: white;
+          --mat-tab-header-active-hover-label-text-color: white;
+          --mat-tab-header-active-ripple-color: white;
+          --mat-tab-header-inactive-ripple-color: white;
+        }
+        
+        
+ 6. Remove the bar underneath the active tab
+
+        :host ::ng-deep .mdc-tab-indicator__content {
+          /* Remove the the bar underneath the ACTIVE tab */
+          display: none;
+        } 
+ 
+ ```
+![](../images/exercise12b_image6.png)
+```
+
+
+    The completed SCCS
+    ------------------
+    :host ::ng-deep .mat-mdc-tab-header {
+      // Indent the Tab Headers
+      margin-left: 10px;
+      margin-right: 10px;
+    }
+    
+    
+    :host ::ng-deep  .mat-mdc-tab-group, .mat-mdc-tab-nav-bar {
+      /* Change the text color of the tabs -- there are many states */
+      --mat-tab-header-active-focus-label-text-color: #201735;
+      --mat-tab-header-active-label-text-color : #201735;
+      --mat-tab-header-inactive-label-text-color: white;
+      --mat-tab-header-inactive-focus-label-text-color: white;
+      --mat-tab-header-inactive-hover-label-text-color : white;
+      --mdc-tab-indicator-active-indicator-color: white;
+      --mat-tab-header-active-hover-label-text-color: white;
+      --mat-tab-header-active-ripple-color: white;
+      --mat-tab-header-inactive-ripple-color: white;
+    }
+    
+    :host ::ng-deep .mdc-tab-indicator__content {
+      /* Remove the the bar underneath the ACTIVE tab */
+      display: none;
+    }
+    
+    :host ::ng-deep .mdc-tab {
+      /* Set the style for INACTIVE tabs */
+      min-width: 225px !important;           /* Set every tab to be 175px wide */
+      max-width: 225px !important;           /* Set every tab to be 175px wide */
+      color: white;
+      font-style: normal;
+      font-weight: 700;
+      font-size: 15px;
+      margin-top: 3px;
+      margin-bottom: 3px;
+    
+      /* Set the background color of regular tabs */
+      background-color: #201735;
+    
+      /* Put a blue border around the tab */
+      border: 2px solid #201735;
+    
+      opacity: 1;
+    }
+    
+    :host ::ng-deep .mdc-tab--active {
+      /* Set the styles for the *ACTIVE* label */
+    
+      /* Set background color of the active tab */
+      background: white;
+    
+      /* Change the *BOTTOM* of the border to be white so the tab "blends" in with the tab contents */
+      border-bottom: 2px solid white;
+    }
+    
