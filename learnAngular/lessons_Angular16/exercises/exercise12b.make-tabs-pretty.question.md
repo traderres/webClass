@@ -215,7 +215,9 @@ Part 5:  Build Tab Group v5  (Apply the gradient on the *Active* tab only)
 --------------------------------------------------------------------------
  1. Set the active tab to have the gradient only
  
-  
+ 
+ ```
+![](../images/exercise12b_image5.png)
 
 
 
