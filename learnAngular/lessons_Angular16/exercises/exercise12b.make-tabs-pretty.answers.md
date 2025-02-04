@@ -417,3 +417,90 @@ Part 4:  Build Tab Group v4  (Change the gradient colors)
       border: 2px solid #009ffd;
       border-radius: 20px;
     }
+
+
+
+Part 5:  Build Tab Group v5  (Apply the gradient on the *Active* tab only)
+--------------------------------------------------------------------------
+ 1. Set the active tab to have the gradient only
+ 
+ 
+ ```
+![](../images/exercise12b_image5.png)
+```
+
+      
+    The SCSS for Part 4
+    -------------------
+    :host ::ng-deep .mat-mdc-tab-header {
+      // Indent the Tab Headers
+      margin-left: 10px;
+      margin-right: 10px;
+    
+      /* Set the default background color of the header */
+      background-color: #201735;
+    }
+    
+    
+    :host ::ng-deep  .mat-mdc-tab-group, .mat-mdc-tab-nav-bar {
+      /* Change the text color of the tabs -- there are many states */
+      --mat-tab-header-active-focus-label-text-color: white;
+      --mat-tab-header-active-label-text-color : white;
+      --mat-tab-header-inactive-label-text-color: white;
+      --mat-tab-header-inactive-focus-label-text-color: white;
+      --mat-tab-header-inactive-hover-label-text-color : white;
+      --mdc-tab-indicator-active-indicator-color: white;
+      --mat-tab-header-active-hover-label-text-color: white;
+      --mat-tab-header-active-ripple-color: white;
+      --mat-tab-header-inactive-ripple-color: white;
+    }
+    
+    :host ::ng-deep .mdc-tab-indicator__content {
+      /* Remove the the bar underneath the ACTIVE tab */
+      display: none;
+    }
+    
+    :host ::ng-deep .mdc-tab {
+      /* label style */
+      min-width: 225px !important;           /* Set every tab to be 175px wide */
+      max-width: 225px !important;           /* Set every tab to be 175px wide */
+      color: white;
+      font-style: normal;
+      font-weight: 700;
+      font-size: 15px;
+      margin: 3px;
+    
+      border: 2px solid #201735;
+      border-radius: 20px;
+    
+    
+      opacity: 1;
+    }
+    
+    :host ::ng-deep .mdc-tab--active {
+      /* Styles for the active tab label */
+      border: 2px solid #009ffd;
+      border-radius: 20px;
+    
+      /* Set color when tab loses focus */
+      background-image: linear-gradient(315deg, #009ffd 0%, #201735 91%);
+    }
+
+
+
+    The HTML for the first tab
+    --------------------------
+    <div class="mat-elevation-z4 mx-2.5 mb-[5px]">
+      <div class="overflow-y-auto" style="height: calc(100vh - 200px)">
+    
+        <div class="p-2.5">
+          <div>
+            <span class="text-xl">Enrichment</span>
+          </div>
+    
+          <div class="mt-[5px]">
+            This is the Enrichment Tab
+          </div>
+        </div>
+      </div>
+    </div>

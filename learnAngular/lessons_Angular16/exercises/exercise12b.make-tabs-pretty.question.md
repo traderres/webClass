@@ -208,5 +208,16 @@ Part 4:  Build Tab Group v4  (Change the gradient colors)
 ![](../images/exercise12b_image4.png)
 ```
 
+
+
+
+Part 5:  Build Tab Group v5  (Apply the gradient on the *Active* tab only)
+--------------------------------------------------------------------------
+ 1. Set the active tab to have the gradient only
+ 
+  
+
+
+
     
  
