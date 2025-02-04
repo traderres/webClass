@@ -215,11 +215,34 @@ Part 5:  Build Tab Group v5  (Apply the gradient on the *Active* tab only)
 --------------------------------------------------------------------------
  1. Set the active tab to have the gradient only
  
+ 2. Set the regulars tabs to have a background color of dark blue
  
  ```
 ![](../images/exercise12b_image5.png)
+```
 
 
 
-    
+
+Part 6:  Build Tab Group v6  (have square tabs blend in with the tab contents)
+------------------------------------------------------------------------------
+ 1. Set the regular tabs to have a background color of #201735
+         
+ 2. Set the regular tabs to have a border of 2px/solid/#201735
+ 
+ 3. Set the active tab to have a background color of white
+ 
+ 4. Set the active tab to have a border-bottom of 2px/solid/white
+ 
+ 5. Change the active text color to be #201735 
+ 
+ 6. Remove the bar underneath the active tab
+
+ 
+ ```
+![](../images/exercise12b_image6.png)
+```
+
+
+
  

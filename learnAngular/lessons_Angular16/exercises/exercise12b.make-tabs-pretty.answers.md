@@ -507,7 +507,7 @@ Part 5:  Build Tab Group v5  (Apply the gradient on the *Active* tab only)
 
 
 
-Part 5:  Build Tab Group v6  (have square tabs blend in with the tab contents)
+Part 6:  Build Tab Group v6  (have square tabs blend in with the tab contents)
 ------------------------------------------------------------------------------
  1. Set the regular tabs to have a background color of #201735
          
