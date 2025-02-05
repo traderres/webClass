@@ -34,7 +34,9 @@ Exercise
 
         
  4. Edit the pie chart component / TypeScript
-    a. Add the high chart options (before the @Component)
+ 
+ 
+ 5. Add the high chart options (before the @Component)
     
             import * as Highcharts from "highcharts";
             window.Highcharts = Highcharts;
@@ -59,7 +61,7 @@ Exercise
                
     
     
-    b. Add a private class variable that holds the pie chart options:  chartOptions
+  6. Add a private class variable that holds the pie chart options:  chartOptions
     
         private chartOptions: any =  {
             chart: {
@@ -111,45 +113,51 @@ Exercise
         };
          
   
-  c. Create a private method:  reloadData()
+ 7. Create a private method:  reloadData()
     
-        1) This method set the series[0].data on the chartOptions
+    a. This method set the series[0].data on the chartOptions
     
-                // Update chart 1 with hard-coded data
-                this.chartOptions.series[0].data = [
-                  {
-                    name: "Water",
-                    y: 55.02,
-                  },
-                  {
-                    name: "Fat",
-                    sliced: true,
-                    selected: true,
-                    y: 26.71,
-                  },
-                  {
-                    name: "Carbohydrates",
-                    y: 1.09,
-                  },
-                  {
-                    name: "Protein",
-                    y: 15.5,
-                  },
-                  {
-                    name: "Ash",
-                    y: 1.68,
-                  },
-                ];
+            // Update chart 1 with hard-coded data
+            this.chartOptions.series[0].data = [
+              {
+                name: "Water",
+                y: 55.02,
+              },
+              {
+                name: "Fat",
+                sliced: true,
+                selected: true,
+                y: 26.71,
+              },
+              {
+                name: "Carbohydrates",
+                y: 1.09,
+              },
+              {
+                name: "Protein",
+                y: 15.5,
+              },
+              {
+                name: "Ash",
+                y: 1.68,
+              },
+            ];
          
          
-        2) This method will tell Highcharts to render the chart in the div called "pie-chart1"
+    b. This method will tell Highcharts to render the chart in the div called "pie-chart1"
                
-                // This renders the chart
-                // NOTE:  You cannot render a chart from ngOnInit().  You can from ngAfterViewInit().
-                Highcharts.chart('pie-chart1', this.chartOptions);
-        
+            // This renders the chart
+            // NOTE:  You cannot render a chart from ngOnInit().  You can from ngAfterViewInit().
+            Highcharts.chart('pie-chart1', this.chartOptions);
+    
+            // Redraw all of the charts on this page (so they fit perfectly within the mat-card tags
+            Highcharts.charts.forEach(function (chart: Chart | undefined) {
+                chart?.reflow();
+            });
+    
+  
           
-  d. After the component has rendered the HTML, call your reloadData() method
+ 8. After the component has rendered the HTML, call your reloadData() method
         
           public ngAfterViewInit(): void {
             // NOTE:  This call must be in ngAfterViewInit() and not in ngOnInit()
@@ -160,7 +168,7 @@ Exercise
           }
 
 
- 5. Verify that you see the chart in the dashboard page
+ 9. Verify that you see the chart in the dashboard page
 
 ```
 

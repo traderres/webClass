@@ -29,32 +29,33 @@ Exercise
 
         
  4. Edit the pie chart component / TypeScript
-    a. Add the high chart options (before the @Component)
+ 
+ 5. Add the high chart options (before the @Component)
     
-            import * as Highcharts from "highcharts";
-            window.Highcharts = Highcharts;
-            
-            // Turn on the high-chart context menu view/print/download options
-            import HC_exporting from "highcharts/modules/exporting";
-            HC_exporting(Highcharts);
-            
-            // Turn on the high-chart context menu *export* options
-            // NOTE:  This provides these menu options: Download CSV, Download XLS, View Data Table
-            import HC_exportData from "highcharts/modules/export-data";
-            HC_exportData(Highcharts);
-            
-            // Do client-side exporting (so that the exporting does *NOT* go to https://export.highcharts.com/
-            // NOTE:  This does not work on all web browsers
-            import HC_offlineExport from "highcharts/modules/offline-exporting";
-            HC_offlineExport(Highcharts);
-            
-            // Turn on the drill-down capabilities
-            import HC_drillDown from "highcharts/modules/drilldown";
-            HC_drillDown(Highcharts);
-               
+        import * as Highcharts from "highcharts";
+        window.Highcharts = Highcharts;
+        
+        // Turn on the high-chart context menu view/print/download options
+        import HC_exporting from "highcharts/modules/exporting";
+        HC_exporting(Highcharts);
+        
+        // Turn on the high-chart context menu *export* options
+        // NOTE:  This provides these menu options: Download CSV, Download XLS, View Data Table
+        import HC_exportData from "highcharts/modules/export-data";
+        HC_exportData(Highcharts);
+        
+        // Do client-side exporting (so that the exporting does *NOT* go to https://export.highcharts.com/
+        // NOTE:  This does not work on all web browsers
+        import HC_offlineExport from "highcharts/modules/offline-exporting";
+        HC_offlineExport(Highcharts);
+        
+        // Turn on the drill-down capabilities
+        import HC_drillDown from "highcharts/modules/drilldown";
+        HC_drillDown(Highcharts);
+           
     
     
-    b. Add a private class variable that holds the pie chart options:  chartOptions
+ 6. Add a private class variable that holds the pie chart options:  chartOptions
     
         private chartOptions: any =  {
             chart: {
@@ -106,50 +107,52 @@ Exercise
         };
          
   
-  c. Create a private method:  reloadData()
+ 7. Create a private method:  reloadData()
+
+    a. This method set the series[0].data on the chartOptions
+
+            // Update chart 1 with hard-coded data
+            this.chartOptions.series[0].data = [
+              {
+                name: "Water",
+                y: 55.02,
+              },
+              {
+                name: "Fat",
+                sliced: true,
+                selected: true,
+                y: 26.71,
+              },
+              {
+                name: "Carbohydrates",
+                y: 1.09,
+              },
+              {
+                name: "Protein",
+                y: 15.5,
+              },
+              {
+                name: "Ash",
+                y: 1.68,
+              },
+            ];
+     
+     
+    b. This method will tell Highcharts to render the chart in the div called "pie-chart1"
+           
+            // This renders the chart
+            // NOTE:  You cannot render a chart from ngOnInit().  You can from ngAfterViewInit().
+            Highcharts.chart('pie-chart1', this.chartOptions);
     
-        1) This method set the series[0].data on the chartOptions
-    
-                // Update chart 1 with hard-coded data
-                this.chartOptions.series[0].data = [
-                  {
-                    name: "Water",
-                    y: 55.02,
-                  },
-                  {
-                    name: "Fat",
-                    sliced: true,
-                    selected: true,
-                    y: 26.71,
-                  },
-                  {
-                    name: "Carbohydrates",
-                    y: 1.09,
-                  },
-                  {
-                    name: "Protein",
-                    y: 15.5,
-                  },
-                  {
-                    name: "Ash",
-                    y: 1.68,
-                  },
-                ];
-         
-         
-        2) This method will tell Highcharts to render the chart in the div called "pie-chart1"
-               
-                // This renders the chart
-                // NOTE:  You cannot render a chart from ngOnInit().  You can from ngAfterViewInit().
-                Highcharts.chart('pie-chart1', this.chartOptions);
-        
-          
-  d. After the component has rendered the HTML, call your reloadData() method 
+      
+      
+      
+ 8. After the component has rendered the HTML, call your reloadData() method 
         
 
 
 
- 5. Verify that you see the chart in the dashboard page
+ 9. Verify that you see the chart in the dashboard page
 
 ```
 
