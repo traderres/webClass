@@ -141,7 +141,7 @@ Tab Group v1  (bare bones Angular Material styles)
 + Each tab has a 3D effect 
 + Overall, the tabs look pretty boring
 ```
-![](../images/exercise12b_image1.png)
+![](../images/exercise12b_image5.png)
 ```
 
 
@@ -647,3 +647,23 @@ Part 6:  Build Tab Group v6  (have square tabs blend in with the tab contents)
       border-bottom: 2px solid white;
     }
     
+    
+    
+    **OPTIONALLY**
+    
+    If you want to apply CSS to the first tab
+    -----------------------------------------
+    :host ::ng-deep .mdc-tab:first-child {
+        // Apply CSS to only the *FIRST* tab
+        border-left: 0;    // Hide the left bar on the 1st tab
+    }
+
+
+    If you want to apply CSS to the lasttab
+    -----------------------------------------
+    :host ::ng-deep.mdc-tab:last-child {
+        // Apply CSS to the *LAST* tab
+        bordrer-right: 0;   // Hide the right-side bar on the last tab
+    }
+
+```
