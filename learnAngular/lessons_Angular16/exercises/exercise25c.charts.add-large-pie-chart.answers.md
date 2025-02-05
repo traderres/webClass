@@ -90,18 +90,59 @@ Exercise
         
         </div>
         
+        
+        
  4. Put your little pie chart in the big page
- 
+
+        <div class="m-2.5">
+        
+          <div class="grid grid-cols-2">
+            <div>
+              <span class="text-xl">Pie Chart Page</span>
+            </div>
+        
+            <div class="flex place-content-end">
+              Help
+            </div>
+          </div>
+        
+          <div class="mt-2.5">
+            <!-- Add Grid Here -->
+            <div class="overflow-y-auto" style="height: calc(100vh - 150px)">
+        
+                <!-- C H A R T     1  -->
+                <app-pie-chart-small class="h-full w-full"></app-pie-chart-small>
+        
+            </div>
+        
+          </div>
+        
+        </div>
+
+
+
+
  
  5. Edit the Dashboard Page / TypeScript
     a. Inject the router
     b. Add a method:  navigateToPieChartPage()
        -- This method should take the user to the large pie chart page
-    
+ 
+        public navigateToPieChartPage(): void {
+            this.router.navigate([Constants.PIE_CHART_PAGE_ROUTE]).then()
+        }
+  
+     
     
  8. Edit the Dashboard Page / HTML
     a. Add a click handler to the div around pie chart 1 so it calles navigateToPieChartPage()
-    
+ 
+         <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5 cursor-pointer" (click)="this.navigateToPieChartPage()">
+            <!-- C H A R T     1  -->
+            <app-pie-chart-small class="h-full w-full"></app-pie-chart-small>
+        </div>
+        
+           
     
  9. Edit the Dashboard Page / HTML
      a. Change the cursor to a pointer if the mouse is over pie chart 1  (as it is clickable)
@@ -111,6 +152,56 @@ Exercise
     a. Go to the Dashboard Page
     b. Click on the pie chart
        -- It should take you to the full size page
+
+
+
+Completed Dashboard Page HTML
+-----------------------------
+<div class="m-2.5">
+
+  <div class="grid grid-cols-2">
+    <div>
+      <span class="text-xl">Responsive Dashboard Page</span>
+    </div>
+
+    <div class="flex place-content-end">
+      Help
+    </div>
+  </div>
+
+  <div class="mt-2.5">
+    <!-- Add Grid Here -->
+    <div class="overflow-y-auto" style="height: calc(100vh - 150px)">
+
+        <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5 cursor-pointer" (click)="this.navigateToPieChartPage()">
+            <!-- C H A R T     1  -->
+            <app-pie-chart-small class="h-full w-full"></app-pie-chart-small>
+        </div>
+
+        <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
+          Chart 2
+        </div>
+
+        <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
+          Chart 3
+        </div>
+
+        <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
+          Chart 4
+        </div>
+
+        <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
+          Chart 5
+        </div>
+
+        <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
+          Chart 6
+        </div>
+      </div>
+
+    </div>
+
+</div>
 
 ```
 
