@@ -247,56 +247,56 @@ Exercise
     NOTE:  HighCharts needs this so it knows where to RENDER the chart
 
 
-		At this point, the HTML looks like this
-		---------------------------------------
-		<div class="m-2.5">
-
-		  <div class="grid grid-cols-2">
-			<div>
-			  <span class="text-xl">Responsive Dashboard Page</span>
-			</div>
-
-			<div class="flex place-content-end">
-			  Help
-			</div>
-		  </div>
-
-		  <div class="mt-2.5">
-			<!-- Add Grid Here -->
-			<div class="overflow-y-auto" style="height: calc(100vh - 150px)">
-
-			  <div class="flex flex-row flex-wrap gap-x-5 gap-y-5 m-2.5">
-
-				<div id="chart1" class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
-					Chart 1
-				</div>
-
-				<div id="chart2" class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
-				  Chart 2
-				</div>
-
-				<div id="chart3" class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
-				  Chart 3
-				</div>
-
-				<div id="chart4" class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
-				  Chart 4
-				</div>
-
-				<div id="chart5" class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
-				  Chart 5
-				</div>
-
-				<div id="chart6" class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
-				  Chart 6
-				</div>
-			  </div>
-
-			</div>
-
-		  </div>
-
-
-		</div>
+        At this point, the HTML looks like this
+        ---------------------------------------
+        <div class="m-2.5">
+        
+          <div class="grid grid-cols-2">
+            <div>
+              <span class="text-xl">Responsive Dashboard Page</span>
+            </div>
+        
+            <div class="flex place-content-end">
+              Help
+            </div>
+          </div>
+        
+          <div class="mt-2.5">
+            <!-- Add Grid Here -->
+            <div class="overflow-y-auto" style="height: calc(100vh - 150px)">
+        
+              <div class="flex flex-row flex-wrap gap-x-5 gap-y-5 m-2.5">
+        
+                <div id="chart1" class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
+                    Chart 1
+                </div>
+        
+                <div id="chart2" class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
+                  Chart 2
+                </div>
+        
+                <div id="chart3" class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
+                  Chart 3
+                </div>
+        
+                <div id="chart4" class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
+                  Chart 4
+                </div>
+        
+                <div id="chart5" class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
+                  Chart 5
+                </div>
+        
+                <div id="chart6" class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
+                  Chart 6
+                </div>
+              </div>
+        
+            </div>
+        
+          </div>
+        
+        
+        </div>
 
 ```
