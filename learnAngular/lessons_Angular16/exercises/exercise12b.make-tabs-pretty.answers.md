@@ -624,8 +624,8 @@ Part 6:  Build Tab Group v6  (have square tabs blend in with the tab contents)
     
     :host ::ng-deep .mdc-tab {
       /* Set the style for INACTIVE tabs */
-      min-width: 225px !important;           /* Set every tab to be 175px wide */
-      max-width: 225px !important;           /* Set every tab to be 175px wide */
+      min-width: 225px !important;           /* Set every tab to be 225px wide */
+      max-width: 225px !important;           /* Set every tab to be 225px wide */
       color: white;
       font-style: normal;
       font-weight: 700;
