@@ -33,29 +33,29 @@ Exercise
      +-------------------------------------------------------------------+
 
 
-     At this point, the HTML looks like this
-     ---------------------------------------
-		<div class="m-2.5">
-
-		  <!-- Top of Page -->
-		  <div class="grid grid-cols-2">
-			<div>
-			  <span class="text-xl">Responsive Dashboard Page</span>
-			</div>
-
-			<div class="flex place-content-end">
-			  Help
-			</div>
-		  </div>
-
-		  <!-- Bottom of Page  -->
-		  <div class="mt-2.5">
-
-
-		  </div>
-
-		</div>
-
+        At this point, the HTML looks like this
+        ---------------------------------------
+        <div class="m-2.5">
+        
+          <!-- Top of Page -->
+          <div class="grid grid-cols-2">
+            <div>
+              <span class="text-xl">Responsive Dashboard Page</span>
+            </div>
+        
+            <div class="flex place-content-end">
+              Help
+            </div>
+          </div>
+        
+          <!-- Bottom of Page  -->
+          <div class="mt-2.5">
+        
+        
+          </div>
+        
+        </div>
+    
 
 
 
@@ -68,32 +68,32 @@ Exercise
      |                                                                   |
      +-------------------------------------------------------------------+
 
-
-     At this point, the HTML looks like this
-     ---------------------------------------
-	 <div class="m-2.5">
-
-		  <div class="grid grid-cols-2">
-			<div>
-			  <span class="text-xl">Responsive Dashboard Page</span>
-			</div>
-
-			<div class="flex place-content-end">
-			  Help
-			</div>
-		  </div>
-
-		  <div class="mt-2.5">
-			<!-- Add Grid Here -->
-			<div class="overflow-y-auto" style="height: calc(100vh - 150px)">
-
-			  Charts will be here
-
-			</div>
-
-		  </div>
-
-	 </div>
+    
+        At this point, the HTML looks like this
+        ---------------------------------------
+        <div class="m-2.5">
+        
+          <div class="grid grid-cols-2">
+            <div>
+              <span class="text-xl">Responsive Dashboard Page</span>
+            </div>
+        
+            <div class="flex place-content-end">
+              Help
+            </div>
+          </div>
+        
+          <div class="mt-2.5">
+            <!-- Add Grid Here -->
+            <div class="overflow-y-auto" style="height: calc(100vh - 150px)">
+        
+              Charts will be here
+        
+            </div>
+        
+          </div>
+        
+        </div>
 
 
 
@@ -133,113 +133,113 @@ Exercise
     |   Chart4       Chart5        Chart6   |
     +---------------------------------------+
 
-
-		At this point, the HTML looks like this
-		---------------------------------------
-		<div class="m-2.5">
-
-		  <div class="grid grid-cols-2">
-			<div>
-			  <span class="text-xl">Responsive Dashboard Page</span>
-			</div>
-
-			<div class="flex place-content-end">
-			  Help
-			</div>
-		  </div>
-
-		  <div class="mt-2.5">
-			<!-- Add Grid Here -->
-			<div class="overflow-y-auto" style="height: calc(100vh - 150px)">
-
-			  <div class="flex flex-row flex-wrap gap-x-5 gap-y-5 m-2.5">
-
-				<div class="w-[400px] h-[200px] p-2.5">
-					Chart 1
-				</div>
-
-				<div class="w-[400px] h-[200px] p-2.5">
-				  Chart 2
-				</div>
-
-				<div class="w-[400px] h-[200px] p-2.5">
-				  Chart 3
-				</div>
-
-				<div class="w-[400px] h-[200px] p-2.5">
-				  Chart 4
-				</div>
-
-				<div class="w-[400px] h-[200px] p-2.5">
-				  Chart 5
-				</div>
-
-				<div class="w-[400px] h-[200px] p-2.5">
-				  Chart 6
-				</div>
-			  </div>
-
-			</div>
-
-		  </div>
-
-
-		</div>
+    
+        At this point, the HTML looks like this
+        ---------------------------------------
+        <div class="m-2.5">
+        
+          <div class="grid grid-cols-2">
+            <div>
+              <span class="text-xl">Responsive Dashboard Page</span>
+            </div>
+        
+            <div class="flex place-content-end">
+              Help
+            </div>
+          </div>
+        
+          <div class="mt-2.5">
+            <!-- Add Grid Here -->
+            <div class="overflow-y-auto" style="height: calc(100vh - 150px)">
+        
+              <div class="flex flex-row flex-wrap gap-x-5 gap-y-5 m-2.5">
+        
+                <div class="w-[400px] h-[200px] p-2.5">
+                    Chart 1
+                </div>
+        
+                <div class="w-[400px] h-[200px] p-2.5">
+                  Chart 2
+                </div>
+        
+                <div class="w-[400px] h-[200px] p-2.5">
+                  Chart 3
+                </div>
+        
+                <div class="w-[400px] h-[200px] p-2.5">
+                  Chart 4
+                </div>
+        
+                <div class="w-[400px] h-[200px] p-2.5">
+                  Chart 5
+                </div>
+        
+                <div class="w-[400px] h-[200px] p-2.5">
+                  Chart 6
+                </div>
+              </div>
+        
+            </div>
+        
+          </div>
+        
+        
+        </div>
 
 
 
 
  6. Give each div a 3d-effect
-
-		At this point, the HTML looks like this
-		---------------------------------------
-		<div class="m-2.5">
-
-		  <div class="grid grid-cols-2">
-			<div>
-			  <span class="text-xl">Responsive Dashboard Page</span>
-			</div>
-
-			<div class="flex place-content-end">
-			  Help
-			</div>
-		  </div>
-
-		  <div class="mt-2.5">
-			<!-- Add Grid Here -->
-			<div class="overflow-y-auto" style="height: calc(100vh - 150px)">
-
-			  <div class="flex flex-row flex-wrap gap-x-5 gap-y-5 m-2.5">
-
-				<div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
-					Chart 1
-				</div>
-
-				<div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
-				  Chart 2
-				</div>
-
-				<div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
-				  Chart 3
-				</div>
-
-				<div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
-				  Chart 4
-				</div>
-
-				<div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
-				  Chart 5
-				</div>
-
-				<div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
-				  Chart 6
-				</div>
-			  </div>
-
-			</div>
-
-		  </div>
-	</div>
+        
+        At this point, the HTML looks like this
+        ---------------------------------------
+        <div class="m-2.5">
+        
+          <div class="grid grid-cols-2">
+            <div>
+              <span class="text-xl">Responsive Dashboard Page</span>
+            </div>
+        
+            <div class="flex place-content-end">
+              Help
+            </div>
+          </div>
+        
+          <div class="mt-2.5">
+            <!-- Add Grid Here -->
+            <div class="overflow-y-auto" style="height: calc(100vh - 150px)">
+        
+              <div class="flex flex-row flex-wrap gap-x-5 gap-y-5 m-2.5">
+        
+                <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
+                    Chart 1
+                </div>
+        
+                <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
+                  Chart 2
+                </div>
+        
+                <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
+                  Chart 3
+                </div>
+        
+                <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
+                  Chart 4
+                </div>
+        
+                <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
+                  Chart 5
+                </div>
+        
+                <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
+                  Chart 6
+                </div>
+              </div>
+        
+            </div>
+        
+          </div>
+        </div>
 
 
 
