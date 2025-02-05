@@ -63,24 +63,26 @@ Exercise
 
 
 
+
  5. Make the divs responsive so that they expand with the browser width
 
-			In a crazy-wide screen
-			+-----------------------------------------------------------------------------+
-			|   Chart1       Chart2        Chart3     Chart4       Chart5        Chart6   |
-			+-----------------------------------------------------------------------------+
-
-			In a less-wide screen
-			+---------------------------------------+
-			|   Chart1       Chart2        Chart3   |
-			|                                       |
-			|   Chart4       Chart5        Chart6   |
-			+---------------------------------------+
+    In a crazy-wide screen
+    +-----------------------------------------------------------------------------+
+    |   Chart1       Chart2        Chart3     Chart4       Chart5        Chart6   |
+    +-----------------------------------------------------------------------------+
+    
+    In a less-wide screen
+    +---------------------------------------+
+    |   Chart1       Chart2        Chart3   |
+    |                                       |
+    |   Chart4       Chart5        Chart6   |
+    +---------------------------------------+
 
 
 
 
  6. Give each div a 3d-effect
+
 
 
 
