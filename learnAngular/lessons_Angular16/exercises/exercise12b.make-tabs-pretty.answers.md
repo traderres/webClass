@@ -149,7 +149,13 @@ Tab Group v1  (bare bones Angular Material styles)
 ![](../images/exercise12b_image1.png)
 ```
 
-
+     SCCS Used to indent the tab headers
+     -----------------------------------
+     :host ::ng-deep .mat-mdc-tab-header {
+       // Indent the Tab Headers
+       margin-left: 10px;
+       margin-right: 10px;
+     }
 
 
 
@@ -671,4 +677,66 @@ Part 6:  Build Tab Group v6  (have square tabs blend in with the tab contents)
         bordrer-right: 0;   // Hide the right-side bar on the last tab
     }
 
+
+
+
+    Completed HTML for the Tab Group
+    --------------------------------
+    <div class="m-2.5">
+      <div class="grid grid-cols-2">
+        <div>
+          <span class="text-xl">Pretty Tabs Page</span>
+        </div>
+    
+        <div class="flex place-content-end">
+          Help
+        </div>
+      </div>
+    
+    
+      <div class="mt-2.5">
+    
+        <mat-tab-group class="mt-2.5">
+    
+          <mat-tab label="Enrichment">
+            <app-tab-enrichment></app-tab-enrichment>
+          </mat-tab>
+    
+          <mat-tab label="Original Submissions">
+            <app-tab-original-submissions></app-tab-original-submissions>
+          </mat-tab>
+    
+          <mat-tab label="Documents">
+            <app-tab-documents></app-tab-documents>
+          </mat-tab>
+    
+          <mat-tab label="History">
+            <app-tab-history></app-tab-history>
+          </mat-tab>
+    
+        </mat-tab-group>
+    
+      </div>
+    </div>
+
+
+
+    Completed HTML for the Enrichment Tab
+    -------------------------------------
+    <div class="mat-elevation-z4 mx-2.5 mb-[5px]">
+      <div class="overflow-y-auto" style="height: calc(100vh - 200px)">
+    
+        <div class="p-2.5">
+          <div>
+            <span class="text-xl">Enrichment</span>
+          </div>
+    
+          <div class="mt-[5px]">
+            This is the Enrichment Tab
+          </div>
+        </div>
+      </div>
+    </div>
+    
+        
 ```
