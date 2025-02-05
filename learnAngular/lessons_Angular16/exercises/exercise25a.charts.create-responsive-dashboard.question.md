@@ -86,8 +86,6 @@ Exercise
 
 
 
- 7. Give each div a unique id -- e.g., id="chart1"
-    NOTE:  HighCharts needs this so it knows where to RENDER the chart
 
 
 ```
