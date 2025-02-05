@@ -124,6 +124,7 @@ Exercise
  
  5. Edit the Dashboard Page / TypeScript
     a. Inject the router
+    
     b. Add a method:  navigateToPieChartPage()
        -- This method should take the user to the large pie chart page
  
@@ -153,54 +154,121 @@ Exercise
        -- It should take you to the full size page
 
 
-
-Completed Dashboard Page HTML
------------------------------
-<div class="m-2.5">
-
-  <div class="grid grid-cols-2">
-    <div>
-      <span class="text-xl">Responsive Dashboard Page</span>
-    </div>
-
-    <div class="flex place-content-end">
-      Help
-    </div>
-  </div>
-
-  <div class="mt-2.5">
-    <!-- Add Grid Here -->
-    <div class="overflow-y-auto" style="height: calc(100vh - 150px)">
-
-        <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5 cursor-pointer" (click)="this.navigateToPieChartPage()">
-            <!-- C H A R T     1  -->
-            <app-pie-chart-small class="h-full w-full"></app-pie-chart-small>
+    
+    Completed TypeScript for the big pie chart page
+    -----------------------------------------------
+    import { Component } from '@angular/core';
+    
+    @Component({
+      selector: 'app-pie-chart-large',
+      templateUrl: './pie-chart-large.component.html',
+      styleUrls: ['./pie-chart-large.component.scss']
+    })
+    export class PieChartLargeComponent {
+    
+    }
+    
+    
+    
+    Completed HTML for the big pie chart page
+    -----------------------------------------
+    <div class="m-2.5">
+    
+      <div class="grid grid-cols-2">
+        <div>
+          <span class="text-xl">Pie Chart Page</span>
         </div>
-
-        <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
-          Chart 2
-        </div>
-
-        <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
-          Chart 3
-        </div>
-
-        <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
-          Chart 4
-        </div>
-
-        <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
-          Chart 5
-        </div>
-
-        <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
-          Chart 6
+    
+        <div class="flex place-content-end">
+          Help
         </div>
       </div>
-
+    
+      <div class="mt-2.5">
+        <!-- Add Grid Here -->
+        <div class="overflow-y-auto" style="height: calc(100vh - 150px)">
+    
+            <!-- C H A R T     1  -->
+            <app-pie-chart-small class="h-full w-full"></app-pie-chart-small>
+    
+        </div>
+    
+      </div>
+    
     </div>
-
-</div>
+    
+    
+    
+    Completed Dashboage Page TypeScript
+    -----------------------------------
+    import { Component } from '@angular/core';
+    import {Router} from "@angular/router";
+    import {Constants} from "../../../utilities/constants";
+    
+    @Component({
+      selector: 'app-dashboard-page',
+      templateUrl: './dashboard-page.component.html',
+      styleUrls: ['./dashboard-page.component.scss']
+    })
+    export class DashboardPageComponent {
+    
+      public constructor(private router: Router) {}
+    
+      public navigateToPieChartPage(): void {
+        this.router.navigate([Constants.PIE_CHART_PAGE_ROUTE]).then()
+      }
+    }
+    
+    
+    
+    
+    Completed Dashboard Page HTML
+    -----------------------------
+    <div class="m-2.5">
+    
+      <div class="grid grid-cols-2">
+        <div>
+          <span class="text-xl">Responsive Dashboard Page</span>
+        </div>
+    
+        <div class="flex place-content-end">
+          Help
+        </div>
+      </div>
+    
+      <div class="mt-2.5">
+        <!-- Add Grid Here -->
+        <div class="overflow-y-auto" style="height: calc(100vh - 150px)">
+    
+            <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5 cursor-pointer" (click)="this.navigateToPieChartPage()">
+                <!-- C H A R T     1  -->
+                <app-pie-chart-small class="h-full w-full"></app-pie-chart-small>
+            </div>
+    
+            <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
+              Chart 2
+            </div>
+    
+            <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
+              Chart 3
+            </div>
+    
+            <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
+              Chart 4
+            </div>
+    
+            <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
+              Chart 5
+            </div>
+    
+            <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
+              Chart 6
+            </div>
+          </div>
+    
+        </div>
+    
+    </div>
 
 ```
 

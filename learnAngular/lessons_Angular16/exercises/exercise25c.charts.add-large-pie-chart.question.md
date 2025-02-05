@@ -50,6 +50,7 @@ Exercise
  
  5. Edit the Dashboard Page / TypeScript
     a. Inject the router
+    
     b. Add a method:  navigateToPieChartPage()
        -- This method should take the user to the large pie chart page
     
