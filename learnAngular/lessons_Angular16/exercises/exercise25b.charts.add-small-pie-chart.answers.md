@@ -56,6 +56,7 @@ Exercise
             HC_offlineExport(Highcharts);
             
             // Turn on the drill-down capabilities
+            import {Chart} from "highcharts";
             import HC_drillDown from "highcharts/modules/drilldown";
             HC_drillDown(Highcharts);
                
