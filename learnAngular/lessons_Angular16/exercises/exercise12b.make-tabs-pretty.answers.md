@@ -146,7 +146,7 @@ Tab Group v1  (bare bones Angular Material styles)
 + Each tab has a 3D effect 
 + Overall, the tabs look pretty boring
 ```
-![](../images/exercise12b_image5.png)
+![](../images/exercise12b_image1.png)
 ```
 
 
