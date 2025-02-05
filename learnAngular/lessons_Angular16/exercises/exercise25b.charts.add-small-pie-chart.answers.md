@@ -34,7 +34,7 @@ Exercise
 
         
  4. Edit the pie chart component / TypeScript
-    a. Add the high chart options (bevore the @Component)
+    a. Add the high chart options (before the @Component)
     
             import * as Highcharts from "highcharts";
             window.Highcharts = Highcharts;
