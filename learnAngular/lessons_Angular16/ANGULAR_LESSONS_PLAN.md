@@ -172,6 +172,7 @@ Angular 16 Lesson Plan
     <a href="./howToSetupHighcharts.txt" title="Add HighCharts to the project">Add Highcharts to the project</a>
     <a href="./exercises/exercise25a.charts.create-responsive-dashboard.question.md" title="Exercise 25a">Exercise 25a</a> / Charts / Setup Responsive Dashboard Page           (<a href="./exercises/exercise25a.charts.create-responsive-dashboard.answers.md" title="Answer to 25a">Answers</a>)
     <a href="./exercises/exercise25b.charts.add-small-pie-chart.question.md"         title="Exercise 25b">Exercise 25b</a> / Charts / Add a pie chart to the Dashboard          (<a href="./exercises/exercise25b.charts.add-small-pie-chart.answers.md" title="Answer to 25b">Answers</a>)
+    <a href="./exercises/exercise25c.charts.add-large-pie-chart.question.md"         title="Exercise 25c">Exercise 25c</a> / Charts / Make a full-size chart page               (<a href="./exercises/exercise25c.charts.add-large-pie-chart.answers.md" title="Answer to 25c">Answers</a>)
     Exercise 25c / Charts / Make a full-size chart page
     Exercise 25d / Charts / Add a line chart
 
