@@ -149,8 +149,8 @@ Tab Group v1  (bare bones Angular Material styles)
 ![](../images/exercise12b_image1.png)
 ```
 
-     SCCS Used to indent the tab headers
-     -----------------------------------
+     The SCSS for V1 is as follows
+     -----------------------------
      :host ::ng-deep .mat-mdc-tab-header {
        // Indent the Tab Headers
        margin-left: 10px;
@@ -304,8 +304,8 @@ Part 3:  Build Tab Group v3  (Change the tab header background to be a gradient)
 ![](../images/exercise12b_image3.png)
 ```
 
-        The SCSS for Part 3
-        -------------------
+        The SCSS for V3 is as follows
+        -----------------------------
         :host ::ng-deep .mat-mdc-tab-header {
           // Indent the Tab Headers
           margin-left: 10px;
@@ -374,8 +374,8 @@ Part 4:  Build Tab Group v4  (Change the gradient colors)
 ```
 
     
-    The SCSS for Part 4
-    -------------------
+    The SCSS for V4 is as follows
+    -----------------------------
     :host ::ng-deep .mat-mdc-tab-header {
       // Indent the Tab Headers
       margin-left: 10px;
@@ -441,8 +441,8 @@ Part 5:  Build Tab Group v5  (Apply the gradient on the *Active* tab only)
 ```
 
       
-    The SCSS for Part 4
-    -------------------
+    The SCSS for V5 is as follows
+    -----------------------------
     :host ::ng-deep .mat-mdc-tab-header {
       // Indent the Tab Headers
       margin-left: 10px;
@@ -601,8 +601,8 @@ Part 6:  Build Tab Group v6  (have square tabs blend in with the tab contents)
 ```
 
 
-    The completed SCCS
-    ------------------
+    The SCSS for V6 is as follows
+    -----------------------------
     :host ::ng-deep .mat-mdc-tab-header {
       // Indent the Tab Headers
       margin-left: 10px;
