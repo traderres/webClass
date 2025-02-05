@@ -17,7 +17,7 @@ Angular 16 Lesson Plan
     g. <a href="./lectures/boring.lecture.what.is.observable.txt"               title="What is an Observable">What is an Observable?</a>
     h. <a href="./lectures/boring.lecture.flyway.auditing.bind.variables.txt"   title="Database Versioning">Database Versioning, Auditing, and Bind Variables?</a>
     i. <a href="./lectures/boring.lectures.waiting.for.rest.calls.txt"          title="Holding the user hostage while waiting for a REST call">Stopping users while waiting for a REST call to finish</a>
-    j. <a href="./lectures/boring.lecture.all-rest-calls-are-ambiguous.txt"     title="The dirty secret w/form validation:  All REST call contracts are ambiguous">The dirty secret w/form validation:  All REST call contracts are ambigous</a>
+    j. <a href="./lectures/boring.lecture.all-rest-calls-are-ambiguous.txt"     title="The dirty secret w/form validation:  All REST call contracts are ambiguous">The dirty secret w/form validation:  All REST call contracts are ambiguous</a>
     k. <a href="./lectures/boring.lecture.approaches-asking-many-questions.txt" title="Approaches to asking many question">Approaches to asking many questions</a>
     l. <a href="./lectures/what.is.the.contract.txt"    title="What is the Contract?">What is the contract?</a>
     m. <a href="./lectures/boring.lecture.angular.tricks.and.techniques.txt"    title="Angular Material Tricks & Techniques">Angular Material Tricks & Techniques</a>
@@ -168,7 +168,13 @@ Angular 16 Lesson Plan
 17. Server Side Grids (using ag-grid)
     <a href="./lectures/boring.lecture.ag-grid.server-vs-client-grids.txt" title="Client-Side vs Server-Side Grids">Client-Side vs Server-Side Grids</a>
 
-18. HighCharts
+18. HighCharts 
+    <a href="./howToSetupHighcharts.txt" title="Add HighCharts to the project">Add Highcharts to the project</a>
+    Exercise 25a / Charts / Create a Responsive Dashboard Page                   
+    Exercise 25b / Charts / Add a pie chart to the Dashboard
+    Exercise 25c / Charts / Make a full-size chart page
+    Exercise 25d / Charts / Add a line chart
+
 
 19. The Extended PDF Viewer (using an embedded PDF viewer)
 
