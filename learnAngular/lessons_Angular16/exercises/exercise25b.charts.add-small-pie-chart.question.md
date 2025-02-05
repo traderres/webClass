@@ -144,7 +144,10 @@ Exercise
             // NOTE:  You cannot render a chart from ngOnInit().  You can from ngAfterViewInit().
             Highcharts.chart('pie-chart1', this.chartOptions);
     
-      
+            // Redraw all of the charts on this page (so they fit perfectly within the mat-card tags
+            Highcharts.charts.forEach(function (chart: Chart | undefined) {
+                chart?.reflow();
+            });  
       
       
  8. After the component has rendered the HTML, call your reloadData() method 
