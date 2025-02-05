@@ -16,11 +16,10 @@ Exercise
     b. Add the route to constants.ts:         the route will be this:   page/dashboard/pie-chart
     c. Register the route
     d. Add the route to the database table:  ui_controls        (if using real security)
-    e. Add a link to the navbar (using that route)
-    f. Use the debugger to verify that the navbar link works
+    e. Use the debugger to verify that the navbar link works
     
-    
-    NOTE:  Do *NOT* add it to the navigation bar
+       NOTE:  Do *NOT* add it to the navigation bar
+
 
 
  2. Setup this page layout
@@ -36,7 +35,7 @@ Exercise
 
  3. Change the bottom of the page so use the VISIBLE height of the browser
      +-------------------------------------------------------------------+
-     | Pie Chart Pag                                                Help |
+     | Pie Chart Page                                               Help |
      +-------------------------------------------------------------------+
      | Chart is here                                                     |   Height of the bottom of page *STRETCHES*
      |                                                                   |
