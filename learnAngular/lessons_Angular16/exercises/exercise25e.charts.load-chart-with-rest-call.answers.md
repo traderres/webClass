@@ -8,27 +8,27 @@ Solution: Build the REST call and integrate it with the front-end
 
 Part 1 / Build the REST call contract
 -------------------------------------
-  	a. What is the URL?
-  	   Rule:  Must start with /api
+a. What is the URL?
+   Rule:  Must start with /api
 
-  	b. What is the URL Type?
-  			GET			Used for read-only operations
-  			PUT			Used for write operations and passing-in 1 parameter on the URL
-  			POST   		Used for write operations and passing-in multiple parameters [no limit]
-  			DELETE		Used for write operations involving deletes
+b. What is the URL Type?
+        GET			Used for read-only operations
+        PUT			Used for write operations and passing-in 1 parameter on the URL
+        POST   		Used for write operations and passing-in multiple parameters [no limit]
+        DELETE		Used for write operations involving deletes
 
-  	c. What is passed-in?
+c. What is passed-in?
 
-  	d. What is returned?
+d. What is returned?
 
-  	e. What checks are made on the passed-in data?
-		-- What is REQUIRED?		Everything is required / the DTO should have something for all 4 fields
-		-- What is OPTIONAL?
+e. What checks are made on the passed-in data?
+    -- What is REQUIRED?		Everything is required / the DTO should have something for all 4 fields
+    -- What is OPTIONAL?
 
-  	f. What security roles are granted access to this REST call?
+f. What security roles are granted access to this REST call?
 
 
-  	g. What does this REST call do?
+g. What does this REST call do?
 
 
 
