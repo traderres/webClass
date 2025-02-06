@@ -11,7 +11,7 @@ Solution: Make a frontend service that returns an observable with the data (in t
 
 Part 1 / Create a Small Line Component w/hard-coded data
 --------------------------------------------------------
- 1. Create the pie chart component:   LineChartSmallComponent
+ 1. Create the line chart component:   LineChartSmallComponent
  
  2. Edit the Main Dashboard Page / HTML
     a. Remove the hard-coded "Chart 2"
@@ -267,7 +267,7 @@ Part 1 / Create a Small Line Component w/hard-coded data
          
          
          
-    b. This method will tell Highcharts to render the chart in the div called "pie-chart1"
+    b. This method will tell Highcharts to render the chart in the div called "chart2"
                
             // This renders the chart
             // NOTE:  You cannot render a chart from ngOnInit().  You can from ngAfterViewInit().

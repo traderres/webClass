@@ -11,7 +11,7 @@ Solution: Make a frontend service that returns an observable with the data (in t
 
 Part 1 / Create a Small Line Component w/hard-coded data
 --------------------------------------------------------
- 1. Create the pie chart component:   LineChartSmallComponent
+ 1. Create the line chart component:   LineChartSmallComponent
  
  2. Edit the Main Dashboard Page / HTML
     a. Remove the hard-coded "Chart 2"
@@ -30,8 +30,10 @@ Part 1 / Create a Small Line Component w/hard-coded data
  4. Edit the line chart component / TypeScript
  
  
+ 
  5. Add the high chart options (before the @Component)
 
+    
     
  6. Add a private class variable called chartOptions
         private charOptions: any;
@@ -49,17 +51,16 @@ Part 1 / Create a Small Line Component w/hard-coded data
     e. Copy the chart configuration from the javaScript
     f. Set your chartOptions variable equal to it
     
-    
-  
          
 
- 8. Edit the chartOptions object:  Remove the series information from it
+ 8. Edit the chartOptions object
+    -- Remove the series information from it
  
             
  9. Create a private method:  reloadData()
-    a. This method set the series on the chartOptions
+    a. This method set the series on the chartOptions object
          
-    b. This method will tell Highcharts to render the chart in the div called "pie-chart1"
+    b. This method will tell Highcharts to render the chart in the div called "chart2"
                
   
           
