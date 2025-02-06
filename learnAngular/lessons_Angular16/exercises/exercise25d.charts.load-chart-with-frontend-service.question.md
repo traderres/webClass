@@ -9,8 +9,8 @@ Solution: Make a frontend service that returns an observable with the data (in t
 ```
 
 
-Part 1 / Create the Chart Component w/hard-coded data
------------------------------------------------------
+Part 1 / Create a Small Line Component w/hard-coded data
+--------------------------------------------------------
  1. Create the pie chart component:   LineChartSmallComponent
  
  2. Edit the Main Dashboard Page / HTML
