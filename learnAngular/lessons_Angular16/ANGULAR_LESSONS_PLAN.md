@@ -170,11 +170,16 @@ Angular 16 Lesson Plan
 
 18. HighCharts 
     <a href="./howToSetupHighcharts.txt" title="Add HighCharts to the project">Add Highcharts to the project</a>
-    <a href="./exercises/exercise25a.charts.create-responsive-dashboard.question.md" title="Exercise 25a">Exercise 25a</a> / Charts / Setup Responsive Dashboard Page           (<a href="./exercises/exercise25a.charts.create-responsive-dashboard.answers.md" title="Answer to 25a">Answers</a>)
-    <a href="./exercises/exercise25b.charts.add-small-pie-chart.question.md"         title="Exercise 25b">Exercise 25b</a> / Charts / Add a pie chart to the Dashboard          (<a href="./exercises/exercise25b.charts.add-small-pie-chart.answers.md" title="Answer to 25b">Answers</a>)
-    <a href="./exercises/exercise25c.charts.add-large-pie-chart.question.md"         title="Exercise 25c">Exercise 25c</a> / Charts / Make a full-size chart page               (<a href="./exercises/exercise25c.charts.add-large-pie-chart.answers.md" title="Answer to 25c">Answers</a>)
-    Exercise 25c / Charts / Make a full-size chart page
-    Exercise 25d / Charts / Add a line chart
+    <a href="./exercises/exercise25a.charts.create-responsive-dashboard.question.md"      title="Exercise 25a">Exercise 25a</a> / Charts / Setup Responsive Dashboard Page           (<a href="./exercises/exercise25a.charts.create-responsive-dashboard.answers.md" title="Answer to 25a">Answers</a>)
+    <a href="./exercises/exercise25b.charts.add-small-pie-chart.question.md"              title="Exercise 25b">Exercise 25b</a> / Charts / Add a pie chart to the Dashboard          (<a href="./exercises/exercise25b.charts.add-small-pie-chart.answers.md" title="Answer to 25b">Answers</a>)
+    <a href="./exercises/exercise25c.charts.add-large-pie-chart.question.md"              title="Exercise 25c">Exercise 25c</a> / Charts / Make a full-size chart page               (<a href="./exercises/exercise25c.charts.add-large-pie-chart.answers.md" title="Answer to 25c">Answers</a>)
+    <a href="./exercises/exercise25d.charts.load-chart-with-frontend-service.question.md" title="Exercise 25d">Exercise 25d</a> / Charts / Load chart w/front-end service            (<a href="./exercises/exercise25d.charts.load-chart-with-frontend-service.answers.md" title="Answer to 25d">Answers</a>)
+    <a href="./exercises/exercise25e.charts.load-chart-with-rest-call.question.md"        title="Exercise 25d">Exercise 25e</a> / Charts / Add REST call to get data                 (<a href="./exercises/exercise25e.charts.load-chart-with-rest-call.answers.md" title="Answer to 25e">Answers</a>)
+    Exercise 25f / Charts / Add column chart w/drill-down capability
+    Exercise 25g / Charts / Customizing the context menu and more
+    Exercise 25h / Charts / Add Map of the USA
+    Exercise 25i / Charts / Highcharts Gotchas
+    Exercise 25j / Charts / Change the theme dynamically
 
 
 19. The Extended PDF Viewer (using an embedded PDF viewer)
