@@ -155,11 +155,7 @@ Part 2 / Create the full-size version of this column chart component
  
     b. Change the cursor to a pointer if the mouse is over your new chart  (as it is clickable)
      
-        <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5 cursor-pointer" (click)="this.navigateToColumnChartPage()">
-            <!-- C H A R T     3  -->
-            <app-column-chart-small class="h-full w-full"></app-column-chart-small>
-        </div>
-           
+
            
            
  7. Try it out
