@@ -35,7 +35,8 @@ Part 1 / Create the small column chart component
  4. Edit the little column chart component / TypeScript
 
  
- 5. Add the imports for high chart (before the @Component)
+ 
+ 5. Add the imports for high charts (before the @Component)
  
         import * as Highcharts from "highcharts";
         window.Highcharts = Highcharts;
