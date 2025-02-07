@@ -18,6 +18,7 @@ Part 1 / Create the small column chart component
  1. Create the small column chart component:   ColumnChartSmallComponent
  
  
+ 
  2. Edit the Main Dashboard Page / HTML
     a. Remove the hard-coded "Chart 3"
     b. Add-in the component to your dashboard chart
@@ -38,31 +39,11 @@ Part 1 / Create the small column chart component
  
  5. Add the imports for high charts (before the @Component)
  
-        import * as Highcharts from "highcharts";
-        window.Highcharts = Highcharts;
-        
-        // Turn on the high-chart context menu view/print/download options
-        import HC_exporting from "highcharts/modules/exporting";
-        HC_exporting(Highcharts);
-        
-        // Turn on the high-chart context menu *export* options
-        // NOTE:  This provides these menu options: Download CSV, Download XLS, View Data Table
-        import HC_exportData from "highcharts/modules/export-data";
-        HC_exportData(Highcharts);
-        
-        // Do client-side exporting (so that the exporting does *NOT* go to https://export.highcharts.com/
-        // NOTE:  This does not work on all web browsers
-        import HC_offlineExport from "highcharts/modules/offline-exporting";
-        HC_offlineExport(Highcharts);
-        
-        // Turn on the drill-down capabilities
-        import {Chart} from "highcharts";
-        import HC_drillDown from "highcharts/modules/drilldown";
-        HC_drillDown(Highcharts);
-               
+ 
     
  6. Add a private class variable called chartOptions
         
+  
   
  7. Set the chartOptions to hold the chart options for a line chart
     a. Go to https://www.highcharts.com/demo/highcharts/column-drilldown
@@ -91,8 +72,8 @@ Part 1 / Create the small column chart component
                
           
           
-          
 10. After the component has rendered the HTML, call your reloadData() method
+
 
 
 11. Verify that you see the chart in the dashboard page
