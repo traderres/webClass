@@ -6,7 +6,9 @@ Problem:  As users click-in one parent chart, I want Highcharts to render a new 
 
 ```
 ![](../images/exercise25f_image1.png)
-
+```
+Clicking on a column or hyperlink opens a drill down column chart [see below]
+```
 ![](../images/exercise25f_image2.png)
 ```
 
