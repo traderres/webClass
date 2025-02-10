@@ -8,6 +8,7 @@ Problem 3:  I want to run some code when a user clicks on a section of a chart
 
 ```
 ![](../images/exercise25g_image1.png)
+![](../images/exercise25g_image2.png)
 ```
 
 
