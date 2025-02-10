@@ -561,7 +561,7 @@ Part 5 / How to Run Code when a user Clicks on a data point
 
     		point: {
       			events:{
-        				click: (event) => {
+        				click: (event: any) => {
           					this.logPointInfo(event)
         				}
       			}
@@ -583,12 +583,12 @@ Part 5 / How to Run Code when a user Clicks on a data point or *AREA* beneath it
                 area: {
                     ...
                     
-                    trackByArea: true,
-                    events: {
-        				click: (event) => {
-          					this.logPointInfo(event)
-        				}
-                    }                   
+                           trackByArea: true,
+                            events: {
+                              click: (event: any) => {
+                                this.logPointInfo(event)
+                              }
+                            }                 
                 }
             }
             
