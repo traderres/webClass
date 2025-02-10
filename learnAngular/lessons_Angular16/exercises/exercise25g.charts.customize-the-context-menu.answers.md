@@ -15,7 +15,7 @@ Problem 3:  I want to run some code when a user clicks on a section of a chart
 
 Part 1 / Create the small column chart component
 ------------------------------------------------
- 1. Create the small column chart component:   ZommableTimeSeriesLineChartSmallComponent
+ 1. Create the small column chart component:   ZoomableTimeSeriesLineChartSmallComponent
  
  2. Edit the Main Dashboard Page / HTML
     a. Remove the hard-coded "Chart 4"
@@ -249,7 +249,7 @@ Part 1 / Create the small column chart component
 Part 2 / Create the full-size version of this column chart component
 --------------------------------------------------------------------
  1. Setup the Page
-    a. Generate the component:                ZommableTimeSeriesLineChartLargeComponent
+    a. Generate the component:                ZoomableTimeSeriesLineChartLargeComponent
     b. Add the route to constants.ts:         the route will be this:   page/dashboard/zoomable-times-series
     c. Register the route
     d. Add the route to the database table:  ui_controls        (if using real security)
@@ -261,7 +261,7 @@ Part 2 / Create the full-size version of this column chart component
 
  2. Setup this page layout
      +-------------------------------------------------------------------+
-     | Zommable Time Series                                         Help |
+     | Zoomable Time Series                                         Help |
      +-------------------------------------------------------------------+
      |                                                                   |
      |                                                                   |
@@ -275,7 +275,7 @@ Part 2 / Create the full-size version of this column chart component
          <!-- Top of Page -->
           <div class="grid grid-cols-2">
               <div>
-                <span class="text-xl">Zommable Time Series</span>
+                <span class="text-xl">Zoomable Time Series</span>
               </div>
         
               <div class="flex place-content-end">
@@ -295,7 +295,7 @@ Part 2 / Create the full-size version of this column chart component
 
  3. Change the bottom of the page so use the VISIBLE height of the browser
      +-------------------------------------------------------------------+
-     | Zommable Time Series                                         Help |
+     | Zoomable Time Series                                         Help |
      +-------------------------------------------------------------------+
      | Chart is here                                                     |   Height of the bottom of page *STRETCHES*
      |                                                                   |
@@ -305,7 +305,7 @@ Part 2 / Create the full-size version of this column chart component
         
           <div class="grid grid-cols-2">
               <div>
-                <span class="text-xl">Zommable Time Series</span>
+                <span class="text-xl">Zoomable Time Series</span>
               </div>
         
               <div class="flex place-content-end">
@@ -335,7 +335,7 @@ Part 2 / Create the full-size version of this column chart component
         
           <div class="grid grid-cols-2">
             <div>
-              <span class="text-xl">Zommable Time Series</span>
+              <span class="text-xl">Zoomable Time Series</span>
             </div>
         
             <div class="flex place-content-end">
@@ -363,10 +363,10 @@ Part 2 / Create the full-size version of this column chart component
  5. Edit the Dashboard Page / TypeScript
     a. Inject the router
     
-    b. Add a method:  navigateToZommableTimeSeriesLineChartPage()
+    b. Add a method:  navigateToZoomableTimeSeriesLineChartPage()
        -- This method should take the user to the large column chart page
  
-          public navigateToZommableTimeSeriesLineChartPage(): void {
+          public navigateToZoomableTimeSeriesLineChartPage(): void {
             this.router.navigate([Constants.COLUMN_CHART_DRILL_DOWN_PAGE_ROUTE]).then()
           }
   
@@ -377,7 +377,7 @@ Part 2 / Create the full-size version of this column chart component
  
     b. Change the cursor to a pointer if the mouse is over your new chart  (as it is clickable)
      
-        <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5 cursor-pointer" (click)="this.navigateToZommableTimeSeriesLineChartPage()">
+        <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5 cursor-pointer" (click)="this.navigateToZoomableTimeSeriesLineChartPage()">
           <!-- C H A R T     4  -->
           <app-zoomable-time-series-line-chart-small class="h-full w-full"></app-zoomable-time-series-line-chart-small>
         </div>
