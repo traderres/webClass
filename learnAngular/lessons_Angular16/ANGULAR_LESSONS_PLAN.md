@@ -176,7 +176,7 @@ Angular 16 Lesson Plan
     <a href="./exercises/exercise25d.charts.load-chart-with-frontend-service.question.md" title="Exercise 25d">Exercise 25d</a> / Charts / Load chart w/front-end service            (<a href="./exercises/exercise25d.charts.load-chart-with-frontend-service.answers.md" title="Answer to 25d">Answers</a>)
     <a href="./exercises/exercise25e.charts.load-chart-with-rest-call.question.md"        title="Exercise 25e">Exercise 25e</a> / Charts / Add REST call to get data                 (<a href="./exercises/exercise25e.charts.load-chart-with-rest-call.answers.md" title="Answer to 25e">Answers</a>)
     <a href="./exercises/exercise25f.charts.drill-down-capability.question.md"            title="Exercise 25f">Exercise 25f</a> / Charts / Add column chart w/drill-down capability  (<a href="./exercises/exercise25f.charts.drill-down-capability.answers.md" title="Answer to 25f">Answers</a>)
-    Exercise 25g / Charts / Customizing the context menu and more
+    <a href="./exercises/exercise25g.charts.customize-the-context-menu.question.md"       title="Exercise 256">Exercise 25g</a> / Charts / Customize the context menu                (<a href="./exercises/exercise25g.charts.customize-the-context-menu.answers.md" title="Answer to 25g">Answers</a>)
     Exercise 25h / Charts / Add Map of the USA
     Exercise 25i / Charts / Highcharts Gotchas
     Exercise 25j / Charts / Change the theme dynamically
