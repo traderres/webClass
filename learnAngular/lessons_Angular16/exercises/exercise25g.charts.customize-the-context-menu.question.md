@@ -21,7 +21,7 @@ Part 1 / Create the small column chart component
     a. Remove the hard-coded "Chart 4"
     b. Add-in the component to your dashboard chart
     c. Make sure your this chart uses 100% of the height and width (of the parent div)
-    d. Verify that you see "zommable-time-series-line-chart-small works!" in your dashboard
+    d. Verify that you see "zoomable-time-series-line-chart-small works!" in your dashboard
         
         
         
@@ -70,7 +70,7 @@ Part 1 / Create the small column chart component
        *OR*
        Go to https://www.highcharts.com/
        Click on Demos
-       Select "Line charts" -> "Time series, zommable"
+       Select "Line charts" -> "Time series, zoomable"
        
     b. Press JSfiddle button or "Code"
     c. Copy the chart configuration from the javaScript
@@ -110,7 +110,7 @@ Part 2 / Create the full-size version of this column chart component
 --------------------------------------------------------------------
  1. Setup the Page
     a. Generate the component:                ZommableTimeSeriesLineChartLargeComponent
-    b. Add the route to constants.ts:         the route will be this:   page/dashboard/zommable-times-series
+    b. Add the route to constants.ts:         the route will be this:   page/dashboard/zoomable-times-series
     c. Register the route
     d. Add the route to the database table:  ui_controls        (if using real security)
     e. Use the debugger to verify that the navbar link works

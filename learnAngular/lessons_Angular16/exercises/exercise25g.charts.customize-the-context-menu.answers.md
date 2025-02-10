@@ -24,10 +24,10 @@ Part 1 / Create the small column chart component
         
         <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5">
           <!-- C H A R T     4  -->
-          <app-zommable-time-series-line-chart-small class="h-full w-full"></app-zommable-time-series-line-chart-small>
+          <app-zoomable-time-series-line-chart-small class="h-full w-full"></app-zoomable-time-series-line-chart-small>
         </div>
      
-    d. Verify that you see "zommable-time-series-line-chart-small works!" in your dashboard
+    d. Verify that you see "zoomable-time-series-line-chart-small works!" in your dashboard
         
         
         
@@ -79,7 +79,7 @@ Part 1 / Create the small column chart component
        *OR*
        Go to https://www.highcharts.com/
        Click on Demos
-       Select "Line charts" -> "Time series, zommable"
+       Select "Line charts" -> "Time series, zoomable"
        
     b. Press JSfiddle button or "Code"
     c. Copy the chart configuration from the javaScript
@@ -250,7 +250,7 @@ Part 2 / Create the full-size version of this column chart component
 --------------------------------------------------------------------
  1. Setup the Page
     a. Generate the component:                ZommableTimeSeriesLineChartLargeComponent
-    b. Add the route to constants.ts:         the route will be this:   page/dashboard/zommable-times-series
+    b. Add the route to constants.ts:         the route will be this:   page/dashboard/zoomable-times-series
     c. Register the route
     d. Add the route to the database table:  ui_controls        (if using real security)
     e. Use the debugger to verify that the navbar link works
@@ -348,7 +348,7 @@ Part 2 / Create the full-size version of this column chart component
             <div class="overflow-y-auto" style="height: calc(100vh - 150px)">
         
                   <!--   C H A R T     -->
-                  <app-zommable-time-series-line-chart-small class="h-full w-full"></app-zommable-time-series-line-chart-small>
+                  <app-zoomable-time-series-line-chart-small class="h-full w-full"></app-zoomable-time-series-line-chart-small>
         
             </div>
         
@@ -379,7 +379,7 @@ Part 2 / Create the full-size version of this column chart component
      
         <div class="w-[400px] h-[200px] mat-elevation-z4 p-2.5 cursor-pointer" (click)="this.navigateToZommableTimeSeriesLineChartPage()">
           <!-- C H A R T     4  -->
-          <app-zommable-time-series-line-chart-small class="h-full w-full"></app-zommable-time-series-line-chart-small>
+          <app-zoomable-time-series-line-chart-small class="h-full w-full"></app-zoomable-time-series-line-chart-small>
         </div>
            
            
@@ -401,7 +401,7 @@ Part 2 / Create the full-size version of this column chart component
         <div class="overflow-x-hidden overflow-y-hidden" style="height: calc(100vh - 150px)">
     
           <!--   C H A R T     -->
-          <app-zommable-time-series-line-chart-small class="h-full w-full"></app-zommable-time-series-line-chart-small>
+          <app-zoomable-time-series-line-chart-small class="h-full w-full"></app-zoomable-time-series-line-chart-small>
         </div>
         
    
