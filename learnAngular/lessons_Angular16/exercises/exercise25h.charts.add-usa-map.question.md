@@ -103,7 +103,7 @@ Part 3 / Create the small map component
            
            
            
- 7. Add a private class variable called chartOptions
+ 7. Add a private class variable called mapOptions
         
   
   
