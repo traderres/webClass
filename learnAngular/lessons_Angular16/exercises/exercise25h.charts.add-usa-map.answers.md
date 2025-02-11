@@ -110,17 +110,26 @@ Part 3 / Create the small map component
         import HC_offlineExport from 'highcharts/modules/offline-exporting';
         HC_offlineExport(Highcharts);
         
+        
+        
+ 6. Read the contents of us-all-territories.geo.json into a class variable:  usaMapDataAsJson
+    NOTE:  The file should be located here:
+                  frontend/node_modules/@highcharts/map-collection/countries/us/custom/us-all-territories.geo.json
+                  
         // Read the JSON (stored in us-all-territories.geo.json) into a variable called usaMapDataAsJson
         // @ts-ignore
         import usaMapDataAsJson from "@highcharts/map-collection/countries/us/custom/us-all-territories.geo.json";
                        
 
            
- 6. Add a private class variable called chartOptions
+           
+ 7. Add a private class variable called chartOptions
         private mapOptions: any;
         
+        
+        
   
- 7. Set the mapOptions to hold map options for this map
+ 8. Set the mapOptions to hold map options for this map
     a. Go to https://www.highcharts.com/demo/maps/color-axis
        *OR*
        Go to https://www.highcharts.com/
@@ -194,12 +203,12 @@ Part 3 / Create the small map component
                 }]
              };
  
- 8. Edit the mapOptions object:  
+ 9. Edit the mapOptions object:  
     -- Remove the data
     
    
 
- 9. Create a private method:  reloadData()
+10. Create a private method:  reloadData()
     a. This method will invoke a REST call to get the data
     
     b. Convert the returned code to upper case  
@@ -231,7 +240,7 @@ Part 3 / Create the small map component
           
           
           
-10. After the component has rendered the HTML, call your reloadData() method
+11. After the component has rendered the HTML, call your reloadData() method
         
           public ngAfterViewInit(): void {
           
@@ -244,7 +253,7 @@ Part 3 / Create the small map component
           }
 
 
-11. Verify that you see the map in the dashboard page
+12. Verify that you see the map in the dashboard page
 
 
 
