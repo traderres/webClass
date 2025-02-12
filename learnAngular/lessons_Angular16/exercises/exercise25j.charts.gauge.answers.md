@@ -39,17 +39,18 @@ Part 1 / Update your ChartService to it has a method to return the guage data
                             set total completed reports = 150
                             set total reports           = 190
 
+
           public getGaugeData(): Observable<GaugeDataDTO> {
-             let data: GaugeDataDTO = new GaugeDataDTO();
-             data.total_pending_reports   = 25;
-             data.total_wip_reports       = 15;
-             data.total_completed_reports = 150;
-            
-             // Return an observable holds the data
-             return of(data);
+            let data: GaugeDataDTO = new GaugeDataDTO();
+            data.total_pending_reports   = 25;
+            data.total_wip_reports       = 15;
+            data.total_completed_reports = 150;
+            data.total_reports           = 190;
+        
+            // Return an observable holds the data
+            return of(data);
           }
-        
-        
+                
           
     
       
