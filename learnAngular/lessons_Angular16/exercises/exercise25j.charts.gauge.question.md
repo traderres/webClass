@@ -12,9 +12,11 @@ Exercise 25j / Create a 3-Gauge Chart
 Part 1 / Update your ChartService to it has a method to return the guage data
 -----------------------------------------------------------------------------
  1. Create a frontend DTO:  GaugeDataDTO
-    -- It holds 2 fields:
-                total_reports
+    -- It holds 4 fields:
+                total_pending_reports
                 total_wip_reports
+                total_completed_reports
+                total_reports
                 
                 
  
@@ -25,8 +27,8 @@ Part 1 / Update your ChartService to it has a method to return the guage data
  3. Add a method:  getGaugeData()
     -- Nothing is passed-in
     -- It returns an observable of GaugeDataDTO
-    -- Inside the fake dto, set the total pending to 25, 
-                            set total wip reports to 15
+    -- Inside the fake dto, set the total pending       to 25
+                            set total wip reports       to 15
                             set total completed reports = 150
                             set total reports           = 190
 

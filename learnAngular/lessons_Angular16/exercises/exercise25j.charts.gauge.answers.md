@@ -12,15 +12,18 @@ Exercise 25j / Create a 3-Gauge Chart  (Answer)
 Part 1 / Update your ChartService to it has a method to return the guage data
 -----------------------------------------------------------------------------
  1. Create a frontend DTO:  GaugeDataDTO
-    -- It holds 2 fields:
-                total_reports
+    -- It holds 4 fields:
+                total_pending_reports
                 total_wip_reports
+                total_completed_reports
+                total_reports
                 
                 
         export class GaugeDataDTO {
-          public total_pending_reports:   number;
-          public total_wip_reports:       number;
-          public total_completed_reports: number;
+              public total_pending_reports:   number;
+              public total_wip_reports:       number;
+              public total_completed_reports: number;
+              public total_reports:           number;
         }
 
  
