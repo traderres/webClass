@@ -178,7 +178,8 @@ Angular 16 Lesson Plan
     <a href="./exercises/exercise25f.charts.drill-down-capability.question.md"            title="Exercise 25f">Exercise 25f</a> / Charts / Add column chart w/drill-down capability  (<a href="./exercises/exercise25f.charts.drill-down-capability.answers.md" title="Answer to 25f">Answers</a>)
     <a href="./exercises/exercise25g.charts.customize-the-context-menu.question.md"       title="Exercise 25g">Exercise 25g</a> / Charts / Customize the context menu                (<a href="./exercises/exercise25g.charts.customize-the-context-menu.answers.md" title="Answer to 25g">Answers</a>)
     <a href="./exercises/exercise25h.charts.add-usa-map.question.md"                      title="Exercise 25h">Exercise 25h</a> / Charts / Add Map of the USA                        (<a href="./exercises/exercise25h.charts.add-usa-map.answers.md" title="Answer to 25h">Answers</a>)
-    Exercise 25i / Charts / Highcharts Gotchas
+    <a href="./exercises/exercise25i.charts.gotchas.question.md"                          title="Exercise 25i">Exercise 25i</a> / Charts / Gotchas & Good Practices                  (<a href="./exercises/exercise25i.charts.gotchas.answers.md" title="Answer to 25i">Answers</a>)
+    <a href="./exercises/exercise25j.charts.gauge.question.md"                            title="Exercise 25j">Exercise 25j</a> / Charts / Gauge Chart                               (<a href="./exercises/exercise25j.charts.gauge.answers.md" title="Answer to 25j">Answers</a>)
     Exercise 25j / Charts / Change the theme dynamically
     Exercise 25k / Charts / Send messages to the charts
 
