@@ -27,13 +27,20 @@ Part 1 / Install the Highcharts "Map Collerctions"
             "@highcharts/map-collection": "2.3.0",
   
      
- 5. Verify that the us-all-territories.geo.json is found here:
+ 5. Verify that the topographical JSON map file is found:  us-all-territories.topo.json
     -- Verify this file exists
-          angularApp16/frontend/node_modules/@highcharts/map-collection/countries/us/custom/us-all-territories.geo.json
+          angularApp16/frontend/node_modules/@highcharts/map-collection/countries/us/custom/us-all-territories.topo.json
     
     
-
-
+    NOTE:  Highcharts v10 has built-in TopoJSON support
+           + This means smaller map files, faster loading, and more flexible map layouts.
+           + TopoJSON is an extension of GeoJSON that identifies shared polygon or line segments,
+              typically a border between two countries, and refers it instead of repeating it.
+              This, together with data compression of coordinates, greatly reduces file size compared to GeoJSON, and
+              makes it highly suitable for use on the web. 
+           + Highcharts Map Collection v2 we provide TopoJSON versions of its maps
+           
+           
 
 Part 2 / Update your ChartService to it has a method to return the usa map data
 -------------------------------------------------------------------------------
@@ -112,16 +119,15 @@ Part 3 / Create the small map component
         
         
         
- 6. Read the contents of us-all-territories.geo.json into a class variable:  usaMapDataAsJson
+ 6. Read the contents of us-all-territories.topo.json into a class variable:  usaMapDataAsJson
     NOTE:  The file should be located here:
-                  frontend/node_modules/@highcharts/map-collection/countries/us/custom/us-all-territories.geo.json
+                  frontend/node_modules/@highcharts/map-collection/countries/us/custom/us-all-territories.topo.json
                   
-        // Read the JSON (stored in us-all-territories.geo.json) into a variable called usaMapDataAsJson
+        // Read the JSON (stored in us-all-territories.topo.json) into a variable called usaMapDataAsJson
         // @ts-ignore
-        import usaMapDataAsJson from "@highcharts/map-collection/countries/us/custom/us-all-territories.geo.json";
-                       
-
-           
+        import usaMapDataAsJson from "@highcharts/map-collection/countries/us/custom/us-all-territories.topo.json";          
+        
+                   
            
  7. Add a private class variable called mapOptions
         private mapOptions: any;
