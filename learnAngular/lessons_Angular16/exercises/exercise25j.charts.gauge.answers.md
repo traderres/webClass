@@ -78,14 +78,14 @@ Part 2 / Create the small guage component
     -- Give each div 33% of the page
     -- Give each div a unique id -- e.g., gaugeChart1, gaugeChart2, gaugeChart3
     
-              33%             33%             33%
+              33%                33%               33%
         +-----------------+-----------------+-----------------+
-        |   gaugeChart1   |   guargeChart2  |  guargeChart3   |
+        |   gaugeChart1   |   gaugeChart2   |   gaugeChart3   |
         |                 |                 |                 |
         |  Total Pending  |    Total WIP    | total Completed |     // NOTE, you do not add these labels in the HTML
         |     Reports     |     Reports     |      Reports    |     // When Highcharts renders the gauge, the label will appear
         +-----------------+-----------------+-----------------+  
-           
+        
         Gauge1 will show total pending reports 
         Gauge2 will show total work-in-progress reports
         Gauge3 will show total completed reports   

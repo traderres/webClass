@@ -54,9 +54,9 @@ Part 2 / Create the small guage component
     -- Give each div 33% of the page
     -- Give each div a unique id -- e.g., gaugeChart1, gaugeChart2, gaugeChart3
     
-              33%             33%             33%
+              33%                33%               33%
         +-----------------+-----------------+-----------------+
-        |   gaugeChart1   |   guargeChart2  |  guargeChart3   |
+        |   gaugeChart1   |   gaugeChart2   |   gaugeChart3   |
         |                 |                 |                 |
         |  Total Pending  |    Total WIP    | total Completed |     // NOTE, you do not add these labels in the HTML
         |     Reports     |     Reports     |      Reports    |     // When Highcharts renders the gauge, the label will appear
@@ -75,7 +75,16 @@ Part 2 / Create the small guage component
  
  5. Add the imports for gauges (before the @Component)
     NOTE:  Add additional imports for **GAUGES**
-    
+     
+        import * as Highcharts from "highcharts";
+        window.Highcharts = Highcharts;
+        
+        // Included because the solid gauge charts are not included in vanilla Highcharts
+        import HC_more from "highcharts/highcharts-more";
+        import HC_solidGauge from 'highcharts/modules/solid-gauge';
+        HC_more(Highcharts);
+        HC_solidGauge(Highcharts);
+            
 
         
            
