@@ -1,5 +1,5 @@
 ```
-Exercise 25h / Add a MAP of the USA
+Exercise 25h / Add a Map of the USA
 -----------------------------------
 Problem:  I have data broken down by the 50 USA states and territories
           And, I want to display darker colors for higher numbers in those states
