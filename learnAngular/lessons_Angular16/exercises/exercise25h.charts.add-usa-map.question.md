@@ -9,7 +9,7 @@ Problem:  I have data broken down by the 50 USA states and territories
 ![](../images/exercise25h_image1.png)
 ```
 
-Part 1 / Install the Highcharts "Map Collerctions"
+Part 1 / Install the Highcharts "Map Collections"
 --------------------------------------------------
  1. Look at the different map collections that are available for download
     Go to https://code.highcharts.com/mapdata/
