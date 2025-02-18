@@ -13,7 +13,31 @@ Problem 3:  I want to run some code when a user clicks on a section of a chart
 
 
 
-Part 1 / Create the small column chart component
+Part 1 / Update your ChartService to it has a method to return the usa map data
+-------------------------------------------------------------------------------
+ 1. Create your Chart Service (if you have not already done so)
+    -- Inject the httpClient  (if you have not already done so)
+    
+ 2. Add a method:  getZoomableChartData()
+    -- Nothing is passed-in
+    -- It returns an observable with the data
+    --  Have this method invoke a REST call to 
+           https://www.highcharts.com/samples/data/usdeur.json
+           
+
+        public getZoomableChartData(): Observable<any> {
+                // Construct the URL to get the zoomable chart data
+                const restUrl: string = 'https://www.highcharts.com/samples/data/usdeur.json';
+            
+                // Return an observable that will invoke this REST call
+                return this.httpClient.get(restUrl);
+        }
+          
+    
+      
+      
+
+Part 2 / Create the small column chart component
 ------------------------------------------------
  1. Create the small column chart component:   ZoomableTimeSeriesLineChartSmallComponent
  
@@ -41,7 +65,7 @@ Part 1 / Create the small column chart component
         
         
  4. Edit the little chart component / TypeScript
-
+    -- inject the chart service
  
  
  5. Add the imports for high charts (before the @Component)
@@ -84,15 +108,7 @@ Part 1 / Create the small column chart component
     b. Press JSfiddle button or "Code"
     c. Copy the chart configuration from the javaScript
     d. Set your chartOptions variable equal to it
-       
-       
-        Problem:  How will you get the data into your char component?
-   
-           private data: any = [
-           
-           ];
-                   
-        
+             
            private chartOptions: any = {
             chart: {
               zooming: {
@@ -155,7 +171,7 @@ Part 1 / Create the small column chart component
            
  
  8. Edit the chartOptions object:  
-    -- Remove the series    from the object
+    -- Remove the series from the object
     
           private chartOptions: any = {
             chart: {
@@ -214,24 +230,30 @@ Part 1 / Create the small column chart component
    
 
  9. Create a private method:  reloadData()
-    a. This method set the series section of your chartOptions object
+    a. This method will invoke a REST call to get the data
     
-              this.chartOptions.series =  [{
-                  type: 'area',
-                  name: 'USD to EUR',
-                  data: this.data
-                }];    
-         
-    b. This method will tell Highcharts to render the chart in the div called "chart3"
+    b. This method set the series section of your chartOptions object
+             
+    b. This method will tell Highcharts to render the chart in the div called "chart4"
                
-            // This renders the chart
-            // NOTE:  You cannot render a chart from ngOnInit().  You can from ngAfterViewInit().
-            Highcharts.chart('chart4', this.chartOptions);
-    
-            // Redraw all of the charts on this page (so they fit perfectly within the mat-card tags
-            Highcharts.charts.forEach(function (chart: Chart | undefined) {
-                chart?.reflow();
-            });
+          private reloadData(): void {
+        
+            this.chartService.getZoomableChartData().subscribe( (aData: any) => {
+              // The REST call came back with the chart data
+        
+              // Set the data in the chartOptions
+              this.chartOptions.series =  [{
+                type: 'area',
+                name: 'USD to EUR',
+                data: aData
+              }];
+        
+              // Render the chart
+              // NOTE:  You cannot render a chart from ngOnInit().  You can from ngAfterViewInit().
+              Highcharts.chart('chart4', this.chartOptions);
+            })
+        
+          }
     
   
           
@@ -251,7 +273,7 @@ Part 1 / Create the small column chart component
 
 
 
-Part 2 / Create the full-size version of this column chart component
+Part 3 / Create the full-size version of this column chart component
 --------------------------------------------------------------------
  1. Setup the Page
     a. Generate the component:                ZoomableTimeSeriesLineChartLargeComponent
@@ -412,7 +434,7 @@ Part 2 / Create the full-size version of this column chart component
    
    
    
-Part 3 / Customize the Context Menu on the chart component
+Part 4 / Customize the Context Menu on the chart component
 ----------------------------------------------------------     
  1. By default, highcharts provides these context menu options
     
@@ -491,7 +513,7 @@ Part 3 / Customize the Context Menu on the chart component
 
 
      
-Part 4 / Change the Tooltips that appear (when a user hovers over a data point)
+Part 5 / Change the Tooltips that appear (when a user hovers over a data point)
 --------------------------------------------------------------------------------     
 Problem:  The default tooltip appears to use this format:
                +-----------------------------+
@@ -546,7 +568,7 @@ Problem:  The default tooltip appears to use this format:
 
 
 
-Part 5 / How to Run Code when a user Clicks on a data point
+Part 6 / How to run code when a user clicks on a data point
 -----------------------------------------------------------
  1. Create a private method:  logPointInfo()
     -- This method will log the point info
@@ -578,7 +600,7 @@ Part 5 / How to Run Code when a user Clicks on a data point
 
 
 
-Part 5 / How to Run Code when a user Clicks on a data point or *AREA* beneath it
+Part 7 / How to run code when a user clicks on a data point or *AREA* beneath it
 --------------------------------------------------------------------------------
  1. Remove the click handler from series
  2. Add the click handler to plotOptions.area.events
@@ -597,5 +619,240 @@ Part 5 / How to Run Code when a user Clicks on a data point or *AREA* beneath it
                 }
             }
             
-	
+
+    The Completed HTML for the small chart component
+    ------------------------------------------------
+    <div class="h-full w-full" id="chart4"></div>
+    
+    
+    The Completed TypeScript for the small chart component
+    ------------------------------------------------------
+    import {AfterViewInit, Component} from '@angular/core';
+    
+    import * as Highcharts from "highcharts";
+    window.Highcharts = Highcharts;
+    
+    // Turn on the high-chart context menu view/print/download options
+    import HC_exporting from "highcharts/modules/exporting";
+    HC_exporting(Highcharts);
+    
+    // Turn on the high-chart context menu *export* options
+    // NOTE:  This provides these menu options: Download CSV, Download XLS, View Data Table
+    import HC_exportData from "highcharts/modules/export-data";
+    HC_exportData(Highcharts);
+    
+    // Do client-side exporting (so that the exporting does *NOT* go to https://export.highcharts.com/
+    // NOTE:  This does not work on all web browsers
+    import HC_offlineExport from "highcharts/modules/offline-exporting";
+    HC_offlineExport(Highcharts);
+    
+    // Turn on the drill-down capabilities
+    import {Chart} from "highcharts";
+    import HC_drillDown from "highcharts/modules/drilldown";
+    import {Router} from "@angular/router";
+    import {Constants} from "../../../utilities/constants";
+    import {ChartService} from "../../../services/chart.service";
+    HC_drillDown(Highcharts);
+    
+    
+    @Component({
+      selector: 'app-zommable-time-series-line-chart-small',
+      templateUrl: './zommable-time-series-line-chart-small.component.html',
+      styleUrls: ['./zommable-time-series-line-chart-small.component.scss']
+    })
+    export class ZommableTimeSeriesLineChartSmallComponent implements AfterViewInit {
+    
+      public constructor(private router: Router,
+                         private chartService: ChartService) { }
+    
+      private chartOptions: any = {
+        exporting: {
+          buttons: {
+            contextButton: {
+              menuItems:  [
+                'viewFullscreen',
+                'printChart',
+                'separator',
+                'downloadPNG',
+                'downloadJPEG',
+                'downloadPDF',
+                'downloadSVG',
+                'separator',
+                'downloadCSV',
+                'downloadXLS',
+                {
+                  text: 'Return to Dashboard Page',
+                  onclick: (): void => {
+                    this.goToDashboardPage()
+                  }
+                }
+              ]
+            }
+          }
+        },
+        chart: {
+          zooming: {
+            type: 'x'
+          }
+        },
+        title: {
+          text: 'USD to EUR exchange rate over time'
+        },
+        subtitle: {
+          text: document.ontouchstart === undefined ?
+            'Click and drag in the plot area to zoom in' :
+            'Pinch the chart to zoom in'
+        },
+        tooltip: {
+          formatter: function(): any {
+    
+            // Convert the milliseconds since epoch into a Date object
+            // @ts-ignore
+            let date = new Date(this.x);
+    
+            // Build the formatted date as mm/dd/yyyy
+            // NOTE:  We must add 1 to the date.getMonth() as January has value of zero
+            let formattedDate: string = String(date.getMonth() + 1).padStart(2, "0") + '/' +
+              String(date.getDate()).padStart(2, "0") + '/' +
+              date.getFullYear();
+    
+            // Return the string that holds the HTML to display for the tool tip
+            // @ts-ignore
+            return '<span style="color:{this.color}">' + this.series.name + '</span>: <b>' + this.y + '</b> on ' + formattedDate + '<br/>';
+          }
+        },
+        xAxis: {
+          type: 'datetime'
+        },
+        yAxis: {
+          title: {
+            text: 'Exchange rate'
+          }
+        },
+        legend: {
+          enabled: false
+        },
+        plotOptions: {
+          area: {
+            marker: {
+              radius: 2
+            },
+            lineWidth: 1,
+            color: {
+              linearGradient: {
+                x1: 0,
+                y1: 0,
+                x2: 0,
+                y2: 1
+              },
+              stops: [
+                [0, 'rgb(199, 113, 243)'],
+                [0.7, 'rgb(76, 175, 254)']
+              ]
+            },
+            states: {
+              hover: {
+                lineWidth: 1
+              }
+            },
+            threshold: null,
+    
+            trackByArea: true,
+            events: {
+              click: (event: any) => {
+                this.logPointInfo(event)
+              }
+            }
+          }
+        }
+    
+      };
+    
+    
+      private goToDashboardPage(): void {
+        // Navigate to the Dashboard Page
+        this.router.navigate([Constants.DASHBOARD_PAGE_ROUTE]).then();
+      }
+    
+      private logPointInfo(event: any): void {
+        console.log('event.point.x=', event.point.x, '   event.point.y=', event.point.y, '   event=', event);
+      }
+    
+    
+      private reloadData(): void {
+    
+        this.chartService.getZoomableChartData().subscribe( (aData: any) => {
+          // The REST call came back with the chart data
+    
+          // Set the data in the chartOptions
+          this.chartOptions.series =  [{
+            type: 'area',
+            name: 'USD to EUR',
+            data: aData
+          }];
+    
+          // Render the chart
+          // NOTE:  You cannot render a chart from ngOnInit().  You can from ngAfterViewInit().
+          Highcharts.chart('chart4', this.chartOptions);
+        })
+    
+      }
+    
+    
+      public ngAfterViewInit(): void {
+        // NOTE:  This call must be in ngAfterViewInit() and not in ngOnInit()
+        setTimeout( () => {
+          // Reload the data in a setTimeout block so Angular has time to build the page
+          this.reloadData();
+        });
+      }
+    
+    
+    }
+    
+        
+    
+    The Completed HTML for the large chart component
+    ------------------------------------------------
+    <div class="m-2.5">
+    
+      <div class="grid grid-cols-2">
+        <div>
+          <span class="text-xl">Zommable Time Series</span>
+        </div>
+    
+        <div class="flex place-content-end">
+          Help
+        </div>
+      </div>
+    
+      <div class="mt-2.5">
+        <div class="overflow-x-hidden overflow-y-hidden" style="height: calc(100vh - 150px)">
+    
+          <!--   C H A R T     -->
+          <app-zommable-time-series-line-chart-small class="h-full w-full"></app-zommable-time-series-line-chart-small>
+        </div>
+    
+      </div>
+    
+    
+    </div>
+    
+    
+    
+    
+    The Completed TypeScript for the large chart component
+    ------------------------------------------------------
+    import { Component } from '@angular/core';
+    
+    @Component({
+      selector: 'app-zommable-time-series-line-chart-large',
+      templateUrl: './zommable-time-series-line-chart-large.component.html',
+      styleUrls: ['./zommable-time-series-line-chart-large.component.scss']
+    })
+    export class ZommableTimeSeriesLineChartLargeComponent {
+    
+    }
+
+ 
 ```

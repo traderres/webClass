@@ -13,7 +13,21 @@ Problem 3:  I want to run some code when a user clicks on a section of a chart
 
 
 
-Part 1 / Create the small column chart component
+Part 1 / Update your ChartService to it has a method to return the usa map data
+-------------------------------------------------------------------------------
+ 1. Create your Chart Service (if you have not already done so)
+    -- Inject the httpClient  (if you have not already done so)
+    
+ 2. Add a method:  getZoomableChartData()
+    -- Nothing is passed-in
+    -- It returns an observable with the data
+    --  Have this method invoke a REST call to 
+           https://www.highcharts.com/samples/data/usdeur.json
+             
+      
+      
+
+Part 2 / Create the small column chart component
 ------------------------------------------------
  1. Create the small column chart component:   ZoomableTimeSeriesLineChartSmallComponent
  
@@ -30,10 +44,11 @@ Part 1 / Create the small column chart component
     NOTE:  The entire HTML is just a div with a unique ID -- e.g., "chart4"
            The div should use 100% of the height and width
                
+
         
         
  4. Edit the little chart component / TypeScript
-
+    -- inject the chart service
  
  
  5. Add the imports for high charts (before the @Component)
@@ -75,38 +90,36 @@ Part 1 / Create the small column chart component
     b. Press JSfiddle button or "Code"
     c. Copy the chart configuration from the javaScript
     d. Set your chartOptions variable equal to it
-       
-       
-        Problem:  How will you get the data into your char component?
+             
    
-    
+                       
            
  
  8. Edit the chartOptions object:  
-    -- Remove the series    from the object
+    -- Remove the series from the object
     
-    
-   
+  
+
 
  9. Create a private method:  reloadData()
-    a. This method set the series section of your chartOptions object
-         
-    b. This method will tell Highcharts to render the chart in the div called "chart3"
-               
+    a. This method will invoke a REST call to get the data
     
+    b. This method set the series section of your chartOptions object
+             
+    b. This method will tell Highcharts to render the chart in the div called "chart4"
+               
+
   
           
 10. After the component has rendered the HTML, call your reloadData() method
         
-
-
 
 11. Verify that you see the chart in the dashboard page
 
 
 
 
-Part 2 / Create the full-size version of this column chart component
+Part 3 / Create the full-size version of this column chart component
 --------------------------------------------------------------------
  1. Setup the Page
     a. Generate the component:                ZoomableTimeSeriesLineChartLargeComponent
@@ -139,10 +152,12 @@ Part 2 / Create the full-size version of this column chart component
      |                                                                   |
      +-------------------------------------------------------------------+
  
+ 
         
         
         
  4. Put your little chart in the big page
+
 
 
 
@@ -154,14 +169,14 @@ Part 2 / Create the full-size version of this column chart component
     b. Add a method:  navigateToZoomableTimeSeriesLineChartPage()
        -- This method should take the user to the large column chart page
  
-  
-     
+      
     
  6. Edit the Dashboard Page / HTML
     a. Add a click handler to the div around small column chart so it calls your method
+ 
     b. Change the cursor to a pointer if the mouse is over your new chart  (as it is clickable)
      
-           
+ 
            
            
  7. Try it out
@@ -175,11 +190,14 @@ Part 2 / Create the full-size version of this column chart component
     Problem:  Clicking on the hamburger in the large column chart page causes scrollbars to appear
     Solution: Hide the scrollbars 
     
+    a. Edit the large chart HTML
+    b. Change the overflow-y-auto to overflow-y-hidden and overflow-x-hidden 
+        
         
    
    
    
-Part 3 / Customize the Context Menu on the chart component
+Part 4 / Customize the Context Menu on the chart component
 ----------------------------------------------------------     
  1. By default, highcharts provides these context menu options
     
@@ -210,11 +228,9 @@ Part 3 / Customize the Context Menu on the chart component
 ```
 
  2. Remove the "View Data" option from the context menu
- 
-        
- 
+  
+  
  3. Verify that the "View Data" option is NOT present
- 
  
  
  4. Add a menu option:  "Return to Dashboard Page"
@@ -223,12 +239,7 @@ Part 3 / Customize the Context Menu on the chart component
     
     b. Add a method:  goToDashboardPage()
        -- This method will take the user back to the Dashboard Page
- 
-            private goToDashboardPage(): void {
-                // Navigate to the Dashboard Page
-                this.router.navigate([Constants.DASHBOARD_PAGE_ROUTE]).then();
-            } 
-            
+
                
                   
     c. Add the custom Context Menu option
@@ -236,9 +247,9 @@ Part 3 / Customize the Context Menu on the chart component
 
 
      
-Part 4 / Change the Tooltips that appear (when a user hovers over a data point)
+Part 5 / Change the Tooltips that appear (when a user hovers over a data point)
 --------------------------------------------------------------------------------     
-Problem:  The default tooltip formatter appears to use this format:
+Problem:  The default tooltip appears to use this format:
                +-----------------------------+
                | Day of Week, DD MON YYYY    |
                | Series.name  y value        |
@@ -247,7 +258,7 @@ Problem:  The default tooltip formatter appears to use this format:
           Change the tooltip formatter to be a one-liner
                +-----------------------------------+
                | Series.name  y value   MM/DD/YYYY |
-               +-----------------------------------+          
+               +-----------------------------------+            
 
 
  
@@ -268,18 +279,17 @@ Problem:  The default tooltip formatter appears to use this format:
     -- The key is formatter
     -- The value is a regular function that returns a string (that holds some HTML)
     
+ 
+ 
 
 
 
 
-Part 5 / How to Run Code when a user Clicks on a data point
+Part 6 / How to run code when a user clicks on a data point
 -----------------------------------------------------------
  1. Create a private method:  logPointInfo()
     -- This method will log the point info
     
-          private logPointInfo(event: any): void {
-            console.log('event.point.x=', event.point.x, '   event.point.y=', event.point.y, '   event=', event);
-          }
           
          
  2. Tell highcharts to call this method when a user clicks on it
@@ -288,13 +298,14 @@ Part 5 / How to Run Code when a user Clicks on a data point
 
 
 
-
-Part 5 / How to Run Code when a user Clicks on a data point or *AREA* beneath it
+Part 7 / How to run code when a user clicks on a data point or *AREA* beneath it
 --------------------------------------------------------------------------------
  1. Remove the click handler from series
  2. Add the click handler to plotOptions.area.events
  3. Add plotOptions.area.trackByArea = true
 
 
-	
+
+            
+ 
 ```
