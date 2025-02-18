@@ -183,7 +183,6 @@ Angular 16 Lesson Plan
     <a href="./exercises/exercise25k.charts.change-theme-dynamically.question.md"         title="Exercise 25k">Exercise 25k</a> / Charts / Change the theme dynamically              (<a href="./exercises/exercise25k.charts.change-theme-dynamically.answers.md" title="Answer to 25k">Answers</a>)
     Exercise 25l / Charts / Send messages to the charts
 
-
 19. The Extended PDF Viewer (using an embedded PDF viewer)
 
 </pre>
