@@ -77,6 +77,9 @@ Part 3 / Change your theme from default to Dark Unica
     
     
  6. Try it out
+    a. Press the hamburger button
+    b. Select "Toggle Chart Theme"
+       -- It should switch you from the default theme to the Dark Unica theme
    
 
 ```
