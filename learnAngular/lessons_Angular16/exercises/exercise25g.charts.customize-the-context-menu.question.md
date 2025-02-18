@@ -1,5 +1,5 @@
 ```
-Exercise 25g / Zommable Chart, Customize the Context Menu, Tool Tips, Add Click Handler
+Exercise 25g / Zoomable Chart, Customize the Context Menu, Tool Tips, Add Click Handler
 ---------------------------------------------------------------------------------------
 Problem 1:  I don't want to use the default context menu
 Problem 2:  I want to change the tool tips when a user hovers over a data point
