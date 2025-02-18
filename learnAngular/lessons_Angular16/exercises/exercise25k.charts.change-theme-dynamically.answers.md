@@ -336,7 +336,7 @@ Part 3 / Change your theme from default to Dark Unica
 
  5. Edit the reloadData() method
     If useDarkMode == true,  then render the chart normally
-    If useDarkMode == false, then you want to merge the map and apply the dark unica theme
+    If useDarkMode == false, then you want to merge the darkUnicaTheme with your chartOptions and render it
      
         if (this.useDarkMode) {
           // Render the charts in dark dark unica theme
