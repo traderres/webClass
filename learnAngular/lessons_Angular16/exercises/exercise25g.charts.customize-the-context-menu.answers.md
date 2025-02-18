@@ -215,7 +215,12 @@ Part 1 / Create the small column chart component
 
  9. Create a private method:  reloadData()
     a. This method set the series section of your chartOptions object
-              
+    
+              this.chartOptions.series =  [{
+                  type: 'area',
+                  name: 'USD to EUR',
+                  data: this.data
+                }];    
          
     b. This method will tell Highcharts to render the chart in the div called "chart3"
                
