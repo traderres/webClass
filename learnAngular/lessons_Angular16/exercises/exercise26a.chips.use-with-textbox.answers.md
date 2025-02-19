@@ -391,7 +391,7 @@ Part 2 / Change the Aliases Text Box to a Text Box with Chips
           <!-- A L I A S E S      T E X T     B O X -->
           <mat-form-field class="max-reduced-density w-3/4">
 
-            <mat-chip-grid #chipGrid aria-label="Enter country aliases">
+            <mat-chip-grid #chipGrid aria-label="Enter country aliases" formControlName="aliases">
 
               <!-- Loop through the array of aliases, creating chips -->
               <mat-chip-row
