@@ -315,6 +315,14 @@ Part 2 / Change the Aliases Text Box to a Text Box with Chips
  
  2. In the TypeScript / The resetClicked() method should reset the array of aliases back to an empty string
  
+           public resetClicked(): void {
+            // Reset the array of aliases
+            this.aliases = [];
+        
+            // Reset the form
+            this.myForm.reset();
+          }
+ 
  
  3. In the TypeScript / add a public class variable:  separatorKeysCodes
     -- Initialize it to an array that holds the constant ENTER and the constant COMMA
@@ -335,13 +343,48 @@ Part 2 / Change the Aliases Text Box to a Text Box with Chips
     d. Clear the textbox (so the user can enter another textbox)
     
     e. Make the form field as dirty (to hide the hint)
-    
+        
+          public addAlias(event: MatChipInputEvent): void {
+            const input: MatChipInput = event.chipInput;
+            const value: string = event.value.trim();
+        
+            if (value) {
+              // Add the alias to the array
+              this.aliases.push(value);
+        
+              // Sync the class variable this.aliases with the form field
+              this.myForm.controls.aliases.setValue(this.aliases);
+            }
+        
+            if (input) {
+              // Clear the text box
+              input.inputElement.value = '';
+            }
+        
+            // Make this form field as dirty (to hide the hint)
+            this.myForm.controls.aliases.markAsDirty();
+          }
+            
     
  5. In the TypeScript / add a method:  removeAlias()
     -- It takesn an index-to-remove / that's a number
     a. Remove this item from the array
     b. Sync the array of aliases with your form field called "aliases"
     
+          public removeAlias(aArrayIndexToRemove: number): void {
+            if (aArrayIndexToRemove < 0) {
+              // The array index is invalid.  So, stop here.
+              return;
+            }
+        
+            // Remove this element from the array
+            this.aliases.splice(aArrayIndexToRemove, 1);
+        
+            // Sync the class variable this.aliases with the form field
+            this.myForm.controls.aliases.setValue(this.aliases);
+          }
+
+ 
  
  6. In the HTML, replace the <mat-form-field> with this:
  
