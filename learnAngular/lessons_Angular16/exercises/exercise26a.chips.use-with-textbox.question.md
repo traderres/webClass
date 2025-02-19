@@ -79,6 +79,7 @@ Part 2 / Change the Aliases Text Box to a Text Box with Chips
  
  
  3. In the TypeScript / add a public class variable:  separatorKeysCodes
+    -- It is an array of numbers
     -- Initialize it to an array that holds the constant ENTER and the constant COMMA
    
 
