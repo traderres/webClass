@@ -396,8 +396,7 @@ Part 2 / Change the Aliases Text Box to a Text Box with Chips
               <!-- Loop through the array of aliases, creating chips -->
               <mat-chip-row
                 *ngFor="let alias of this.aliases; let index=index"
-                (removed)="this.removeAlias(index)"
-                [aria-description]="'Press enter to edit ' + alias">
+                (removed)="this.removeAlias(index)">
 
                 <!-- The chip text -->
                 {{ alias }}
@@ -489,8 +488,7 @@ Part 2 / Change the Aliases Text Box to a Text Box with Chips
                   <!-- Loop through the array of aliases, creating chips -->
                   <mat-chip-row
                     *ngFor="let alias of this.aliases; let index=index"
-                    (removed)="this.removeAlias(index)"
-                    [aria-description]="'Press enter to edit ' + alias">
+                    (removed)="this.removeAlias(index)">
     
                     <!-- The chip text -->
                     {{ alias }}
