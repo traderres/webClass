@@ -418,7 +418,7 @@ Part 2 / Change the Aliases Text Box to a Text Box with Chips
             </mat-chip-grid>
 
             <!-- Show the hint if the form is not dirty -->
-            <mat-hint *ngIf="!this.myForm.controls.aliases.dirty">Press 'Enter' to add an alias</mat-hint>
+            <mat-hint *ngIf="this.myForm.controls.aliases.pristine">Press 'Enter' to add an alias</mat-hint>
 
             <mat-error>This field is required</mat-error>
           </mat-form-field>
@@ -484,7 +484,7 @@ Part 2 / Change the Aliases Text Box to a Text Box with Chips
               <span class="app-form-label">Enter Aliases</span>
               <mat-form-field class="max-reduced-density w-3/4">
     
-                <mat-chip-grid #chipGrid aria-label="Enter country aliases">
+                <mat-chip-grid #chipGrid aria-label="Enter country aliases" formControlName="aliases">
     
                   <!-- Loop through the array of aliases, creating chips -->
                   <mat-chip-row
@@ -511,7 +511,7 @@ Part 2 / Change the Aliases Text Box to a Text Box with Chips
                 </mat-chip-grid>
     
                 <!-- Show the hint if the form is not dirty -->
-                <mat-hint *ngIf="!this.myForm.controls.aliases.dirty">Press 'Enter' to add an alias</mat-hint>
+                <mat-hint *ngIf="this.myForm.controls.aliases.pristine">Press 'Enter' to add an alias</mat-hint>
     
                 <mat-error>This field is required</mat-error>
               </mat-form-field>
