@@ -73,7 +73,6 @@ Part 2 / Change the Aliases Text Box to a Text Box with Chips
     -- Initialize this to an empty array
     -- As the user types-in aliases, this array will hold them
     
-            public aliases: string[] = [];
     
  
  2. In the TypeScript / The resetClicked() method should reset the array of aliases back to an empty string
