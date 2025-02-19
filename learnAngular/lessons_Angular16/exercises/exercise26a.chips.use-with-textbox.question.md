@@ -75,7 +75,7 @@ Part 2 / Change the Aliases Text Box to a Text Box with Chips
     
     
  
- 2. In the TypeScript / The resetClicked() method should reset the array of aliases back to an empty string
+ 2. In the TypeScript / The resetClicked() method should reset the array of aliases back to an empty array
  
  
  3. In the TypeScript / add a public class variable:  separatorKeysCodes
