@@ -46,7 +46,7 @@ Part 1 / Setup the Page
 
 
 
- 3. Add real HTML form fields w/
+ 3. Add real HTML form fields
  
  
  4. Put the modern "2020 style" labels above the HTML form fields
