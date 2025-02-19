@@ -170,19 +170,28 @@ Angular 16 Lesson Plan
 
 18. HighCharts 
     <a href="./howToSetupHighcharts.txt" title="Add HighCharts to the project">Add Highcharts to the project</a>
-    <a href="./exercises/exercise25a.charts.create-responsive-dashboard.question.md"      title="Exercise 25a">Exercise 25a</a> / Charts / Setup Responsive Dashboard Page           (<a href="./exercises/exercise25a.charts.create-responsive-dashboard.answers.md" title="Answer to 25a">Answers</a>)
-    <a href="./exercises/exercise25b.charts.add-small-pie-chart.question.md"              title="Exercise 25b">Exercise 25b</a> / Charts / Add a pie chart to the Dashboard          (<a href="./exercises/exercise25b.charts.add-small-pie-chart.answers.md" title="Answer to 25b">Answers</a>)
-    <a href="./exercises/exercise25c.charts.add-large-pie-chart.question.md"              title="Exercise 25c">Exercise 25c</a> / Charts / Make a full-size chart page               (<a href="./exercises/exercise25c.charts.add-large-pie-chart.answers.md" title="Answer to 25c">Answers</a>)
-    <a href="./exercises/exercise25d.charts.load-chart-with-frontend-service.question.md" title="Exercise 25d">Exercise 25d</a> / Charts / Load chart w/front-end service            (<a href="./exercises/exercise25d.charts.load-chart-with-frontend-service.answers.md" title="Answer to 25d">Answers</a>)
-    <a href="./exercises/exercise25e.charts.load-chart-with-rest-call.question.md"        title="Exercise 25e">Exercise 25e</a> / Charts / Add REST call to get data                 (<a href="./exercises/exercise25e.charts.load-chart-with-rest-call.answers.md" title="Answer to 25e">Answers</a>)
-    <a href="./exercises/exercise25f.charts.drill-down-capability.question.md"            title="Exercise 25f">Exercise 25f</a> / Charts / Add column chart w/drill-down capability  (<a href="./exercises/exercise25f.charts.drill-down-capability.answers.md" title="Answer to 25f">Answers</a>)
-    <a href="./exercises/exercise25g.charts.customize-the-context-menu.question.md"       title="Exercise 25g">Exercise 25g</a> / Charts / Zoomable Chart & Context menu options     (<a href="./exercises/exercise25g.charts.customize-the-context-menu.answers.md" title="Answer to 25g">Answers</a>)
-    <a href="./exercises/exercise25h.charts.add-usa-map.question.md"                      title="Exercise 25h">Exercise 25h</a> / Charts / Add Map of the USA                        (<a href="./exercises/exercise25h.charts.add-usa-map.answers.md" title="Answer to 25h">Answers</a>)
-    <a href="./exercises/exercise25i.charts.gotchas.question.md"                          title="Exercise 25i">Exercise 25i</a> / Charts / Gotchas & Good Practices                  (<a href="./exercises/exercise25i.charts.gotchas.answers.md" title="Answer to 25i">Answers</a>)
-    <a href="./exercises/exercise25j.charts.gauge.question.md"                            title="Exercise 25j">Exercise 25j</a> / Charts / Gauge Chart                               (<a href="./exercises/exercise25j.charts.gauge.answers.md" title="Answer to 25j">Answers</a>)
-    <a href="./exercises/exercise25k.charts.change-theme-dynamically.question.md"         title="Exercise 25k">Exercise 25k</a> / Charts / Change the theme dynamically              (<a href="./exercises/exercise25k.charts.change-theme-dynamically.answers.md" title="Answer to 25k">Answers</a>)
+    <a href="./exercises/exercise25a.charts.create-responsive-dashboard.question.md"      title="Exercise 25a">Exercise 25a</a> / Charts / Setup Responsive Dashboard Page     (<a href="./exercises/exercise25a.charts.create-responsive-dashboard.answers.md" title="Answer to 25a">Answers</a>)
+    <a href="./exercises/exercise25b.charts.add-small-pie-chart.question.md"              title="Exercise 25b">Exercise 25b</a> / Charts / Add a pie chart to the Dashboard    (<a href="./exercises/exercise25b.charts.add-small-pie-chart.answers.md" title="Answer to 25b">Answers</a>)
+    <a href="./exercises/exercise25c.charts.add-large-pie-chart.question.md"              title="Exercise 25c">Exercise 25c</a> / Charts / Make a full-size chart page         (<a href="./exercises/exercise25c.charts.add-large-pie-chart.answers.md" title="Answer to 25c">Answers</a>)
+    <a href="./exercises/exercise25d.charts.load-chart-with-frontend-service.question.md" title="Exercise 25d">Exercise 25d</a> / Charts / Load chart w/front-end service      (<a href="./exercises/exercise25d.charts.load-chart-with-frontend-service.answers.md" title="Answer to 25d">Answers</a>)
+    <a href="./exercises/exercise25e.charts.load-chart-with-rest-call.question.md"        title="Exercise 25e">Exercise 25e</a> / Charts / Add REST call to get data           (<a href="./exercises/exercise25e.charts.load-chart-with-rest-call.answers.md" title="Answer to 25e">Answers</a>)
+    <a href="./exercises/exercise25f.charts.drill-down-capability.question.md"            title="Exercise 25f">Exercise 25f</a> / Charts / Add column chart w/drill-down       (<a href="./exercises/exercise25f.charts.drill-down-capability.answers.md" title="Answer to 25f">Answers</a>)
+    <a href="./exercises/exercise25g.charts.customize-the-context-menu.question.md"       title="Exercise 25g">Exercise 25g</a> / Charts / Zoomable Chart & Context menu       (<a href="./exercises/exercise25g.charts.customize-the-context-menu.answers.md" title="Answer to 25g">Answers</a>)
+    <a href="./exercises/exercise25h.charts.add-usa-map.question.md"                      title="Exercise 25h">Exercise 25h</a> / Charts / Add Map of the USA                  (<a href="./exercises/exercise25h.charts.add-usa-map.answers.md" title="Answer to 25h">Answers</a>)
+    <a href="./exercises/exercise25i.charts.gotchas.question.md"                          title="Exercise 25i">Exercise 25i</a> / Charts / Gotchas & Good Practices            (<a href="./exercises/exercise25i.charts.gotchas.answers.md" title="Answer to 25i">Answers</a>)
+    <a href="./exercises/exercise25j.charts.gauge.question.md"                            title="Exercise 25j">Exercise 25j</a> / Charts / Gauge Chart                         (<a href="./exercises/exercise25j.charts.gauge.answers.md" title="Answer to 25j">Answers</a>)
+    <a href="./exercises/exercise25k.charts.change-theme-dynamically.question.md"         title="Exercise 25k">Exercise 25k</a> / Charts / Change the theme dynamically        (<a href="./exercises/exercise25k.charts.change-theme-dynamically.answers.md" title="Answer to 25k">Answers</a>)
     Exercise 25l / Charts / Send messages to the charts
 
-19. The Extended PDF Viewer (using an embedded PDF viewer)
+19. Chips
+    <a href="./exercises/exercise26a.chips.use-with-textbox.question.md"        title="Exercise 26a">Exercise 26a</a> / Chips / Use chips with a text box            (<a href="./exercises/exercise26a.chips.use-with-textbox.answers.md" title="Answer to 26a">Answers</a>)
+    Exercise 26b / Chips / Use chips with an autocomplete
+    Exercise 26c / Chips / Use chips and grid for selection
+
+20. Downloads
+
+21. Uploads
+
+22. The Extended PDF Viewer (using an embedded PDF viewer)
 
 </pre>
