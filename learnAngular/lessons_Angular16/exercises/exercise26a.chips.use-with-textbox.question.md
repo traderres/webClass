@@ -27,21 +27,21 @@ Part 1 / Setup the Page
  2. Setup the layout
     NOTE:  Do *NOT* add form controls yet
 
-		+----------------------------------------------------------------------+
-		| Add Country                                                     Help |
-		+----------------------------------------------------------------------+ 
-   	    | <Three Character Country Code Text Box>                              |  textbox has width of 150px
-   	    |                                                                      |
-		| <Country Name Text Box>                                              |  textbox has width of 250px
-		|                                                                      |
-		| <Aliases Text Box>                                                   |  textbox has width of 75% of page width
-		|   Hint:  Press 'Enter' to add an alias                               |
-	    |                                                                      |
-		| <Checkbox> Is it a country of special concern?                       |
-		|                                                                      |
-		|                        <Reset Btn>  <Submit Btn>                     |
-		+----------------------------------------------------------------------+
-        NOTE:  All fields are required field
+    +----------------------------------------------------------------------+
+    | Add Country                                                     Help |
+    +----------------------------------------------------------------------+ 
+    | <Three Character Country Code Text Box>                              |  textbox has width of 150px
+    |                                                                      |
+    | <Country Name Text Box>                                              |  textbox has width of 250px
+    |                                                                      |
+    | <Aliases Text Box>                                                   |  textbox has width of 75% of page width
+    | Hint:  Press 'Enter' to add an alias                                 |
+    |                                                                      |
+    | <Checkbox> Is it a country of special concern?                       |
+    |                                                                      |
+    |                        <Reset Btn>  <Submit Btn>                     |
+    +----------------------------------------------------------------------+
+    NOTE:  All fields are required field
         
 
 
