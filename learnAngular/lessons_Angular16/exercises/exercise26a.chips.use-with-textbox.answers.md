@@ -30,9 +30,9 @@ Part 1 / Setup the Page
     +----------------------------------------------------------------------+
     | Add Country                                                     Help |
     +----------------------------------------------------------------------+ 
-    | <Three Character Country Code Text Box>                              |  textbox has width of 150px
+    | <Three Character Country Code Text Box>                              |  textbox has width of 200px
     |                                                                      |
-    | <Country Name Text Box>                                              |  textbox has width of 250px
+    | <Country Name Text Box>                                              |  textbox has width of 400px
     |                                                                      |
     | <Aliases Text Box>                                                   |  textbox has width of 75% of page width
     | Hint:  Press 'Enter' to add an alias                                 |
@@ -108,27 +108,28 @@ Part 1 / Setup the Page
       <div class="overflow-y-auto mt-2.5" style="height: calc(100vh - 150px)">
     
         <div class="flex flex-col gap-y-2.5">
-    
-          <div>
-            <!-- Country Name Text Box-->
-            <span class="app-form-label">Enter Country Name</span>
-            <mat-form-field class="max-reduced-density w-[150px]">
-              <input type="text" matInput title="Enter Country Name"/>
-            </mat-form-field>
-          </div>
-    
+      
           <div>
             <!-- Three Character Country Code Text Box -->
             <span class="app-form-label">Three Character Country Code</span>
-            <mat-form-field class="max-reduced-density [w-250px]">
+            <mat-form-field class="max-reduced-density [w-200px]">
               <input type="text" matInput title="Three Character Country Code"/>
             </mat-form-field>
           </div>
+            
+          <div>
+            <!-- Country Name Text Box-->
+            <span class="app-form-label">Enter Country Name</span>
+            <mat-form-field class="max-reduced-density w-[400px]">
+              <input type="text" matInput title="Enter Country Name"/>
+            </mat-form-field>
+          </div>
+
     
           <div>
             <!-- A L I A S E S      T E X T     B O X    -->
             <span class="app-form-label">Enter Aliases</span>
-            <mat-form-field class="max-reduced-density w-[350px]">
+            <mat-form-field class="max-reduced-density w-3/4">
               <input type="text" matInput title="Enter Aliases"/>
             </mat-form-field>
           </div>
@@ -186,31 +187,32 @@ Part 1 / Setup the Page
         <div class="overflow-y-auto mt-2.5" style="height: calc(100vh - 150px)">
     
           <div class="flex flex-col gap-y-2.5">
-    
-            <div>
-              <!-- Country Name Text Box-->
-              <span class="app-form-label">Enter Country Name</span>
-              <mat-form-field class="max-reduced-density w-[150px]">
-                <input type="text" matInput formControlName="threeCharCode"  title="Enter Country Name"/>
-    
-                <mat-error>This field is required</mat-error>
-              </mat-form-field>
-            </div>
-    
+      
             <div>
               <!-- Three Character Country Code Text Box -->
               <span class="app-form-label">Three Character Country Code</span>
-              <mat-form-field class="max-reduced-density [w-250px]">
+              <mat-form-field class="max-reduced-density [w-200px]">
                 <input type="text" matInput formControlName="countryName" title="Three Character Country Code"/>
     
                 <mat-error>This field is required</mat-error>
               </mat-form-field>
             </div>
+              
+            <div>
+              <!-- Country Name Text Box-->
+              <span class="app-form-label">Enter Country Name</span>
+              <mat-form-field class="max-reduced-density w-[400px]">
+                <input type="text" matInput formControlName="threeCharCode"  title="Enter Country Name"/>
+    
+                <mat-error>This field is required</mat-error>
+              </mat-form-field>
+            </div>
+
     
             <div>
               <!-- A L I A S E S      T E X T     B O X -->
               <span class="app-form-label">Enter Aliases</span>
-              <mat-form-field class="max-reduced-density w-[350px]">
+              <mat-form-field class="max-reduced-density w-3/4">
                 <input type="text" matInput formControlName="aliasText" title="Enter Aliases"/>
     
     
@@ -346,7 +348,7 @@ Part 2 / Change the Aliases Text Box to a Text Box with Chips
         <div>
           <!-- A L I A S E S      T E X T     B O X -->
           <span class="app-form-label">Enter Aliases</span>
-          <mat-form-field class="max-reduced-density w-[350px]">
+          <mat-form-field class="max-reduced-density w-3/4">
 
             <mat-chip-grid #chipGrid aria-label="Enter country aliases">
 
@@ -411,24 +413,25 @@ Part 2 / Change the Aliases Text Box to a Text Box with Chips
           <div class="flex flex-col gap-y-2.5">
     
             <div>
-              <!-- Country Name Text Box-->
-              <span class="app-form-label">Enter Country Name</span>
-              <mat-form-field class="max-reduced-density w-[150px]">
-                <input type="text" matInput formControlName="threeCharCode"  title="Enter Country Name"/>
+              <!-- Three Character Country Code Text Box -->
+              <span class="app-form-label">Three Character Country Code</span>
+              <mat-form-field class="max-reduced-density [w-200px]">
+                <input type="text" matInput formControlName="countryName" title="Three Character Country Code"/>
     
                 <mat-error>This field is required</mat-error>
               </mat-form-field>
             </div>
     
             <div>
-              <!-- Three Character Country Code Text Box -->
-              <span class="app-form-label">Three Character Country Code</span>
-              <mat-form-field class="max-reduced-density [w-250px]">
-                <input type="text" matInput formControlName="countryName" title="Three Character Country Code"/>
+              <!-- Country Name Text Box-->
+              <span class="app-form-label">Enter Country Name</span>
+              <mat-form-field class="max-reduced-density w-[400px]">
+                <input type="text" matInput formControlName="threeCharCode"  title="Enter Country Name"/>
     
                 <mat-error>This field is required</mat-error>
               </mat-form-field>
             </div>
+    
     
             <div>
               <!-- A L I A S E S      T E X T     B O X -->
@@ -549,7 +552,7 @@ Part 2 / Change the Aliases Text Box to a Text Box with Chips
       }
     
     
-      
+    
       public submitClicked(): void {
         // Touch all form fields (to show any errors)
         this.myForm.markAllAsTouched();
@@ -609,5 +612,6 @@ Part 2 / Change the Aliases Text Box to a Text Box with Chips
       }
     
     }
+
 
 ```

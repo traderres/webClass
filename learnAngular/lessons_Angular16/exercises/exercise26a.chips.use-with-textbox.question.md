@@ -30,9 +30,9 @@ Part 1 / Setup the Page
     +----------------------------------------------------------------------+
     | Add Country                                                     Help |
     +----------------------------------------------------------------------+ 
-    | <Three Character Country Code Text Box>                              |  textbox has width of 150px
+    | <Three Character Country Code Text Box>                              |  textbox has width of 200px
     |                                                                      |
-    | <Country Name Text Box>                                              |  textbox has width of 250px
+    | <Country Name Text Box>                                              |  textbox has width of 400px
     |                                                                      |
     | <Aliases Text Box>                                                   |  textbox has width of 75% of page width
     | Hint:  Press 'Enter' to add an alias                                 |
