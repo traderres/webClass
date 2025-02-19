@@ -106,48 +106,37 @@ Part 2 / Change the Aliases Text Box to a Text Box with Chips
     b. Sync the array of aliases with your form field called "aliases"
     
  
- 6. In the HTML, replace the div that holds your with this:
- 
-        <div>
-          <!-- A L I A S E S      T E X T     B O X -->
-          <span class="app-form-label">Enter Aliases</span>
-          <mat-form-field class="max-reduced-density w-[350px]">
-
-            <mat-chip-grid #chipGrid aria-label="Enter country aliases">
-
-              <!-- Loop through the array of aliases, creating chips -->
-              <mat-chip-row
-                *ngFor="let alias of this.aliases; let index=index"
-                (removed)="this.removeAlias(index)"
-                [aria-description]="'Press enter to edit ' + alias">
-
-                <!-- The chip text -->
-                {{ alias }}
-
-                <!-- Add a button to remove this chip -->
-                <button matChipRemove [attr.aria-label]="'Remove ' + alias">
-                  <i class="fa-solid fa-circle-xmark text-black"></i>
-                </button>
-              </mat-chip-row>
-
-              <!-- The text input for typing out a new chip -->
-              <input placeholder="Enter Alias..."
+ 6. In the HTML, mat-form-field with this format
+    -- STOP HERE and we'll talk about filling-in this crazy shit!
+    
+        <mat-form-field>
+        
+             <mat-chip-grid #chipGrid aria-label="Enter country aliases">
+             
+                    <!-- Loop through the array of aliases creating mat-chip-row records -->
+                    <mat-chip-row....>
+                    
+                    
+                    </mat-chip-row>
+             
+                     <!-- The text input for typing out a new chip -->
+                     <input placeholder="Enter Alias..."
                      [matChipInputFor]="chipGrid"
                      [matChipInputSeparatorKeyCodes]="separatorKeysCodes"
                      [matChipInputAddOnBlur]="true"
                      (matChipInputTokenEnd)="this.addAlias($event)"/>
 
-            </mat-chip-grid>
-
-            <!-- Show the hint if the form is not dirty -->
-            <mat-hint *ngIf="!this.myForm.controls.aliases.dirty">Press 'Enter' to add an alias</mat-hint>
-
-            <mat-error>This field is required</mat-error>
-          </mat-form-field>
-        </div>
+             </mat-chip-grid>
+        
+        </mat-form-field>
  
  
- 7. Beneath your div, add a <pre> tag and display the aliases (so you can see them change in real time)
+      
+ 7. Inside the <mat-form-field>, make sure you have a hint and error message
+ 
+ 
+ 
+ 8. Beneath your div, add a <pre> tag and display the aliases (so you can see them change in real time)
  
         <div>
             <pre>

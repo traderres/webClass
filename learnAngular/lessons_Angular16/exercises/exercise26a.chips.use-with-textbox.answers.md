@@ -343,11 +343,9 @@ Part 2 / Change the Aliases Text Box to a Text Box with Chips
     b. Sync the array of aliases with your form field called "aliases"
     
  
- 6. In the HTML, replace the div that holds your with this:
+ 6. In the HTML, replace the <mat-form-field> with this:
  
-        <div>
           <!-- A L I A S E S      T E X T     B O X -->
-          <span class="app-form-label">Enter Aliases</span>
           <mat-form-field class="max-reduced-density w-3/4">
 
             <mat-chip-grid #chipGrid aria-label="Enter country aliases">
@@ -381,10 +379,15 @@ Part 2 / Change the Aliases Text Box to a Text Box with Chips
 
             <mat-error>This field is required</mat-error>
           </mat-form-field>
-        </div>
  
  
- 7. Beneath your div, add a <pre> tag and display the aliases (so you can see them change in real time)
+ 
+ 
+ 7. Inside the <mat-form-field>, make sure you have a hint and error message
+ 
+ 
+ 
+ 8. Beneath your div, add a <pre> tag and display the aliases (so you can see them change in real time)
  
         <div>
             <pre>
