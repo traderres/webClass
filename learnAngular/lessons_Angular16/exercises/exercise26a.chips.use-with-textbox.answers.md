@@ -1,5 +1,5 @@
 ```
-Exercise 26ai / Chips / User Chips with a Text Box  (Answers)
+Exercise 26a / Chips / User Chips with a Text Box  (Answers)
 -------------------------------------------------------------
 Problem:  I want a user to enter multiple discrete things in a text box
           I want the user to know that each selected item is removable
