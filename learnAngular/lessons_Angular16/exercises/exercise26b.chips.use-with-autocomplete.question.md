@@ -73,23 +73,20 @@ Part 2 / Make the input box look like a search box
             <input matInput type="text" formControlName="teams" title="Search for Teams" aria-label="Search for Teams"/>
         </mat-form-field>
 
-
- 2. Add a span that holds a search icon (after the input box) 
-
-        <!-- Teams Text Box -->
-        <input matInput type="text" formControlName="teams" title="Search for Teams" aria-label="Search for Teams"/>
-        
-        <!-- Search Icon -->
-        <span class="searchBoxIcon">
-            <i class="fa fa-search"></i>
-        </span>
-
-
- 3. Add a wrapper div around it with the class of searchBoxWrapper and fa-border
+ 
+ 2. Strip off any mat-form-field tags
+ 
+ 
+ 3. Add a span that holds a search icon (after the input box) 
+    -- The search icon should use the fa fa-search font-awesome class
 
 
 
- 4. Add the searchBoxWrapper CSS class:
+ 4. Add a wrapper div around it with the class of searchBoxWrapper and fa-border
+
+
+
+ 5. Add the searchBoxWrapper CSS class:
         
         .searchBoxWrapper {
           background-color: whitesmoke;
@@ -111,7 +108,7 @@ Part 2 / Make the input box look like a search box
 
 
 
- 5. Add more polish by adding this CSS:
+ 6. Add more polish by adding this CSS:
 	a. Add id="searchBox" to the textbox
 
 	b. Add this CSS:
