@@ -444,7 +444,7 @@ Part 3 / Create a frontend service that runs a search
        terminal> ng generate class models/AutoCompleteMatchTeamDTO
        
     b. Add 3 public properties:
-              teamId             (it's a number that holds the unique team id)
+             teamId             (it's a number that holds the unique team id)
              teamDisplayedName  (it's the displayed name of the team)
              teamPersonCount    (it's the total number of people in the team)
 
