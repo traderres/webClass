@@ -102,23 +102,23 @@ Part 2 / Make the input box look like a search box
         }
 
 
-	At this point, it looks better
-	-- We use the wrapper div to combine the text-box and icon into one continuous box
-	-- Also, the wrapper div will center the search box and the icon
+    At this point, it looks better
+    -- We use the wrapper div to combine the text-box and icon into one continuous box
+    -- Also, the wrapper div will center the search box and the icon
 
 
 
  6. Add more polish by adding this CSS:
-	a. Add id="searchBox" to the textbox
+    a. Add id="searchBox" to the textbox
 
-	b. Add this CSS:
-	
+    b. Add this CSS:
+    
         #searchBox {
-          width: 235px;                  	/* Set the width of the search box */
+          width: 235px;                      /* Set the width of the search box */
           padding: 6px 0 6px 10px;
-          background-color: whitesmoke;   /* light white color */
+          background-color: whitesmoke;      /* light white color */
           border: 0;
-          color: #111;			/* Text color is almost black */
+          color: #111;                       /* Text color is almost black */
         
           /* Remove the outline that appears when clicking in textbox */
           outline: none;
@@ -145,29 +145,29 @@ Part 2 / Make the input box look like a search box
 Part 3 / Create a frontend service that runs a search
 -----------------------------------------------------
  1. Add a front-end DTO class:  AutoCompleteMatchTeamDTO
- 	a. Generate the class
+     a. Generate the class
        
- 	b. Add 3 public properties:
- 	 		teamId  		   (it's a number that holds the unique team id)
- 			teamDisplayedName  (it's the displayed name of the team)
- 			teamPersonCount    (it's the total number of people in the team)
+     b. Add 3 public properties:
+             teamId             (it's a number that holds the unique team id)
+             teamDisplayedName  (it's the displayed name of the team)
+             teamPersonCount    (it's the total number of people in the team)
 
-		
+        
 
 
 
  2. Add a front-end service:  ReportService
-	a. Generate the ReportService
+    a. Generate the ReportService
        
 
-	b. Add a public method:  runTeamSearch()
-		-- This method returns an observable to an array of AutoCompleteMatchTeamDTO
+    b. Add a public method:  runTeamSearch()
+        -- This method returns an observable to an array of AutoCompleteMatchTeamDTO
         -- This method takes-in the rawQueryString and the total number of matches to return
 
 
 
-	c. Add these checks to your method
-			If the user enters a null or empty string that return an observable that contains an empty array
+    c. Add these checks to your method
+            If the user enters a null or empty string that return an observable that contains an empty array
 
             if the user enters a team name that starts with "c", then return an observable with an array of 5 matches
                     Core Team           / 8 Total   / id is 1 
@@ -176,12 +176,12 @@ Part 3 / Create a frontend service that runs a search
                     NCCS Team           / 14 Total  / id is 4
                     Project Mgmt Team   / 12 total  / id is 6
                     
-			If the user enters a string that starts with "P", then return an observable that contains an array of 3 matches:
+            If the user enters a string that starts with "P", then return an observable that contains an array of 3 matches:
                     PMO Team            / 8 Total   / id is 5
                     Project Mgmt Team   / 12 Total  / id is 6
                     FOCI Team           / 5 Total   / id is 7
 
-			If the user enters a string that start with "t", then return an observable that contains an array of 23 matches:
+            If the user enters a string that start with "t", then return an observable that contains an array of 23 matches:
                     Internal Test Team   / 2 Total  / id is 8 
                     External Test Team   / 5 total  / id is 9
         
@@ -232,7 +232,7 @@ GOAL:  Setup an observable that will run a search
 
 
  7. Adjust the search box by adding this to it:
-     	[matAutocomplete]="autocomplete1"
+         [matAutocomplete]="autocomplete1"
 
 
 
