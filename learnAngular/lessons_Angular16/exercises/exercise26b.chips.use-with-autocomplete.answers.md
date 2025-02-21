@@ -300,23 +300,23 @@ Part 2 / Make the input box look like a search box
         }
 
 
-	At this point, it looks better
-	-- We use the wrapper div to combine the text-box and icon into one continuous box
-	-- Also, the wrapper div will center the search box and the icon
+    At this point, it looks better
+    -- We use the wrapper div to combine the text-box and icon into one continuous box
+    -- Also, the wrapper div will center the search box and the icon
 
 
 
  6. Add more polish by adding this CSS:
-	a. Add id="searchBox" to the textbox
+    a. Add id="searchBox" to the textbox
 
-	b. Add this CSS:
-	
+    b. Add this CSS:
+    
         #searchBox {
-          width: 235px;                  	/* Set the width of the search box */
+          width: 235px;                      /* Set the width of the search box */
           padding: 6px 0 6px 10px;
-          background-color: whitesmoke;   /* light white color */
+          background-color: whitesmoke;      /* light white color */
           border: 0;
-          color: #111;			/* Text color is almost black */
+          color: #111;                       /* Text color is almost black */
         
           /* Remove the outline that appears when clicking in textbox */
           outline: none;
@@ -417,11 +417,11 @@ Part 2 / Make the input box look like a search box
     }
     
     #searchBox {
-      width: 235px;                  	/* Set the width of the search box */
+      width: 235px;                      /* Set the width of the search box */
       padding: 6px 0 6px 10px;
       background-color: whitesmoke;   /* light white color */
       border: 0;
-      color: #111;			/* Text color is almost black */
+      color: #111;            /* Text color is almost black */
     
       /* Remove the outline that appears when clicking in textbox */
       outline: none;
@@ -444,17 +444,17 @@ Part 3 / Create a frontend service that runs a search
        terminal> ng generate class models/AutoCompleteMatchTeamDTO
        
     b. Add 3 public properties:
- 	 		teamId  		   (it's a number that holds the unique team id)
- 			teamDisplayedName  (it's the displayed name of the team)
- 			teamPersonCount    (it's the total number of people in the team)
+              teamId             (it's a number that holds the unique team id)
+             teamDisplayedName  (it's the displayed name of the team)
+             teamPersonCount    (it's the total number of people in the team)
 
 
-		export class AutoCompleteMatchTeamDTO {
-		  public teamId:          number;
-		  public teamName:        string;
-		  public teamPersonCount: number;
-		}
-		
+        export class AutoCompleteMatchTeamDTO {
+          public teamId:          number;
+          public teamName:        string;
+          public teamPersonCount: number;
+        }
+        
 
 
 
@@ -464,16 +464,16 @@ Part 3 / Create a frontend service that runs a search
     
        
     b. Add a public method:  runTeamSearch()
-		-- This method returns an observable to an array of AutoCompleteMatchTeamDTO
+        -- This method returns an observable to an array of AutoCompleteMatchTeamDTO
         -- This method takes-in the rawQueryString and the total number of matches to return
 
- 		public runTeamSearch(aRawQuery: string, aTotalMatchesToReturn: number) Observable< AutoCompleteMatchTeamDTO[] > {
+         public runTeamSearch(aRawQuery: string, aTotalMatchesToReturn: number) Observable< AutoCompleteMatchTeamDTO[] > {
 
- 		}
+         }
 
 
-	c. Add these checks to your method
-			If the user enters a null or empty string that return an observable that contains an empty array
+    c. Add these checks to your method
+            If the user enters a null or empty string that return an observable that contains an empty array
 
             if the user enters a team name that starts with "c", then return an observable with an array of 5 matches
                     Core Team           / 8 Total   / id is 1 
@@ -482,12 +482,12 @@ Part 3 / Create a frontend service that runs a search
                     NCCS Team           / 14 Total  / id is 4
                     Project Mgmt Team   / 12 total  / id is 6
                     
-			If the user enters a string that starts with "P", then return an observable that contains an array of 3 matches:
+            If the user enters a string that starts with "P", then return an observable that contains an array of 3 matches:
                     PMO Team            / 8 Total   / id is 5
                     Project Mgmt Team   / 12 Total  / id is 6
                     FOCI Team           / 5 Total   / id is 7
 
-			If the user enters a string that start with "te", then return an observable that contains an array of 23 matches:
+            If the user enters a string that start with "te", then return an observable that contains an array of 23 matches:
                     Internal Test Team   / 2 Total  / id is 8 
                     External Test Team   / 5 total  / id is 9
         
@@ -598,7 +598,7 @@ GOAL:  Setup an observable that will run a search
  1. In your main typescript page, add a class variable:  obsSearchMatchesToShow   
     -- It is observable that holds an array of AutoCompleteMatchTeamDTO
 
- 	   public obsSearchMatchesToShow: Observable<AutoCompleteMatchTeamDTO[]>;
+        public obsSearchMatchesToShow: Observable<AutoCompleteMatchTeamDTO[]>;
 
 
 
@@ -614,13 +614,13 @@ GOAL:  Setup an observable that will run a search
     NOTE:  There is no call to subscribe
            The async-pipe will subscribe (and thus activate) this observable
 
-	Add this to ngOnInit()
-	
+    Add this to ngOnInit()
+    
         // Listen for changes on the teams text box
         this.obsSearchMatchesToShow = this.myForm.controls.teams.valueChanges
           .pipe(
             startWith(''),
-            debounceTime(50),              		// Wait 250 msecs to give the user some time to type
+            debounceTime(50),                      // Wait 250 msecs to give the user some time to type
             switchMap((aRawQuery: string) => {      // Use switchMap for its canceling effect:  On each observable, the previous observable is canceled
               // The user has typed-in something
     
@@ -635,24 +635,24 @@ GOAL:  Setup an observable that will run a search
  4. Add the <mat-autocomplete> tag after the search box
     NOTE:  It must be within the searchBoxWrapper IMMEDIATELY after the <span> that holds the Search Icon
 
- 		  <mat-autocomplete #autocomplete1="matAutocomplete">
+           <mat-autocomplete #autocomplete1="matAutocomplete">
 
- 		  </mat-autocomplete>
+           </mat-autocomplete>
 
 
 
  5. Setup an async pipe *INSIDE* the <mat-autocomplete> to add <mat-options>
     NOTE:  the async pipe will active this observable:  obsSearchMatchesToShow
 
-		  <!-- Show Popup autocomplete entries for matching search results -->
-		  <mat-autocomplete #autocomplete1="matAutocomplete">
+          <!-- Show Popup autocomplete entries for matching search results -->
+          <mat-autocomplete #autocomplete1="matAutocomplete">
 
-		  	<ng-container *ngIf="(this.obsSearchMatchesToShow | async) as matches">
+              <ng-container *ngIf="(this.obsSearchMatchesToShow | async) as matches">
 
 
-			</ng-container>
+            </ng-container>
 
-		  </mat-autocomplete>
+          </mat-autocomplete>
 
 
 
@@ -661,27 +661,27 @@ GOAL:  Setup an observable that will run a search
            This is inside async pipe you created in the last step
 
 
-		  <!-- Show Popup autocomplete entries for matching search results -->
-		  <mat-autocomplete #autocomplete1="matAutocomplete">
+          <!-- Show Popup autocomplete entries for matching search results -->
+          <mat-autocomplete #autocomplete1="matAutocomplete">
 
-		  	<ng-container *ngIf="(this.obsSearchMatchesToShow | async) as matches">
+              <ng-container *ngIf="(this.obsSearchMatchesToShow | async) as matches">
 
                 <ng-container *ngFor="let match of matches">
                   <mat-option [value]="match"> {{match.teamName}} / {{match.teamPersonCount}}</mat-option>
                 </ng-container>
 
-			</ng-container>
+            </ng-container>
 
-		  </mat-autocomplete>
+          </mat-autocomplete>
 
 
 
  7. Adjust the search box by adding this to it:
-     	[matAutocomplete]="autocomplete1"
+         [matAutocomplete]="autocomplete1"
 
-	   <!-- Symbol Text Box -->
-	   <input formControlName="symbol" matInput type="text" title="Symbol Textbox" aria-label="Symbol Textbox"
-			  placeholder="Symbol" id="searchBox"  [matAutocomplete]="autocomplete1">
+       <!-- Symbol Text Box -->
+       <input formControlName="symbol" matInput type="text" title="Symbol Textbox" aria-label="Symbol Textbox"
+              placeholder="Symbol" id="searchBox"  [matAutocomplete]="autocomplete1">
 
 
 
@@ -763,7 +763,7 @@ GOAL:  Setup an observable that will run a search
         this.obsSearchMatchesToShow = this.myForm.controls.teams.valueChanges
           .pipe(
             startWith(''),
-            debounceTime(250),              		// Wait 250 msecs to give the user some time to type
+            debounceTime(250),                      // Wait 250 msecs to give the user some time to type
             switchMap((aRawQuery: string) => {      // Use switchMap for its canceling effect:  On each observable, the previous observable is canceled
               // The user has typed-in something
     
@@ -820,7 +820,7 @@ Part 5 / Change the AutoComplete so that selecting an entry adds a chip
 
 
  4. In the HTML / When a user selects an option in the mat-autocomplete, call the method userSelectedTeam()  and pass-in the selected object
- 		(optionSelected)="this.userSelectedTeam($event.option.value)"
+         (optionSelected)="this.userSelectedTeam($event.option.value)"
 
     
  5. In the TypeScript / add a method:  removeTeam()
@@ -1044,7 +1044,7 @@ Part 6 / Prevent users from selecting the same team TWICE
         this.obsSearchMatchesToShow = this.myForm.controls.teams.valueChanges
           .pipe(
             startWith(''),
-            debounceTime(50),              		// Wait 250 msecs to give the user some time to type
+            debounceTime(50),                      // Wait 250 msecs to give the user some time to type
             switchMap((aRawQuery: string) => {      // Use switchMap for its canceling effect:  On each observable, the previous observable is canceled
               // The user has typed-in something
     
