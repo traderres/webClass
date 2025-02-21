@@ -440,10 +440,10 @@ Part 2 / Make the input box look like a search box
 Part 3 / Create a frontend service that runs a search
 -----------------------------------------------------
  1. Add a front-end DTO class:  AutoCompleteMatchTeamDTO
- 	a. Generate the class
+    a. Generate the class
        terminal> ng generate class models/AutoCompleteMatchTeamDTO
        
- 	b. Add 3 public properties:
+    b. Add 3 public properties:
  	 		teamId  		   (it's a number that holds the unique team id)
  			teamDisplayedName  (it's the displayed name of the team)
  			teamPersonCount    (it's the total number of people in the team)
@@ -459,11 +459,11 @@ Part 3 / Create a frontend service that runs a search
 
 
  2. Add a front-end service:  ReportService
-	a. Generate the ReportService
+    a. Generate the ReportService
        terminal> ng generate service services/report
+    
        
-
-	b. Add a public method:  runTeamSearch()
+    b. Add a public method:  runTeamSearch()
 		-- This method returns an observable to an array of AutoCompleteMatchTeamDTO
         -- This method takes-in the rawQueryString and the total number of matches to return
 
