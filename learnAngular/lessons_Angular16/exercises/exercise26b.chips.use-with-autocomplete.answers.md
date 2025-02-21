@@ -485,7 +485,7 @@ Part 3 / Create a frontend service that runs a search
             If the user enters a string that starts with "P", then return an observable that contains an array of 3 matches:
                     PMO Team            / 8 Total   / id is 5
                     Project Mgmt Team   / 12 Total  / id is 6
-                    FOCI Team           / 5 Total   / id is 7
+                    FOCI Project Team   / 5 Total   / id is 7
 
             If the user enters a string that start with "te", then return an observable that contains an array of 23 matches:
                     Internal Test Team   / 2 Total  / id is 8 
