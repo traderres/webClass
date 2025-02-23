@@ -186,7 +186,7 @@ Angular 16 Lesson Plan
 19. Chips
     <a href="./exercises/exercise26a.chips.use-with-textbox.question.md"        title="Exercise 26a">Exercise 26a</a> / Chips / Use chips with a text box            (<a href="./exercises/exercise26a.chips.use-with-textbox.answers.md" title="Answer to 26a">Answers</a>)
     <a href="./exercises/exercise26b.chips.use-with-autocomplete.question.md"   title="Exercise 26b">Exercise 26b</a> / Chips / Use chips with an autocomplete       (<a href="./exercises/exercise26b.chips.use-with-autocomplete.answers.md" title="Answer to 26b">Answers</a>)
-    <a href="./exercises/exercise26c.chips.use-with-grid.question.md"           title="Exercise 26c">Exercise 26c</a> / Chips / Use chips with a grid                (<a href="./exercises/exercise26c.chips.use-with-grid.answer.md" title="Answer to 26c">Answers</a>)
+    <a href="./exercises/exercise26c.chips.use-with-grid.question.md"           title="Exercise 26c">Exercise 26c</a> / Chips / Use chips with a grid                (<a href="./exercises/exercise26c.chips.use-with-grid.answers.md" title="Answer to 26c">Answers</a>)
 
 20. Downloads
 
