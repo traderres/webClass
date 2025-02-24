@@ -15,7 +15,7 @@ Part 1 / Setup the Page
 -----------------------
  1. Setup the Page
     a. Generate the component:                Call it GridPageWithChipSelection
-    b. Add the route to constants.ts:         the route will be this:   page/grid-page-with-sorting
+    b. Add the route to constants.ts:         the route will be this:   page/grid-page-with-chip-selection
     c. Register the route
     d. Add the route to the database table:  ui_controls        (if using real security)
     e. Add a link to the navbar (using that route)
