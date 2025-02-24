@@ -145,7 +145,7 @@ Part 3 / Create the Frontend Service that will simulate a REST call (fake servic
 
      c. Fill-in this public method
         1) Create a local variable that holds an array of GridSortingRowDataDTO objects 
-        2) Fill-in the array with 3 fake objects
+        2) Fill-in the array with 15 fake objects
         3) Convert the array into an observable
         4) Return the observable
 
