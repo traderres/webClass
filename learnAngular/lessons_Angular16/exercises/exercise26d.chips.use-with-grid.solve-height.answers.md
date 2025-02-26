@@ -62,56 +62,56 @@ Problem:  When I select lots of chips, I have 2 scrollbars  (Answers)
  Implementation Outline
  ----------------------
 
-	<div class="p-2.5">
+    <div class="p-2.5">
 
-			<!--   P A G E         T I T L E -->
-			<div>
+            <!--   P A G E         T I T L E -->
+            <div>
 
-			</div>
-
-
-			<div class="overflow-y-auto" style="height: calc(100vh - 150px)">
-				<div class="flex flex-col h-full">
-
-					<!--   D I S P L A Y     C H I P S   -->
-					<div class="min-h-[32px]">
-						Chips has an initial height of 32px
-					</div>
-
-				    <!--   D I S P L A Y     G R I D   -->
-					<div class="flex flex-grow h-full mt-5">
-						Grid uses *REMAINING HEIGHT* / which is dynamic
-					</div>
-				
-				</div>
-			</div>
-	</div>
+            </div>
 
 
+            <div class="overflow-y-auto" style="height: calc(100vh - 150px)">
+                <div class="flex flex-col h-full">
 
- 	 Better Page Outline
-	 -------------------
-	 <div class="p-2.5 flex flex-col h-full">
+                    <!--   D I S P L A Y     C H I P S   -->
+                    <div class="min-h-[32px]">
+                        Chips has an initial height of 32px
+                    </div>
+
+                    <!--   D I S P L A Y     G R I D   -->
+                    <div class="flex flex-grow h-full mt-5">
+                        Grid uses *REMAINING HEIGHT* / which is dynamic
+                    </div>
+                
+                </div>
+            </div>
+    </div>
 
 
-			<!--   P A G E         T I T L E -->
-			<div>
 
-			</div>
-
-
-			<!--   D I S P L A Y     C H I P S   -->
-			<div class="min-h-[32px]">
-				Chips has an initial height of 32px
-			</div>
+      Better Page Outline
+     -------------------
+     <div class="p-2.5 flex flex-col h-full">
 
 
-	        <!--   D I S P L A Y     G R I D   -->
-			<div class="flex flex-grow h-full mt-5">
-				Grid uses *REMAINING HEIGHT* / which is dynamic
-			</div>
-		
-	 </div>
+            <!--   P A G E         T I T L E -->
+            <div>
+
+            </div>
+
+
+            <!--   D I S P L A Y     C H I P S   -->
+            <div class="min-h-[32px]">
+                Chips has an initial height of 32px
+            </div>
+
+
+            <!--   D I S P L A Y     G R I D   -->
+            <div class="flex flex-grow h-full mt-5">
+                Grid uses *REMAINING HEIGHT* / which is dynamic
+            </div>
+        
+     </div>
 
 
 
