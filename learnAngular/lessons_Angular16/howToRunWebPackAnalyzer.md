@@ -20,7 +20,7 @@ Procedure
     b. Add these entries
        NOTE:  We want to analyze on the "production" build
 
-		"build-stats": "ng build --configuration=production --stats-json",
+        "build-stats": "ng build --configuration=production --stats-json",
         "analyze-stats": "webpack-bundle-analyzer dist/static/stats.json",
 
 
