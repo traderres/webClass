@@ -18,7 +18,7 @@ Procedure
     a. Edit the frontend/package.json
 
     b. Add these entries
-       NOTE:  We want to analyze on the "production" build
+       ASSUMPTION:  We have a "production" configuration defined in the angular.json
 
         "build-stats": "ng build --configuration=production --stats-json",
         "analyze-stats": "webpack-bundle-analyzer dist/static/stats.json",
