@@ -9,7 +9,7 @@ Part 1:  Do a webpack analysis BEFORE making your changes
 ---------------------------------------------------------
 Run the steps in howToRunWebPackAnalyzer.txt
   -- Save your analysis view
-  -- Note the screen size
+  -- Note the bundle size of 3.3 MB
 ```
 ![](./images/webpack.before.png)
 ```
@@ -132,7 +132,7 @@ Part 3:  Do a webpack analysis AFTER making your changes
 ---------------------------------------------------------
 Run the steps in howToRunWebPackAnalyzer.txt
   -- Save your analysis view
-  -- Note the screen size
+  -- Note the bundle size of 1.65 MB  (we reduced the bundle from 3.33 MB to 1.65 MB!!!)
 ```
 ![](./images/webpack.after.png)
 ```
