@@ -5,9 +5,10 @@ Problem:  ag-grid can add a large bundle JavaScript to your project
 Solution: Load only the ag-grid modules you need
 
 
-Part 1:  Do a webpack analysis BEFORE making your changes
+
+Part 1:  Do a webpack analysis *BEFORE* making your changes
 ---------------------------------------------------------
-Run the steps in howToRunWebPackAnalyzer.txt
+Run the steps in howToRunWebPackAnalyzer.md
   -- Save your analysis view
   -- Note the bundle size of 3.3 MB
 ```
@@ -128,9 +129,9 @@ Part 2:  Change your project to use ag-grid modules
 
 
 
-Part 3:  Do a webpack analysis AFTER making your changes
----------------------------------------------------------
-Run the steps in howToRunWebPackAnalyzer.txt
+Part 3:  Do a webpack analysis *AFTER* making your changes
+-----------------------------------------------------------
+Run the steps in howToRunWebPackAnalyzer.md
   -- Save your analysis view
   -- Note the bundle size of 1.65 MB  (we reduced the bundle from 3.33 MB to 1.65 MB!!!)
 ```

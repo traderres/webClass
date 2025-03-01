@@ -1,7 +1,11 @@
+```
 How to run Webpack Analyzer on Angular 16 Web App
 -------------------------------------------------
 It will show you a graphical representation of your modules
 
+```
+![](./images/webpack.before.png)
+```
 
 Procedure
 ---------
@@ -30,4 +34,4 @@ Procedure
     -- You will see a web page appear with the analysis
 
 
-
+```
