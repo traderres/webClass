@@ -1,11 +1,23 @@
+```
 How to Reduce the Size of ag-grid JavaScript loading
 ----------------------------------------------------
 Problem:  ag-grid can add a large bundle JavaScript to your project
 Solution: Load only the ag-grid modules you need
 
 
-Procedure
----------
+Part 1:  Do a webpack analysis BEFORE making your changes
+---------------------------------------------------------
+Run the steps in howToRunWebPackAnalyzer.txt
+  -- Save your analysis view
+  -- Note the screen size
+```
+![](./images/webpack.before.png)
+```
+
+
+
+Part 2:  Change your project to use ag-grid modules
+---------------------------------------------------
  1. Change your package.json to only include those elements you need:
 	a. edit frontend/package.json
 
@@ -116,5 +128,13 @@ Procedure
 
 
 
+Part 3:  Do a webpack analysis AFTER making your changes
+---------------------------------------------------------
+Run the steps in howToRunWebPackAnalyzer.txt
+  -- Save your analysis view
+  -- Note the screen size
+```
+![](./images/webpack.after.png)
+```
 
-
+```
