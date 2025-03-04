@@ -14,7 +14,7 @@ ElasticSearch Lesson Plan
     
  3. Let's do some searching:  Reports Index
     <a href="./exercises/exercise1a.reports.v1.question.txt"      title="Exercise 1a">Exercise 1a</a> / Reports / Create an Index & Search it        (<a href="./exercises/exercise1a.reports.v1.answers.txt"  title="Answer to 1a">Answers</a>)
-    <a href="./exercises/exercise1b.reports.v2.question.txt"      title="Exercise 1a">Exercise 1b</a> / Reports / Search Case Insensitive Fields     (<a href="./exercises/exercise1b.reports.v2.answers.txt"  title="Answer to 1b">Answers</a>)
+    <a href="./exercises/exercise1b.reports.v2.question.txt"      title="Exercise 1b">Exercise 1b</a> / Reports / Search Case Insensitive Fields     (<a href="./exercises/exercise1b.reports.v2.answers.txt"  title="Answer to 1b">Answers</a>)
  
 
 </pre>
