@@ -2,10 +2,11 @@ ElasticSearch Lesson Plan
 -------------------------
 
 <pre>
- 1. Setup the Development Env
-    NOTE:  You will only need Java 17, ElasticSearch 7.10.2, and Kibana 7.10.2
-    <a href="https://docs.google.com/document/d/1-vutLIaIN0A3WDm0P4gf9yFRLNyVVX8s2RZLWrbdT-o/edit" title="Setup Development Env (Unix)">Setup Development Env (Unix)</a>
-    <a href="https://docs.google.com/document/d/1-vutLIaIN0A3WDm0P4gf9yFRLNyVVX8s2RZLWrbdT-o/edit" title="Setup Development Env (Windows)">Setup Development Env (Windows)</a>
+ 1. Setup the Tools
+    a. Install OpenJDK 17            for Windows, Mac, or Linux
+    a. Install ElasticSearch 7.10.2  for <a href="https://github.com/traderres/webClass/blob/master/learnElasticSearch/howToInstallElasticSearch7.10.2OnWindows.txt" title="Install ES 7.10.2 for Windows">Windows</a>, <a href="https://github.com/traderres/webClass/blob/master/learnElasticSearch/howToInstallElasticSearch7.10.2OnMac.txt" title="Install ES 7.10.2 for Mac">Mac</a>, or <a href="/learnElasticSearch/howToInstallElasticSearch7.10.2OnCentos8UsingRpm.txt" title="Install ES 7.10.2 for Linux">Linux</a>
+    b. Install Kibana 7.10.2         for <a href="https://github.com/traderres/webClass/blob/master/learnElasticSearch/howToInstallKibana7.10.2OnWindows.txt" title="Install Kibana 7.10.2 for Windows">Windows</a>, <a href="https://github.com/traderres/webClass/blob/master/learnElasticSearch/howToInstallKibana7.10.2OnMac.txt" title="Install Kibana 7.10.2 for Mac">Mac</a>, or <a href="https://github.com/traderres/webClass/blob/master/learnElasticSearch/howToInstallKibana7.10.20OnCentos8.txt" title="Install Kibana 7.10.2 for Linux">Linux</a>
+
 
 
  2. Boring Lectures
