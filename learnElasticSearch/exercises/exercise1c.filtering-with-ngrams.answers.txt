@@ -1,0 +1,298 @@
+Exercise 1c:  Create a Report Index V3 / Search with ngrams (Answers)
+---------------------------------------------------------------------
+We want to create a mapping called "reports"  that has a few fields:  actors, description, and priority
+We want to populate it with some sample data
+We want to filter the priority -- type-in any character and match results
+
+
+
+Exercises
+---------
+ 1. Connect to your kibana console
+
+    Go to http://localhost:5601/app/dev_tools#/console
+    *OR*
+    Go to http://localhost:5601/
+    Press "Explore on my own"
+    Press "Dev tools"
+
+
+
+
+ 2. Delete the existing reports index (if it exists)
+    DELETE /reports
+
+    NOTE:  You will get an "index_not_found_exception" if the index did not exist first
+
+
+
+ 3. Create a new reports index that holds 3 text fields:
+ 		actors
+ 		description
+ 		priority
+
+
+		PUT /reports
+		{
+		   "settings": {
+			 "refresh_interval": "1s"
+		},
+		"mappings": {
+				"dynamic": "strict",
+				"properties": {
+					"actors": {
+						 "type": "text"
+						},
+					"description": {
+						"type": "text"
+					},
+					"priority": {
+						 "type": "text",
+						 "fields": {
+							"raw": {
+							   "type": "keyword"
+						   }
+						 }
+					}
+				}
+		  	 }
+		}
+
+
+
+ 4. Add the case_insensitive_normalizer  (so we can sort correctly on fields)
+
+		PUT /reports
+		{
+		   "settings": {
+		           "analysis": {
+                     "normalizer": {
+                       "case_insensitive_normalizer": {
+                         "type": "custom",
+                         "char_filter": [],
+                         "filter": [ "lowercase", "asciifolding" ]
+                       }
+                     }
+                   },
+
+				   "refresh_interval": "1s"
+		},
+		"mappings": {
+				"dynamic": "strict",
+				"properties": {
+					"actors": {
+						 "type": "text"
+						},
+					"description": {
+						"type": "text"
+					},
+					"priority": {
+						 "type": "text",
+						 "fields": {
+							"raw": {
+							   "type": "keyword"
+						   }
+						 }
+					}
+				}
+		  	 }
+		}
+
+
+
+
+ 5. Update the mapping so we can do filtering on n-grams
+    a) Add a new tokenizer called "my_ngram_tokenizer" / This will break-up the strings into tokens of 1-25 chars in length
+    b) Add a new analyzer  called "my_ngram_analyzer"  / convert the strings to lowercase
+    c) Apply the analyzer to your field                / so we can filter on any characters (but they must be lowercase)
+
+
+
+
+		PUT /reports
+		{
+		   "settings": {
+                   "analysis": {
+                     "analyzer": {
+                       "my_ngram_analyzer": {
+                         "tokenizer": "my_ngram_tokenizer",
+                         "filter": [
+                           "lowercase"
+                         ]
+                       }
+                     },
+
+                     "tokenizer": {
+                       "my_ngram_tokenizer": {
+                         "type": "ngram",
+                         "min_gram": "1",
+                         "max_gram": "25",
+                         "token_chars": []
+                       }
+                     },
+
+                     "normalizer": {
+                       "case_insensitive_normalizer": {
+                         "type": "custom",
+                         "char_filter": [],
+                         "filter": [
+                           "lowercase",
+                           "asciifolding"
+                         ]
+                       }
+                     }
+                   },
+
+                   "max_ngram_diff": "25",
+		  		   "refresh_interval": "1s"
+		 },
+		"mappings": {
+				"dynamic": "strict",
+				"properties": {
+					"actors": {
+						 "type": "text"
+					},
+					"description": {
+						"type": "text"
+					},
+					"priority": {
+						 "type": "text",
+						 "fields": {
+							"raw": {
+							   "type": "keyword"
+						   },
+						  "sort": {
+							"type": "keyword",
+							"normalizer": "case_insensitive_normalizer"
+						  },
+						  "filtered": {
+							"type": "text",
+							"analyzer": "my_ngram_analyzer"
+						  }
+						 }
+					}
+				}
+		  	 }
+		}
+
+
+ 6. Populate the reports index with some data
+ 	  _id=1 / priority="low"  / actors is an array that holds 1 name:  John Smith        / description holds this:  he really likes o'reilly
+  	  _id=2 / priority="LOW"  / actors is an array that holds 1 name:  george washington / description holds this:  depending on the kind query, you might want to go different ways with it
+  	  _id=3 / priority="high" / actors is an array that holds 1 name:  adam Smith
+  	  _id=4 / priority="HIGH" / actors is an array that holds 1 name:  Adam Smith 2      / description holds this:  This description is for record four
+  	  _id=5 / priority="HIGH" / actors is an array that holds 3 names:                   / description holds this:  There are too many singers from the 1980s listed here.  Get a life!!
+  	                                  Pat Benetar, Michael Jackson, and George Michael
+
+
+    POST _bulk
+    { "index": { "_index": "reports",  "_id": 1 }}
+    { "priority": "low", "actors": "John Smith", "description": "he really likes o'reilly"}
+    { "index": { "_index": "reports",  "_id": 2 }}
+    { "priority": "LOW", "actors": "george washington", "description": "depending on the kind query, you might want to go different ways with it"}
+    { "index": { "_index": "reports",  "_id": 3 }}
+    { "priority": "high", "actors": "adam Smith"}
+    { "index": { "_index": "reports",  "_id": 4 }}
+    { "priority": "HIGH", "actors": "Adam Smith 2", "description": "This description is for record four"}
+    { "index": { "_index": "reports",  "_id": 5 }}
+    { "priority": "HIGH", "actors": ["Pat Benetar", "Michael Jackson", "George Michael"], "description": "There are too many singers from the 1980s listed here.  Get a life!!"}
+
+
+
+
+
+ 7. Search the reports index for everything
+
+    POST /reports/_search
+
+    *OR*
+
+    POST /reports/_search
+    {
+       "query": {
+           "match_all": {}
+       },
+       "size": 25
+    }
+
+
+
+ 8. Run a search and search by ngram (single-char) / match all records with a priority that contain "ig"
+ 	POST /reports/_search
+ 	{
+ 		"query": {
+ 			"bool": {
+ 				"must":
+ 					[
+ 					  {
+ 						"match_all": {}
+ 					  }
+ 					],
+ 					"filter": [
+ 						{
+ 							"term": {
+ 								"priority.filtered": "ig"
+ 						  }
+ 						}
+ 					]
+ 			   }
+ 		 }
+ 	}
+
+
+ 9. Run a search and search for all records that have a *DESCRIPTION* and / look for all priorities that contain "ig"
+     POST /reports/_search
+     {
+         "query": {
+             "bool": {
+                 "must":
+                     [
+                       {
+                         "query_string": {
+                             "query": "description:*"
+                         }
+                       }
+                     ],
+                     "filter": [
+                         {
+                             "term": {
+                                 "priority.filtered": "ig"
+                           }
+                         }
+                     ]
+                }
+          }
+     }
+
+
+10. Run a search and search by ngram (single-char) / match all records with a priority that contain "ig"
+    *AND* sort by the priority field
+ 	POST /reports/_search
+ 	{
+ 		"query": {
+ 			"bool": {
+ 				"must":
+ 					[
+ 					  {
+ 						"match_all": {}
+ 					  }
+ 					],
+ 					"filter": [
+ 						{
+ 							"term": {
+ 								"priority.filtered": "ig"
+ 						  }
+ 						}
+ 					]
+ 			   }
+ 		 },
+		"sort": [
+			  {
+				  "priority.sort": {
+					"order": "asc",
+					"missing" : "_first"
+				  }
+				}
+			  ]
+ 	}
+
