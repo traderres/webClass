@@ -1,8 +1,120 @@
 Exercise 2b / Bulk Updates / Refresh Flag / When are changes public?  (Answers)
 -------------------------------------------------------------------------------
+When you do a bulk update how long do you have to wait before the information is public?
 
 
 Exercise
 --------
- 1. Create an index called "more_reports"
+ 1. Delete this ES index:  app_users
+
+		DELETE app_users
+
+
+
+ 2. Create this index:     app_users
+ 	-- Add 4 fields
+ 			user_id
+ 			full_name
+ 			email_address
+ 			is_admin		/ holds true or false
+
+		PUT app_users
+		{
+		   "settings": {
+			  "refresh_interval": "1s"
+			},
+
+		   "mappings": {
+				  "dynamic": "strict",
+
+				  "properties": {
+					  "user_id": {
+						"type": "integer"
+					  },
+						  "full_name": {
+							   "type": "text"
+						   },
+						  "email_address": {
+							  "type": "text"
+						  },
+						  "is_admin": {
+							   "type": "boolean"
+						  }
+					 }
+				 }
+
+		}
+
+
+
+ 3. Populate the index with some data
+  	  userid=101 / full_name="Kylo Ren"
+   	  userid=102 / full_name="FN247"
+   	  userid=103 / full_name="Poe Dameron"
+   	  userid=104 / full_name="General Hux"
+
+
+		POST _bulk
+		{ "index": { "_index": "app_users",  "_id": 101 }}
+		{ "user_id": 101,  "full_name": "Kylo Ren"}
+		{ "index": { "_index": "app_users",  "_id": 102 }}
+		{ "user_id": 102,  "full_name": "FN247"}
+		{ "index": { "_index": "app_users",  "_id": 103 }}
+		{ "user_id": 103,  "full_name": "Poe Dameron"}
+		{ "index": { "_index": "app_users",  "_id": 104 }}
+		{ "user_id": 104,  "full_name": "General Hux"}
+
+
+
+
+ 4. Search for your records (to verify that you can see your data)
+
+		POST app_users/_search
+
+
+
+ 5. Update your data by setting the email addresses as so
+  	  userid=101 / email_address="kylo@undecided.com"
+   	  userid=102 / email_address="fin@alliance.com"
+   	  userid=103 / email_address="top@figher.pilots.com"
+   	  userid=104 / email_address="hux@empire.rocks.com"
+
+		POST _bulk
+		{ "update": { "_index": "app_users",  "_id": 101 }}
+		{ "doc" : {"email_address" : "kylo@undecided.com"} }
+		{ "update": { "_index": "app_users",  "_id": 102 }}
+		{ "doc" : {"email_address" : "fin@alliance.com"} }
+		{ "update": { "_index": "app_users",  "_id": 103 }}
+		{ "doc" : {"email_address" : "top@figher.pilots.com"} }
+		{ "update": { "_index": "app_users",  "_id": 104 }}
+		{ "doc" : {"email_address" : "hux@empire.rocks.com"} }
+
+
+
+ 6. Search for your records (to verify the data was updated)
+
+		POST app_users/_search
+
+
+
+ STOP HERE.  Let's talk about that refresh interval
+
+ 7. Change the refresh interval to 30 seconds and repeat
+
+
+
+What is *ACTUALLY* happening during that bulk update?
+-----------------------------------------------------
+ 1. You send a bulk update *ASYNCHRONOUS* request to ElasticSearch
+    -- You tell ES that when the refresh cycle finishes, then these records will be visible
+
+    T0:  You submit your _bulk request
+
+    T1:  ElasticSearch refresh interval kicks-in
+
+    T2:  Your data is now public
+
+    -- It is *NOT* synchronous
+
+
 
