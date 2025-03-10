@@ -1,0 +1,200 @@
+Exercise 2a / Bulk Update Modes  (Answers)
+------------------------------------------
+The bulk update uses an odd 2-line contract
+  Line 1 is the operation -- e.g., create, index, or update
+  Line 2 is the data
+
+
+
+
+Exercise
+--------
+ 1. Create an index:  users
+
+
+
+
+ 2. Add these mapping fields to it:
+ 		user_id 		/ holds a numeric value
+ 		full_name       / holds a string value
+ 		is_admin        / holds TRUE if the user is a boolean, holds FALSE otherwise
+		email           / holds a string value
+
+
+
+
+
+
+ 3. Populate the index with 4 records:
+   	  user_id=101 / full_name="John Smith"      /                 / email is "john.smith@zztop.com"
+   	  user_id=102 / full_name="Luke Skywalker"  / is_admin=FALSE  / email is "luke.skywalker@zztop.org"
+   	  user_id=103 / full_name="Leia Organa"     / is_admin=TRUE   / email is "your.highness@zztop.org"
+   	  user_id=104 / full_name="Han Solo"        / is_admin=FALSE
+
+
+
+	  Land Mine #1:  If there is no _id, then ElasticSearch **INSERTS** a new record with a unique _id every time
+	                 If there is    _id, then ElasticSearch **REPLACES** the record with that _id every time
+
+
+		# This is fragile -- the _id is generated every time
+		POST _bulk
+		{ "index": { "_index": "users"}}
+		{ "user_id": 101, "full_name": "John Smith", "email": "john.smith@zztop.com"}
+		{ "index": { "_index": "users"}}
+		{ "user_id": 102, "full_name": "Luke Sykwalker", "is_admin": false, "email": "luke.skywalker@zztop.org"}
+		{ "index": { "_index": "users"}}
+		{ "user_id": 103, "full_name": "Leia Organa", "is_admin": true, "email": "your.highness@zztop.org"}
+		{ "index": { "_index": "users"}}
+		{ "user_id": 104, "full_name": "Darth Vader", "is_admin": false}
+
+		# This is better -- the _id matches the id
+		POST _bulk
+		{ "index": { "_index": "users", "_id": 101}}
+		{ "user_id": 101, "full_name": "John Smith", "email": "john.smith@zztop.com"}
+		{ "index": { "_index": "users", "_id": 102}}
+		{ "user_id": 102, "full_name": "Luke Skywalker", "is_admin": false, "email": "luke.skywalker@zztop.org"}
+		{ "index": { "_index": "users", "_id": 103}}
+		{ "user_id": 103, "full_name": "Leia Organa", "is_admin": true, "email": "your.highness@zztop.org"}
+		{ "index": { "_index": "users", "_id": 104}}
+		{ "user_id": 104, "full_name": "Darth Vader", "is_admin": false}
+
+
+ 4. Search for all records
+
+	POST users/_search
+
+	*OR*
+
+	POST users/_search
+	{
+	  "query" : {
+	    "match_all": {}
+	  }
+	}
+
+
+
+
+ 5. Change Darth Vader's full name to be "Vader!!!"
+
+	POST _bulk
+	{ "update": { "_index": "users", "_id": 202} }
+	{ "doc": { "full_name": "Vader!!!" }}
+
+	Does it successfully work?
+
+
+	STOP and let's talk about this....
+	-- What happens if you set "ignore_malformed": true
+
+		  "user_id": {
+				"type": "integer",
+				"ignore_malformed": true
+		  },
+
+
+
+
+
+ 6. Search for all records and sort so that administrators are *FIRST* and non-administrators *LAST*
+
+	POST users/_search
+	{
+	  "query" : {
+	    "match_all": {}
+	  },
+	  "sort": [
+	            { "is_admin": { "order": "desc", "missing": "_last" } }
+	          ]
+	}
+
+
+
+
+ 7. Search for all records who are administrators
+
+	POST users/_search
+	{
+	  "query" : {
+	    "query_string": {
+	      "query": "is_admin:true"
+	    }
+	  }
+	}
+
+
+
+
+ 8. Search for all records that are missing the is_admin flag
+
+	POST users/_search
+	{
+	  "query" : {
+	    "query_string": {
+	      "query": "!is_admin:*"
+	    }
+	  }
+	}
+
+
+
+
+ 9. Update Han Solo's record
+    -- Set the email address to "space.pirate@zztop.com"
+
+	POST _bulk
+	{ "update": { "_index": "users", "_id": 104}}
+	{ "doc": {"email": "space.pirate@zztop.com"}}
+
+
+
+
+10. Search for user id of 104
+
+	POST users/_search
+	{
+	  "query": {
+		"query_string": {
+		  "query": "user_id:104"
+		}
+	  }
+	}
+
+
+
+
+11. Search for all records that have an email address that ends .org
+
+	POST users/_search
+	{
+	  "query": {
+	    "query_string": {
+	      "query": "email:*.org"
+	    }
+	  }
+	}
+
+
+
+
+12. Update John Smith's record
+ 		-- Set the is_admin flag to TRUE
+ 		-- Set the email address to jonny5@zztop.org
+
+	POST _bulk
+	{ "update": { "_index": "users", "_id": 101}}
+	{ "doc": {"is_admin": true, "email": "johnny@zztop.org"}}
+
+
+
+
+13. Add 2 additional records
+    	  user_id=201 / full_name="Chewbacca"      / is_admin=false   / email is "chewy@zztop.com"
+    	  user_id=202 / full_name="Darth Vader"    / is_admin=FALSE   / email is "darth.vader@zztop.com"
+
+	POST _bulk
+	{ "create": { "_index": "users", "_id": 201}}
+	{ "user_id": 201, "full_name": "Chewbacca", "is_admin": false, "email": "chewy@zztop.com"}
+	{ "create": { "_index": "users", "_id": 202}}
+	{ "user_id": 202, "full_name": "Darth Vader", "is_admin": false, "email": "darth.vader@zztop.com"}
