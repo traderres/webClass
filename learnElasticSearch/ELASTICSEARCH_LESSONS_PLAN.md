@@ -13,7 +13,7 @@ ElasticSearch Lesson Plan
     c. <a href="./lectures/boring.lecture.C.bulk-update-modes.txt"          title="Bulk Update Modes">Bulk Update Modes:</a>  How to create, update, and delete...(snore)
     d. <a href="./lectures/boring.lecture.D.es-fields.txt"                  title="ElasticSearch Fields">ES Mapping Fields:</a>  text, keyword, date, boolean, ...(yawn)
     e. <a href="./lectures/boring.lecture.E.tricks-and-techniques.txt"      title="ElasticSearch Tricks & Techniques">ES Tricks & Techniques</a>
-    e. <a href="./lectures/boring.lecture.F.bulk.refresh.flag.txt"          title="Bulk Update Refresh Flag">ES Bulk Update Refresh Flag</a>
+    f. <a href="./lectures/boring.lecture.F.bulk.refresh.flag.txt"          title="Bulk Update Refresh Flag">ES Bulk Update Refresh Flag</a>
     
  3. Let's do some searching:  Reports Index
     <a href="./exercises/exercise1a.reports.v1.question.txt"                title="Exercise 1a">Exercise 1a</a> / Reports / Create an Index & Search it                  (<a href="./exercises/exercise1a.reports.v1.answers.txt"  title="Answer to 1a">Answers</a>)
