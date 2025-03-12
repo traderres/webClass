@@ -1,0 +1,412 @@
+Exercise 3a / Setup a Spring Boot Java Program to Run ES Searches
+-----------------------------------------------------------------
+Question:  Running ES searches from Kibana is fine.  How the hell am I supposed to run this from code?
+Answer:    Setup a Spring Boot command line program
+           Setup an ElasticSearchService
+
+
+Procedure
+---------
+ 1. Create a Java command-line project called:  esUtils
+    a. Startup Intellij
+       NOTE:  IF an existing Intellij project appear, then pull File / Close Project
+
+    b. Press "New Project"
+
+	c. In the "New Project" window,
+        Generators:    "Maven Archetype"
+        Name:          esUtils
+        JDK:           [Select your OpenJDK21]
+        Catalog:       Internal
+        Archetype:     maven-archetype-quickart
+
+        Press "Create"
+
+
+          Now, maven has created a simple Java JAR project
+
+
+
+
+ 2. Setup the Maven directories for your Intellij project
+    Add these directories
+       src/test/resources/             # Holds the logback.xml used by unit test code
+       src/main/resources/             # Holds the logback.xml used by main program
+
+     Now, you should have this directory structure
+      src/main/java/
+      src/main/resources/               # Holds logback.xml used by java main program
+      src/test/java
+      src/test/resources/               # Holds logback.xml used by unit test code
+
+
+
+
+ 3. Edit your pom.xml
+	a. Replace your <properties> section with this:
+
+			<properties>
+				<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+				<!-- Tell Maven that this project requires Java 21 to compile -->
+				<maven.compiler.source>21</maven.compiler.source>
+				<maven.compiler.target>21</maven.compiler.target>
+				<maven.compiler.verbose>false</maven.compiler.verbose>
+			</properties>
+
+
+	b. Add this *ABOVE* your dependencies to your pom.xml
+
+			<dependencyManagement>
+				<dependencies>
+
+				    <dependency>
+				        <!-- Set the Spring Boot Version -->
+				        <groupId>org.springframework.boot</groupId>
+				        <artifactId>spring-boot-dependencies</artifactId>
+				        <version>3.4.3</version>
+				        <type>pom</type>
+				        <scope>import</scope>
+				    </dependency>
+
+				</dependencies>
+			</dependencyManagement>
+
+
+
+	c. Add these to your *EXISTING* dependencies section
+
+		    <dependency>
+		        <!-- Spring Boot Console Application -->
+		        <groupId>org.springframework.boot</groupId>
+		        <artifactId>spring-boot-starter</artifactId>
+		    </dependency>
+
+		    <dependency>
+		        <groupId>org.springframework</groupId>
+		        <artifactId>spring-jdbc</artifactId>
+		        <version>6.2.3</version>
+		    </dependency>
+
+		    <dependency>
+		        <!-- AsyncHttpClient is used to make outgoing REST calls to ElasticSearch -->
+		        <groupId>org.asynchttpclient</groupId>
+		        <artifactId>async-http-client</artifactId>
+		        <version>3.0.1</version>
+		    </dependency>
+
+		    <dependency>
+		        <groupId>com.fasterxml.jackson.core</groupId>
+		        <artifactId>jackson-core</artifactId>
+		        <version>2.18.3</version>
+		    </dependency>
+
+		    <dependency>
+		        <groupId>com.fasterxml.jackson.core</groupId>
+		        <artifactId>jackson-databind</artifactId>
+		        <version>2.18.3</version>
+		    </dependency>
+
+		    <dependency>
+		        <groupId>com.fasterxml.jackson.core</groupId>
+		        <artifactId>jackson-annotations</artifactId>
+		        <version>2.18.3</version>
+		    </dependency>
+
+			<dependency>
+			  <!-- StringUtils Dependency -->
+			  <groupId>org.apache.commons</groupId>
+			  <artifactId>commons-lang3</artifactId>
+			  <version>3.17.0</version>
+			</dependency>
+
+
+
+		 <build>
+
+		     <plugins>
+		         <plugin>
+		             <!-- This plugin provides the tools needed to repackage the Spring Boot JAR into a runnable JAR
+		                  Run this command to generate the runnable Spring Boot Jar
+		                     mvn clean package  *or*
+		                     mvn clean package spring-boot:repackage
+		              -->
+		             <groupId>org.springframework.boot</groupId>
+		             <artifactId>spring-boot-maven-plugin</artifactId>
+		             <version>3.4.3</version>
+		             <configuration>
+		                 <addResources>true</addResources>
+		             </configuration>
+
+		             <executions>
+		                 <execution>
+		                     <goals>
+		                         <goal>repackage</goal>
+		                     </goals>
+		                     <configuration>
+		                         <classifier>exec</classifier>
+		                     </configuration>
+		                 </execution>
+		             </executions>
+
+		         </plugin>
+
+
+		     </plugins>
+		 </build>
+
+
+	e. Update your maven dependencies inside Intellij
+	   Right-click on pom.xml -> Maven -> Reload Project
+
+
+ 4. Add this file:  src/main/resources/logback.xml
+
+		<?xml version="1.0" encoding="UTF-8" ?>
+		<configuration debug="false">
+			<appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+				<encoder>
+					<pattern>%d{MM/dd/yyyy HH:mm:ss} %-5level %t %c %m%n</pattern>
+				</encoder>
+			</appender>
+
+			<logger name="org.springframework" level="INFO" additivity="false">
+				<appender-ref ref="CONSOLE"/>
+			</logger>
+
+			<logger name="org.example" level="DEBUG" additivity="false">
+				<appender-ref ref="CONSOLE"/>
+			</logger>
+
+			<root level="INFO">
+				<appender-ref ref="CONSOLE"/>
+			</root>
+		</configuration>
+
+
+
+
+
+ 5. Update the main program:  src/main/java/App.java
+ 	a. Add a Logger
+    	    private static final Logger logger = LoggerFactory.getLogger(App.class);
+
+ 	b. Remove the System.out.println
+
+ 	c. Add a logger call indicating that main started
+ 		-- Make that the first line in your main()
+
+    d. Add a logger call indicating that main finished
+    	-- Make this the LAST line of your main
+
+
+			public static void main( String[] args )
+			{
+				logger.debug("main() started");
+
+				logger.debug("main() finished.");
+			}
+
+
+ 6. Verify that the debugger works
+ 	a. Set a breakpoint on your logger call
+
+ 	b. Right-click on App -> Debug 'App.main()'
+	   -- Verify that the breakpoint was hit
+
+	c. Press F9 to continue
+	   -- Verify that you see the output in your console:
+
+        03/12/2025 14:53:03 DEBUG main org.example.App main() started
+        03/12/2025 14:53:04 DEBUG main org.example.App main() finished.
+
+
+
+
+ 7. Convert this basic Java program into a Spring Command Line program
+ 	a. Change the main class so implements CommandLineRunner
+
+	b. Right-click on the class name -> select Implement Methods
+		-- This should generate this method:  run
+
+			@Override
+			public void run(String... args) throws Exception {
+
+			}
+
+	c. Add this annotation above the App class:
+			@SpringBootApplication(exclude = {DataSourceAutoConfiguration.class, HibernateJpaAutoConfiguration.class, SecurityAutoConfiguration.class})
+
+	d. Change your main program so it starts-up Spring
+
+	        // Start up Spring Boot but disable the banner
+            SpringApplication app = new SpringApplication(App.class);
+            app.setBannerMode(Banner.Mode.OFF);
+            app.run(args);
+
+
+	e. Create this package:  services
+	   Right-click on src/main/java/org/example -> New Package:    org.example.services
+
+
+
+ 8. Create this class:  ElasticSearchService
+	a. Right-click on services -> New Java Class:       ElasticSearchService
+
+	b. Add a logger to this service
+
+	c. Add the @Service annotation to it
+
+	d. Add a method:  init()
+		-- Add the @PostConstruct annotation
+		-- Add a logger call to it
+
+
+	e. Add a method:  runSearchGetResponseMap()
+		-- Index name is passed-in
+		-- JSON query is passed-in
+		-- It returns a map of key=string, value=object
+		-- Have it return null for now
+
+
+
+			package org.example.services;
+
+			import jakarta.annotation.PostConstruct;
+			import org.slf4j.Logger;
+			import org.slf4j.LoggerFactory;
+			import org.springframework.stereotype.Service;
+
+			import java.util.Map;
+
+			@Service
+			public class ElasticSearchService {
+				private static final Logger logger = LoggerFactory.getLogger(ElasticSearchService.class):
+
+				@PostConstruct
+				public void init() {
+					logger.debug("init() started");
+				}
+
+
+				public Map<String, Object> runSearchGetResponseMap(String aIndexName, String aBody) {
+					logger.debug("runSearchGetResponseMap() started");
+					return null;
+				}
+
+			}
+
+
+
+ 	f. Add the 3 class variables:
+ 	    elasticSearchUrl        // it will hold the url to your ElasticSearch
+        asyncHttpClient         // it is used to make outgoing calls.  The type is AsyncHttpClient;
+        objectMapper            // Used to convert JSON to Java / type is ObjectMapper
+
+
+
+    g. Edit your init() method initialize these variables
+	   1. Initialize the elasticSearchUrl to hold the url of your local ElasticSearch
+			this.elasticSearchUrl = "http://localhost:9201";
+
+
+	   2. Instantiate a new objectMapper object
+	        this.objectMapper = new ObjectMapper();
+
+
+	   3. Initialize the asyncHttpClient
+
+	        // Set the AsyncHttpClient settings
+            DefaultAsyncHttpClientConfig.Builder configBuilder = new DefaultAsyncHttpClientConfig.Builder();
+            configBuilder.setFollowRedirect(true);
+
+            // Set the maximum time to wait for completing a request from the user's perspective
+            // -- So, by default, every outgoing REST call will throw an exception after waiting 30 seconds
+            configBuilder.setRequestTimeout(Duration.ofSeconds(30));
+
+            // Use the builder to create the asyncHttpClient object
+            this.asyncHttpClient = Dsl.asyncHttpClient(configBuilder);
+
+
+	h. Add a method:  createIndex
+		-- The index name is passed-in
+		-- The JSON mapping is passed-in
+
+		-- This method will invoke a PUT call to ElasticSearch and *WAIT* for the response
+
+		-- If the response has a status code != 200, then throw a RuntimeException
+
+			/**
+			 * Create a new ES Index
+			 */
+			public void createIndex(String aIndexName, String aJsonMapping) throws ExecutionException, InterruptedException {
+				logger.debug("createIndex() started.  aIndexName={}", aIndexName);
+
+				if (StringUtils.isEmpty(aIndexName)) {
+					throw new RuntimeException("createIndex: The passed-in aIndexName is null or empty.");
+				}
+
+				String url = this.elasticSearchUrl + "/" + aIndexName;
+				logger.debug("Going to this url:  {}", url);
+
+				// Make a synchronous POST call to ElasticSearch to create this an index
+				Response response = this.asyncHttpClient.preparePut(url)
+						.setHeader("accept", "application/json")
+						.setHeader("Content-Type", "application/json")
+						.setBody(aJsonMapping)
+						.execute()
+						.get();
+
+				if (response.getStatusCode() != 200) {
+					// ElasticSearch returned a non-200 status response
+					throw new RuntimeException("Error in createIndex:  ES url is " + url + "\nES returned a status code of " +
+							response.getStatusCode() + " with an error of: " +
+							response.getResponseBody());
+				}
+
+				logger.info("Successfully created this ES index: {}", aIndexName);
+			}
+
+
+
+ 9. Create a new service:  RefreshService
+ 	a. Add the logger
+
+ 	b. Inject your ElasticSearchService
+
+ 	c. Add a method:  refreshAllMappings()
+ 		-- Nothing is passed-in
+ 		-- Nothing is returned
+ 		-- Use the ElasticSearchService createIndex() to create a new index called "test_index1";
+
+
+
+10. Change your App
+	a. Inject your RefreshService
+
+	b. Edit the run() method
+		-- Call your RefreshService refreshAllMappings method
+
+
+
+11. Set a breakpoint in the ElasticSearchService.createIndex
+    Set a breakpoint in the RefreshService.refreshAllMappings
+    Set a breakpoint in the App.main()
+    Set a breakpoint in the App.run()
+
+
+
+12. Activate your debugger
+
+
+
+13. When it finishes,
+	-- Verify that you have created a new index called "test_index1"
+
+
+14. Adjust your code so the program *ENDS* when it reaches the end of the App.run()
+	a. Edit App.java
+
+	b. Put your refreshService.refreshAllMappings() in a try/catch block
+
+	c. After the catch block, end the java program by calling System.exit(0)
