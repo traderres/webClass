@@ -26,4 +26,8 @@ ElasticSearch Lesson Plan
     <a href="./exercises/exercise2a.bulk-update-basics.question.txt"        title="Exercise 2a">Exercise 2a</a> / Bulk Updates / Create, insert, and index modes         (<a href="./exercises/exercise2a.bulk-update-basics.answers.txt"  title="Answer to 2a">Answers</a>)
     <a href="./exercises/exercise2b.bulk-update-refresh-flag.question.txt"  title="Exercise 2b">Exercise 2b</a> / Bulk Updates / Refresh Flag / When are changes public? (<a href="./exercises/exercise2b.bulk-update-refresh-flag.answers.txt"  title="Answer to 2b">Answers</a>)
  
+ 5. Running a search from Java code
+    <a href="./exercises/exercise3a.searching-es-from-java-setup-program.question.txt"  title="Exercise 3a">Exercise 3a</a> / Setup Spring-Boot Program w/ElasticSearchService       (<a href="./exercises/exercise3a.searching-es-from-java-setup-program.answers.txt"  title="Answer to 3a">Answers</a>)
+    <a href="./exercises/exercise3b.searching-es-from-java.question.txt"                title="Exercise 3b">Exercise 3b</a> / Run an ES search from Java                             (<a href="./exercises/exercise3a.searching-es-from-java-setup-program.answers.txt"  title="Answer to 3a">Answers</a>)
+
 </pre>
