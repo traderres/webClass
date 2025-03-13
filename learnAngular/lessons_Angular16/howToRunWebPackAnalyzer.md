@@ -34,4 +34,8 @@ Procedure
     -- You will see a web page appear with the analysis
 
 
+ 5. On the left side of the page
+    Click the Left Arrow
+    Check "Show content of concatenated modules (inaccurate)
+    
 ```
