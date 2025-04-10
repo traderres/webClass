@@ -51,9 +51,10 @@ Angular 16 Lesson Plan
            <a href="./exercises/exercise04.responsive.layout.question.txt" title="Exercise 4 ">Exercise 4</a>  / Responsive Layout       (<a href="./exercises/exercise04.responsive.layout.answers.txt" title="Answer to 4">Answers</a>)
 
     b. How to use overflow-y, set variable heights, and use fixed divs
-           <a href="./exercises/exercise05a.overflow-y.question.txt"       title="Exercise 5a">Exercise 5a</a> / Overflow-y              (<a href="./exercises/exercise05a.overflow-y.answers.txt"       title="Answer to 5a">Answers</a>)
-           <a href="./exercises/exercise05b.holy-grail.question.txt"       title="Exercise 5b">Exercise 5b</a> / Holy Grail (w/calc)     (<a href="./exercises/exercise05b.holy-grail.answers.txt"       title="Answer to 5b">Answers</a>)
-           <a href="./exercises/exercise05c.scroll-into-view.question.txt" title="Exercise 5c">Exercise 5c</a> / Scroll Into View        (<a href="./exercises/exercise05c.scroll-into-view.answers.txt" title="Answer to 5c">Answers</a>)
+           <a href="./exercises/exercise05a.overflow-y.question.txt"                   title="Exercise 5a">Exercise 5a</a> / Overflow-y              (<a href="./exercises/exercise05a.overflow-y.answers.txt"       title="Answer to 5a">Answers</a>)
+           <a href="./exercises/exercise05b.holy-grail.question.txt"                   title="Exercise 5b">Exercise 5b</a> / Holy Grail (w/calc)     (<a href="./exercises/exercise05b.holy-grail.answers.txt"       title="Answer to 5b">Answers</a>)
+           <a href="./exercises/exercise05c.scroll-into-view.question.txt"             title="Exercise 5c">Exercise 5c</a> / Scroll Into View        (<a href="./exercises/exercise05c.scroll-into-view.answers.txt" title="Answer to 5c">Answers</a>)
+           <a href="./exercises/exercise05d.calc-vs-flex-grow-for-height.question.txt" title="Exercise 5d">Exercise 5d</a> / Using Remaining Height  (<a href="./exercises/exercise05d.calc-vs-flex-grow-for-height.question.txt" title="Answer to 5d">Answers</a>)
 
     c. How to make DIVs appear/disappear using animation
            <a href="./exercises/exercise06a.howToDoTransitionsOnWidth.question.txt"                  title="Exercise 6a">Exercise 6a</a> / Transitions on width    (<a href="./exercises/exercise06a.howToDoTransitionsOnWidth.answers.txt"                  title="Answer to 6a">Answers</a>)
