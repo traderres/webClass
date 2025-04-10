@@ -89,7 +89,7 @@ Problem:  When I select lots of chips, I have 2 scrollbars  (Answers)
 
 
 
-      Better Page Outline
+     Better Page Outline
      -------------------
      <div class="p-2.5 flex flex-col h-full">
 
