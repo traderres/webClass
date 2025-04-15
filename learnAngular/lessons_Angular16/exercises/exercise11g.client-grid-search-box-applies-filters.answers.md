@@ -64,6 +64,9 @@ Exercise
      |                                                                   |
      +-------------------------------------------------------------------+
  
+ 
+        ANSWER #1 w/height calc
+        -----------------------
         <div class="m-2.5">
         
           <div class="grid grid-cols-2">
@@ -88,6 +91,33 @@ Exercise
         
         
         </div>
+
+
+        ANSWER #2 w/flex-col for height
+        -------------------------------
+        <div class="p-2.5 flex flex-col h-full">
+        
+          <div class="grid grid-cols-2">
+              <div>
+                <span class="text-xl">Grid Page with Filter Search Box</span>
+              </div>
+        
+              <div class="flex place-content-end">
+                 Help
+              </div>
+          </div>
+        
+          <!-- Second Row (Grid Page) stretches to take whole page -->
+          <div class="flex flex-grow">
+          
+              <!-- Add Grid Here -->
+              Grid is here
+        
+          </div>
+        
+        
+        </div>
+        
 
  
     
@@ -445,8 +475,8 @@ Change the layout by adding some stuff *between the page title and the grid
  
   3. Add 10px of margin between the page title row and the rest of the page
       
-     At this point, the HTML looks like this
-     ---------------------------------------    
+     Answer #1 / Using height-calc / the HTML looks like this
+     --------------------------------------------------------    
           <div class="bg-backDropColor m-2.5">
         
             <div class="grid grid-cols-2">
@@ -485,6 +515,49 @@ Change the layout by adding some stuff *between the page title and the grid
         
         </div>
 
+
+     Answer #2 / Using flex-col for height / the HTML looks like this
+     ----------------------------------------------------------------    
+          <div class="bg-backDropColor p-2.5 flex flex-col h-full">
+        
+            <div class="grid grid-cols-2">
+              <div>
+                <span class="text-xl">Grid Page with Filter Search Box</span>
+              </div>
+          
+              <div class="flex place-content-end">
+                Help
+              </div>
+            </div>
+        
+          
+            <!--  S E A R C H       B O X       L I N E   -->
+            <div class="mt-2.5">
+              Search box line
+            </div>
+          
+            <!--  G R I D      B U T T O N S         -->
+            <div>
+              Grid Buttons
+            </div>
+          
+          
+            <!--  G R I D      I S    H E R E     -->
+            <!--  The grid div stretches to use the remaining height -->
+            <div class="flex flex-grow">
+            
+              <ag-grid-angular
+                class="ag-theme-balham w-full h-full"
+                [gridOptions]="this.gridOptions"
+                [columnDefs]="this.columnDefs"
+                [defaultColDef]="this.defaultColumnDef"
+                (gridReady)="this.onGridReady($event)"
+              ></ag-grid-angular>
+              
+            </div>
+        
+        
+        </div>
   
   
   4. Fill-in the Tab and Search Box Row
