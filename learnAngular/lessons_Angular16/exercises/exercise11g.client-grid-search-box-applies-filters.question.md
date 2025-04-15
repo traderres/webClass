@@ -82,11 +82,7 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
     -- The type is ColDef
     -- Initialize it so that flex = 1, sortable = true
 
-        public defaultColumnDefs: ColDef = {
-          flex: 1,
-          sortable: true,           // All columns are sortable
-        }
-        
+
   
              
  4. Turn on filters on *ALL* columns
