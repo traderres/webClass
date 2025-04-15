@@ -475,9 +475,9 @@ Change the layout by adding some stuff *between the page title and the grid
  
   3. Add 10px of margin between the page title row and the rest of the page
       
-     Answer #1 / Using height-calc / the HTML looks like this
-     --------------------------------------------------------    
-          <div class="bg-backDropColor m-2.5">
+         Answer #1 / Using height-calc / the HTML looks like this
+        --------------------------------------------------------    
+        <div class="bg-backDropColor m-2.5">
         
             <div class="grid grid-cols-2">
               <div>
@@ -512,13 +512,12 @@ Change the layout by adding some stuff *between the page title and the grid
               ></ag-grid-angular>
             </div>
         
-        
         </div>
 
 
-     Answer #2 / Using flex-col for height / the HTML looks like this
-     ----------------------------------------------------------------    
-          <div class="bg-backDropColor p-2.5 flex flex-col h-full">
+        Answer #2 / Using flex-col for height / the HTML looks like this
+        ----------------------------------------------------------------    
+        <div class="bg-backDropColor p-2.5 flex flex-col h-full">
         
             <div class="grid grid-cols-2">
               <div>
@@ -555,7 +554,6 @@ Change the layout by adding some stuff *between the page title and the grid
               ></ag-grid-angular>
               
             </div>
-        
         
         </div>
   
