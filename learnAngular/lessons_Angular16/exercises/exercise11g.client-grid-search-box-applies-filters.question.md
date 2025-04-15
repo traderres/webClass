@@ -48,7 +48,7 @@ Exercise
     
 Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData 
 -------------------------------------------------------------------------------
- 1. Add a public class variable:   gridOpptions
+ 1. Add a public class variable:   gridOptions
     -- The type is GridOptions
     
     -- Set these properties
