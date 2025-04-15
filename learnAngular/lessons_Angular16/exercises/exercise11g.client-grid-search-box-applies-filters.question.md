@@ -57,11 +57,7 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
         rowModelType: 'clientSide',   
         
         
-        public gridOptions: GridOptions = {
-          domLayout: 'normal',
-          debug: true,
-          rowModelType: 'clientSide'
-        };
+
         
         
  2. Add a public class variable:  columnDefs
