@@ -82,7 +82,8 @@ Angular 16 Lesson Plan
     f. Popup Menus
     g. AutoCompletes
     h. Derivative Dropdowns  [After selecting 1 dropdown value, change a 2nd dropdown's options]
-    
+    i. <a href="./howToMakeNarrowDropdown.txt" title="Narrow Dropdowns">Narrow dropdowns</a>      (often used for navigation)
+
  8. Client Side Grids (using ag-grid)
     <a href="./ag-grid.add-to-project.txt"   title="Add ag-grid to the project">Add ag-grid to the project</a>
     <a href="./ag-grid.set-license-key.txt"  title="Set ag-grid license key">Set ag-grid enterprise license key</a>
