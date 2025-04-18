@@ -12,22 +12,22 @@ Approach #2:  Use the flex col trick to grow the height
 ```
 
 
-     Showing the "User Profile" tab
-     +----------------------------------------------------------------------+
-     | Tab Group Page w/Height Calc                                    Help |
-     +----------------------------------------------------------------------+
-     |                                                                      |
-     |  +------------------+-----------------------+---------------------+  |
-     |  | User Profile Tab | Open Requests Tab     | All Requests Tab    |  |
-     |  +------------------+-----------------------+---------------------+  |
-     |  | User Profile                                                   |  |
-     |  |                                                                |  |    Each tab uses the
-     |  | This is the User Profile Tab                                   |  |      **REMAINING**
-     |  |                                                                |  |         Height
-     |  |                                                                |  |
-     |  |                                                                |  |
-     |  +----------------------------------------------------------------+  |
-     +----------------------------------------------------------------------+
+    Showing the "User Profile" tab
+    +----------------------------------------------------------------------+
+    | Tab Group Page w/Height Calc                                    Help |
+    +----------------------------------------------------------------------+
+    |                                                                      |
+    |  +------------------+-----------------------+---------------------+  |
+    |  | User Profile Tab | Open Requests Tab     | All Requests Tab    |  |
+    |  +------------------+-----------------------+---------------------+  |
+    |  | User Profile                                                   |  |
+    |  |                                                                |  |    Each tab uses the
+    |  | This is the User Profile Tab                                   |  |      **REMAINING**
+    |  |                                                                |  |         Height
+    |  |                                                                |  |
+    |  |                                                                |  |
+    |  +----------------------------------------------------------------+  |
+    +----------------------------------------------------------------------+
 
 
     Showing the "Open Requests" tab
@@ -237,7 +237,7 @@ Part 1 / Build the Tabs using the Height Calc Trick
 
 
 
-     / Build the Tabs using flex-col to grow the height automatically
+Part 2 / Build the Tabs using flex-col to grow the height automatically
 -----------------------------------------------------------------------
  1. Setup the Page
     a. Generate the component:                Call it TabGroupUsingFlexColHeightPage
