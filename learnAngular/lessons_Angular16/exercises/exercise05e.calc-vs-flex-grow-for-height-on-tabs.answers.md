@@ -319,7 +319,7 @@ Part 1 / Build the Tabs using the Height Calc Trick
 
          <div class="p-2.5 flex flex-col h-full">
 
-           <!--  T O P      O F      P A G E   -->
+           <!--  T O P      O F       P A G E   -->
            <div class="grid grid-cols-2">
              <div>
                <span class="text-xl">Tab Group Page w/Flex-Col Auto Height</span>
@@ -331,29 +331,30 @@ Part 1 / Build the Tabs using the Height Calc Trick
            </div>
 
 
-           <!--  B O T T O M        O F      T A B  -->
+           <!--  B O T T O M        O F     P A G E  -->
            <div class="flex flex-grow h-full mt-5 overflow-y-auto">
              <div class="flex flex-col gap-y-2 w-full">
 
+                 <!-- T A B   G R O U P                                                      -->
                  <!-- Use the overflow-y-hidden to ensure the tabs stay inside the tab group -->
                  <mat-tab-group class="overflow-y-hidden">
 
-                   <!-- U S E R     P R O F I L E       T A B -->
-                   <mat-tab label="User Profile">
-                     <app-tab-user-profile></app-tab-user-profile>
-                   </mat-tab>
-
-
-                   <!-- O P E N      R E Q U E S T S      T A B -->
-                   <mat-tab label="Open Requests">
-                     <app-tab-open-requests></app-tab-open-requests>
-                   </mat-tab>
-
-
-                   <!-- A L L        R E Q U E S T S     T A B -->
-                   <mat-tab label="All Requests">
-                     <app-tab-all-requests></app-tab-all-requests>
-                   </mat-tab>
+                       <!-- U S E R     P R O F I L E       T A B -->
+                       <mat-tab label="User Profile">
+                         <app-tab-user-profile></app-tab-user-profile>
+                       </mat-tab>
+    
+    
+                       <!-- O P E N      R E Q U E S T S      T A B -->
+                       <mat-tab label="Open Requests">
+                         <app-tab-open-requests></app-tab-open-requests>
+                       </mat-tab>
+    
+    
+                       <!-- A L L        R E Q U E S T S     T A B -->
+                       <mat-tab label="All Requests">
+                         <app-tab-all-requests></app-tab-all-requests>
+                       </mat-tab>
 
                  </mat-tab-group>
 
@@ -367,7 +368,7 @@ Part 1 / Build the Tabs using the Height Calc Trick
 
         <div class="p-2.5 flex flex-col h-full">
         
-            <!--  T O P      O F      P A G E   -->
+            <!--  T O P      O F      T A B   -->
             <div class="grid grid-cols-2">
               <div>
                 <span class="text-xl">User Profile</span>
@@ -396,7 +397,5 @@ Part 1 / Build the Tabs using the Height Calc Trick
               </div>
         
         </div>
-
-
 
 ```
