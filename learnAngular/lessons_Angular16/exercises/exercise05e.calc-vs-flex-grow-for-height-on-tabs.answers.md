@@ -271,7 +271,7 @@ Part 1 / Build the Tabs using the Height Calc Trick
             </div>
           </div>
 
-          <!--  B O T T O M        O F      T A B  -->
+          <!--  B O T T O M        O F      P A G E   -->
           <div class="mt-2.5">
             Bottom of Page
           </div>
@@ -294,7 +294,7 @@ Part 1 / Build the Tabs using the Height Calc Trick
        </div>
 
 
-       <!--  B O T T O M        O F      T A B  -->
+       <!--  B O T T O M      O F      P A G E     A U T O     G R O W S    -->
        <div class="flex flex-grow h-full mt-5 overflow-y-auto">
          <div class="flex flex-col gap-y-2 w-full">
 
@@ -331,7 +331,7 @@ Part 1 / Build the Tabs using the Height Calc Trick
            </div>
 
 
-           <!--  B O T T O M        O F     P A G E  -->
+           <!--  B O T T O M      O F      P A G E     A U T O     G R O W S    -->
            <div class="flex flex-grow h-full mt-5 overflow-y-auto">
              <div class="flex flex-col gap-y-2 w-full">
 
