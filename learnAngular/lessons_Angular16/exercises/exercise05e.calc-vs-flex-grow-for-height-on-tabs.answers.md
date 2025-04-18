@@ -379,7 +379,7 @@ Part 1 / Build the Tabs using the Height Calc Trick
             </div>
         
           
-            <!--  B O T T O M        O F      T A B  -->
+            <!--  T A B    C O N T E N T S     A U T O    G R O W S                           -->
             <!--  This div *AUTOMATICALLY GROWS* to use 100% of the parent's remaining height -->
             <div class="flex flex-grow h-full mt-5 overflow-y-auto">
               <div class="flex flex-col gap-y-2">
@@ -406,7 +406,8 @@ Part 1 / Build the Tabs using the Height Calc Trick
         
         <div class="p-2.5 flex flex-col h-full">
         
-          <!--  T A B    C O N T E N T S     A U T O    G R O W S    -->
+          <!--  T A B    C O N T E N T S     A U T O    G R O W S                           -->
+          <!--  This div *AUTOMATICALLY GROWS* to use 100% of the parent's remaining height -->
           <div class="flex flex-grow h-full mt-5 overflow-y-auto">
             <div class="flex flex-col gap-y-2">
         
@@ -422,6 +423,6 @@ Part 1 / Build the Tabs using the Height Calc Trick
               </div>
             </div>
         
-          </div>
+        </div>
 
 ```
