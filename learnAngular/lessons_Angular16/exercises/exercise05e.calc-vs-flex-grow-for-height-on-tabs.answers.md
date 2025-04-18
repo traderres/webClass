@@ -237,7 +237,7 @@ Part 1 / Build the Tabs using the Height Calc Trick
 
 
 
-Part 2 / Build the Tabs using flex-col to grow the height automatically
+     / Build the Tabs using flex-col to grow the height automatically
 -----------------------------------------------------------------------
  1. Setup the Page
     a. Generate the component:                Call it TabGroupUsingFlexColHeightPage
@@ -271,7 +271,7 @@ Part 2 / Build the Tabs using flex-col to grow the height automatically
             </div>
           </div>
 
-            <!--  B O T T O M        O F      T A B  -->
+          <!--  B O T T O M        O F      T A B  -->
           <div class="mt-2.5">
             Bottom of Page
           </div>
@@ -291,7 +291,6 @@ Part 2 / Build the Tabs using flex-col to grow the height automatically
          <div class="flex place-content-end">
            Help
          </div>
-
        </div>
 
 
@@ -300,11 +299,11 @@ Part 2 / Build the Tabs using flex-col to grow the height automatically
          <div class="flex flex-col gap-y-2 w-full">
 
            <div>
-                   Bottom of Page
-               </div>
-
+               Bottom of Page
+            </div>
          </div>
-
+       </div>
+       
      </div>
 
 
@@ -366,36 +365,37 @@ Part 2 / Build the Tabs using flex-col to grow the height automatically
 
  7. Change the User Profile tabs so that they use flex-col to grow the height automatically
 
-         <div class="p-2.5 flex flex-col h-full">
+        <div class="p-2.5 flex flex-col h-full">
+        
+            <!--  T O P      O F      P A G E   -->
+            <div class="grid grid-cols-2">
+              <div>
+                <span class="text-xl">User Profile</span>
+              </div>
+              <div class="flex place-content-end">
+                Help
+              </div>
+            </div>
+        
+          
+            <!--  B O T T O M        O F      T A B  -->
+            <div class="flex flex-grow h-full mt-5 overflow-y-auto">
+              <div class="flex flex-col gap-y-2">
+          
+                <div>
+                  This is the User Profile Tab
+                </div>
+          
+                <div class="mt-2.5">
+                   <span
+                     *ngFor="let i of [1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38]">
+                      This is row {{i}} <br/>
+                    </span>
+                </div>
+              </div>
+        
+        </div>
 
-           <!--  T O P      O F      P A G E   -->
-           <div class="grid grid-cols-2">
-             <div>
-               <span class="text-xl">User Profile</span>
-             </div>
-             <div class="flex place-content-end">
-               Help
-             </div>
-
-           </div>
-
-
-             <!--  B O T T O M        O F      T A B  -->
-             <div class="flex flex-grow h-full mt-5 overflow-y-auto">
-               <div class="flex flex-col gap-y-2">
-
-                 <div>
-                 This is the User Profile Tab
-                 </div>
-
-                 <div class="mt-2.5">
-                  <span *ngFor="let i of [1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38]">
-                     This is row {{i}} <br/>
-                   </span>
-                 </div>
-             </div>
-
-         </div>
 
 
 ```
