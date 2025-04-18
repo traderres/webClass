@@ -30,42 +30,42 @@ Approach #2:  Use the flex col trick to grow the height
      +----------------------------------------------------------------------+
 
 
-	Showing the "Open Requests" tab
-	+----------------------------------------------------------------------+
+    Showing the "Open Requests" tab
+    +----------------------------------------------------------------------+
     | Tab Group Page w/Height Calc                                    Help |
-	+----------------------------------------------------------------------+
-	|                                                                      |
-	|  +------------------+-----------------------+---------------------+  |
+    +----------------------------------------------------------------------+
+    |                                                                      |
+    |  +------------------+-----------------------+---------------------+  |
     |  | User Profile Tab | Open Requests Tab     | All Requests Tab    |  |
-	|  +------------------+-----------------------+---------------------+  |
-	|  | Open Requests                                                  |  |
-	|  |                                                                |  |
-	|  | This is the Open Requests Tab                                  |  |
-	|  |                                                                |  |
-	|  |                                                                |  |
-	|  |                                                                |  |
-	|  |                                                                |  |
-	|  +----------------------------------------------------------------+  |
-	+----------------------------------------------------------------------+
+    |  +------------------+-----------------------+---------------------+  |
+    |  | Open Requests                                                  |  |
+    |  |                                                                |  |
+    |  | This is the Open Requests Tab                                  |  |
+    |  |                                                                |  |
+    |  |                                                                |  |
+    |  |                                                                |  |
+    |  |                                                                |  |
+    |  +----------------------------------------------------------------+  |
+    +----------------------------------------------------------------------+
 
 
-	Showing the "All Requests" tab
-	+----------------------------------------------------------------------+
+    Showing the "All Requests" tab
+    +----------------------------------------------------------------------+
     | Tab Group Page w/Height Calc                                    Help |
-	+----------------------------------------------------------------------+
-	|                                                                      |
-	|  +------------------+-----------------------+---------------------+  |
+    +----------------------------------------------------------------------+
+    |                                                                      |
+    |  +------------------+-----------------------+---------------------+  |
     |  | User Profile Tab | Open Requests Tab     | All Requests Tab    |  |
-	|  +------------------+-----------------------+---------------------+  |
-	|  | All Requests                                                   |  |
-	|  |                                                                |  |
-	|  | This is the All Requests Tab                                   |  |
-	|  |                                                                |  |
-	|  |                                                                |  |
-	|  |                                                                |  |
-	|  |                                                                |  |
-	|  +----------------------------------------------------------------+  |
-	+----------------------------------------------------------------------+
+    |  +------------------+-----------------------+---------------------+  |
+    |  | All Requests                                                   |  |
+    |  |                                                                |  |
+    |  | This is the All Requests Tab                                   |  |
+    |  |                                                                |  |
+    |  |                                                                |  |
+    |  |                                                                |  |
+    |  |                                                                |  |
+    |  +----------------------------------------------------------------+  |
+    +----------------------------------------------------------------------+
 
 
 
@@ -95,9 +95,9 @@ Part 1 / Build the Tabs using the Height Calc Trick
 
  3. Create a component for each tab
     NOTE:  Create these components in the same directory as your tab group page
- 	a. Create this component:   TabUserProfile
- 	b. Create this component:   TabOpenRequests
- 	c. Create this component:   TabAllRequests
+     a. Create this component:   TabUserProfile
+     b. Create this component:   TabOpenRequests
+     c. Create this component:   TabAllRequests
 
 
  4. Create the tab-group by adding a <mat-tab-group> tag to the main page
@@ -107,25 +107,25 @@ Part 1 / Build the Tabs using the Height Calc Trick
 
 
  6. Within each tab, create a simple outline with a tab title and a one-liner
-	-- Setup each tab with a title and a one-sentence description
+    -- Setup each tab with a title and a one-sentence description
 
-	Showing the "User Profile" tab
-	+----------------------------------------------------------------------+
-	| Tab Group Page                                                  Help |
-	+----------------------------------------------------------------------+
-	|                                                                      |
-	|  +------------------+-----------------------+---------------------+  |
+    Showing the "User Profile" tab
+    +----------------------------------------------------------------------+
+    | Tab Group Page                                                  Help |
+    +----------------------------------------------------------------------+
+    |                                                                      |
+    |  +------------------+-----------------------+---------------------+  |
     |  | User Profile Tab | Open Requests Tab     | All Requests Tab    |  |
-	|  +------------------+-----------------------+---------------------+  |
-	|  | User Profile                                                   |  |
-	|  |                                                                |  |
-	|  | This is the User Profile Tab                                   |  |
-	|  |                                                                |  |
-	|  |                                                                |  |
-	|  |                                                                |  |
-	|  |                                                                |  |
-	|  +----------------------------------------------------------------+  |
-	+----------------------------------------------------------------------+
+    |  +------------------+-----------------------+---------------------+  |
+    |  | User Profile                                                   |  |
+    |  |                                                                |  |
+    |  | This is the User Profile Tab                                   |  |
+    |  |                                                                |  |
+    |  |                                                                |  |
+    |  |                                                                |  |
+    |  |                                                                |  |
+    |  +----------------------------------------------------------------+  |
+    +----------------------------------------------------------------------+
 
 
 
@@ -134,7 +134,7 @@ Part 1 / Build the Tabs using the Height Calc Trick
 
 
  8. Have the tab use *REMAINING VISIBLE HEIGHT* of the web browser using the *HEIGHT CALC* trick
-	-- At this point, you have 3 somewhat empty tabs
+    -- At this point, you have 3 somewhat empty tabs
 
 
 
