@@ -167,11 +167,14 @@ Part 2 / Build the Tabs using flex-col to grow the height automatically
 
 
 
+
  4. Add the tab group to the bottom of the page
 
 
 
+
  5. Add the tabs inside the tab group
+
 
 
 
@@ -180,8 +183,14 @@ Part 2 / Build the Tabs using flex-col to grow the height automatically
 
 
 
- 7. Change the User Profile tabs so that they use flex-col to grow the height automatically
+
+ 7. Change the User Profile tabs so that they use flex-col to grow the *BOTOM OF THE TAB* automatically
 
 
+
+
+ 8. Change the "Open Requests" tab so that we grow the *ENTIRE TAB* automatically
+    a. Add a for loop so it displays lots of rows
+    b. Make sure the scrollbar fills the entire tab
 
 ```

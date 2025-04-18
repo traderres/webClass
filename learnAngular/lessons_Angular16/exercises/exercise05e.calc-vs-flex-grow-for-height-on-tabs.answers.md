@@ -364,7 +364,7 @@ Part 1 / Build the Tabs using the Height Calc Trick
          </div>
 
 
- 7. Change the User Profile tabs so that they use flex-col to grow the height automatically
+ 7. Change the User Profile tabs so that they use flex-col to grow the *BOTOM OF THE TAB* automatically
 
         <div class="p-2.5 flex flex-col h-full">
         
@@ -397,5 +397,31 @@ Part 1 / Build the Tabs using the Height Calc Trick
               </div>
         
         </div>
+
+
+ 8. Change the "Open Requests" tab so that we grow the *ENTIRE TAB* automatically
+    a. Add a for loop so it displays lots of rows
+    b. Make sure the scrollbar fills the entire tab
+    
+        
+        <div class="p-2.5 flex flex-col h-full">
+        
+          <!--  T A B    C O N T E N T S     A U T O    G R O W S    -->
+          <div class="flex flex-grow h-full mt-5 overflow-y-auto">
+            <div class="flex flex-col gap-y-2">
+        
+              <div>
+                This is the Open Requests Tab
+              </div>
+        
+              <div class="mt-2.5">
+                   <span
+                     *ngFor="let i of [1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38]">
+                      This is row {{i}} <br/>
+                    </span>
+              </div>
+            </div>
+        
+          </div>
 
 ```
