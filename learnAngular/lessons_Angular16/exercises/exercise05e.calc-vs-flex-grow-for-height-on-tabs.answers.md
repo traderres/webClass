@@ -379,6 +379,7 @@ Part 1 / Build the Tabs using the Height Calc Trick
         
           
             <!--  B O T T O M        O F      T A B  -->
+            <!--  This div *AUTOMATICALLY GROWS* to use 100% of the parent's remaining height -->
             <div class="flex flex-grow h-full mt-5 overflow-y-auto">
               <div class="flex flex-col gap-y-2">
           
