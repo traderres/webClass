@@ -7,7 +7,6 @@ Problem:  I'm creating my "Details Page" and it will have a Tab Group
 Approach #1:  Use the height calc to set the height
 Approach #2:  Use the flex col trick to grow the height
 
-
 ```
 ![](../images/exercise5e_image1.png)
 ```
