@@ -162,7 +162,7 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
                 filterOptions: ['contains', 'notContains'],         // Customize the filter to only show "Contains" and "Not Contains"
                 caseSensitive: false,                               // Filter is case-insensitive
                 debounceMs: 200,
-                suppressAndOrCondition: true,
+                maxNumConditions: 1
               };
       
     b. Update the defaultColumnDefs
@@ -700,7 +700,7 @@ Custom Cell Renderer V3:  The custom cell renderer looks good *AND* the text row
         filterOptions: ['contains', 'notContains'],         // Customize the filter to only show "Contains" and "Not Contains"
         caseSensitive: false,                               // Filter is case-insensitive
         debounceMs: 200,
-        suppressAndOrCondition: true,
+        maxNumConditions: 1
       };
     
       public defaultColumnDef: ColDef = {

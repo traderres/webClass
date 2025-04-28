@@ -178,7 +178,7 @@ Part 2 / Configure the gridOptions, columnDefs, defaultColumnDefs, and rowData
                 filterOptions: ['contains', 'notContains'],         // Customize the filter to only show "Contains" and "Not Contains"
                 caseSensitive: false,                               // Filter is case-insensitive
                 debounceMs: 200,
-                suppressAndOrCondition: true,
+                maxNumConditions: 1
               };
       
       
@@ -395,7 +395,7 @@ Part 4 / Configure the grid to load it's rowData with the fake service
         filterOptions: ['contains', 'notContains'],         // Customize the filter to only show "Contains" and "Not Contains"
         caseSensitive: false,                               // Filter is case-insensitive
         debounceMs: 200,
-        suppressAndOrCondition: true
+        maxNumConditions: 1
       };
     
     
