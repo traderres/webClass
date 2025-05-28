@@ -199,21 +199,6 @@ Part 1 / Configure gpgsm and gpg
        unix> gpgsm --import mycert.crt
 
 
-    NOTE:  If you are renewing a CAC, then
-            1) erase the pubring.kbx
-               unix> rm ~/.gnupg/pubring.kbx
-
-            2) re-create the pubring.pbx  (by running gpgsm --list-secret-keys)
-               unix> gpgsm --list-secret-keys
-
-            3) Import the $CER_FILENAME
-               unix> gpgsm --import $CER_FILENAME
-
-            4) Import the mycert.crt
-               unix> gpgsm --import mycert.crt
-
-
-
 12. Restart the GPG agent
     unix> gpgconf --kill all
 
@@ -627,4 +612,81 @@ fatal: failed to write commit object
 
        d. Restart gpg
           unix> gpgconf --kill all
+
+
+
+Weird Problem / Renewed CAC but could not find issuer.  Erased the pubring.kbx but then it would stop working later?!?!
+-----------------------------------------------------------------------------------------------------------------------
+    NOTE:  If you are renewing a CAC, then
+            1) Update gpgsm.conf
+               unix> vi ~/.gnupg/gpgsm.conf
+				ignore-cert-extension 2.5.29.30
+				ignore-cert-extension 2.5.29.36
+				ignore-cert-extension 2.5.29.54
+				disable-crl-checks
+				disable-policy-checks
+				disable-trusted-cert-crl-check
+
+
+            2) erase the pubring.kbx
+               unix> rm ~/.gnupg/pubring.kbx
+
+            3) re-create the pubring.pbx  (by running gpgsm --list-secret-keys)
+               unix> gpgsm --list-secret-keys
+
+            4) Import the $CER_FILENAME
+               unix> gpgsm --import $CER_FILENAME
+
+            5) Import the mycert.crt
+               unix> gpgsm --import mycert.crt
+
+			6) FInd issuer
+			   unix> gpgsm --dump-chain (user.signingkey)
+
+				Certified by
+						   ID: 0x360859B7
+						  S/N: 37F8DAA2BC7123B5398C308E085F2E23
+						(dec): 74399663847662892726423708599463128611
+					   Issuer: CN=CertiPath Bridge CA - G3,OU=Certification Authorities,O=CertiPath,C=US
+					  Subject: CN=Federal Bridge CA G4,OU=FPKI,O=U.S. Government,C=US
+					 sha2_fpr: E7:6B:B2:28:DC:B0:CC:B3:12:B2:00:5B:45:FB:D5:E0:33:1B:EF:68:D2:9B:85:67:E8:AC:CD:19:CD:9B:6E:7B
+					 sha1_fpr: 4D:5C:F7:B7:7A:43:0D:65:7B:D9:F4:A8:52:D6:FD:D2:36:08:59:B7
+					  md5_fpr: 1F:EE:1F:26:34:69:A4:FC:04:36:DF:32:03:9A:1F:12
+					  pgp_fpr: BF7B59FD8B626357410D57D196247C07508E484D
+					   certid: C859E7B196E73A169335425710A6FD59664ABC28.37F8DAA2BC7123B53gpgsm: issuer certificate {346B0E04F8B2AF6525B3EFCB5C44392A4C84883F} not found using authorityKeyIdentifier
+				98C308E085F2E23
+					  keygrip: 955D385DFB05CE2ACDFDC8E825A03F88E127EB42
+					notBefore: 2024-04-24 00:00:00
+					 notAfter: 2027-04-30 23:59:59
+					 hashAlgo: 1.2.840.113549.1.1.12 (sha384WithRSAEncryption)
+					  keyType: rsa2048
+					subjKeyId: 79F00049EB7F77C25D410265348A90239B1E076F
+					authKeyId: [none]
+				 authKeyId.ki: 7A8B3C0692DC1EA8D282AC1B746F743D4ED1A89B
+					 keyUsage: certSign crlSign
+				  extKeyUsage: [none]
+					 policies: 1.3.6.1.4.1.24019.1.1.1.1
+							   1.3.6.1.4.1.24019.1.1.1.2
+							   1.3.6.1.4.1.24019.1.1.1.3
+							   1.3.6.1.4.1.24019.1.1.1.4
+							   1.3.6.1.4.1.24019.1.1.1.5
+							   1.3.6.1.4.1.24019.1.1.1.7
+							   1.3.6.1.4.1.24019.1.1.1.8
+							   1.3.6.1.4.1.24019.1.1.1.9
+							   1.3.6.1.4.1.24019.1.1.1.23
+							   1.3.6.1.4.1.24019.1.1.1.24
+				  chainLength: unlimited
+						crlDP: http://crl.certipath.com/CertiPathBridgeCA-G3.crl
+							   issuer: none
+					 authInfo: 1.3.6.1.5.5.7.48.2 (caIssuers)
+							   http://aia.certipath.com/CertiPathBridgeCA-G3.p7c
+				  subjectInfo: 1.3.6.1.5.5.7.48.5 (caRepository)
+							   http://repo.fpki.gov/bridge/caCertsIssuedByfbcag4.p7c
+						 extn: 1.3.6.1.5.5.7.1.11 (subjectInfoAccess)  [69 octets]
+						 extn: 2.5.29.54 (inhibitAnyPolicy)  [3 octets]
+
+
+			unix> wget http://crl.boeing.com/crl/BoeingPCAG3.p7c
+			unix> gpgsm --import BoeingPCAG3.p7c
+			unix> gpgconf --kill all
 
