@@ -56,7 +56,7 @@ Angular 16 Lesson Plan
            <a href="./exercises/exercise05c.scroll-into-view.question.txt"                     title="Exercise 5c">Exercise 5c</a> / Scroll Into View               (<a href="./exercises/exercise05c.scroll-into-view.answers.txt" title="Answer to 5c">Answers</a>)
            <a href="./exercises/exercise05d.calc-vs-flex-grow-for-height.question.txt"         title="Exercise 5d">Exercise 5d</a> / Using Remaining Height         (<a href="./exercises/exercise05d.calc-vs-flex-grow-for-height.answers.txt" title="Answer to 5d">Answers</a>)
            <a href="./exercises/exercise05e.calc-vs-flex-grow-for-height-on-tabs.question.md"  title="Exercise 5e">Exercise 5e</a> / Using Remaining Height on Tabs (<a href="./exercises/exercise05e.calc-vs-flex-grow-for-height-on-tabs.answers.md" title="Answer to 5e">Answers</a>)
-           <a href="./exercises/exercise05f.calc-vs-flex-grow-for-height-on-tabs-with-ag-grid.answers.md"  title="Exercise 5f">Exercise 5f</a> / Using Remaining Height on Tabs w/ag-grid (<a href="./exercises/exercise05f.calc-vs-flex-grow-for-height-on-tabs-with-ag-grid.answers.md" title="Answer to 5f">Answers</a>)
+           <a href="./exercises/exercise05f.calc-vs-flex-grow-for-height-on-tabs-with-ag-grid.answers.md"  title="Exercise 5f">Exercise 5f</a> / Using Remaining Height on Tabs w/ag-grid (<a href="./exercises/exercise05f.calc-vs-flex-grow-for-height-on-tabs-with-ag-grid.answers.md" title="Answer to 5f;">Answers</a>)
 
     c. How to make DIVs appear/disappear using animation
            <a href="./exercises/exercise06a.howToDoTransitionsOnWidth.question.txt"                  title="Exercise 6a">Exercise 6a</a> / Transitions on width           (<a href="./exercises/exercise06a.howToDoTransitionsOnWidth.answers.txt"                  title="Answer to 6a">Answers</a>)
@@ -196,7 +196,8 @@ Angular 16 Lesson Plan
 20. Downloads
 
 21. Uploads
-
+    <a href="./howToInstallNg2FileUpload.txt"            title="How to Install ng2-file-upload">How to Install ng2-file-upload</a> 
+ 
 22. The Extended PDF Viewer (using an embedded PDF viewer)
 
 </pre>
