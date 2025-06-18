@@ -4,64 +4,59 @@ Problem:  My Logitech M330 mouse falls asleep and does not wake-up on bootup
 Solution: Add a rule to /etc/udev/rules.d to tell it to wakeup the mouse
 
 
+
+
+Udev is the Linux subsystem that supplies your computer with device events.
+-- It's the code that detects when you have things plugged into your computer, like a network card, USB thumb drives, mouses, keyboards,
+--
 Procedure
 ---------
- 1. Get wake-up status
-    unix> grep . /sys/bus/usb/devices/*/power/wakeup
-	/sys/bus/usb/devices/1-1/power/wakeup:disabled
-	/sys/bus/usb/devices/2-10.1/power/wakeup:enabled
-	/sys/bus/usb/devices/2-10/power/wakeup:disabled
-	/sys/bus/usb/devices/2-11/power/wakeup:disabled
-	/sys/bus/usb/devices/2-13/power/wakeup:disabled
-	/sys/bus/usb/devices/2-5/power/wakeup:disabled
-	/sys/bus/usb/devices/2-7/power/wakeup:disabled
-	/sys/bus/usb/devices/3-1/power/wakeup:disabled
-	/sys/bus/usb/devices/usb1/power/wakeup:disabled
-	/sys/bus/usb/devices/usb2/power/wakeup:disabled
-	/sys/bus/usb/devices/usb3/power/wakeup:disabled
-	/sys/bus/usb/devices/usb4/power/wakeup:disabled
+ 1. Identify the number of your logitech receiver
+    unix> dmesg | grep --before-context 3 --after-context 3  -i logitech  | grep -i devices
+
+	[    0.585032] input: Logitech USB Receiver as /devices/pci0000:00/0000:00:14.0/usb2/2-5/2-5:1.0/0003:046D:C52F.0001/input/input2
+	[    0.586310] input: Logitech USB Receiver Consumer Control as /devices/pci0000:00/0000:00:14.0/usb2/2-5/2-5:1.1/0003:046D:C52F.0002/input/input3
+	[    1.918575] input: Logitech Wireless Mouse PID:4057 Mouse as /devices/pci0000:00/0000:00:14.0/usb2/2-5/2-5:1.1/0003:046D:C52F.0002/0003:046D:4057.0005/input/input9
+	[    1.918635] input: Logitech Wireless Mouse PID:4057 Consumer Control as /devices/pci0000:00/0000:00:14.0/usb2/2-5/2-5:1.1/0003:046D:C52F.0002/0003:046D:4057.0005/input/input10
+	[    3.170556] input: Logitech B330/M330/M3 as /devices/pci0000:00/0000:00:14.0/usb2/2-5/2-5:1.1/0003:046D:C52F.0002/0003:046D:4057.0005/input/input14
+                               -- We see that the logitech receiver is device 2-5
 
 
- 2. Get the id of your logitech unifying receiver
-    unix> lsusb
-	Bus 001 Device 002: ID 8087:8000 Intel Corp. Integrated Rate Matching Hub
-	Bus 001 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
-	Bus 003 Device 002: ID 8087:8008 Intel Corp. Integrated Rate Matching Hub
-	Bus 003 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
-	Bus 004 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub
-	Bus 002 Device 003: ID 0bda:0182 Realtek Semiconductor Corp. USB2.0-CRW
-	Bus 002 Device 002: ID 046d:c52f Logitech, Inc. Unifying Receiver            <--- Here is the Logitech Unifying Receiver
-	Bus 002 Device 007: ID 0cf3:e004 Qualcomm Atheros Communications Bluetooth USB Host Controller
-	Bus 002 Device 005: ID 058f:9540 Alcor Micro Corp. AU9540 Smartcard Reader
-	Bus 002 Device 006: ID 413c:2006 Dell Computer Corp. Dell USB Keyboard Hub
-	Bus 002 Device 004: ID 413c:1004 Dell Computer Corp. Dell USB Keyboard Hub
-	Bus 002 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
+ 2. Get wake-up status
+    unix> grep . /sys/bus/usb/devices/*/power/wakeup | grep 2-5
+	/sys/bus/usb/devices/2-5/power/wakeup:disabled   <--- Disabled
 
+
+ 3. Get the vendor id and product id of your logitech unifying receiver
+    unix> lsusb | grep -i logitech
+    Bus 002 Device 002: ID 046d:c52f Logitech, Inc. Unifying Receiver
+                            ^    ^------- Product ID
+                            |
+                          Vendor ID
 
  3. Create a file:  logitech-unifying.rules
     unix> sudo vi /etc/udev/rules.d/logitech-unifying.rules
 
     ACTION=="add", SUBSYSTEM=="usb", DRIVERS=="usb", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c52f", ATTR{power/wakeup}="enabled"
-                                                                         ^                         ^
-                                                                         |                         |
-                                                                       Get this info from the previous lsusb command
+
+               *OR*
+
+    ACTION=="add", SUBSYSTEM=="usb", DRIVERS=="usb", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c52f", RUN+="/bin/sh -c 'echo enabled > /sys/bus/usb/devices/2-5/power/wakeup'"
+                                                                         ^                         ^                                             ^
+                                                                         |                         |                                             |
+                                                                       Get this info from the previous lsusb command                       device file
+
+ 4. Reload udev
+    unix> sudo udevadm control --reload-rules
+    unix> sudo udevadm trigger
 
 
- 4. Reboot
+ 5. Reboot
 
- 5. Verify the change was applied
-    unix> grep . /sys/bus/usb/devices/*/power/wakeup
-	/sys/bus/usb/devices/1-1/power/wakeup:disabled
-	/sys/bus/usb/devices/2-10.1/power/wakeup:enabled    <-- now it's enabled
-	/sys/bus/usb/devices/2-10/power/wakeup:disabled
-	/sys/bus/usb/devices/2-11/power/wakeup:disabled
-	/sys/bus/usb/devices/2-13/power/wakeup:disabled
-	/sys/bus/usb/devices/2-5/power/wakeup:enabled
-	/sys/bus/usb/devices/2-7/power/wakeup:disabled
-	/sys/bus/usb/devices/3-1/power/wakeup:disabled
-	/sys/bus/usb/devices/usb1/power/wakeup:disabled
-	/sys/bus/usb/devices/usb2/power/wakeup:disabled
-	/sys/bus/usb/devices/usb3/power/wakeup:disabled
-	/sys/bus/usb/devices/usb4/power/wakeup:disabled
+ 6. Verify the change was applied
+    unix> grep . /sys/bus/usb/devices/*/power/wakeup | grep 2-5
+	/sys/bus/usb/devices/2-5/power/wakeup:enabled             <-- now it's enabled
 
 
+ 7. Get information about that enabled process
+    unix> sudo udevadm test /sys/bus/usb/devices/2-5
