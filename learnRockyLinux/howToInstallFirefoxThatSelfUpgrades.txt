@@ -1,0 +1,115 @@
+How to Install Firefox on Rocky Linux 9  (that automatically upgrades)
+----------------------------------------------------------------------
+
+
+Procedure
+---------
+ 1. Download Firefox for Linux 64-bit
+    a. Go to https://www.mozilla.org/en-US/firefox/linux/
+    b. Press "Download for Linux 64-bit"
+       -- Save firefox-139.0.4.tar.xz to your Downloads/ directory
+
+ 2. Verify the version of Firefox you are running
+    a. Startup Firefox
+    b. Pull Help -> About
+       It shows version 128.4.0esr (64-bit)
+
+ 3. Export your existing firefox bookmarks
+    a. Startup Firefox
+    b. Press Ctrl-Shift-O
+    c. Pull Import and Backup -> Export Bookmarks to HTML....
+    d. Save bookmarks.html
+
+ 4. Uninstall the firefox that comes with the base Rocky Linux 9 install
+    unix> sudo dnf list installed | grep firefox
+          firefox.x86_64                                           128.4.0-1.el9_4                     @appstream
+
+    unix> sudo dnf remove firefox
+
+
+ 5. Install the downloaded firefox
+    a. Unzip the .tar.gz file to /opt
+       unix> cd /opt
+       unix> sudo cp ~/Downloads/firefox-139.0.4.tar.xz .
+       unix> sudo tar xvf firefox-139.0.4.tar.xz
+       unix> sudo rm firefox-139.0.4.tar.xz
+
+   b. Change the ownership of the installation directory to belong to you
+      unix> sudo chown -R adam:adam /opt/firefox
+
+   c. Create a link so firefox is in the path
+      unix> sudo ln -s /opt/firefox/firefox /usr/local/bin/firefox
+
+ 6. **OPTIONAL** Change your shortcut
+    Firefox command is:    /usr/local/bin/firefox
+    Firefox Icon is here:  /opt/firefox/browser/chrome/icons/default/default128.png
+
+ 7. Startup Firefox
+    unix> firefox
+
+ 8. Check that the version
+    a. Setup the menubar
+    b. Pull Help / About
+       -- You should see Firefox 139.0.4
+
+       This version of Firefox will automatically update
+
+
+
+ 9. Change the crypto policy so that we do not use nss-p11-kit
+ 	unix> sudo cp /etc/crypto-policies/local.d/nss-p11-kit.config  /etc/crypto-policies/local.d/nss-p11-kit.config.OLD
+ 	unix> sudo rm /etc/crypto-policies/local.d/nss-p11-kit.config
+ 	unix> sudo update-crypto-policies
+ 	unix> sudo reboot
+
+
+10. Configure Firefox to use the opensc-pkcs11.so module (now that the p11-kit-proxy is not automatically loaded every time)
+ 	   a. Startup Firefox
+ 	   b. Pull Edit -> Preferences
+ 	   c. Search for Security devices and press "Security Devices"
+ 	   d. In the "Device Manager"
+ 		   1) Press "Load"
+ 		   2) In the popup
+ 			  Module Name:      CAC Reader
+ 			  Module filename:  /usr/lib64/opensc-pkcs11.so
+ 			  Press OK
+
+
+11. Verify your browser works with CAC support by going to "mail.mil"
+    a. Using firefox, go to https://webmail.apps.mil/mail
+    b. You should be prompted to use your CAC
+       -- Select your CAC
+    c. You should see a message saying
+       Your account has been successfully authenticated
+
+
+
+12. Problem:     Firefox and Chrome take 30 seconds to startup when CAC is inserted into built-in CAC reader
+    Solution:    Tell opensc to only use the cac driver.  By default, opensc tries 35 drivers and that can take time
+                 NOTE:  This worked with both CAC and ECA cards
+
+
+     1. Edit the /open/sc.conf
+        unix> sudo vi /etc/opensc.conf
+
+
+     2. Add this line to the app default section:
+            card_drivers = cac;
+
+
+        When completed, the app default should start with that:
+                app default {
+
+                     # Tell opensc to only use this 1 driver
+                     # NOTE:  To see all drivers that are supported,
+                     #  1) Remove the card_drivers = ... from this file  *AND* reboot
+                     #  2) Run this command:
+                     #     unix> opensc-tool --list-drivers
+                     card_drivers = cac;
+
+                     ...
+                }
+
+
+     3. Reboot
+        -- And, firefox and chrome startup much faster when a CAC is inserted
