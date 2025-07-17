@@ -31,6 +31,21 @@ Assumptions
  E) You want your keycloak listening on https://keycloak.docker.internal:8444/
  F) The oidc-provider-for-fake-ca is listening on this url:  https://ni2.docker.internal:9444/fake
 
+ If you need your OIDC provider to authenticate for CACs, then you must add the DOD trusts to your /keycloak.docker.internal.truststore.jks
+   1) Create the /tmp/cacerts [that has the DOD trusts]
+      See howToSetupIdentityProviderWithPkiUsingSpringAuthServerAndCac.txt / line 120 / look for "Add the DOD/ECA trusts to your truststore"
+      -- This will create the /tmp/cacerts file that has all of the dod trusts
+
+   2) Combine /tmp/cacerts AND keycloak.docker.internal.truststore.jks --> new trust called /tmp/cacerts.all
+      unix> keytool -importkeystore -srckeystore ${NI2_PROJECT_PATH}/infrastructure/root-ca/server-certs/keycloak.docker.internal.truststore.jks  -destkeystore /tmp/cacerts.all - -srcstorepass changeit -deststorepass changeit
+      unix> keytool -importkeystore -srckeystore /tmp/cacerts  -destkeystore /tmp/cacerts.all  -srcstorepass changeit -deststorepass changeit
+
+   3) Tell keycloak to trust the /tmp/cacerts.all file
+      export JAVA_OPTS_APPEND="  -Djavax.net.ssl.trustStorePassword=changeit  -Djavax.net.ssl.trustStore=/tmp/cacerts.all "
+
+   4) Tell your oidc provider to trust /tmp/cacerts.all as well
+      java  -Dspring.profiles.active=oidc_provider_for_fake_ca  -Djavax.net.ssl.trustStorePassword=changeit  -Djavax.net.ssl.trustStore=/tmp/cacerts.all -jar /path/to/oidc-provider-for-fake-ca.jar
+
 
 
 Part 1 / Setup Keycloak to listen on TLS at https://keycloak.docker.internal:8444/
