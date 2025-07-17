@@ -1,0 +1,472 @@
+How to Configure Keycloak such that it will Authentication via a Custom OIDC Provider
+-------------------------------------------------------------------------------------
+
+
+                TLS
+  Web Browser -------> Java Spring Boot -------------------------------->  User is authenticated  ---> user sees pages
+                         Web App  <-----------------------------+
+                           |               Webapp               ^
+                           |           Creates Session          | JWT token
+                       TLS |                                    | is sent to the web app
+                           V                                    |
+                        Keycloak                       Keycloak Creates a SSO session and JWT token
+                           |                                    ^
+                           |                                    | Returns attributes to keycloak:
+                       TLS |                                    |   user_type, authentication_type
+                           |                                    |   subject, subject_alt_name, username
+                           V                                    |
+                   +--------------------+                       |
+                   | Login with Fake CA |  -------->  oidc-provider-for-fake-ca
+                   +--------------------+      TLS     (prompts for PKI Cert)
+                    Keycloak Presents                   Pulls the subject, subject_alt_name,
+                     This Login Page                    and common name (username)
+                                                        from the PKI certificate
+
+
+Assumptions
+ A) You have KEYCLOAK_HOME set to where you unzipped keycloak
+ B) You have NI2_PROJECT_PATH set to where all of your code is located
+ C) You have the keycloak keystore:     ${NI2_PROJECT_PATH}/infrastructure/root-ca/server-certs/keycloak.docker.internal.keystore.jks
+ D) You have the keycloak truststore:   ${NI2_PROJECT_PATH}/infrastructure/root-ca/server-certs/keycloak.docker.internal.truststore.jks
+ E) You want your keycloak listening on https://keycloak.docker.internal:8444/
+ F) The oidc-provider-for-fake-ca is listening on this url:  https://ni2.docker.internal:9444/fake
+
+
+
+Part 1 / Setup Keycloak to listen on TLS at https://keycloak.docker.internal:8444/
+----------------------------------------------------------------------------------
+ 1. Add an entry in your /etc/hosts
+    unix> sudo vi /etc/hosts
+         127.0.0.1    keycloak.docker.internal
+
+ 2. Download the keycloak-26.2.4.zip file
+    Go to https://github.com/keycloak/keycloak/releases/download/26.2.4/keycloak-26.2.4.zip
+    Save it to your ~/Downloads
+
+ 3. Unzip it
+    unix> cd ~/Downloads
+    unix> unzip keycloak-26.2.4.zip
+
+ 4. Create a bash variable for where you unzipped keycloak
+    unix> export KEYCLOAK_HOME=~/Downloads/keycloak-26.2.4
+
+ 5. Create a script to start keycloak in SSL mode with a default admin password
+    unix> vi $KEYCLOAK_HOME/start.keycloak.ssl.sh
+
+
+    ###################################################################################################################################
+    # Filename:   start.kc.ssl.sh
+    #
+    # Purpose:
+    #     Run keycloak in SSL mode listening on https://keycloak.docker.internal:8444/
+    #
+    # ASSUMPTIONS:
+    #   1) You have a Java 17 JDK or later
+    #   2) You have ni2.docker.internal defined in your /etc/hosts file
+    #
+    # NOTES:
+    #   --https-client-auth=<none|request|required>        "request" means keycloak will also accept requests without a cert but validates cert if it exists
+    #   --hostname=keycloak.docker.internal                 tells it to listen on the hostname called keycloak.docker.internal
+    ###################################################################################################################################
+
+    export JAVA_OPTS_APPEND="  -Djavax.net.ssl.trustStorePassword=changeit  -Djavax.net.ssl.trustStore=${NI2_PROJECT_PATH}/infrastructure/root-ca/server-certs/keycloak.docker.internal.truststore.jks "
+    export KC_BOOTSTRAP_ADMIN_USERNAME=admin
+    export KC_BOOTSTRAP_ADMIN_PASSWORD=secret
+
+    # Run keycloak in TLS mode
+    bin/kc.sh start  --http-enabled=false --https-port=8444 --https-key-store-file=${NI2_PROJECT_PATH}/infrastructure/root-ca/server-certs/keycloak.docker.internal.keystore.jks --https-key-store-type=JKS --https-key-store-password=changeit    --log-level=INFO  --hostname-strict=false --hostname=keycloak.docker.internal  --https-client-auth=none
+
+
+
+ 6. Startup keycloak for the *FIRST* time
+    unix> cd $KEYCLOAK_HOME
+    unix> chmod ugo+x start.keycloak.ssl.sh
+    unix> ./start.keycloak.ssl.sh
+
+ 7. Connect to keycloak for the *FIRST* time
+    Go to https://keycloak.docker.internal:8444/
+
+ 8. Enter the admin username:  admin     (defined in KC_BOOTSTRAP_ADMIN_USERNAME)
+    Enter the admin password:  secret    (defined in KC_BOOTSTRAP_ADMIN_PASSWORD)
+
+     -- You should be logged-in as an administrator
+
+
+
+Part 2 / Add the custom theme to keycloak
+-----------------------------------------
+ 1. Compile the keycloak-plugins project
+    unix> cd $NI2_PROJECT_PATH/keycloak-plugins
+    unix> mvn clean package
+          -- Generates the Java JAR with the custom themes
+          -- File is here:  login-page-theme/target/login-page-theme-1.0-SNAPSHOT.jar
+
+ 2. Copy login-page-theme/target/login-page-theme-1.0-SNAPSHOT.jar TO $KEYCLOAK_HOME/providers
+    unix> cp login-page-theme/target/login-page-theme-1.0-SNAPSHOT.jar $KEYCLOAK_HOME/providers
+
+ 3. Stop keycloak by pressing Control-C
+
+ 4. Update the keycloak configuration (so it picks-up the login-page-theme jar)
+    unix> cd $KEYCLOAK_HOME
+    unix> ./bin/kc.sh build
+
+ 5. Startup Keycloak
+    unix> ./start.keycloak.ssl.sh
+
+
+
+Part 3 / Create the Keycloak Realm called "MyRealm"
+---------------------------------------------------
+ 1. Create the empty realm:  MyRealm
+    a. Press "Manage realms" -> "Create realm"
+    b. In the Create Realm screen
+       Realm name:  MyRealm
+       Press "Create"
+
+       -- At this point, your current realm should be MyRealm
+
+
+ 2. Configure the Realm Session Timeout (to be 15 minutes)
+    a. Press Realm Settings -> Sessions Tab
+    b. In the "Sessions" tab
+        SSO Session Idle:       15 minutes
+        SSO Session Max:        15 minutes
+        Press "Save"
+
+    c. Press Realm Settings -> Tokens Tab
+    d. In the "Tokens" tab
+        Access Token Lifespan:                      15 minutes
+        Access Token Lifespan for Implicit Flow:    15 minutes
+        Press "Save"
+
+
+ 3. Configure the Realm User Profile to have these attributes:  user_type, authentication_type, subject, subject_alt_name
+    a. Press Realm Settings -> "User profile" Tab
+    b. Make sure email is not required
+        1) Click on email
+        2) Set Required field:  Off
+        3) Press "Save"
+    c. Make sure firstName is not required
+        1) Click on firstName
+        2) Set Required field:  Off
+        3) Press "Save"
+    d. Make sure lastName is not required
+        1) Click on lastName
+        2) Set Required field:  Off
+        3) Press "Save"
+
+    e. Add this attribute:  authentication_type
+        1) Press "Create attribute"
+        2) In the Create attribute screen
+            Attribute [name]:       authentication_type
+            Display name:           authentication_type
+            Multivalued:            Off
+            Attribute group:        None
+            Enabled:                Always
+            Required Field:         Off
+            Press "Create"
+
+    f. Add this attribute:  user_type
+        1) Press "Create attribute"
+        2) In the Create attribute screen
+            Attribute [name]:       user_type
+            Display name:           user_type
+            Multivalued:            Off
+            Attribute group:        None
+            Enabled:                Always
+            Required Field:         Off
+            Press "Create"
+
+    g. Add this attribute:  subject
+        1) Press "Create attribute"
+        2) In the Create attribute screen
+            Attribute [name]:       subject
+            Display name:           subject
+            Multivalued:            Off
+            Attribute group:        None
+            Enabled:                Always
+            Required Field:         Off
+            Press "Create"
+
+    h. Add this attribute:  subject_alt_name
+        1) Press "Create attribute"
+        2) In the Create attribute screen
+            Attribute [name]:       subject_alt_name
+            Display name:           subject_alt_name
+            Multivalued:            Off
+            Attribute group:        None
+            Enabled:                Always
+            Required Field:         Off
+            Press "Create"
+
+
+ 4. Set the Client Scopes (which allow the web apps to get the attributes)
+    a. Go to "MyRealm" -> Client Scopes -> "profile" -> "Mappers" tab
+    b. Press "Add mapper" -> By configuration -> User Attribute
+    c. In the "Add mapper" page
+            Mapper type:        User Attribute
+            Name:               authentication_type
+            user attribute      <select authentication_type from the dropdown>
+            Token claim name    authentication_type
+
+        Rest are default values:
+            Claim JSON Type:                    String
+            Add to ID token:                    On
+            Add to access token:                On
+            Add to lightweight access token     Off
+            Add to userinfo                     On
+            Add to token introspection          On
+            Multivalued                         Off
+            Aggregate attribute value           Off
+
+        Press "Save"
+        Press "Client scope details" to add another one
+
+
+    d. Press "Add mapper" -> By configuration -> User Attribute
+    e. In the "Add mapper" page
+            Mapper type:        User Attribute
+            Name:               user_type
+            user attribute      <select user_type from the dropdown>
+            Token claim name    user_type
+
+        Press "Save"
+        Press "Client scope details" to add another one
+
+
+    f. Press "Add mapper" -> By configuration -> User Attribute
+    g. In the "Add mapper" page
+            Mapper type:        User Attribute
+            Name:               subject
+            user attribute      <select subject from the dropdown>
+            Token claim name    subject
+
+        Press "Save"
+        Press "Client scope details" to add another one
+
+
+    h. Press "Add mapper" -> By configuration -> User Attribute
+    i. In the "Add mapper" page
+            Mapper type:        User Attribute
+            Name:               subject_alt_name
+            user attribute      <select subject_alt_name from the dropdown>
+            Token claim name    subject_alt_name
+
+        Press "Save"
+        Press "Client scope details" to add another one
+
+
+ 5. Add the clients
+    NOTE:  Each client is a webapp that uses keycloak for authentication
+
+    a. Create this client:  core-welcome-webapp
+       1) Go to "MyRealm" -> Clients -> Create client
+       2) In the Create client page
+            Client type:    OpenID Connect
+            Client ID:      core-welcome-webapp
+            Client Name:    core-welcome-webapp
+            Press "Next"
+            Press "next"
+            Press "save"
+       3) In the "Settings" tab
+            Root URL:                   https://ni2.docker.internal/welcome              # Where ever the welcome webapp is listening on
+            Home URL:                   https://ni2.docker.internal/welcome              # Where ever the welcome webapp is listening on
+            Client authentication:      On
+            Authorization:              On
+            Authentication Flow:        Standard flow
+            Login theme:                ni2-login-page-theme
+            Press "Save"
+
+    b. Create this client:  core-admin-webapp
+       1) Go to "MyRealm" -> Clients -> Create client
+       2) In the Create client page
+             Client type:    OpenID Connect
+             Client ID:      core-admin-webapp
+             Client Name:    core-admin-webapp
+             Press "Next"
+             Press "next"
+             Press "save"
+       3) In the "Settings" tab
+             Root URL:                   https://ni2.docker.internal/admin              # Where ever the welcome webapp is listening on
+             Home URL:                   https://ni2.docker.internal/admin              # Where ever the welcome webapp is listening on
+             Client authentication:      On
+             Authorization:              On
+             Authentication Flow:        Standard flow
+             Login theme:                ni2-login-page-theme
+             Press "Save"
+
+    c. Create this client:  core-gov-registration-webapp
+       1) Go to "MyRealm" -> Clients -> Create client
+       2) In the Create client page
+             Client type:    OpenID Connect
+             Client ID:      core-gov-registration-webapp
+             Client Name:    core-gov-registration-webapp
+             Press "Next"
+             Press "next"
+             Press "save"
+       3) In the "Settings" tab
+             Root URL:                   https://ni2.docker.internal/registration              # Where ever the welcome webapp is listening on
+             Home URL:                   https://ni2.docker.internal/registration              # Where ever the welcome webapp is listening on
+             Client authentication:      On
+             Authorization:              On
+             Authentication Flow:        Standard flow
+             Login theme:                ni2-login-page-theme
+             Press "Save"
+
+    d. Create this client:  contract-webapp
+       1) Go to "MyRealm" -> Clients -> Create client
+       2) In the Create client page
+             Client type:    OpenID Connect
+             Client ID:      contract-webapp
+             Client Name:    contract-webapp
+             Press "Next"
+             Press "next"
+             Press "save"
+       3) In the "Settings" tab
+             Root URL:                   https://ni2.docker.internal/contract              # Where ever the welcome webapp is listening on
+             Home URL:                   https://ni2.docker.internal/contract              # Where ever the welcome webapp is listening on
+             Client authentication:      On
+             Authorization:              On
+             Authentication Flow:        Standard flow
+             Login theme:                ni2-login-page-theme
+             Press "Save"
+
+    e. Create this client:  cscs-webapp
+       1) Go to "MyRealm" -> Clients -> Create client
+       2) In the Create client page
+             Client type:    OpenID Connect
+             Client ID:      cscs-webapp
+             Client Name:    cscs-webapp
+             Press "Next"
+             Press "next"
+             Press "save"
+       3) In the "Settings" tab
+             Root URL:                   https://ni2.docker.internal/cscs              # Where ever the welcome webapp is listening on
+             Home URL:                   https://ni2.docker.internal/cscs              # Where ever the welcome webapp is listening on
+             Client authentication:      On
+             Authorization:              On
+             Authentication Flow:        Standard flow
+             Login theme:                ni2-login-page-theme
+             Press "Save"
+
+    f. Create this client:  foci-webapp
+       1) Go to "MyRealm" -> Clients -> Create client
+       2) In the Create client page
+             Client type:    OpenID Connect
+             Client ID:      foci-webapp
+             Client Name:    foci-webapp
+             Press "Next"
+             Press "next"
+             Press "save"
+       3) In the "Settings" tab
+             Root URL:                   https://ni2.docker.internal/foci              # Where ever the welcome webapp is listening on
+             Home URL:                   https://ni2.docker.internal/foci              # Where ever the welcome webapp is listening on
+             Client authentication:      On
+             Authorization:              On
+             Authentication Flow:        Standard flow
+             Login theme:                ni2-login-page-theme
+             Press "Save"
+
+    g. Create this client:  sit-webapp
+       1) Go to "MyRealm" -> Clients -> Create client
+       2) In the Create client page
+             Client type:    OpenID Connect
+             Client ID:      sit-webapp
+             Client Name:    sit-webapp
+             Press "Next"
+             Press "next"
+             Press "save"
+       3) In the "Settings" tab
+             Root URL:                   https://ni2.docker.internal/sf              # Where ever the welcome webapp is listening on
+             Home URL:                   https://ni2.docker.internal/sf              # Where ever the welcome webapp is listening on
+             Client authentication:      On
+             Authorization:              On
+             Authentication Flow:        Standard flow
+             Login theme:                ni2-login-page-theme
+             Press "Save"
+
+
+ 6. Add the Identity Providers to your realm:   oidc-provider-for-fake-ca
+    a. Press "Identity providers" -> OpenID Connect v1.0
+    b. In the Add OpenID Connect provider screen
+        alias:                        oidc-provider-for-fake-ca          # Entering this alias changes the Redirect URI for you (so
+        Display Name:                 Login with Fake CA
+        Display order:                1
+        Discovery endpoint:           https://ni2.docker.internal:9444/fake/.well-known/openid-configuration
+
+
+        NOTE: Keycloak will invoke the discovery endpoint and WILL AUTO-POPULATE THESE FIELDS:
+                Authorization URL:    https://ni2.docker.internal:9444/fake/oauth2/authorize
+                Token URL:            https://ni2.docker.internal:9444/fake/oauth2/token
+                Logout URL:           https://ni2.docker.internal:9444/fake/connect/logout
+                User Info URL:        https://ni2.docker.internal:9444/fake/userinfo
+                Issuer:               https://ni2.docker.internal:9444/fake
+                Validate Signature    On
+                Use JWKS URL:         On
+                JWKS URL:             https://ni2.docker.internal:9444/oauth2/jwks
+                Use PKCE              Off
+
+
+        client authentication:        client secret sent as post
+        client id:                    oidc-provider-for-fake-ca-client
+        client secret:                secret
+        client assertion:             Algorithm not specified
+
+    c. Press "Add"
+
+    d. Finish configuring this identity provider
+       1) Set Scopes to be openid profile
+            Scroll down to "Advanced" and expand it
+            Scopes:    openid profile
+
+       2) Turn on Access Token is JWT
+            Scroll down to "Advanced Settings"
+            Access Token is JWT:  On
+
+       3) Set First login flow override to "first broker login"
+            Scroll down to the bottom of the page
+            First login flow override:  first broker login
+
+    e. Press "Save"
+
+    f. Add the mappers to this identity provider:  user_type, authentication_type, subject, and subject_alt_name
+       1) Go to Identity Providers -> Login with Fake CA -> Mappers tab
+       2) Press "Add mapper"
+          In the Add Identity Provider Mapper page
+          Name:                     user_type
+          Sync mode override:       Inherit
+          Mapper type:              Attribute Importer
+          Claim:                    user_type
+          User Attribute Name:      user_type                (chose from the dropdown)
+
+
+       3) Go to Identity Providers -> Login with Fake CA -> Mappers tab
+       4) Press "Add mapper"
+          In the Add Identity Provider Mapper page
+          Name:                     authentication_type
+          Sync mode override:       Inherit
+          Mapper type:              Attribute Importer
+          Claim:                    authentication_type
+          User Attribute Name:      authentication_type       (chose from the dropdown)
+
+       5) Go to Identity Providers -> Login with Fake CA -> Mappers tab
+       6) Press "Add mapper"
+          In the Add Identity Provider Mapper page
+          Name:                     subject
+          Sync mode override:       Inherit
+          Mapper type:              Attribute Importer
+          Claim:                    subject
+          User Attribute Name:      subject                   (chose from the dropdown)
+
+       7) Go to Identity Providers -> Login with Fake CA -> Mappers tab
+       8) Press "Add mapper"
+          In the Add Identity Provider Mapper page
+          Name:                     subject_alt_name
+          Sync mode override:       Inherit
+          Mapper type:              Attribute Importer
+          Claim:                    subject_alt_name
+          User Attribute Name:      subject_alt_name         (chose from the dropdown)
+
+
+
+
