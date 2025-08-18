@@ -1,0 +1,243 @@
+How to Setup a Frontend Session Timeout w/countdown
+---------------------------------------------------
+Problem:  I want to warn the user when the session is about to expire
+          I don't want to use a dialog
+          Instead, I want to hide the entire app.component.html with a panel
+
+
+            +--------------------------------------------------------------
+            |   angularApp16
+            |
+            +--------------------------------------------------------------
+                                       |
+                                       | After 14 minutes of inactivity
+                                       V
+            +--------------------------------------------------------------
+            |                  Session Expires Soon
+            |
+            |  For your protection, you will be automatically logged-out.
+            |
+            |  You will be logged-out in 5 seconds
+            |
+            |                     <Log Out>  <Continue>
+            +--------------------------------------------------------------
+                                       |
+                                       | After 1 more minute of inactivity,
+                                       | redirect to unprotected static webapp with logout page
+                                       V
+            +--------------------------------------------------------------
+            |              You have been successfully logged-out
+            |
+            +--------------------------------------------------------------
+
+Procedure
+---------
+ 1. Install ng-idle/core and ng-idle/keepalive v14.0.0
+    NOTE:  For Angular 16, you must use ng-idle/core v14.0.0
+
+    a. Install the javascript library
+        terminal> cd frontend
+        terminal> npm install  @ng-idle/core@14.0.0  @ng-idle/keepalive@14.0.0
+
+    b. Verify that the package.json shows this:
+
+			"@ng-idle/core": "14.0.0",
+			"@ng-idle/keepalive": "14.0.0",
+
+
+ 2. Delete the frontend/node_modules and frontend/.angular
+
+ 3. Right-click on frontend/package.json -> NPM Install
+
+ 4. Adjust the error.interceptor.ts so it resets the timer when a REST call is invoked from the frontend
+    a. Edit error.interceptor.ts
+
+    b. Inject the idle service
+		  constructor(private errorService: ErrorService,
+					  private idle:         Idle)  {}
+
+
+    c. Update the intercept() method:
+
+              public intercept(request: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<any>> {
+                // Reset the idle timer because the user invoked a REST call
+                this.idle.watch();
+
+                return next.handle(request).pipe(
+                  catchError( (error: HttpErrorResponse) => this.handleErrorRestCall(error))
+                );
+              }
+
+
+			  private handleErrorRestCall(err: HttpErrorResponse): Observable<any> {
+				if (err.status < 200 || err.status >= 300) {
+				  // A REST call raised an error.  So, send the info to the ErrorService
+				  // Send the error message to the errorService
+				  this.errorService.addError(err);
+				}
+
+				// Throw the error
+				return throwError(err);
+			  }
+
+ 5. Generate session-expires-soon component
+    terminal> cd frontend
+    terminal> ng g c layout/session-expires-soon
+
+ 6. Fill-in the session-expires-soon component
+    a. Edit session-expires-soon.component.ts
+
+		   import {AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild} from '@angular/core';
+		   import {Idle} from "@ng-idle/core";
+		   import {Subscription} from "rxjs";
+
+		   @Component({
+			 selector: 'app-session-expires-soon',
+			 templateUrl: './session-expires-soon.component.html',
+			 styleUrls: ['./session-expires-soon.component.scss']
+		   })
+		   export class SessionExpiresSoonComponent implements OnInit, OnDestroy, AfterViewInit {
+			 @ViewChild('continueButton', {static: false}) continueButton: ElementRef;
+
+			 public  secondsLeftToTimeout : number;
+			 private subSecondsLeft       : Subscription;
+
+			 constructor(private idle: Idle) { }
+
+
+			 public ngOnInit(): void {
+			   // Get the seconds left from the Idle service
+			   this.subSecondsLeft = this.idle.onTimeoutWarning.subscribe((aSecondsLeft: number) => {
+
+				 // Update the warning message with the seconds left
+				 this.secondsLeftToTimeout = aSecondsLeft;
+			   });
+			 }
+
+			 public ngOnDestroy(): void {
+			   if (this.subSecondsLeft) {
+				 this.subSecondsLeft.unsubscribe();
+			   }
+			 }
+
+			 public ngAfterViewInit(): void {
+			   setTimeout( () => {
+				 // Set the focus on the "Continue" button
+				 this.continueButton.nativeElement.focus();
+			   }, 0);
+			 }
+
+			 public continue(): void {
+			   this.idle.watch()
+			 }
+
+			 public logout(): void {
+			   console.log('logout pressed')
+			 }
+		   }
+
+    b. Edit session-expires-soon.component.html
+
+		<div class="flex flex-col bg-white h-full w-full">
+
+		  <div class="relative flex place-content-center h-full w-full">
+			<!-- B I G     I M A G E   -->
+			<img src="./assets/images/waves.png" alt="Waves" class="h-full w-full" />
+
+			<div class="absolute top-0 left-0 w-full h-full flex items-center place-content-center">
+			  <!-- Resume Button is Centered horizontally and vertically -->
+
+			  <div class="flex flex-col">
+				  <div class="flex flex-row place-content-center items-center w-full gap-5">
+					<div>
+					  <i class="fa-solid fa-alarm-exclamation text-[50px] text-white"></i>
+					</div>
+					<div class="text-[50px] text-white">
+					  NI2 Session Expires Soon
+					</div>
+				  </div>
+
+				  <div class="text-xl text-center mt-10 text-white">
+					<span>For your protection, you will be automatically logged-out due to inactivity.</span>
+				  </div>
+
+				  <div class="text-xl text-center mt-5 text-white">
+					<span>You will be logged-out in <span class="font-extrabold">{{ this.secondsLeftToTimeout}} seconds.</span></span>
+				  </div>
+
+				  <div class="flex flex-row place-content-center gap-5 w-full mt-5">
+					  <!-- Logout Button -->
+					  <button type="button" rbr-outline-button  (click)="this.logout()" aria-label="Log Out from NI2"  title="Log Out from NI2">Log Out</button>
+
+					  <!-- Continue Button -->
+					  <button type="button" rbr-solid-button (click)="this.continue()" #continueButton aria-label="Continue in NI2"   title="Continue in NI2" >Continue in NI2</button>
+				  </div>
+			  </div>
+			</div>
+		  </div>
+
+		</div>
+
+ 7. Initialize the idle service in app.component.ts
+    a. Edit app.component.ts
+
+    b. Add a public class variable:
+    		  public  showSessionExpiringSoonPanel : boolean = false;
+
+    c. Inject the idle service
+    		public constructor(
+    							...
+    							private idle:   Idle)
+
+
+    d. Add this method:  initializeIdleWatcher()
+		  private initializeIdleWatcher(aTimeoutInSecsBeforeCountdown: number, aTimeoutInSecsAfterCountdown: number) {
+			 if ((aTimeoutInSecsAfterCountdown == 0) || (aTimeoutInSecsAfterCountdown == 0)) {
+			   return;
+			 }
+
+			 // Initialize the idle-watcher service
+			 this.idle.setIdle(aTimeoutInSecsBeforeCountdown);       // Set the amount of time to wait BEFORE showing the session-expires-soon-panel
+			 this.idle.setTimeout(aTimeoutInSecsAfterCountdown);     // Set the amount of time to wait AFTER  showing the session-expires-soon-panel
+
+			 this.idle.onIdleStart.subscribe( () => {
+			   // The user is idle.  So, show the session-timeout component
+			   this.showSessionExpiringSoonPanel = true;
+			 });
+
+			 this.idle.onTimeout.subscribe(() => {
+			   // Hide the modal, log out, redirect the user to the session-timed-out page
+			   console.log('onTimeout():  User timed out.  Hide the modal, logout, redirect to the session-timed-out page')
+			 });
+
+			 this.idle.onIdleEnd.subscribe(() => {
+			   // The user is not idle.  So, hide the session-timeout component (so the user can see the rest of the page)
+			   this.showSessionExpiringSoonPanel = false;
+			 });
+
+			 // Start the idle service
+			 this.idle.watch();
+		   }
+
+
+   	e. Edit ngOnInit()
+   			// Have the session timeout page appear after 60 seconds of inactivity
+   			// Add a 10-second countdown *AFTER* the session-expires-soon panel appears
+   			this.initializeIdleWatcher(60, 10)
+
+
+ 8. Add the panel to app.component.html
+   	a. Edit app.component.html / Add this to the TOP of the HTML
+
+			<div class="top-0 left-0 h-full w-full absolute" style="z-index: 150"
+				 [ngClass]="{ 'hidden'  : !this.showSessionExpiringSoonPanel,
+							  'block'   :  this.showSessionExpiringSoonPanel
+							}">
+				<!-- S E S S I O N       E X P I R E S        P A N E L      (covers the entire screen) -->
+				<app-session-expires-soon></app-session-expires-soon>
+			</div>
+
+
+
+ 9. Try it out in the debugger
+
