@@ -25,6 +25,7 @@
 #
 # NOTE:
 #   --transfers 10 means to transfer 10 files in parallel  (if you go too high then google complains)
+#   --fast-list dramatically IMPROVES the run-time (so it use it)
 ######################################################################################################
 
 readonly SCRIPT_NAME=`basename $0`                   # Holds the name of this bash script
@@ -34,8 +35,7 @@ function main()
 {
   # Sync the source and destination so that they are *identical*
   # NOTE:  For a list of options, go to https://rclone.org/flags/ 
-  rclone sync --verbose --transfers 10 --checkers 8 --contimeout 60s --timeout 300s --retries 3 --low-level-retries 10 --stats 1s  "/mnt/windows/iTunes" "google-drive:/backup/iTunes"
-
+  rclone sync --verbose --transfers 10 --checkers 10 --contimeout 60s --timeout 300s --retries 3 --low-level-retries 10 --stats 2s --buffer-size 48Mi --fast-list "/mnt/windows/iTunes" "google-drive:/backup/iTunes"
 
   if [ $? -ne 0 ]; then
     # The rclone had a problem
