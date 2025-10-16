@@ -6,7 +6,7 @@ Solution: Setup Keycloak 25, Create a login.gov sandbox app, and configure Keycl
 
 Assumptions:
  A) You have an email address that ends with .gov or .mil
- B) You are using Keycloak v25.0.4
+ B) You are using Keycloak v26.4.0
  C) You want the Keycloak Identity provider to use Open ID Connect (OIDC) to talk to login.gov
 
 
@@ -22,11 +22,259 @@ https://github.com/keycloak/keycloak-quickstarts/tree/22.0.1
 
 
 
-Part 1:  Get your Keycloak cert file (used to transmit info between login.gov and keycloak
-------------------------------------------------------------------------------------------
- 1. Startup Keycloak v25.0.4
+Part 1 / Download & Install Keycloak to listen at https://keycloak.docker.internal:8444/
+----------------------------------------------------------------------------------------
+ 1. Add an entry in your /etc/hosts
+    unix> sudo vi /etc/hosts
+         127.0.0.1    keycloak.docker.internal
 
- 2. Create a text file that holds the RS256 cert:  keycloak.rs256.cert.txt
+ 2. Download the keycloak-26.4.0.zip file
+    Go to https://github.com/keycloak/keycloak/releases/download/26.4.0/keycloak-26.4.0.zip
+    Save it to your ~/Downloads
+
+ 3. Unzip it
+    unix> cd ~/Downloads
+    unix> unzip keycloak-26.4.0.zip
+
+ 4. Create a bash variable for where you unzipped keycloak
+    unix> export KEYCLOAK_HOME=~/Downloads/keycloak-26.4.0
+
+ 5. Create a script to start keycloak in SSL mode with a default admin password
+    unix> vi $KEYCLOAK_HOME/start.kc.ssl.sh
+
+
+###################################################################################################################################
+# Filename:   start.kc.ssl.sh
+#
+# Purpose:
+#     Run keycloak in SSL mode listening on https://keycloak.docker.internal:8444/
+#
+# ASSUMPTIONS:
+#   1) You have a Java 17 JDK or later
+#   2) You have ni2.docker.internal defined in your /etc/hosts file
+#
+# NOTES:
+#   --https-client-auth=<none|request|required>        "request" means keycloak will also accept requests without a cert but validates cert if it exists
+#   --hostname=keycloak.docker.internal                 tells it to listen on the hostname called keycloak.docker.internal
+###################################################################################################################################
+
+export JAVA_OPTS_APPEND="  -Djavax.net.ssl.trustStorePassword=changeit  -Djavax.net.ssl.trustStore=/path/to/cacerts.all "
+export KC_BOOTSTRAP_ADMIN_USERNAME=admin
+export KC_BOOTSTRAP_ADMIN_PASSWORD=admin
+
+# Run keycloak in TLS mode
+bin/kc.sh start  --http-enabled=false --https-port=8444 --https-key-store-file=/path/to/keycloak.docker.internal.keystore.jks --https-key-store-type=JKS --https-key-store-password=changeit    --log-level=INFO  --hostname-strict=false --hostname=keycloak.docker.internal  --https-client-auth=none
+
+
+
+ 6. Startup keycloak for the *FIRST* time
+    unix> cd $KEYCLOAK_HOME
+    unix> chmod ugo+x start.kc.ssl.sh
+    unix> ./start.kc.ssl.sh
+
+ 7. Connect to keycloak for the *FIRST* time
+    Go to https://keycloak.docker.internal:8444/
+
+ 8. Enter the admin username:  admin     (defined in KC_BOOTSTRAP_ADMIN_USERNAME)
+    Enter the admin password:  admin     (defined in KC_BOOTSTRAP_ADMIN_PASSWORD)
+
+     -- You should be logged-in as an administrator
+
+
+
+Part 2 / OPTIONAL / Add the custom theme to keycloak
+----------------------------------------------------
+ 1. Compile the keycloak-plugins project
+    unix> cd /path/to/keycloak-plugins
+    unix> mvn clean package
+          -- Generates the Java JAR with the custom themes
+          -- File is here:  login-page-theme/target/login-page-theme-1.0-SNAPSHOT.jar
+
+ 2. Copy login-page-theme/target/login-page-theme-1.0-SNAPSHOT.jar TO $KEYCLOAK_HOME/providers
+    unix> cp login-page-theme/target/login-page-theme-1.0-SNAPSHOT.jar $KEYCLOAK_HOME/providers
+
+ 3. Stop keycloak by pressing Control-C
+
+ 4. Update the keycloak configuration (so it picks-up the login-page-theme jar)
+    unix> cd $KEYCLOAK_HOME
+    unix> ./bin/kc.sh build
+
+ 5. Startup Keycloak listening on TLS
+    unix> ./start.kc.ssl.sh
+
+
+
+Part 3 / Create the Keycloak Realm called "MyRealm"
+---------------------------------------------------
+ 1. Create the empty realm:  MyRealm
+    a. Login to keycloak
+    b. Press "Manage realms" -> "Create realm"
+    c. In the Create Realm screen
+       Realm name:  MyRealm
+       Press "Create"
+
+       -- At this point, your current realm should be MyRealm
+
+
+ 2. Configure the Realm Session Timeout (to be 15 minutes)
+    a. Press Realm Settings -> Sessions Tab
+    b. In the "Sessions" tab
+        SSO Session Idle:       15 minutes
+        SSO Session Max:        15 minutes
+        Press "Save"
+
+    c. Press Realm Settings -> Tokens Tab
+    d. In the "Tokens" tab
+        Access Token Lifespan:                      15 minutes
+        Access Token Lifespan for Implicit Flow:    15 minutes
+        Press "Save"
+
+
+ 3. Configure the Realm User Profile to have these attributes:  user_type, authentication_type, subject, subject_alt_name
+    a. Press Realm Settings -> "User profile" Tab
+    b. Make sure email is not required
+        1) Click on email
+        2) Set Required field:  Off
+        3) Press "Save"
+    c. Make sure firstName is not required
+        1) Click on firstName
+        2) Set Required field:  Off
+        3) Press "Save"
+    d. Make sure lastName is not required
+        1) Click on lastName
+        2) Set Required field:  Off
+        3) Press "Save"
+
+    e. Add this attribute:  authentication_type
+        1) Press "Create attribute"
+        2) In the Create attribute screen
+            Attribute [name]:       authentication_type
+            Display name:           authentication_type
+            Multivalued:            Off
+            Attribute group:        None
+            Enabled:                Always
+            Required Field:         Off
+            Press "Create"
+
+    f. Add this attribute:  user_type
+        1) Press "Create attribute"
+        2) In the Create attribute screen
+            Attribute [name]:       user_type
+            Display name:           user_type
+            Multivalued:            Off
+            Attribute group:        None
+            Enabled:                Always
+            Required Field:         Off
+            Press "Create"
+
+    g. Add this attribute:  subject
+        1) Press "Create attribute"
+        2) In the Create attribute screen
+            Attribute [name]:       subject
+            Display name:           subject
+            Multivalued:            Off
+            Attribute group:        None
+            Enabled:                Always
+            Required Field:         Off
+            Press "Create"
+
+    h. Add this attribute:  subject_alt_name
+        1) Press "Create attribute"
+        2) In the Create attribute screen
+            Attribute [name]:       subject_alt_name
+            Display name:           subject_alt_name
+            Multivalued:            Off
+            Attribute group:        None
+            Enabled:                Always
+            Required Field:         Off
+            Press "Create"
+
+
+ 4. Set the Client Scopes (which allow the web apps to get the attributes)
+    a. Go to "MyRealm" -> Client Scopes -> "profile" -> "Mappers" tab
+    b. Press "Add mapper" -> By configuration -> User Attribute
+    c. In the "Add mapper" page
+            Mapper type:        User Attribute
+            Name:               authentication_type
+            user attribute      <select authentication_type from the dropdown>
+            Token claim name    authentication_type
+
+        Rest are default values:
+            Claim JSON Type:                    String
+            Add to ID token:                    On
+            Add to access token:                On
+            Add to lightweight access token     Off
+            Add to userinfo                     On
+            Add to token introspection          On
+            Multivalued                         Off
+            Aggregate attribute value           Off
+
+        Press "Save"
+        Press "Client scope details" to add another one
+
+
+    d. Press "Add mapper" -> By configuration -> User Attribute
+    e. In the "Add mapper" page
+            Mapper type:        User Attribute
+            Name:               user_type
+            user attribute      <select user_type from the dropdown>
+            Token claim name    user_type
+
+        Press "Save"
+        Press "Client scope details" to add another one
+
+
+    f. Press "Add mapper" -> By configuration -> User Attribute
+    g. In the "Add mapper" page
+            Mapper type:        User Attribute
+            Name:               subject
+            user attribute      <select subject from the dropdown>
+            Token claim name    subject
+
+        Press "Save"
+        Press "Client scope details" to add another one
+
+
+    h. Press "Add mapper" -> By configuration -> User Attribute
+    i. In the "Add mapper" page
+            Mapper type:        User Attribute
+            Name:               subject_alt_name
+            user attribute      <select subject_alt_name from the dropdown>
+            Token claim name    subject_alt_name
+
+        Press "Save"
+
+
+ 5. Add the clients
+    NOTE:  Each client is a webapp that uses keycloak for authentication
+
+    a. Create this client:  core-welcome-webapp
+       1) Go to "MyRealm" -> Clients -> Create client
+       2) In the Create client page
+            Client type:    OpenID Connect
+            Client ID:      core-welcome-webapp
+            Client Name:    core-welcome-webapp
+            Press "Next"
+            Press "next"
+            Press "save"
+       3) In the "Settings" tab
+            Root URL:                   https://ni2.docker.internal:8443/welcome              # Where ever the welcome webapp is listening on
+            Home URL:                   https://ni2.docker.internal:8443/welcome              # Where ever the welcome webapp is listening on
+            Client authentication:      On
+            Authorization:              On
+            Authentication Flow:        Standard flow
+            Login theme:                <select theme from the keycloak plugins jar>
+            Press "Save"
+
+
+
+
+Part 4:  Get your Keycloak cert file (used to transmit info between login.gov and keycloak
+------------------------------------------------------------------------------------------
+ 1. Login to your local keycloak
+    Connect to https://keycloak.docker.internal:8444/
+
+ 2. Create a text file that holds the RS256 cert:  /tmp/keycloak.rs256.cert.txt
     a. Create the text file
 
     b. Add this to the text file:
@@ -52,8 +300,9 @@ Part 1:  Get your Keycloak cert file (used to transmit info between login.gov an
 
 
 
-Part 2:  Start configuring an OIDC Provider and get it's Redirect URI  (as login.gov will need that)
-----------------------------------------------------------------------------------------------------
+
+Part 5:  Setup the keycloak OIDC Provider and get it's Redirect URI  (as login.gov will need that)
+---------------------------------------------------------------------------------------------------
  1. Connect to keycloak as an administrator
 
  2. Go to Realms -> MyRealm -> Identity providers
@@ -62,7 +311,7 @@ Part 2:  Start configuring an OIDC Provider and get it's Redirect URI  (as login
 
  4. In the "Add OpenID Connect Provider page
  	Alias:  					idp-login-gov        (do not use spaces as this changes the Redirect URI)
-    Display Name:    			Identity Provider for login.gov
+    Display Name:    			Login with login.gov
 
     Discovery endpoint:  		https://idp.int.identitysandbox.gov/.well-known/openid-configuration
 
@@ -71,11 +320,12 @@ Part 2:  Start configuring an OIDC Provider and get it's Redirect URI  (as login
 	Press "Add"
 
  5. Copy the Redirect URI   (we will need it in the next step to configure login.gov)
+    NOTE:  It should look something like this:
+               https://keycloak.docker.internal:8444/realms/MyRealm/broker/idp-login-gov/endpoint
 
 
 
-
-Part 3:  Setup the login.gov "Sandbox Account"
+Part 6:  Setup the login.gov "Sandbox Account"
 ----------------------------------------------
 NOTE:   Anyone with a .gov or .mil email address may request a "Sandbox Account" WITHOUT any approval from login.gov
 
@@ -98,8 +348,8 @@ NOTE:   Anyone with a .gov or .mil email address may request a "Sandbox Account"
 
 	c. In the "New App" page
 		Dashboard Configuration:  		Sandbox
-		App name            			DOD-MyWebApp
-		Friendly name:					My Web App  					  (displayed to users when logging in)
+		App name            			DOD-MyTestApp
+		Friendly name:					My Test App  					  (displayed to users when logging in)
 		Team:               			<Select your team from step 1>
 		Authentication Protocol:		OpenID Connect Private Key JWT    (preferred for web apps)
 		Level of Service:				Identity verification permitted   (so the webapp will receive verified attributes)
@@ -111,7 +361,6 @@ NOTE:   Anyone with a .gov or .mil email address may request a "Sandbox Account"
 			x509_presented
 			first_name
 			last_name
-			dob
 			address1
 			address2
 			city
@@ -121,23 +370,19 @@ NOTE:   Anyone with a .gov or .mil email address may request a "Sandbox Account"
 
 		Issuer:					urn:gov:gsa:openidconnect.profiles:sp:sso:<AGENCY_NAME>:<APP_NAME>
 
-								Replace AGENCY_NAME with DCSA
-								Replace APP_NAME    with sit_webapp
-                                example) urn:gov:gsa:openidconnect.profiles:sp:sso:dcsa:my_webapp
+                                example) urn:gov:gsa:openidconnect.profiles:sp:sso:agency_name:app_name
 
 
 		Certificates:			Press "Choose a cert file"
-								Browse to your keycloak.rs256.cert.txt
+								Browse to your /tmp/keycloak.rs256.cert.txt
 
-
-		Failure to Proof URL	https://www.google.com/
 
 		Push notification URL:  <blank>
 
-		Redirect URIs:          <this is keycloak's generated "Redirect URI" for your identity provider>
-							    ex) https://localhost.localdomain:8444/realms/MyRealm/broker/idp-login-gov/endpoint
+		Failure to Proof URL	https://www.google.com/
 
-		Accessible:				Yes
+		Redirect URIs:          <this is keycloak's generated "Redirect URI" for your identity provider>
+							    ex) https://keycloak.docker.internal:8444/realms/MyRealm/broker/idp-login-gov/endpoint
 
 		Sign-in help text:  	"First time here from...."
 
@@ -149,7 +394,7 @@ NOTE:   Anyone with a .gov or .mil email address may request a "Sandbox Account"
 
 
 
-Part 4:  Finish configuring your OpenID Connect Provider for login.gov
+Part 7  Finish configuring your OpenID Connect Provider for login.gov
 ----------------------------------------------------------------------
  1. In Keycloak, go to Realms -> MyRealm -> Identity providers -> Identity Provider for login.gov
 
@@ -171,11 +416,12 @@ Part 4:  Finish configuring your OpenID Connect Provider for login.gov
 
 			Client authentication:			JWT signed with private key
 			Client ID:             			<ISSUER from the login.gov sandbox> / should look something like this:
-			                                 ex) urn:gov:gsa:openidconnect.profiles:sp:sso:dcsa:my_webapp
+			                                 ex) urn:gov:gsa:openidconnect.profiles:sp:sso:agency_name:app_name
 
 			Client Secret:					<blank>
 			Client assertion signature alg: RS256
 
+			Scopes:                         profile          # Hidden unde the "Advanced"
 
 
  3. Set the level of authentication to LOA 3
@@ -213,31 +459,13 @@ Part 4:  Finish configuring your OpenID Connect Provider for login.gov
 
 
 
- 4. Tell Keycloak to *NOT* show the "Update Account Information" form after first login
-    a. In Keycloak, go to Realm Settings -> General
-    b. Click on the "User profile" tab
-    c. Click on username -> 3 dots -> Edit
-       Who can edit?  Uncheck everyone
 
-    d. On the row that has "email" -> 3 dots -> Edit
-       Required Field:  Off
-       Press "Save"
-
-    e. On the row that shows "firstName" -> 3 dots -> Edit
-       Required Field:  Off
-       Press "Save"
-
-    f. On the row that shows "lastName" -> 3 dots -> Edit
-       Required Field:  Off
-       Press "Save"
-
-
- 5. Tell Keycloak to bring the user attributes back from login.gov and return them to spring-boot upon authorization
+ 4. Add mappers to the login.gov identy provider / Tell Keycloak to bring the user attributes back from login.gov and return them to spring-boot upon authorization
     a. In keycloak, go to MyRealm -> Identity Providers -> Identity Provider for login.gov -> "Settings" tab
     b. In the settings page, press 'Advanced"
     	    Scopes:   	openid email profile phone address
 
-	c. In keycloak, go to MyRealm -> Identity Providers -> Identity Provider for login.gov -> "Mappers" tab
+	c. In keycloak, go to MyRealm -> Identity Providers -> Login with login.gov -> "Mappers" tab
 
     d. In the "Mappers" page, press "Add mapper"
     	Name:  					phone
@@ -288,7 +516,7 @@ Part 4:  Finish configuring your OpenID Connect Provider for login.gov
 		Press "Save"
 
 
- 6. Change the default client scope phone number mapper to look for "phone" instead of "phoneNumber"
+ 5. Change the default client scope phone number mapper to look for "phone" instead of "phoneNumber"
  	a. Go Realm -> MyRealm -> Client Scopes -> phone -> "Mappers" tab
  	b. Click on "phone number"
  		Name:  			 phone
@@ -296,45 +524,47 @@ Part 4:  Finish configuring your OpenID Connect Provider for login.gov
  		Token Claim Name: phone
 
 
- 7. Allow administrators to write unmanaged attributes
+ 6. Allow administrators to write unmanaged attributes
     a. Realm -> Realm Settings -> General Tab
     	Unmanaged Attributes:  Enabled
 
 
- 8. Change your Authentication flow to use this Identity Provider
-    a. Go to Realms -> MyRealm -> Authentication
-    b. Press "Create flow"
-    	Name:  		login.gov authentication flow
-    	Flow Type:  Basic flow
-    	Press "Create"
+SKIPPED THIS STEP as I want users to see the "Login with login.gov" button
+---------------------------------------------------------------------------
+		 1. Change your Authentication flow to use this Identity Provider
+			a. Go to Realms -> MyRealm -> Authentication
+			b. Press "Create flow"
+				Name:  		login.gov authentication flow
+				Flow Type:  Basic flow
+				Press "Create"
 
-	c. Press "Add execution"
-	   Select Cookie and press "Add"
+			c. Press "Add execution"
+			   Select Cookie and press "Add"
 
-	d. Press "Add Step"
-	   Select "Identity Provider Redirector" and press "Add"
+			d. Press "Add Step"
+			   Select "Identity Provider Redirector" and press "Add"
 
-	e. Set Requirement to both steps as "Alternative"
+			e. Set Requirement to both steps as "Alternative"
 
-	f. Press the "Settings" icon next to "Identity Provider Redirector"
-		Alias:    					  idp-login-gov        (use the alias of the login.gov identity provider)
-		Default Identity Provider:    idp-login-gov
-		Press "Save"
-
-
- 9. Make sure your keycloak is using the "login.gov authentication flow"
- 	a. Go to Realms -> MyRealm -> Clients -> app16-webapp -> Advanced tab
- 	b. In the Authentication flow overrides
- 			Browser Flow:		login.gov authentication flow
- 	   Press "Save"
+			f. Press the "Settings" icon next to "Identity Provider Redirector"
+				Alias:    					  idp-login-gov        (use the alias of the login.gov identity provider)
+				Default Identity Provider:    idp-login-gov
+				Press "Save"
 
 
-10. Set the phone scope for our client
-    a. Go to MyRealm -> Clients -> app16-webapp -> "Client scopes" tab
+		 2. Make sure your keycloak is using the "login.gov authentication flow"
+			a. Go to Realms -> MyRealm -> Clients -> app16-webapp -> Advanced tab
+			b. In the Authentication flow overrides
+					Browser Flow:		login.gov authentication flow
+			   Press "Save"
+
+
+ 7. Set the phone scope for our client
+    a. Go to MyRealm -> Clients -> core-welcome-webapp -> "Client scopes" tab
     b. Change "Phone" to be default
 
 
-11. Grant default roles for user that logs-in with keycloak
+ 8. Grant default roles for user that logs-in with keycloak
 	a. Create the  role:  APP16_SUPERVISOR
 	    1) Go to MyRealm -> Realm Roles
 	    2) Press "Create role"
@@ -344,12 +574,12 @@ Part 4:  Finish configuring your OpenID Connect Provider for login.gov
 	b. Make it a default role
 	   1) Go to MyRealm -> Realm settings -> "User registration" tab
 	   2) Click on the "Default roles" tab
-	   3) Press "Assign role"
-       4) Check app16-webapp APP16_SUPERVISOR
+	   3) Press "Assign role" -> Realm Roles
+       4) Check APP16_SUPERVISOR
           Press "Assign"
 
 
-12. Make sure roles are returned to SpringBoot with the token
+ 9. Make sure roles are returned to SpringBoot with the token
     a. Go to Realms -> MyRealm -> Client scopes
     b. Click on roles
     c. Click on the "Settings" tab
@@ -370,12 +600,12 @@ Part 4:  Finish configuring your OpenID Connect Provider for login.gov
     	Add to token introspection			On
 
 
-13. Restart Keycloak
+10. Restart Keycloak
 
 
 
 
-Part 5: Configure your Spring Boot webapp to talk to Keycloak
+Part 8: Configure your Spring Boot webapp to talk to Keycloak
 -------------------------------------------------------------
 ASSUMPTIONS:
  1) Your keycloak is listening on https://localhost.localdomain:8444
@@ -394,11 +624,11 @@ ASSUMPTIONS:
 	##############################################################################
 	# Keycloak Settings for Spring Security
 	#
-	# The realm url is probably something like https://keycloak.rbr-tech.com:8444/realms/MyRealm
+	# The realm url is probably something like https://keycloak.docker.internal:8444/realms/MyRealm
 	##############################################################################
-	spring.security.oauth2.client.registration.keycloak.client-id: app16-webapp
+	spring.security.oauth2.client.registration.keycloak.client-id: core-welcome-webapp
 	spring.security.oauth2.client.registration.keycloak.client-secret: j4W4c7EpPI2rfT7fKgt28oYDUi19fF66
 	spring.security.oauth2.client.registration.keycloak.authorization-grant-type: authorization_code
 	spring.security.oauth2.client.registration.keycloak.scope: openid,email,profile,phone,address
-	spring.security.oauth2.client.provider.keycloak.issuer-uri: https://localhost.localdomain:8444/realms/MyRealm
+	spring.security.oauth2.client.provider.keycloak.issuer-uri: https://keycloak.docker.internal:8444/realms/MyRealm
 	spring.security.oauth2.client.provider.keycloak.user-name-attribute: preferred_username
