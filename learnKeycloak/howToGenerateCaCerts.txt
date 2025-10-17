@@ -1,0 +1,50 @@
+How to Generate a Trust File (cacerts.all) that holds DOD Certs and your fake root CA
+-------------------------------------------------------------------------------------
+Problem:  I need to generate a trust that holds the DOD Certs and my fake root CA
+Solution: Download the DOD certs and run a script to import them
+
+Procedure
+---------
+ 1. Download DOD/ECA certificates from public.cyber.mil
+    a) Go to https://public.cyber.mil/pki-pke/admins/#toggle-id-1
+    b) Click on DoD Approved External PKI Certificate Trust Chains - Version 11.1
+       *OR*
+       Go to https://dl.dod.cyber.mil/wp-content/uploads/pki-pke/zip/unclass-dod_approved_external_pkis_trust_chains.zip
+
+ 2. Save the zip file to your Downloads
+
+ 3. Unzip certificates
+    unix> cd ~/Downloads
+    unix> unzip -d certs unclass-dod_approved_external_pkis_trust_chains.zip      # Unzip the files to ~/Downloads/certs directory
+
+ 4. Download addDodCertsToCaCerts.sh       # Used to add the CAs to your trust (to be used for the custom oidc provider only)
+    unix> wget https://raw.githubusercontent.com/traderres/webClass/refs/heads/master/learnKeycloak/addDodCertsToCaCerts.sh
+
+ 5. Edit addDodCertsToCaCerts.sh           # Set 2 variables in addDodCertsToCaCerts.sh
+    unix> vi addDodCertsToCaCerts.sh
+       -- Set the CACERTS_FILE_PATH to where your destination cacerts file you want to add the DOD trusts to
+       -- Set the CERTS_DIR the path of the directory that holds all of the uncompressed cert files
+
+ 6. Create an empty trust file:  /tmp/cacerts
+    unix> keytool -genkeypair -alias boguscert -storepass changeit -keypass changeit -keystore /tmp/cacerts -keysize 4096 -keyalg RSA  -dname 'CN=Developer, OU=Department, O=Company, L=City, ST=State, C=CA'
+    unix> keytool -delete -alias boguscert -storepass changeit -keystore /tmp/cacerts
+
+ 7. Run addDodCertsToCaCerts.sh            # To add all of the DOD trusts to the cacerts file
+    unix> chmod u+x ./addDodCertsToCaCerts.sh
+    unix> ./addDodCertsToCaCerts.sh
+
+		What does it do?  Run the keytool import command and give each trust a unique alias
+		   keytool -import -alias ca135 -file "/home/adam/Downloads/certs/DOD DERILITY CA-4.cer" -keystore /tmp/cacerts -storepass changeit  -trustcacerts   -noprompt
+		   keytool -import -alias ca136 -file "/home/adam/Downloads/certs/DOD DERILITY CA-5.cer" -keystore /tmp/cacerts -storepass changeit  -trustcacerts   -noprompt
+		   keytool -import -alias ca137 -file "/home/adam/Downloads/certs/DOD DERILITY CA-6.cer" -keystore /tmp/cacerts -storepass changeit  -trustcacerts   -noprompt
+                                   ^
+                                   |
+                                   +--------- Each one gets a unique alias in the cacerts file
+
+
+ 8. Import the fake Root CA you created into this trust file
+    unix> keytool -import -alias my_fake_ca -file /path/to/root-ca/public/root.pem  -keystore /tmp/cacerts -storepass changeit  -trustcacerts   -noprompt
+
+     Now, your /tmp/cacerts has all of the DOD certs and the fake root CA
+
+
