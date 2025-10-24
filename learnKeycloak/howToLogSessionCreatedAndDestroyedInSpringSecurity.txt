@@ -1,0 +1,273 @@
+How to Log Session Created and Session Destroyed Events in Spring Security with Keycloak
+----------------------------------------------------------------------------------------
+Problem:  I want to log an event when a session is created
+          I want to log an event when a session is destroyed (in my CustomLogoutHandler)
+
+
+Part 1 / Log session created
+-----------------------------
+ 1. Add a method to your AuthenticationService:  onAuthenticationSuccessForOauth2()
+ 	-- This is the method that will log the event
+
+    public void onAuthenticationSuccessForOauth2(HttpServletRequest aRequest,
+                                                 HttpServletResponse aResponse,
+                                                 Authentication aAuthentication) {
+
+        try {
+			// Get the logged-in username from a service
+			String loggedInUserName = "john.smith.12345";
+
+			// Get the logged-in userid from a service
+			Integer loggedInUserid = 1234;
+
+			// TODO: Run some code to log the event
+
+			// Set these attributes in the session so we can pull them out in the CustomLogoutHandler
+            HttpSession session = aRequest.getSession(false);
+            session.setAttribute("loggedInUserName", loggedInUserName);
+            session.setAttribute("loggedInUserId",   loggedInUserId);
+
+        } catch (JsonProcessingException e) {
+            logger.debug("Error logging history record for user logout", e);
+
+            // TODO: Use a service to save the exception to the database
+
+            // Re-throw the exception
+            MyRuntimeException re = new MyRuntimeException(e);
+            re.setStackTrace(e.getStackTrace());
+            throw re;
+        }
+
+        logger.debug("onAuthenticationSuccessForOauth2() finished");
+    }
+
+
+ 2. Create an OAuth2LoginSuccessHandler class that extends SavedRequestAwareAuthenticationSuccessHandler
+
+		/*
+		 * Create a success handler class that extends SavedRequestAwareAuthenticationSuccessHandler
+		 */
+		@Component
+		@ConditionalOnProperty(name="security.mode", havingValue="keycloak", matchIfMissing=false)
+		public class OAuth2LoginSuccessHandler extends SavedRequestAwareAuthenticationSuccessHandler {
+
+			@Resource
+			private AuthenticationService authenticationService;
+
+			@Override
+			public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
+												Authentication authentication) throws IOException, ServletException {
+
+				logger.debug("onAuthenticationSuccess() started");
+
+				// The user successfully authenticated against the OAUTH2 Server
+				// -- So, log the information
+				this.authenticationService.onAuthenticationSuccessForOauth2(request, response, authentication);
+
+				// Proceed to the user's original URL
+				super.onAuthenticationSuccess(request, response, authentication);
+			}
+
+		}
+
+
+ 3. Edit the SpringSecurityConfigForKeycloak
+  	a. Inject the OAuth2LoginSuccessHandler
+
+  	    @Resource
+        private OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
+
+
+
+    b. Have spring security call your OAuth2LoginSuccessHandler
+                    .oauth2Login()
+
+                        /*
+                         * Update the Principal object stored in the session
+                         * Replace the defaultOidcUser with MyDefaultOidcUser object   (that holds the additional MyUserInfo)
+                         */
+                        .userInfoEndpoint(userInfo -> userInfo
+                                .oidcUserService(this.oidcUserService()))
+
+
+                        /*
+                         * The oAuth2LoginSuccessHandler success handler class will do 2 things:
+                         *   1) Update the database to indicate that the user successfully authenticated
+                         *   2) Redirect the user from keycloak to the user's ORIGINAL requested url (because it extends SavedRequestAwareAuthenticationSuccessHandler)
+                         */
+                        .successHandler(this.oAuth2LoginSuccessHandler)
+
+
+    The entire SpringSecurityConfigForKeycloak class looks something like this:
+    ---------------------------------------------------------------------------
+
+		@Configuration
+		@ConditionalOnProperty(name="security.mode", havingValue="keycloak", matchIfMissing=false)
+		@EnableWebSecurity
+		@EnableGlobalMethodSecurity(prePostEnabled = true)         // Needed for @PreAuthorize to work
+		public class SpringSecurityConfigForKeycloak  {
+
+			private static final Logger logger = LoggerFactory.getLogger(SpringSecurityConfigForKeycloak.class);
+
+			@Resource
+			private OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
+
+			@Resource
+			private AuthenticationService authenticationService;
+
+			@Resource
+			private CustomLogoutHandler customLogoutHandler;
+
+			@Resource
+			private CustomLogoutSuccessHandler customLogoutSuccessHandler;
+
+			private final ClientRegistrationRepository clientRegistrationRepository;
+
+			@Resource
+			private CoreHistoryService coreHistoryService;
+
+			public SpringSecurityConfigForKeycloak(ClientRegistrationRepository clientRegistrationRepository) {
+				this.clientRegistrationRepository = clientRegistrationRepository;
+			}
+
+			/**
+			 * Configure Spring Security for Keycloak or OAUTH2 Authentication
+			 *
+			 * @param aHttpSecurity holds the HttpSecurity object that is configured to setup Spring Security
+			 * @return SecurityFilterChain object that will implement security
+			 * @throws Exception if something goes wrong
+			 */
+			@Bean
+			public SecurityFilterChain securityFilterChain(HttpSecurity aHttpSecurity) throws Exception {
+				logger.debug("securityFilterChainF() [KEYCLOAK] started.");
+
+
+				// This is the parameter name passed-in when using the request-cache
+				// -- Set to "continue" and the user will see ?continue=      on the URL when connecting for the 1st time
+				// -- Set to null       and the user will NOT see the ?stuff= on the URL when connecting for the 1st time
+				HttpSessionRequestCache requestCache = new HttpSessionRequestCache();
+				requestCache.setMatchingRequestParameterName(null);
+
+
+				// Running in https mode with OAuth2 authentication
+				aHttpSecurity.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+						.and()
+							.authorizeRequests()
+							.requestMatchers(new AntPathRequestMatcher("/assets/**"),
+											 new AntPathRequestMatcher( "**.js"),
+											 new AntPathRequestMatcher("**.css"),
+											 new AntPathRequestMatcher("/error")).permitAll()
+							.anyRequest()
+							.authenticated()
+						.and()
+							.requiresChannel().anyRequest().requiresSecure()
+						.and()
+						.oauth2Login()
+
+							/*
+							 * Update the Principal object stored in the session
+							 * Replace the defaultOidcUser with MyDefaultOidcUser object   (that holds the additional MyUserInfo)
+							 */
+							.userInfoEndpoint(userInfo -> userInfo
+									.oidcUserService(this.oidcUserService()))
+
+
+							/*
+							 * The oAuth2LoginSuccessHandler success handler class will do 2 things:
+							 *   1) Update the database to indicate that the user successfully authenticated
+							 *   2) Redirect the user from keycloak to the user's ORIGINAL requested url (because it extends SavedRequestAwareAuthenticationSuccessHandler)
+							 */
+							.successHandler(this.oAuth2LoginSuccessHandler)
+
+						.and()
+							.logout()
+								.addLogoutHandler(this.customLogoutHandler)                        // The customLogoutHandler deletes the user's sessions and delete keycloak sessions
+								.logoutRequestMatcher(new AntPathRequestMatcher("/logout/**"))   // Invoking /logout/1 or /logout/2 will begin logout
+								.invalidateHttpSession(true)
+								.logoutSuccessHandler(this.customLogoutSuccessHandler)             // The customLogoutSuccessHandler redirects the user to the you-logged-out or session-timed-out mesg page
+
+						.and()
+							.csrf().disable()
+
+						.requestCache( (RequestCacheConfigurer<HttpSecurity> aCache) -> aCache.requestCache(requestCache) );
+
+
+				return aHttpSecurity.build();
+			}
+
+
+			/**
+			 * Generate a new principal pboject that holds MyUserInfo *AND* the original token info from Keycloak
+			 *
+			 * @return MyDefaultOidcUser object
+			 */
+			private OAuth2UserService<OidcUserRequest, OidcUser> oidcUserService() {
+				final OidcUserService delegate = new OidcUserService();
+
+				return (OidcUserRequest aOidcUserRequest) -> {
+					// Get the OidcUser object (that holds information from Keycloak)
+					OidcUser oidcUser = delegate.loadUser(aOidcUserRequest);
+
+					// Get the MyUserInfo object (that holds additional info from our database)
+					MyUserInfo myUserInfo = this.authenticationService.generateUserInfoWithOauth2InfoFromKeyCloak(oidcUser);
+
+					// Create a new Principal object that holds MyUserInfo *AND* the original token information from keycloak
+					MyDefaultOidcUser myDefaultOidcUser = new MyDefaultOidcUser(myUserInfo, myUserInfo.getAuthorities(), oidcUser.getIdToken(), oidcUser.getUserInfo());
+
+					return myDefaultOidcUser;
+				};
+			}
+
+
+
+
+			@Bean
+			public FilterRegistrationBean<ForwardedHeaderFilter> forwardedHeaderFilter() {
+				// ForwardedHeaderFilter handles non-standard headers
+				//   X-Forwarded-Host, X-Forwarded-Port, X-Forwarded-Proto, X-Forwarded-Ssl, and X-Forwarded-Prefix.
+				ForwardedHeaderFilter filter = new ForwardedHeaderFilter();
+
+				FilterRegistrationBean<ForwardedHeaderFilter> registration = new FilterRegistrationBean<>(filter);
+				registration.setDispatcherTypes(DispatcherType.REQUEST, DispatcherType.ASYNC, DispatcherType.ERROR);
+				registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
+				return registration;
+			}
+		}
+
+
+Part 2 / Log session destroyed
+------------------------------
+ 1. Create a CustomLogoutHandler class that extends LogoutHandler
+    -- This is a spring service
+
+    @Service
+    public class CustomLogoutHandler implements LogoutHandler  {
+
+   		  @Override
+          public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
+               try {
+					// Get the user's current sessionId from the request object
+					String sessionId = request.getRequestedSessionId();
+
+					// Get attributes from the session (set in the AuthenticationService.onAuthenticationSuccessForOauth2() method)
+					String loggedInUsername = (String) session.getAttribute("loggedInUserName");
+					Object loggedInUserIdObj = session.getAttribute("loggedInUserId");
+					Integer loggedInUserId = Integer.parseInt(loggedInUserIdObj.toString());
+
+					// TODO: Use a service to log that the session ended
+				}
+			   catch (Exception e) {
+					// Normally the MyExceptionHandler class catches exceptions in the Dispatch Servlet's processing pipeline
+					// but the CustomLogoutHandler happens *OUTSIDE* the Dispatch Servlet's processing pipeline.
+					// So, the MyExceptionHandler will not automatically catch exceptions here.  Thus, we need this catch block to save the exception.
+
+					// TODO: Save an exception to the exception table so we know about the error
+
+					// Raise the exception up
+					MyRuntimeException re = new MyRuntimeException(e);
+					re.setStackTrace(e.getStackTrace() );
+					throw re;
+               }
+          }
+    }
+
