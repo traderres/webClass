@@ -12,7 +12,7 @@ Angular 16 Lesson Plan
     b. <a href="./lectures/boring.lecture.terminology.txt"                      title="Terminology">Terminology (wake me up when it's done!)</a>
     c. <a href="./lectures/boring.lecture.what.is.tailwind.txt"                 title="What is Tailwind?">What is Tailwind?</a>
     d. <a href="./lectures/boring.lecture.component.lifecycle.txt"              title="Component Life Cycle">Component Life Cycle</a>
-    e. One-way-binding and two-way-binding
+    e. <a href="./lectures/boring.lecture.examples.of.1.and.2-way.binding.txt"  title="One-way and two-way binding">One-way-binding and two-way-binding</a>
     f. <a href="./lectures/boring.lecture.approaches.loading.data.txt"          title="Approaches to Loading Data">Approaches to Loading Data</a>
     g. <a href="./lectures/boring.lecture.what.is.observable.txt"               title="What is an Observable">What is an Observable?</a>
     h. <a href="./lectures/boring.lecture.flyway.auditing.bind.variables.txt"   title="Database Versioning">Database Versioning, Auditing, and Bind Variables?</a>
