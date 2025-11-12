@@ -82,7 +82,7 @@ Angular 16 Lesson Plan
        <a href="./exercises/exercise10c.get-datepicker-value-and-format-it.question.txt" title="Exercise 10c">Exercise 10c</a> / Get selected date and format it as YYYY-MM-DD  (<a href="./exercises/exercise10c.get-datepicker-value-and-format-it.answers.txt"   title="Exercise 10c">Answers</a>)
     e. Radio Buttons
     f. <a href="./howToCreatePopupMenu.txt" title="Popup Menus">Popup Menus</a>
-    g. AutoCompletes
+    g. <a href="./exercises/exercise14d.advanced-stock-trade.autocomplete.answers.txt"      title="Answer to 14d">AutoCompletes</a>
     h. Derivative Dropdowns  [After selecting 1 dropdown value, change a 2nd dropdown's options]
     i. <a href="./howToMakeNarrowDropdown.txt" title="Narrow Dropdowns">Narrow dropdowns</a>      (often used for navigation)
 
