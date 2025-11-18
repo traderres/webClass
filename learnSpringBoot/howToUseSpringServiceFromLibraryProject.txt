@@ -1,0 +1,65 @@
+How to use service from another library
+---------------------------------------- 
+ 1) In the smaller library, make sure you have a service to inject by adding the @Service annotation
+    -- let's assume it has some service
+
+            package myLibrary.services;
+
+            @Service
+            public class BogusService {
+
+            }
+
+
+
+ 2) In the larger project, add the maven dependency
+    -- Add the smaller project as a maven dependency
+
+        <dependency>
+          <!-- Add the core-library as a dependency -->
+          <groupId>${project.groupId}</groupId>
+          <artifactId>my-library</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+
+
+
+ 3) In the larger project, tell spring to *SCAN* for that package group
+    In the main Application class
+
+
+    @SpringBootApplication(exclude = {DataSourceAutoConfiguration.class, HibernateJpaAutoConfiguration.class, SecurityAutoConfiguration.class})
+    @ComponentScan(basePackages = {
+            "gov.dcsa.coreAdminWebapp",
+            "gov.dcsa.core.library",           // Tell spring boot to look for core library services
+            "gov.dcsa.foci.library",           // Tell spring boot to look for foci library services
+            "com.eurodyn.qlack.util.clamav"    // Tell spring boot to look for the anti-virus services
+    })
+    public class Application
+    {
+        private static final Logger logger = LoggerFactory.getLogger(Application.class);
+
+
+        /**
+         * Web Application Starts Here
+         **/
+        public static void main( String[] args )
+        {
+            logger.debug("main() started.");
+
+            // Start up Spring Boot but disable the banner
+            SpringApplication app = new SpringApplication(Application.class);
+            app.setBannerMode(Banner.Mode.OFF);
+            ConfigurableApplicationContext context = app.run(args);
+
+            // Get a reference to the coreVersionService
+            CoreVersionService coreVersionService = (CoreVersionService) context.getBean("coreVersionService");
+
+            // Log a message so that Tier 3 Support knows which version and commit Id is actually running
+            logger.info("My WebApp is Up / {} / {}", coreVersionService.getAppVersion(), coreVersionService.getCommitId() );
+        }
+
+    }
+
+
+
