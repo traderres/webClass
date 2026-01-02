@@ -1,0 +1,103 @@
+How to Loop Through List of Items (in Bash 4.0)
+-----------------------------------------------
+Problem:  I want to create a 1000 PKI client certs
+Solution: Use a script to generate the CSR, sign it, and copy the p12 to a directory
+
+#!/bin/bash
+#######################################################
+# Filename:  makeClientCerts.sh
+#######################################################
+# Purpose:
+#   Loop through the list of users and create client certs
+#
+# Usage:
+#   unix> chmod u+x ./makeClientCerts.sh
+#   unix> ./makeClientCerts.sh
+#######################################################
+declare -A usernames
+
+echo -e "\nScript started as of `date`"
+
+# Create the /tmp/csr.conf to hold the default values
+echo Creating this file:  /tmp/csr.conf
+cat >/tmp/csr.conf <<'EOF'
+
+[req]
+prompt = no
+distinguished_name = dn
+
+[dn]
+C = US
+L = Odenton
+ST = Maryland
+O = Secure
+OU = Secure
+CN = ${ENV::CERT_USERNAME}
+
+EOF
+
+
+# Get a list of users who have the role
+usernames=`cat /tmp/client.cert.names | cut -d: -f1 `
+
+# Loop through the list, removing the role
+for username in  ${usernames[*]}; do
+    echo -e "\nCreating client cert for this username:    ${username}"
+    export CERT_USERNAME=$username
+
+    # Create the /tmp/client.csr file
+    cd /home/adam;
+    rm -rf /tmp/client_cert;
+    mkdir /tmp/client_cert;
+    cd /tmp/client_cert;
+    openssl req -new -newkey rsa:4096  -nodes -keyout client.key -out client.csr -config /tmp/csr.conf
+
+    if [ $? -ne 0 ]; then
+        # The last command had a problem.
+        echo -e "\nFailed to generate the CSR file"
+
+        # Exit with an error code
+        exit 1
+    fi
+
+    # Sign the cert
+    cd /home/adam/intellijProjects/ni2/infrastructure/root-ca/
+    openssl ca -batch -config conf/openssl.cnf -in /tmp/client_cert/client.csr -out /tmp/client_cert/client.cert.notes
+
+    if [ $? -ne 0 ]; then
+        # The last command had a problem.
+        echo -e "\nFailed to sign the cert "
+
+        # Exit with an error code
+        exit 1
+    fi
+
+
+    # Create the client.p12
+    cd /tmp/client_cert;
+    openssl pkcs12 -export -clcerts -in client.cert.notes -inkey client.key -out client.p12 -passout pass:secret
+
+    if [ $? -ne 0 ]; then
+        # The last command had a problem.
+        echo -e "\nFailed to create the client.p12"
+
+        # Exit with an error code
+        exit 1
+    fi
+
+    # Copy the client.p12 to the destination
+    cp /tmp/client_cert/client.p12 /home/adam/intellijProjects/ni2/infrastructure/root-ca/client-certs/ncc-certs/${CERT_USERNAME}.p12
+
+    if [ $? -ne 0 ]; then
+        # The last command had a problem.
+        echo -e "\nFailed to copy the file"
+
+        # Exit with an error code
+        exit 1
+    fi
+
+done
+
+echo -e "\nScript finished as of `date`"
+exit 0
+
