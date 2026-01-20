@@ -1,0 +1,69 @@
+How to Wait for Async Validators to Finish
+------------------------------------------
+Problem:  On page load,
+          a) I load data into a form
+          b) This causes validators and async validators to run
+          c) I calculate total errors
+          d) Save the errors by manually invoking a REST call
+
+But, I need the code to *WAIT* for the async validators to finish
+
+Solution
+--------
+ 1. Create a method saveDataWaitForAsyncValidators()
+
+ 2. Employ this logic
+    If the form is pending,
+     	a) listen for the first non-pending status change
+    	b) When the first non-pending status change happens, save the data
+
+    Else
+    	-- The form is not pending
+    	So, save the data
+
+
+
+PROBLEM:  The form is stuck with the PENDING status
+SOLUTION: After I start listening for status changes,
+
+         // Cause the async validator activate so that we can save data *AFTER* the async validator finishes
+         setTimeout( () => {
+           	// Trigger form validation
+           	let existingValue: string = this.myForm.controls.contractNumber.value;
+           	this.myForm.controls.contractNumber.setValue(existingValue);
+         })
+
+
+
+Completed Solution
+------------------
+  private saveDataWaitForAsyncValidators(): void {
+
+    if (this.myForm.pending) {
+	 	// The form is pending.  So, wait for the async validators to finish
+
+	 	 // Listen on status changes so we can run code when the status changes out of PENDING
+		 this.myForm.statusChanges.pipe(
+			   startWith(this.myForm.status),
+			   filter(status => status !== 'PENDING'),    // Keep listening while status is PENDING
+			   first()                                                                  // Take only the first result once it's finished
+		  ).subscribe( (aNewStatus: FormControlStatus) => {
+			  // We got a non-pending status.  So, save the data asynchronously
+			  this.saveDataAsync();
+		  });
+
+
+		  // Cause the async validator activate so that we can save data *AFTER* the async validator finishes
+		  setTimeout( () => {
+			// Trigger form validation
+			let existingValue: string = this.myForm.controls.contractNumber.value;
+			this.myForm.controls.contractNumber.setValue(existingValue);
+		  })
+
+		}
+		else {
+		  // The form is not pending.  So, data dat anow
+		  this.saveDataAsync();
+		}
+  }
+
