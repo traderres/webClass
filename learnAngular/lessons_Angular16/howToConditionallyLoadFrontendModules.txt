@@ -1,0 +1,146 @@
+How to Conditionally Load Front-end Modules
+-------------------------------------------
+Problem:  I have lots of front-end modules
+          After the main module is loaded, I want to continue loading ONLY THE AUTHORIZED modules in the background
+Solution: Create a CustomPreloadStrategy class that implements PreloadingStrategy
+
+
+Assumptions
+ A) You have a front-end userService
+ B) You have a getLoggedInUserInfo() that returns a DTO
+ C) This returned DTO contains a map of allows page routes
+ D) If you have the front-end module path in the allowed page routes, then the user is allowed to go to it
+
+Procedure
+---------
+ 1. Create a typescript class that implements PreloadingStrategy
+ 	a. Create this class:  custom-preload-strategy.ts
+
+ 	b. Add this to the code:
+
+	 import { Injectable } from '@angular/core';
+	 import {UserService} from "./modules/shared/services/user.service";
+	 import {PreloadingStrategy, Route} from "@angular/router";
+	 import {Observable, of, switchMap} from "rxjs";
+	 import {UserInfoDTO} from "./modules/shared/models/user/user-info-dto";
+
+	 @Injectable({
+	   providedIn: 'root'
+	 })
+	 export class CustomPreloadStrategy implements PreloadingStrategy {
+
+	   constructor(private userService: UserService) { }
+
+	   /*
+		* We only pre-load modules that the user is authorized to use
+		*/
+	   public preload(aRoute: Route, load: () => Observable<any>): Observable<any> {
+
+		   // This method must return an observable so use the pipe() to get the UserInfoDTO and switchMap to convert the stream
+		   return this.userService.getLoggedInUserInfo().pipe(
+			 switchMap( (aUserInfo: UserInfoDTO) => {
+			   // Use switchMap to change what observable is returned
+
+			   // Compare the requested route (aRoute.path) against aUserInfo.allowedPageRoutes to see if the user is allowed to request this
+			   const isRoutePathIsAllowed : boolean = [...aUserInfo.allowedPageRoutes.keys()].some( (key: string) => {
+				 if (!aRoute.path) {
+				   return false;
+				 }
+				 else {
+				   return key.includes(aRoute.path)
+				 }
+			   });
+
+			   if (isRoutePathIsAllowed) {
+				 // The requested route path is allowed.  So, load this module
+				 return load();
+			   }
+			   else {
+				 // The requested route path is not allowed.  So, do NOT load this module
+				 return of(null);
+			   }
+
+			 })    // end of switchMap()
+
+		   );    // end of pipe()
+
+		}    // end of preload()
+
+
+	 }
+
+
+ 3. Tell Angular to use our custom preload strategy
+    a. Edit app-routing.module.ts
+
+    b. In the imports section, tell it to use our CustomPreloadStrategy class
+          imports: [RouterModule.forRoot(routes, {preloadingStrategy: CustomPreloadStrategy})],
+
+
+
+    Here is an example of an app-routing.module.ts with lots of front-end modules:
+    ------------------------------------------------------------------------------
+	import {NgModule} from '@angular/core';
+	import {RouterModule, Routes} from '@angular/router';
+	import {NotFoundComponent} from "./layout/components/not-found/not-found.component";
+	import {CustomPreloadStrategy} from "./custom-preload-strategy";
+
+
+	 /*
+	  * Tell Angular to lazy load the modules
+	  * -- The modules are only loaded if the user has access / See custom-preload-strategy.ts
+	  * -- The **ORDER** of these routes matters.  The NotFoundComponent should always be *LAST*
+	  */
+	 const routes: Routes = [
+
+	   // Lazy-Load this module:  core-admin
+	   {
+		 path: "page/admin/core",
+		 loadChildren: () => import('./modules/core-admin/core-admin.module').then(m => m.CoreAdminModule),
+	   },
+
+
+	   // Lazy-Load this module:  workflow-admin
+	   {
+		 path: "page/admin/workflow",
+		 loadChildren: () => import('./modules/workflow-admin/workflow-admin.module').then(m => m.WorkflowAdminModule),
+	   },
+
+
+	   // Lazy-Load this module:  org-admin
+	   {
+		 path: "page/organizations",
+		 loadChildren: () => import('./modules/org-admin/org-admin.module').then(m => m.OrgAdminModule),
+	   },
+
+
+	   // Lazy-Load this module:  org-admin
+	   {
+		 path: "page/case",
+		 loadChildren: () => import('./modules/workflow-case/workflow-case.module').then(m => m.WorkflowCaseModule),
+	   },
+
+
+	   // Lazy-Load this module:  metrics
+	   {
+		 path: "page/metrics",     // This is the PREFIX added to every page route
+		 loadChildren: () => import('./modules/metrics/metrics.module').then(m => m.MetricsModule),
+	   },
+
+
+
+	   // Do not apply the PageGuard.canActivate on the default and NotFound page routes
+	   { path:  '',                 redirectTo: 'page/account/welcome',          pathMatch: 'full'   },         // By default, take the user to the my-account module / status page
+	   { path:  '**',               component:   NotFoundComponent }
+
+	 ];
+
+
+	 @NgModule({
+	   // Tell Angular to use our CustomPreloadStrategy class
+	   imports: [RouterModule.forRoot(routes, {preloadingStrategy: CustomPreloadStrategy})],
+	   exports: [RouterModule]
+	 })
+	 export class AppRoutingModule {
+	 }
+

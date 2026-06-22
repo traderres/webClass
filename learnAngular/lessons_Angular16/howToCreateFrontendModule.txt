@@ -1,0 +1,552 @@
+How to Add a front-end module and backend
+-----------------------------------------
+
+Assumptions
+1) You want to add front-end module:  "my-module"
+2) You want to add this backend:      "my-module-backend"
+
+
+Part 1 / Add database records for the applicationId, uicontrol records and role_uicontrols records
+--------------------------------------------------------------------------------------------------
+
+
+
+
+Part 2 / Create the backend project in Gitlab:  my-module-backend
+-----------------------------------------------------------------
+ 1. Connect to your Gitlab
+ 2. Press "Create project"
+ 3. Press "Create blank project"
+ 4. In the "Create blank project" page
+		Name:               my-module-backend
+		Visibility level:   Private
+		Project config:     <Check> Initialize repository with a README
+		Press "Create project"
+ 5. Finish configuring the project
+ 	a. Go to Settings -> Merge requests
+		   Merge Method:                  "Merge commit with a semi-linear history"
+		   Squash commits when merging:  <Check> Encourage
+		   Press "Save changes"
+
+	b. Go to Settings -> Repository
+		   Expand "Protected branches"
+		   For the development branch:
+				  Allowed to merge:           "Developers + Maintainers"
+				  Allowed to push and merge:  "No One"
+				  Allowed to force push:      Disabled
+
+ 6. Checkout the infrastructure project
+	Add the project to the getLatestDevForAll.bat and getLatestDevForAll.sh
+	a. Edit infrastructure/scripts/developer/windows/getLatestDevForAll.bat script
+		   Add an entry to checkout the development branch for your new BACKEND project
+
+	b. Edit infrastructure/scripts/developer/unix/getLatestDevForAll.sh
+		   Add an entry for the new project t othe "remainingProjectNames" array
+
+
+
+
+Part 3 / Fill-in the backend project
+------------------------------------
+ 1. Clone the *NEW* project
+
+ 2. Checkout a branch
+    cd my-module-backend
+    git checkout -b my-branch
+
+ 3. Copy the code from the core-admin-backend module to your module
+    cd %NI2_PROJECT_PATH%\core-admin-backend
+    xcopy /s /e /i backend      ..\my-module-backend\backend
+    xcopy .gitignore            ..\my-module-backend
+    xcopy maven_checks.xml      ..\my-module-backend
+    xcopy Dockerfile            ..\my-module-backend
+    xcopy ci_settings.xml       ..\my-module-backend
+    xcopy pom.xml               ..\my-module-backend
+
+ 4. Update both pom.xml in my-module-backend
+    a. Edit my-module\pom.xml
+       Search for "core-admin-backend"
+       Replace with 'my-backend'
+
+    b. Edit my-module\backend\pom.xml
+       Search for "core-admin-backend"
+       Replace with 'my-backend'
+
+ 5. Rename the backend/src/main/java/gov/dcsa/coreAdminBackend --> my new module name
+    a. Open the project in intellij
+    b. Right-click on the pom.xml -> Add as Maven project
+    c. Right-click on the backend/pom.xml -> Add as Maven project
+    d. Right-click on Application.java -> Debug
+       WARNING:  Verify this starts up
+                 IntelliJ must see this as a Java/Maven project in order for the rename to work properly
+                 If you do NOT see the "Debug" option for Application, then IntelliJ does *NOT* see this as a Java/Maven project
+
+    e. Stop the debugger
+
+    f. Single-click on backend/src/main/java/gov/dcsa/coreAdminBackend
+    g. Shift-F6
+       Enter the new module name
+       Check "Search in comments and strings"
+       Press "Refactor"
+
+
+ 6. Edit the Application.java
+    a. Change the Component Scan on line 20
+        -- Make sure the first base package is "gov.dcsa.<MY BACKEND>"
+        -- If you do not need the foci-library, then remove line 22
+    b. Change the logger.info so it says "My Module is Up"
+
+
+ 7. Edit the logback.xml
+    a. Replace "gov.dcsa.coreAdminBackend" ---> "gov.dcsa.MY MODULE NAME">
+                        Change this to your package name
+                                    |
+                                    V
+        <logger name="gov.dcsa.coreAdminBackend" level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+        </logger>
+
+
+ 8. Update the application.yaml files
+    a. Edit my-module\backend\src\main\resources\application.yaml
+
+        1) Update the context path
+            server.servlet.context-path: /cab                # cab stands for core-admin-backend
+
+            Search for "/cab"
+            Replace with NEW CONTEXT PATH
+
+        2) Update the port
+            server.port: 8082
+
+            Search for 8082
+            Replace with NEW PORT NUMBER
+
+        3) Update the application.id
+             application.id: 141          # Replace with the NEW application id
+
+        4) If you're not talking to all of the schemas them remove some of the data source credentials
+
+
+    b. Edit my-module\backend\src\main\image_resources\application.yaml
+         1) Update the context path
+             server.servlet.context-path: /cab                # cab stands for core-admin-backend
+
+             Search for "/cab"
+             Replace with NEW CONTEXT PATH
+
+         2) Update the application.id
+               application.id: 141          # Replace with the NEW application id
+
+         3) Edit the host name
+                host.name: ${HOSTNAME:core-admin-backend-unknown-XXXXX}
+                                          ^
+                                          |
+                                 Change this to my module name
+
+         4) If you're not talking to all of the schemas them remove some of the data source credentials
+
+
+
+ 9. Update LocalConstants.java
+    -- Remove all constants
+    -- Add in a constant for "THIS_APPLICATION_ID"
+    -- Make sure it has the correct number for this constant
+            public static final int THIS_APPLICATION_ID = 144;
+
+
+10. Delete all of the services, controllers, and models
+
+11. Add this service:  UserService.java
+    a. Create the services package
+    b. Create a new java class:  UserService.java
+            package gov.dcsa.myBackend.services;        // Change this to your package name
+
+            import gov.dcsa.core.library.exceptions.MyRuntimeException;
+            import gov.dcsa.core.library.interfaces.MyUserInfoInterface;
+            import gov.dcsa.core.library.interfaces.UserServiceInterface;
+            import gov.dcsa.core.library.security.MyDefaultOidcUser;
+            import gov.dcsa.core.library.security.MyUserInfo;
+            import org.springframework.beans.factory.annotation.Value;
+            import org.springframework.security.core.Authentication;
+            import org.springframework.security.core.context.SecurityContext;
+            import org.springframework.security.core.context.SecurityContextHolder;
+            import org.springframework.stereotype.Service;
+
+
+            @Service
+            public class UserService implements UserServiceInterface  {
+
+
+                @Value("${security.mode}")
+                private String securityMode;
+
+
+                public MyUserInfo getUserInfo() {
+                    if (this.securityMode.equalsIgnoreCase("keycloak")) {
+                        return getUserInfoFromKeycloak();
+                    }
+                    else {
+                        return getUserInfoFromNonKeyCloak();
+                    }
+                }
+
+
+                public String getLoggedInUserName() {
+                    MyUserInfo userinfo = getUserInfo();
+
+                    return userinfo.getUsername();
+                }
+
+                public String getLoggedInFullName() {
+                    MyUserInfo userinfo = getUserInfo();
+
+                    return userinfo.getLoggedInFullName();
+                }
+
+                private MyUserInfo getUserInfoFromNonKeyCloak() {
+                    // Get the UserInfo object from Spring Security
+                    SecurityContext securityContext = SecurityContextHolder.getContext();
+                    if (securityContext == null) {
+                        throw new MyRuntimeException("Error in getUserInfoFromNonKeyCloak():  SecurityContext is null.  This should never happen.");
+                    }
+
+                    Authentication auth = securityContext.getAuthentication();
+                    if (auth == null) {
+                        throw new MyRuntimeException("Error in getUserInfoFromNonKeyCloak():  Authentication is null.  This should never happen.");
+                    }
+
+                    MyUserInfo userInfo = (MyUserInfo) auth.getPrincipal();
+                    if (userInfo == null) {
+                        throw new MyRuntimeException("Error in getUserInfoFromNonKeyCloak():  UserInfo is null.  This should never happen.");
+                    }
+
+                    return userInfo;
+                }
+
+
+                private MyUserInfo getUserInfoFromKeycloak() {
+                    // Get the UserInfo object from Spring Security
+                    SecurityContext securityContext = SecurityContextHolder.getContext();
+                    if (securityContext == null) {
+                        throw new MyRuntimeException("Error in getUserInfoFromKeycloak():  SecurityContext is null.  This should never happen.");
+                    }
+
+                    Authentication auth = securityContext.getAuthentication();
+                    if (auth == null) {
+                        throw new MyRuntimeException("Error in getUserInfoFromKeycloak():  Authentication is null.  This should never happen.");
+                    }
+
+                    MyDefaultOidcUser myDefaultOidcUser = (MyDefaultOidcUser) auth.getPrincipal();
+                    if (myDefaultOidcUser == null) {
+                        throw new MyRuntimeException("Error in getUserInfoFromKeycloak():  MyDefaultOidcUser is null.  This should never happen.");
+                    }
+
+                    MyUserInfo myUserInfo = myDefaultOidcUser.getMyUserInfo();
+                    if (myUserInfo == null) {
+                        throw new MyRuntimeException("Error in getUserInfoFromKeycloak():  MyUserInfo is null.  This should never happen.");
+                    }
+
+                    return myUserInfo;
+                }
+
+                public Integer getLoggedInUserId() {
+                    MyUserInfo userinfo = getUserInfo();
+
+                    return userinfo.getId();
+                }
+
+
+                /*
+                 * This is used by the AuthenticationFailedInterceptor to get the MyUserInfo object
+                 */
+                @Override
+                public MyUserInfoInterface getUserInfoFromWebApp() {
+                    MyUserInfo myUserInfo = getUserInfo();
+
+                    return myUserInfo;
+                }
+            }
+
+12. Compile your backend
+    cd my-new-backend
+    mvn clean package
+
+
+
+Part 4 / Add the front-end module to the big-frontend-webapp
+-------------------------------------------------------------
+ 1. Checkout your own branch from the big-frontend-webapp
+    cd %NI2_PROJECT_PATH%\big-frontend-webapp
+    getLatestDev
+    git checkout -b MyInitials/something
+
+ 2. Create the front-end module
+    cd frontend
+    ng g module modules/my --routing
+                        ^
+                        |
+            Replace with your module name
+
+ 3. Add the environments/ directory to your front-end module
+    a. Add this file:  frontend/src/app/modules/my-module/environments/environment.development.ts
+                                                ^
+                                                |
+                                    Replace with your module name
+
+            export const environment = {
+              production: false,
+              baseUrl: 'http://localhost:8082/cab'
+            };                   ^
+                                 |
+                     Update this to match the context path and port (you set in the application.yaml)
+
+
+    b. Add this file:  frontend/src/app/modules/my-module/environments/environment.ts
+
+            export const environment = {
+              production: true,
+              baseUrl: '/cab',
+            };           ^
+                         |
+                   Update this to match the context path (you set in the application.yaml)
+
+
+ 4. Update the my-module.module.ts
+    a. In the imports: [ ] section, add the Angular Material, ag-grid modules, and shared directives
+
+     imports: [
+        CommonModule,
+        SharedModule,               // Gives me the shared frontend components
+        AgGridModule,
+        CoreAdminRoutingModule,     // REPLACE THIS WITH YOUR NEWLY-CREATED ROUTING MODULE!!!!!
+        FileUploadModule,
+        FormsModule,
+        HttpClientModule,
+        MatAutocompleteModule,
+        MatButtonModule,
+        MatCardModule,
+        MatChipsModule,
+        MatDatepickerModule,
+        MatDialogModule,
+        MatDividerModule,
+        MatInputModule,
+        MatListModule,
+        MatMenuModule,
+        MatRadioModule,
+        MatSelectModule,
+        MatSlideToggleModule,
+        MatProgressSpinnerModule,
+        MatTabsModule,
+        QuillModule.forRoot(),
+        ReactiveFormsModule,
+
+        // Import the standalone directives that are actually used
+        RbrStrippedButtonDirective,
+        RbrSolidButtonDirective,
+        RbrSoftButtonDirective,
+        RbrOutlineButtonDirective,
+        RbrAriaDirective,
+        PhoneMaskDirective,
+      ]
+
+
+ 5. Update my-module.module.ts / make sure you import your new routing module
+    a. Edit my-module.module.ts
+    b. Replace CoreAdminRoutingModule with your newly-created-routing-module
+
+
+ 6. Update the app-routing.module.ts
+    a. Add a section to lazy load your module:
+
+          // Lazy-Load this module:  MY-MODULE-NAME
+          {
+            path: "page/admin/core",     // This is the PREFIX added to every page route
+            loadChildren: () => import('./modules/my-module/my.module').then(m => m.CoreAdminModule),
+          },
+
+
+ 7. Update angular.json to use the correct environment when building the frontend
+    1) Update the angular.json
+    2) Search for "fileReplacements" / You should find 2 matches
+    3) In each location, add another entry to fileReplacements
+        {
+          "replace": "src/app/modules/my-module/environments/environment.ts",
+          "with":    "src/app/modules/my-module/environments/environment.development.ts"
+        }
+
+
+
+Part 5 / Add files needed to run the backend in Docker
+------------------------------------------------------
+ 1. Create a deployment kubernetes yaml for your backend
+    a. Open the infrastructure project
+    b. Create a branch of infrastructure project
+    c. COPY deploy-core-admin-backend.yaml --> PASTE --> Your new file
+       The format:  deploy-<NAME>.yaml
+    d. Search & Replace:
+       Search for:    core-admin
+       Replace with:  <new module name>
+
+ 2. Create a windows batch script that will delete, compile, and deploy the new backend:
+    a. Go to the infrastructure/scripts/developer/windows
+    b. COPY reloadCoreAdminBackend.bat --> PASTE --> Your new file
+    c. Update the new batch script with your backend
+
+ 3. Create a unix shell script that will delete, compile, and deploy the new backend:
+    a. Go to the infrastructure/scripts/developer/unix
+    b. Copy reloadCoreAdminBackend.sh --> PASTE --> Your new file
+    c. Update the new shell script with your backend
+
+ 4. Update the ni2-apps-ingress.yaml with the context path for the new backend
+    a. Go to the infrastructure/kubernetes/ingress-ni2-apps.yaml
+    b. Add this to the bottom:
+
+          - path: /cab              <---------- This should match the name of your context path
+            pathType: Prefix
+            backend:
+              service:
+                name: core-admin-service   <---- This should be the name of your new backend
+                port:
+                  number: 443
+
+    c. Reload the ingress
+       cd %NI2_PROJECT_PATH%\infrastructure\kubernetes
+       kubectl delete -f ingress-ni2-apps.yaml
+       kubectl apply  -f ingress-ni2-apps.yaml
+
+    d. Wait 60 seconds for Docker to finish loading the ingress
+
+ 5. Try it out
+    nukeDatabaseAddRegisteredUsers          # To load the docker database with your changes to the core.applications table
+    reloadCoreAdminBackend.bat
+    -- Verify that it compiles and starts up
+
+
+
+Part 6 / Update Keycloak to protect the backend
+-----------------------------------------------
+ 1. Add a keycloak client for your new backend
+    a. Connect to https://keycloak.docker.internal/
+    b. Login as admin
+       Password is admin
+    c. Go to Realms -> MyRealm -> Clients                  !!! IMPORTANT STEP HERE !!!
+    d. Add a client:
+       In the Create client page
+            Client type:    OpenID Connect
+            Client ID:      core-admin-backend             # Change this to your new backend
+            Client Name:    core-admin-backend             # Change this to your new backend
+            Press "Next"
+            Press "next"                                Change this to your context path
+            Press "save"                                             |
+       In the "Settings" tab                                         V
+            Root URL:                   https://app.localhost.internal/cab
+            Home URL:                   https://app.localhost.internal/cab
+            Client authentication:      On
+            Authorization:              On
+            Authentication Flow:        Standard flow
+            Login theme:                ni2-login-page-theme
+            Press "Save"
+
+
+ 2. Export the realm settings to MyRealm-realm.json
+    -- Followed the procedures in infrastructure/docs/howToUpdateKeycloakRealm.txt from step 4 on
+
+ 3. Update the credentials for your new client (in MyRealm-realm.json)
+    a. In Keycloak -> Manage Realms -> MyRealm -> Client -> <My backend client>
+    b. Click on "Credentials" tabkeycloak
+    c. Copy the credentials
+    d. Open this file:  infrastructure/kubernetes/MyRealm-realm.json
+    e. Search for
+            the credentials (you copied earlier)
+       Replace the credentials with
+            client-secret-set-in-keycloak
+
+  4. The keycloak settings work
+     a. Rebuild the realm-export configmap to use your newly-created c:\temp\MyRealm-realm.json
+        cd %NI2_PROJECT_PATH%\infrastructure\kubernetes\
+        kubectl delete configmap realm-export
+        kubectl create configmap realm-export   --from-file=MyRealm-realm.json
+
+    b. Restart the keycloak deployment
+       cd %NI2_PROJECT_PATH%\infrastructure\kubernetes
+       kubectl delete -f deploy-keycloak.yaml
+       kubectl apply -f  deploy-keycloak.yaml
+       kubectl logs -f deploy/ni2-keycloak
+
+    c. Connect to keycloak
+       Go to https://keycloak.docker.internal/
+
+    d. Verify that you see your changes
+       1) Connect to https://keycloak.docker.internal
+       2) Login as admin
+          Password is admin
+       3) Go to Manage Realms -> MyRealm -> Clients
+          -- Verify that you see your new client
+
+
+  5. Verify that your KEYCLOAK_CLIENT_ID matches your real client id in keycloak
+     a. Look at the infrastructure/kubernetes/deploy-core-admin-backend.yaml
+
+     b. Make sure the
+            - name: KEYCLOAK_CLIENT_ID
+              value: "core-admin-backend"
+                             ^
+                             |
+                    Should be the same as the Client ID in keycloak
+
+
+Part 7 / Verify it all works in Docker Desktop
+----------------------------------------------
+ 1. Checkout my branch of  core-sync-service, big-frontend-webapp, infrastructure, and my-new-backend project
+
+ 2. Install the core-library
+    cd %NI2_PROJECT_PATH%\core-library
+    getLatestDev
+    mvn clean install
+
+ 3. In Docker, nuke the database
+    cd ..\core-sync-service
+    nukeDatabaseAndRegisteredUsers
+
+ 4. Reload keycloak settings
+    rebuildKeycloak2
+
+ 5. Reload the oidc fake provider (to play it safe)
+    reloadOidcProviderFake
+
+ 6. Deploy the big-frontend-webapp
+    reloadBigFrontendWebapp
+
+ 7. Deploy the core-admin-backend
+    reloadCoreAdminBackend
+
+ 8. Deploy the *NEW* backend
+    reloadWorkflowAdminBackend
+
+ 9. Verify that keycloak has the *NEW* client
+    a. Go to https://keycloak.docker.internal/
+    b. Login as admin
+       Password is admin
+    c. Go to Realms -> MyRealm -> Clients
+       -- Verify that you see this client:  "core-admin-backend"
+
+
+10. Pre-register the john.smith.admin role and grant that user the workflow admin role
+     a. Edit the infrastructure\kubernetes\job-make-account.john.smith.admin.yaml
+     b. Change the last line to this:
+              value: "-Xms64m -Xmx64m -Dspring.profiles.active=makeAccount  -Dam.cert.x509.common-name=john.smith.admin -Duser.email=john.smith.admin@dcsa.gov -Duser.first.name=John -Duser.last.name=Smith -Duser.type=1 -Dlist.granted.role.names=SYS_ADMIN_1,USER_SUPPORT  "
+
+     c. Run the job
+        cd %NI2_PROJECT_PATH%\infrastructure\kubernetes
+        kubectl delete job make-account-job
+        kubectl apply -f job-make-account.john.smith.admin.yaml
+        kubectl wait --for=condition=complete job/make-account-job  --timeout=600s
+
+
+11. Login as john.smith.admin
+    a. Go to https://app.localhost.internal/ui     (as john.smith.admin)
+    b. Put the cursor on the "user profile" icon in the upper right corner
+       -- Verify that you see "Workflow Administrator"
+    c. Verify that the navbar has the Workflow Admin
+

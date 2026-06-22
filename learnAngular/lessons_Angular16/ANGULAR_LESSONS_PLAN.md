@@ -201,4 +201,8 @@ Angular 16 Lesson Plan
  
 22. The Extended PDF Viewer (using an embedded PDF viewer)
 
+23. Angular Modules
+    <a href="./ag-grid.how-to-reduce-bundle-size.md"         title="How to Measure & Reduce Front-end Module Bundle Size">How to Measure & Reduce Front-end Module Bundle Size</a> 
+    <a href="./howToCreateFrontendModule.txt"                title="How to Create a Front-end Module">How to Create a Front-end Module</a> 
+    <a href="./howToConditionallyLoadFrontendModules.txt"    title="How to Conditionally Load Front-end Modules">How to Conditionally Load Front-end Modules</a> 
 </pre>
