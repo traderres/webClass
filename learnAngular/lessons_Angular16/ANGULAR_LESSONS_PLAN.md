@@ -205,4 +205,8 @@ Angular 16 Lesson Plan
     <a href="./ag-grid.how-to-reduce-bundle-size.md"         title="How to Measure & Reduce Front-end Module Bundle Size">How to Measure & Reduce Front-end Module Bundle Size</a> 
     <a href="./howToCreateFrontendModule.txt"                title="How to Create a Front-end Module">How to Create a Front-end Module</a> 
     <a href="./howToConditionallyLoadFrontendModules.txt"    title="How to Conditionally Load Front-end Modules">How to Conditionally Load Front-end Modules</a> 
+    
+24. Guards
+    <a href="./howToCreatePageGuard.txt"    title="How to Create a Page Guard">How to Create a Page Guard</a> that prevents unauthorized access to front-end routes 
+   
 </pre>
