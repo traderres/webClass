@@ -1,0 +1,92 @@
+Here is a sample script that I used to fetch the latest git projects
+--------------------------------------------------------------------
+
+#!/bin/bash
+###################################################################################
+# Filename:  reloadCoreAdminBackend.sh
+#
+# Purpose:
+#   Rebuild the core-admin-backend and re-deploy it to minikube
+###################################################################################
+TMP_FILE_PATH=/tmp/output.$$.txt
+
+# Force my docker to use minikube's docker env
+eval $(minikube docker-env)
+
+
+#######################################################
+# main()
+#  1) Stop the deployment
+#  2) Build the tar file
+#  3) Load the tar file into docker
+#  4) Start the deployment
+#  5) Look at the logs
+#######################################################
+function main()
+{
+	# Stop the deployment
+	echo -e "\nDeleting deployment:  core-admin-deployment"
+	minikube kubectl -- delete deployment core-admin-deployment
+
+	# Give a few seconds to delete the deployment
+	sleep 5
+
+	# Delete the old image
+	minikube ssh -- "docker rmi -f core-admin-backend:1.0"
+
+	# Build the image
+	echo -e "\nBuilding the image"
+	cd ${APP_PROJECT_PATH}/core-admin-backend
+	mvn clean package -PbuildImageTar | tee $TMP_FILE_PATH
+
+	grep "BUILD SUCCESS" $TMP_FILE_PATH
+	if [ $? -ne 0 ]; then
+		# The last command had a problem.
+		exit 1
+	fi
+
+	# Load the image
+	echo -e "\nLoad the image"
+	docker load -i backend/target/jib-image.tar
+
+	if [ $? -ne 0 ]; then
+		# The last command had a problem.
+		exit 1
+	fi
+
+
+  # Deploy it
+  echo -e "\nDeploying core-admin-backend"
+  cd ${APP_PROJECT_PATH}/infrastructure/kubernetes
+  minikube kubectl -- apply -f deploy-core-admin-backend.yaml
+
+
+  # Wait for the pods to initialize
+  echo -e "\nWait for the pods to initialize"
+  minikube kubectl -- wait --for=condition=Initialized pod -lapp=core-admin-backend --timeout=90s
+  sleep 2;
+
+
+  # Show the logs
+  echo -e "\nkubectl  logs -f deployment/core-admin-deployment"
+  minikube kubectl -- logs -f deployment/core-admin-deployment
+}
+
+#######################################################
+# cleanup()
+#
+# This method is always called before the script ends
+#######################################################
+function cleanup()
+{
+  	# Clean-up the tmp file
+	rm -f $TMP_FILE_PATH
+}
+
+
+# Tell bash to call cleanup() when the program ends
+# NOTE:  Whether the program crashes or succeeds, this method is the last method called
+trap cleanup EXIT
+
+# Run the main() function
+main

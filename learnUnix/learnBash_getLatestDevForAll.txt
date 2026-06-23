@@ -1,0 +1,112 @@
+Here is a sample script that I used to fetch the latest git projects
+--------------------------------------------------------------------
+
+#!/bin/bash
+###################################################################################
+# Filename:  getLatestDevForAll.sh
+#
+# Purpose:
+#   Get the latest development branch for all projects
+###################################################################################
+TMP_FILE_PATH=/tmp/output.$$.txt
+
+
+#######################################################
+# main()
+#  1) Stop the deployment
+#  2) Build the tar file
+#  3) Load the tar file into docker
+#  4) Start the deployment
+#  5) Look at the logs
+#######################################################
+
+function main()
+{
+    declare -a libraryProjectNames=("core-library" "er-library" "foci-library" "workflow-library" "notification-library")
+
+    declare -a remainingProjectNames=("big-frontend-webapp" "broker-backend" "broker-trz-backend" "contract-webapp" "core-account-watcher-service"
+                                      "core-govt-registration-webapp" "core-sync-service"
+                                      "reports-webapp" "nccs-backend" "contract-backend")
+
+    # Loop through the library projects, get the latest development branch, and compile the JAR
+    for projectName in "${libraryProjectNames[@]}"; do
+      echo -e "\nGetting latest development for ${projectName}\n"
+      cd ${MY_PROJECT_PATH}/${projectName}
+      if [ $? -ne 0 ]; then
+        # The last command had a problem.
+        exit 1
+      fi
+
+      # Get the latest code and make sure the fetch command works
+      git checkout -b stuff
+      git branch -D development
+      git fetch -a
+      if [ $? -ne 0 ]; then
+        # The last command had a problem.
+        exit 1
+      fi
+
+      git checkout -f development
+      git branch -D stuff
+      git status
+
+      echo -e "\nCompiling ${projectName}\n"
+      mvn clean install | tee $TMP_FILE_PATH
+
+      grep "BUILD SUCCESS" $TMP_FILE_PATH
+      if [ $? -ne 0 ]; then
+        # The last command had a problem.
+        exit 1
+      fi
+    done
+
+
+    # Loop through the non-library projects, get the latest development branch
+    for projectName in "${remainingProjectNames[@]}"; do
+      echo -e "\nGetting latest development for ${projectName}\n"
+
+      cd ${NI2_PROJECT_PATH}/${projectName}
+      if [ $? -ne 0 ]; then
+        # The last command had a problem.
+        exit 1
+      fi
+
+      # Get the latest code and make sure the fetch command works
+      git checkout -b stuff
+      git branch -D development
+      git fetch -a
+      if [ $? -ne 0 ]; then
+        # The last command had a problem.
+        exit 1
+      fi
+
+      git checkout -f development
+      git branch -D stuff
+      git status
+
+    done
+}
+
+
+
+#######################################################
+# cleanup()
+#
+# This method is always called before the script ends
+#######################################################
+function cleanup()
+{
+  	# Clean-up the tmp file
+	rm -f $TMP_FILE_PATH
+}
+
+
+# Tell bash to call cleanup() when the program ends
+# NOTE:  Whether the program crashes or succeeds, this method is the last method called
+trap cleanup EXIT
+
+
+# Run the main() function
+main
+
+
